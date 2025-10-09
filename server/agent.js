@@ -44,6 +44,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       { name: 'histogram', args: { room: 'string', table: 'string', field: 'string', bins: 'number?', start: 'number?', end: 'number?' }, desc: 'Histogram bins [{binStart,binEnd,count}]' },
       { name: 'data_gaps', args: { room: 'string', table: 'string', field: 'string', max_gap_ms: 'number', start: 'number?', end: 'number?' }, desc: 'Find gaps bigger than max_gap_ms between successive points' },
       { name: 'distinct_values', args: { room: 'string', table: 'string', field: 'string', limit: 'number?' }, desc: 'List distinct values up to limit' },
+      { name: 'weekday_exceedance', args: { room: 'string', table: 'string', field: 'string', threshold: 'number', start: 'number?', end: 'number?' }, desc: 'Counts per weekday where field > threshold. Returns [{day, total, exceed, ratio}]' },
       { name: 'fetch_table_meta', args: { room: 'string', table: 'string' }, desc: 'Get table size, ts range, and fields' },
       { name: 'dump_room', args: { room: 'string', start: 'number?', end: 'number?', max_rows_per_table: 'number?' }, desc: 'Return raw rows per table for the room (use carefully; may be large)'},
       { name: 'hour_of_day_stats', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Aggregate a field by hour-of-day across the selected window, returning [{hour, count, avg, min, max}]' },
@@ -284,7 +285,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       }
     }
     // 3) single metric mentions
-    const candidates = ['co2','voc','lux','pressure','humidity','temperature','people_count','people','pm1','pm25','pm10','nh3','h2s','value','total_kwh','energy'];
+    const candidates = ['co2','voc','lux','pressure','humidity','temperature','people_count','people','pm1','pm25','pm10','nh3','h2s','odor','odor_level','value','total_kwh','energy'];
     for (const c of candidates) {
       if (fields.length >= 2) break;
       if (q.includes(c)) {
@@ -318,6 +319,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     voc: ['volatileorganiccompounds', 'voc_level'],
     nh3: ['ammonia', 'nh_3', 'nh-3'],
     h2s: ['hydrogen_sulfide', 'hydrogensulfide', 'h_2_s', 'h-2-s'],
+    odor_level: ['odor','odour','odorlevel','smell','odor_level'],
     battery: ['battery_level', 'batt'],
     rssi: ['signal', 'signalstrength'],
     value: ['reading', 'measurement'],
@@ -2319,25 +2321,38 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
         if (!obj.chart || !obj.chart.series || !obj.chart.series.length) {
           try {
             const tablesSets = availableFieldsByTable(room);
-            const fields = parseFieldsFromQuestion(question, tablesSets);
-            if (fields.length >= 2) {
-              // Prefer scatter for 2-field comparisons
+            const ql = (question||'').toLowerCase();
+            const isHist = ql.includes('histogram') || ql.includes('distribution');
+            if (isHist) {
+              const fields = parseFieldsFromQuestion(question, tablesSets);
+              const f = fields[0] || 'odor_level';
               obj.chart = {
-                chart: { type: 'scatter' },
-                title: { text: `${fields[0]} vs ${fields[1]}` },
-                xAxis: { title: { text: fields[0] } },
-                yAxis: { title: { text: fields[1] } },
-                series: [{ name: `${fields[0]} vs ${fields[1]}`, dataRef: { tool: 'pair_timeseries', xField: 'x', yField: 'y', field1: fields[0], field2: fields[1] } }]
+                chart: { type: 'column' },
+                title: { text: `${f} distribution` },
+                xAxis: { title: { text: f } },
+                yAxis: { title: { text: 'Count' } },
+                series: [{ name: `${f} histogram`, dataRef: { tool: 'histogram', field: f, xField: 'binStart', yField: 'count' } }]
               };
-            } else if (fields.length === 1 || wantsChart(question)) {
-              const f = fields[0] || 'temperature';
-              obj.chart = {
-                chart: { type: 'line' },
-                title: { text: `${f} over time` },
-                xAxis: { type: 'datetime' },
-                yAxis: { title: { text: f } },
-                series: [{ name: f, dataRef: { tool: 'fetch_timeseries', xField: 'ts', yField: f } }]
-              };
+            } else {
+              const fields = parseFieldsFromQuestion(question, tablesSets);
+              if (fields.length >= 2) {
+                obj.chart = {
+                  chart: { type: 'scatter' },
+                  title: { text: `${fields[0]} vs ${fields[1]}` },
+                  xAxis: { title: { text: fields[0] } },
+                  yAxis: { title: { text: fields[1] } },
+                  series: [{ name: `${fields[0]} vs ${fields[1]}`, dataRef: { tool: 'pair_timeseries', xField: 'x', yField: 'y', field1: fields[0], field2: fields[1] } }]
+                };
+              } else if (fields.length === 1 || wantsChart(question)) {
+                const f = fields[0] || 'temperature';
+                obj.chart = {
+                  chart: { type: 'line' },
+                  title: { text: `${f} over time` },
+                  xAxis: { type: 'datetime' },
+                  yAxis: { title: { text: f } },
+                  series: [{ name: f, dataRef: { tool: 'fetch_timeseries', xField: 'ts', yField: f } }]
+                };
+              }
             }
           } catch (e) {
             log('Auto-chart inference failed:', String(e));
@@ -2433,6 +2448,14 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                   const t1 = findTableForField(f1);
                   const t2 = findTableForField(f2);
                   args = { room, table1: t1, field1: f1, table2: t2, field2: f2, start: (range && range.start) || undefined, end: (range && range.end) || undefined };
+                } else if (ref.tool === 'histogram') {
+                  let table = null;
+                  const roomForRef = room;
+                  const tables = loadRoomTables(roomForRef);
+                  for (const [tname, rows] of Object.entries(tables)) {
+                    if (rows.length && Object.keys(rows[0]).includes(ref.field)) { table = tname; break; }
+                  }
+                  args = { room: roomForRef, table: table || 'iaq', field: ref.field, bins: 12, start: (range && range.start) || undefined, end: (range && range.end) || undefined };
                 }
                 // Add other tool types as needed
                 missingToolCalls.push({ tool: ref.tool, args });

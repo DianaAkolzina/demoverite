@@ -3,6 +3,7 @@ import os
 import csv
 import sys
 import json
+import datetime
 from typing import List, Dict
 
 CSV_SOURCE_DIR = os.environ.get('CSV_SOURCE_DIR', 'CSVex')
@@ -47,6 +48,14 @@ def normalize_rows(rows: List[Dict[str, str]]) -> List[Dict[str, object]]:
                 else:
                     nr[k] = vv
         if nr.get('ts') is not None:
+            # Add weekday column using JavaScript convention (Sunday=0..Saturday=6)
+            try:
+                dt = datetime.datetime.utcfromtimestamp(nr['ts'] / 1000.0)
+                iso = dt.isoweekday()  # Monday=1..Sunday=7
+                js_weekday = iso % 7   # Sunday=0..Saturday=6
+                nr['weekday'] = js_weekday
+            except Exception:
+                nr['weekday'] = None
             out.append(nr)
     out.sort(key=lambda r: r.get('ts') or 0)
     return out

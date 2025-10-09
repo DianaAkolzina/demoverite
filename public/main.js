@@ -103,8 +103,7 @@ async function init() {
         const end = endEl.value ? new Date(endEl.value).getTime() : '';
         try {
           const res = await fetchJSON(`/api/series?room=${encodeURIComponent(room)}&field=${encodeURIComponent(v)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
-          const chartSidebar = document.getElementById('chart-sidebar');
-          if (chartSidebar) chartSidebar.innerHTML = '';
+          // Keep existing charts intact in the right sidebar
           const rows = res.data || [];
           const maxRows = 2000;
           const shown = rows.slice(-maxRows);
