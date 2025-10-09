@@ -221,6 +221,25 @@ async function init() {
       }, 0);
       chartSidebar.scrollTop = chartSidebar.scrollHeight;
     }
+
+    // Render any extras (background tool fetches)
+    if (Array.isArray(res.extras)) {
+      for (const ex of res.extras) {
+        if (ex && ex.message && ex.message.content) {
+          appendMessage(chatEl, 'assistant', ex.message.content, null);
+        }
+        if (ex && ex.chart) {
+          const chartSidebar = document.getElementById('chart-sidebar');
+          const chartWrap = document.createElement('div');
+          const id = nextId();
+          chartWrap.id = 'chart-' + id;
+          chartWrap.className = 'chart-msg';
+          chartSidebar.appendChild(chartWrap);
+          setTimeout(() => { try { Highcharts.chart(chartWrap.id, ex.chart); } catch (e) { console.error(e); } }, 0);
+          chartSidebar.scrollTop = chartSidebar.scrollHeight;
+        }
+      }
+    }
   }
 
   sendBtn.addEventListener('click', send);

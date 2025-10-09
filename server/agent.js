@@ -22,6 +22,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       { name: 'list_tables', args: { room: 'string' }, desc: 'List available tables in a room' },
       { name: 'get_schema', args: { room: 'string', table: 'string' }, desc: 'Get first row keys for a table' },
       { name: 'fetch_timeseries', args: { room: 'string', table: 'string', fields: 'string[]', start: 'number?', end: 'number?', limit: 'number?', after_ts: 'number?' }, desc: 'Fetch timeseries points as [{ts, field1, ...}] with optional paging using after_ts' },
+      { name: 'compare_series_cross_room', args: { series: '[{room:string,table:string,field:string,name?:string}]', start: 'number?', end: 'number?' }, desc: 'Compare arbitrary series across rooms. Returns an object of arrays keyed by series name: {"name": [{ts, y}], ...}' },
       { name: 'pair_timeseries', args: { room: 'string', table1: 'string', field1: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Pair two fields by nearest timestamps within a time window (default ±30min). Returns [{x, y, ts1, ts2, dt}] for scatter plots' },
       { name: 'compute_ratio', args: { room: 'string', table1: 'string', field1: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?', zero_if_denominator_zero: 'boolean?' }, desc: 'Compute ratio of field1/field2 with time-window matching. Returns [{ts, ratio}]. If zero_if_denominator_zero=true, returns 0 when denominator is 0, otherwise skips that point' },
       { name: 'stats', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Compute count,min,max,avg,sum' },
@@ -68,10 +69,12 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
         // Find the tool result in trace
         let toolResult = null;
         for (let i = trace.length - 1; i >= 0; i--) {
-          if (trace[i].tool === ref.tool) {
-            toolResult = trace[i].result;
-            break;
-          }
+          const t = trace[i];
+          if (t.tool !== ref.tool) continue;
+          if (ref.room && t.args && t.args.room && String(t.args.room) !== String(ref.room)) continue;
+          if (ref.yField && t.args && Array.isArray(t.args.fields) && !t.args.fields.includes(ref.yField)) continue;
+          toolResult = t.result;
+          break;
         }
         
         if (!toolResult) {
@@ -192,6 +195,17 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     d.setMinutes(0,0,0); 
     return d.getTime(); 
   }
+  function inferRoomFromText(text) {
+    try {
+      const rooms = listRooms();
+      const tl = String(text || '').toLowerCase();
+      for (const r of rooms) {
+        if (tl.includes(String(r).toLowerCase())) return r;
+      }
+    } catch {}
+    return null;
+  }
+
   
   function norm(s) { 
     return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); 
@@ -270,7 +284,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       }
     }
     // 3) single metric mentions
-    const candidates = ['co2','voc','lux','pressure','humidity','temperature','people_count','people','pm1','pm25','pm10','value','total_kwh','energy'];
+    const candidates = ['co2','voc','lux','pressure','humidity','temperature','people_count','people','pm1','pm25','pm10','nh3','h2s','value','total_kwh','energy'];
     for (const c of candidates) {
       if (fields.length >= 2) break;
       if (q.includes(c)) {
@@ -302,6 +316,8 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     pm10: ['pm_10', 'particulate10'],
     pressure: ['atmpressure', 'barometricpressure'],
     voc: ['volatileorganiccompounds', 'voc_level'],
+    nh3: ['ammonia', 'nh_3', 'nh-3'],
+    h2s: ['hydrogen_sulfide', 'hydrogensulfide', 'h_2_s', 'h-2-s'],
     battery: ['battery_level', 'batt'],
     rssi: ['signal', 'signalstrength'],
     value: ['reading', 'measurement'],
@@ -699,6 +715,25 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       }
       return out;
     },
+
+    compare_series_cross_room({ series = [], start = null, end = null }) {
+      const out = {};
+      if (!Array.isArray(series)) return out;
+      for (const s of series) {
+        if (!s || !s.room || !s.table || !s.field) continue;
+        const t = loadRoomTables(String(s.room));
+        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${s.room} ${s.field}`;
+        const points = [];
+        for (const r of arr) {
+          const y = Number(r[s.field]);
+          if (!Number.isFinite(y)) continue;
+          points.push({ ts: r.ts, y });
+        }
+        out[name] = points;
+      }
+      return out;
+    },
     
     people_total({ room, start = null, end = null }) {
       const arr = (loadRoomTables(room).people || [])
@@ -778,6 +813,25 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       return out;
     },
 
+    compare_series_cross_room({ series = [], start = null, end = null }) {
+      const out = {};
+      if (!Array.isArray(series)) return out;
+      for (const s of series) {
+        if (!s || !s.room || !s.table || !s.field) continue;
+        const t = loadRoomTables(String(s.room));
+        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${s.room} ${s.field}`;
+        const points = [];
+        for (const r of arr) {
+          const y = Number(r[s.field]);
+          if (!Number.isFinite(y)) continue;
+          points.push({ ts: r.ts, y });
+        }
+        out[name] = points;
+      }
+      return out;
+    },
+
     latest_value({ room, table, field, start = null, end = null }) {
       const t = loadRoomTables(room);
       const arr = (t[table] || []).filter(r => withinRange(r.ts, start, end));
@@ -801,6 +855,25 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       }
       return out;
     },
+
+    compare_series_cross_room({ series = [], start = null, end = null }) {
+      const out = {};
+      if (!Array.isArray(series)) return out;
+      for (const s of series) {
+        if (!s || !s.room || !s.table || !s.field) continue;
+        const t = loadRoomTables(String(s.room));
+        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${s.room} ${s.field}`;
+        const points = [];
+        for (const r of arr) {
+          const y = Number(r[s.field]);
+          if (!Number.isFinite(y)) continue;
+          points.push({ ts: r.ts, y });
+        }
+        out[name] = points;
+      }
+      return out;
+    },
     current_occupied_rooms({ threshold = 0 }) {
       const rooms = listRooms();
       const out = [];
@@ -810,6 +883,25 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
         let latest = null;
         for (let i = arr.length - 1; i >= 0; i--) { if (Number.isFinite(Number(arr[i].people_count))) { latest = Number(arr[i].people_count); break; } }
         if (latest != null && latest > threshold) out.push({ room: r, people: latest });
+      }
+      return out;
+    },
+
+    compare_series_cross_room({ series = [], start = null, end = null }) {
+      const out = {};
+      if (!Array.isArray(series)) return out;
+      for (const s of series) {
+        if (!s || !s.room || !s.table || !s.field) continue;
+        const t = loadRoomTables(String(s.room));
+        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${s.room} ${s.field}`;
+        const points = [];
+        for (const r of arr) {
+          const y = Number(r[s.field]);
+          if (!Number.isFinite(y)) continue;
+          points.push({ ts: r.ts, y });
+        }
+        out[name] = points;
       }
       return out;
     },
@@ -835,6 +927,25 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
           if (Number(row.people_count) > 0) { used = true; break; }
         }
         if (!used) out.push(r);
+      }
+      return out;
+    },
+
+    compare_series_cross_room({ series = [], start = null, end = null }) {
+      const out = {};
+      if (!Array.isArray(series)) return out;
+      for (const s of series) {
+        if (!s || !s.room || !s.table || !s.field) continue;
+        const t = loadRoomTables(String(s.room));
+        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${s.room} ${s.field}`;
+        const points = [];
+        for (const r of arr) {
+          const y = Number(r[s.field]);
+          if (!Number.isFinite(y)) continue;
+          points.push({ ts: r.ts, y });
+        }
+        out[name] = points;
       }
       return out;
     },
@@ -877,6 +988,25 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       }
       return out;
     },
+
+    compare_series_cross_room({ series = [], start = null, end = null }) {
+      const out = {};
+      if (!Array.isArray(series)) return out;
+      for (const s of series) {
+        if (!s || !s.room || !s.table || !s.field) continue;
+        const t = loadRoomTables(String(s.room));
+        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${s.room} ${s.field}`;
+        const points = [];
+        for (const r of arr) {
+          const y = Number(r[s.field]);
+          if (!Number.isFinite(y)) continue;
+          points.push({ ts: r.ts, y });
+        }
+        out[name] = points;
+      }
+      return out;
+    },
     detect_spikes({ room, table, field, z = 3, start = null, end = null }) {
       const t = loadRoomTables(room);
       const arr = (t[table] || []).filter(r => withinRange(r.ts, start, end)).map(r => Number(r[field])).filter(Number.isFinite);
@@ -886,6 +1016,25 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       const rows = (t[table] || []).filter(r => withinRange(r.ts, start, end));
       const out = [];
       for (const r of rows) { const v=Number(r[field]); if(!Number.isFinite(v)) continue; const zz=(v-mean)/sd; if (Math.abs(zz) >= z) out.push({ ts:r.ts, value:v, z:zz }); }
+      return out;
+    },
+
+    compare_series_cross_room({ series = [], start = null, end = null }) {
+      const out = {};
+      if (!Array.isArray(series)) return out;
+      for (const s of series) {
+        if (!s || !s.room || !s.table || !s.field) continue;
+        const t = loadRoomTables(String(s.room));
+        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${s.room} ${s.field}`;
+        const points = [];
+        for (const r of arr) {
+          const y = Number(r[s.field]);
+          if (!Number.isFinite(y)) continue;
+          points.push({ ts: r.ts, y });
+        }
+        out[name] = points;
+      }
       return out;
     },
     histogram({ room, table, field, bins = 10, start = null, end = null }) {
@@ -904,11 +1053,49 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       }
       return out;
     },
+
+    compare_series_cross_room({ series = [], start = null, end = null }) {
+      const out = {};
+      if (!Array.isArray(series)) return out;
+      for (const s of series) {
+        if (!s || !s.room || !s.table || !s.field) continue;
+        const t = loadRoomTables(String(s.room));
+        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${s.room} ${s.field}`;
+        const points = [];
+        for (const r of arr) {
+          const y = Number(r[s.field]);
+          if (!Number.isFinite(y)) continue;
+          points.push({ ts: r.ts, y });
+        }
+        out[name] = points;
+      }
+      return out;
+    },
     data_gaps({ room, table, field, max_gap_ms, start = null, end = null }) {
       const t = loadRoomTables(room);
       const arr = (t[table] || []).filter(r => withinRange(r.ts, start, end)).filter(r => Number.isFinite(Number(r[field])));
       const out = [];
       for (let i=1;i<arr.length;i++) { const gap = arr[i].ts - arr[i-1].ts; if (gap > max_gap_ms) out.push({ from: arr[i-1].ts, to: arr[i].ts, gap }); }
+      return out;
+    },
+
+    compare_series_cross_room({ series = [], start = null, end = null }) {
+      const out = {};
+      if (!Array.isArray(series)) return out;
+      for (const s of series) {
+        if (!s || !s.room || !s.table || !s.field) continue;
+        const t = loadRoomTables(String(s.room));
+        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${s.room} ${s.field}`;
+        const points = [];
+        for (const r of arr) {
+          const y = Number(r[s.field]);
+          if (!Number.isFinite(y)) continue;
+          points.push({ ts: r.ts, y });
+        }
+        out[name] = points;
+      }
       return out;
     },
     distinct_values({ room, table, field, limit = 50 }) {
@@ -940,6 +1127,25 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
           if (max_rows_per_table && sel.length >= max_rows_per_table) break;
         }
         out[name] = sel;
+      }
+      return out;
+    },
+
+    compare_series_cross_room({ series = [], start = null, end = null }) {
+      const out = {};
+      if (!Array.isArray(series)) return out;
+      for (const s of series) {
+        if (!s || !s.room || !s.table || !s.field) continue;
+        const t = loadRoomTables(String(s.room));
+        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${s.room} ${s.field}`;
+        const points = [];
+        for (const r of arr) {
+          const y = Number(r[s.field]);
+          if (!Number.isFinite(y)) continue;
+          points.push({ ts: r.ts, y });
+        }
+        out[name] = points;
       }
       return out;
     },
@@ -1193,6 +1399,25 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
           }
           j = bestIdx;
         }
+      }
+      return out;
+    },
+
+    compare_series_cross_room({ series = [], start = null, end = null }) {
+      const out = {};
+      if (!Array.isArray(series)) return out;
+      for (const s of series) {
+        if (!s || !s.room || !s.table || !s.field) continue;
+        const t = loadRoomTables(String(s.room));
+        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${s.room} ${s.field}`;
+        const points = [];
+        for (const r of arr) {
+          const y = Number(r[s.field]);
+          if (!Number.isFinite(y)) continue;
+          points.push({ ts: r.ts, y });
+        }
+        out[name] = points;
       }
       return out;
     },
@@ -1555,6 +1780,7 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
           const ql = question.toLowerCase();
           const isCorrelationPlot = ql.includes('correlation') && (ql.includes('plot') || ql.includes('show'));
           const isScatterPlot = ql.includes('scatter') || ql.includes('scatterplot');
+          const isCompare = ql.includes('compare') || ql.includes('vs') || ql.includes('versus');
           const isRatioQuery = question.toLowerCase().includes('per person') || 
                                question.toLowerCase().includes('per capita') ||
                                question.toLowerCase().includes('ratio');
@@ -1862,6 +2088,29 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
       }
       
       // Handle single tool call
+      // Handle multiple parallel tool calls
+      if (obj.action === 'tool_calls' && Array.isArray(obj.tools)) {
+        const results = [];
+        for (const tc of obj.tools) {
+          const tool = tc.tool;
+          const args = { ...(tc.args || {}) };
+          if (!tools[tool]) {
+            results.push({ tool, args, result: { error: `Tool ${tool} not found` } });
+            continue;
+          }
+          if (args.room == null && room) args.room = room;
+          if (args.start == null && rr.start != null) args.start = rr.start;
+          if (args.end == null && rr.end != null) args.end = rr.end;
+          let result = null;
+          try { result = tools[tool](args); } catch (e) { result = { error: String(e) }; }
+          results.push({ tool, args, result });
+          trace.push({ tool, args, result });
+          totalToolCalls += 1;
+        }
+        convo.push({ role: 'model', content: `{"tool_results": ${JSON.stringify(results).slice(0, 15000)} }` });
+        continue;
+      }
+
       if (obj.action === 'tool_call') {
         const { tool, args } = obj;
         log('Tool call:', tool, 'args:', args);
@@ -1894,11 +2143,34 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
         log('Tool result size hint:', sizeHint);
                trace.push({ tool, args, result });
         
-        // Feed back a structured tool result frame
-        convo.push({ 
-          role: 'model', 
-          content: `{"tool_result": { "tool": ${JSON.stringify(tool)}, "args": ${JSON.stringify(filledArgs)}, "result": ${JSON.stringify(result).slice(0, 10000)} }}` 
-        });
+        // If compare tool returned series, finalize immediately with a ready-to-plot chart
+        if (tool === 'compare_series_cross_room' && result && typeof result === 'object' && !Array.isArray(result)) {
+          try {
+            const entries = Object.entries(result);
+            const series = entries.map(([name, pts]) => ({
+              name,
+              data: Array.isArray(pts) ? pts.filter(p => p && p.ts != null && Number.isFinite(Number(p.y))).map(p => [Number(p.ts), Number(p.y)]) : []
+            }));
+            const any = series.some(s => s.data && s.data.length);
+            const chart = any ? {
+              chart: { type: 'line' },
+              title: { text: 'Comparison' },
+              xAxis: { type: 'datetime' },
+              yAxis: { title: { text: '' } },
+              series
+            } : null;
+            return {
+              message: { role: 'assistant', content: entries.length ? 'Compared series across rooms.' : 'No data available to compare in the selected period.' },
+              chart,
+              trace
+            };
+          } catch (e) {
+            log('compare_series_cross_room finalize failed:', String(e));
+          }
+        }
+
+        // Feed back a structured tool result frame when not finalizing
+        convo.push({ role: 'model', content: `{"tool_result": { "tool": ${JSON.stringify(tool)}, "args": ${JSON.stringify(filledArgs)}, "result": ${JSON.stringify(result).slice(0, 10000)} }}` });
         
         // If the selected window produced no data, fetch meta to help the model adapt
         if ((tool === 'fetch_timeseries' && Array.isArray(result) && result.length === 0) || 
@@ -2079,14 +2351,15 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
             if (series.dataRef) {
               const ref = series.dataRef;
               // Check if tool result is in trace
-              const found = trace.some(t => t.tool === ref.tool);
+              const found = trace.some(t => t.tool === ref.tool && (!ref.room || (t.args && String(t.args.room) === String(ref.room))));
               if (!found) {
                 // Prepare tool call args
                 let args = {};
                 if (ref.tool === 'fetch_timeseries') {
                   // Try to auto-detect the correct table for the requested field
                   let table = null;
-                  const tables = loadRoomTables(room);
+                  let roomForRef = ref.room || inferRoomFromText(series.name) || inferRoomFromText(question) || room;
+                  const tables = loadRoomTables(roomForRef);
                   for (const [tname, rows] of Object.entries(tables)) {
                     if (rows.length && Object.keys(rows[0]).includes(ref.yField)) {
                       table = tname;
@@ -2095,7 +2368,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                   }
                   // Fallback to 'iaq' if not found
                   args = {
-                    room: room,
+                    room: roomForRef,
                     table: table || 'iaq',
                     fields: [ref.yField],
                     start: (range && range.start) || undefined,
@@ -2103,7 +2376,8 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                   };
                 } else if (ref.tool === 'pair_timeseries') {
                   // Attempt to infer fields from ref or series name
-                  const tables = loadRoomTables(room);
+                  let roomForRef = ref.room || inferRoomFromText(series.name) || inferRoomFromText(question) || room;
+                  const tables = loadRoomTables(roomForRef);
                   const allFields = Object.fromEntries(Object.entries(tables).map(([t, rows]) => [t, new Set(rows.length ? Object.keys(rows[0]) : [])]));
                   // Prefer explicit ref fields if provided
                   let f1 = ref.field1, f2 = ref.field2;
@@ -2127,7 +2401,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                   const t1 = findTableForField(f1);
                   const t2 = findTableForField(f2);
                   args = {
-                    room: room,
+                    room: roomForRef,
                     table1: t1,
                     field1: f1,
                     table2: t2,
@@ -2137,7 +2411,8 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                   };
                 } else if (ref.tool === 'pair_timeseries') {
                   // Try to use ref.field1/field2 if present; otherwise infer from series name
-                  const tables = loadRoomTables(room);
+                  let roomForRef = ref.room || inferRoomFromText(series.name) || inferRoomFromText(question) || room;
+                  const tables = loadRoomTables(roomForRef);
                   const allFields = Object.fromEntries(Object.entries(tables).map(([t, rows]) => [t, new Set(rows.length ? Object.keys(rows[0]) : [])]));
                   let f1 = ref.field1, f2 = ref.field2;
                   if ((!f1 || !f2) && series && typeof series.name === 'string') {
@@ -2181,9 +2456,33 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
           log('Chart validation failed - returning without chart');
         }
 
+        // Optionally execute background tools and return as extras
+        let extras = [];
+        try {
+          if (Array.isArray(obj.background_tools)) {
+            for (const bt of obj.background_tools) {
+              const tool = bt && bt.tool;
+              const args = { ...((bt && bt.args) || {}) };
+              if (!tool || !tools[tool]) continue;
+              if (args.room == null && room) args.room = room;
+              if (args.start == null && rr.start != null) args.start = rr.start;
+              if (args.end == null && rr.end != null) args.end = rr.end;
+              let result = null;
+              try { result = tools[tool](args); } catch (e) { result = { error: String(e) }; }
+              trace.push({ tool, args, result });
+              // Build a friendly extra message
+              let extraMsg = `Fetched with ${tool}.`;
+              if (Array.isArray(result)) extraMsg = `${tool}: ${result.length} rows.`;
+              else if (result && typeof result === 'object' && typeof result.count === 'number') extraMsg = `${tool}: count=${result.count}.`;
+              extras.push({ message: { role: 'assistant', content: extraMsg }, chart: null });
+            }
+          }
+        } catch (e) { log('background_tools execution failed:', String(e)); }
+
         return {
           message: { role: 'assistant', content: obj.answer || reply },
           chart: validChart,
+          extras,
           trace
         };
         

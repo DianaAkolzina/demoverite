@@ -21,7 +21,7 @@ if (fs.existsSync(envPath)) {
 }
 
 const LLM_TEMPERATURE = Number(process.env.LLM_TEMPERATURE ?? 0.3);
-const LLM_MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 2048); // Increased from 800 to 2048
+const LLM_MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 4096); // Increased default for richer replies
 const LLM_DEBUG = (process.env.LLM_DEBUG === '1') || (process.env.LOG_LEVEL === 'debug');
 
 const USE_LLM = (process.env.USE_LLM || 'false').toLowerCase() === 'true';
@@ -763,7 +763,7 @@ const server = http.createServer(async (req, res) => {
           const fb = answerWithFallback(question, room, range || {});
           return sendJson(res, 200, { message: { role: 'assistant', content: fb.answer }, chart: fb.chart, mode: 'fallback' });
         }
-        return sendJson(res, 200, { message, chart, mode: 'agent' });
+        return sendJson(res, 200, { message, chart, extras: (agent && agent.extras) ? agent.extras : (undefined), mode: 'agent' });
       } catch (e) {
         return sendJson(res, 500, { error: 'bad_request', detail: String(e) });
       }
