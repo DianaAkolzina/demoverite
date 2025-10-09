@@ -1,0 +1,18 @@
+{
+  "name": "avmsolutions-analytics",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "import:csv": "node scripts/import_csv.js",
+    "import:weather": "node scripts/openweather_import.js",
+    "enrich:csv": "node scripts/enrich_csvs.js",
+    "docker:up": "docker build -t avmsolutions-analytics . && docker run -d --name avmsolutions-analytics -p 3000:3000 --env-file .env avmsolutions-analytics",
+    "docker:down": "docker stop avmsolutions-analytics && docker rm avmsolutions-analytics",
+    "docker:logs": "docker logs -f avmsolutions-analytics"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}

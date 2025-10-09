@@ -1,0 +1,17 @@
+.app { max-width: 960px; margin: 2rem auto; font-family: system-ui, sans-serif; }
+.controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; align-items: end; margin-bottom: .5rem; }
+label { display: flex; flex-direction: column; font-size: 12px; gap: 4px; }
+input, select, button { padding: 8px; font-size: 14px; }
+.layout { display: grid; grid-template-columns: 240px 1fr; gap: 12px; align-items: start; }
+.sidebar { border: 1px solid #e1e4e8; border-radius: 8px; padding: 10px; background: #fff; }
+.sidebar h3 { margin: 6px 0 8px; font-size: 14px; }
+.metrics-table { font-size: 12px; line-height: 1.4; }
+.metrics-table .table { margin-bottom: 8px; }
+.metrics-table .table .name { font-weight: 600; }
+.metrics-table .fields { color: #57606a; }
+.chat { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 12px; min-height: 320px; max-height: 520px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.msg { display: inline-block; padding: 8px 10px; border-radius: 8px; max-width: 75%; white-space: pre-wrap; }
+.msg.user { align-self: flex-end; background: #e6f4ff; border: 1px solid #b9e1ff; }
+.msg.assistant { align-self: flex-start; background: #f6f8fa; border: 1px solid #e1e4e8; }
+.composer { display: grid; grid-template-columns: 1fr auto; gap: .5rem; margin-top: .5rem; }
+.chart-msg { width: 100%; height: 360px; border: 1px dashed #d0d7de; border-radius: 6px; background: #fff; }

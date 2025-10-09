@@ -1,0 +1,5 @@
+node_modules
+CSVex
+csvex_enriched
+.env
+.DS_Store

@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AVM Solutions Analytics</title>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --surface-light: #334155;
+        --text: #e2e8f0;
+        --text-light: #94a3b8;
+        --accent: #3b82f6;
+        --accent-dark: #2563eb;
+        --border: #475569;
+        --shadow: rgba(0, 0, 0, 0.3);
+        --bubble-user: #2563eb;
+        --bubble-bot: #334155;
+      }
+
+      body {
+        font-family: "Inter", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+      }
+
+      .app {
+        width: 100%;
+        max-width: 1200px;
+        margin: 2rem auto;
+        background: var(--surface);
+        border-radius: 16px;
+        box-shadow: 0 4px 20px var(--shadow);
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
+        height: 90vh;
+      }
+
+      .sidebar {
+        width: 320px; /* wider sidebar */
+        min-width: 220px;
+        max-width: 400px;
+        background: var(--surface-light);
+        border-right: 1px solid var(--border);
+        padding: 1rem 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        overflow-y: auto; /* make sidebar scrollable */
+        height: 100%;
+        scrollbar-width: thin;
+        scrollbar-color: var(--accent) var(--surface-light);
+      }
+      .sidebar h2 {
+        font-size: 1.1rem;
+        color: var(--accent);
+        margin: 0 0 0.5rem 0;
+        text-align: left;
+      }
+      .series-container { max-height: calc(100vh - 280px); overflow: auto; border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: var(--surface); }
+      .series-header { margin-bottom: 6px; color: var(--text-light); }
+      .series-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      .series-table th, .series-table td { border-bottom: 1px solid var(--border); padding: 6px; text-align: left; }
+      .series-table th { position: sticky; top: 0; background: var(--surface-light); z-index: 1; }
+
+
+      .series-container { max-height: calc(100vh - 280px); overflow: auto; border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: var(--surface); }
+      .series-header { margin-bottom: 6px; color: var(--text-light); }
+      .series-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      .series-table th, .series-table td { border-bottom: 1px solid var(--border); padding: 6px; text-align: left; }
+      .series-table th { position: sticky; top: 0; background: var(--surface-light); z-index: 1; }
+      .metrics-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .metrics-list li {
+        padding: 0.4rem 0.7rem;
+        margin-bottom: 0.2rem;
+        background: var(--surface);
+        border-radius: 8px;
+        color: var(--text-light);
+        font-size: 0.98rem;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .metrics-list li:hover {
+        background: var(--accent-dark);
+        color: #fff;
+      }
+
+      .main {
+        flex: 1;
+        display: flex;
+        flex-direction: row;
+        min-width: 0;
+        height: 100%;
+      }
+
+      .main-content {
+        flex: 2;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        height: 100%;
+      }
+
+      .charts-sidebar {
+        flex: 1.3;
+        min-width: 400px;
+        max-width: 600px;
+        background: var(--surface-light);
+        border-left: 1px solid var(--border);
+        padding: 1rem 0.5rem;
+        overflow-y: auto; /* keeps infinite scroll */
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        flex-shrink: 0; /* prevent sidebar itself from shrinking */
+        scrollbar-width: thin;
+        scrollbar-color: var(--accent) var(--surface-light);
+      }
+
+      .charts-sidebar > div {
+        flex: 0 0 auto; /* prevent individual charts from shrinking */
+        height: 400px;  /* fixed height for each chart (adjust as needed) */
+      }
+      /* Optional: Style the scrollbar for better visibility */
+      .charts-sidebar::-webkit-scrollbar {
+        width: 8px;
+      }
+      .charts-sidebar::-webkit-scrollbar-thumb {
+        background: var(--accent);
+        border-radius: 4px;
+      }
+      .charts-sidebar::-webkit-scrollbar-track {
+        background: var(--surface-light);
+      }
+
+      h1 {
+        text-align: center;
+        padding: 1rem 0;
+        margin: 0;
+        color: var(--accent);
+        background: var(--surface-light);
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        font-size: 1.3rem;
+      }
+
+      .header {
+        display: flex;
+        align-items: flex-start;
+        gap: 2rem;
+        padding: 0.75rem 1rem;
+        background: var(--surface-light);
+        border-bottom: 1px solid var(--border);
+        justify-content: flex-start;
+      }
+      .header .room-select {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .header .date-selectors {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .header label {
+        color: var(--text-light);
+        font-size: 0.95rem;
+        margin-right: 0.5rem;
+      }
+      .header select,
+      .header input[type="datetime-local"] {
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.3rem 0.7rem;
+        font-size: 1rem;
+      }
+
+      .chat {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem 1rem 1rem 1rem;
+        background: var(--surface-light);
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 0;
+      }
+
+      .message {
+        max-width: 80%;
+        padding: 0.75rem 1.1rem;
+        border-radius: 18px;
+        line-height: 1.5;
+        word-wrap: break-word;
+        position: relative;
+        margin-bottom: 0.5rem;
+        animation: fadeIn 0.3s ease-in-out;
+        font-size: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      }
+
+      .message.user {
+        background: var(--bubble-user);
+        color: #fff;
+        align-self: flex-end;
+        border-bottom-right-radius: 6px;
+        margin-left: auto;
+      }
+      .message.user::after {
+        content: "";
+        position: absolute;
+        right: -10px;
+        bottom: 0;
+        width: 0;
+        height: 0;
+        border-top: 12px solid var(--bubble-user);
+        border-left: 12px solid transparent;
+      }
+
+      .message.bot {
+        background: var(--bubble-bot);
+        color: var(--text);
+        align-self: flex-start;
+        border-bottom-left-radius: 6px;
+        margin-right: auto;
+      }
+      .message.bot::after {
+        content: "";
+        position: absolute;
+        left: -10px;
+        bottom: 0;
+        width: 0;
+        height: 0;
+        border-top: 12px solid var(--bubble-bot);
+        border-right: 12px solid transparent;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px);}
+        to { opacity: 1; transform: translateY(0);}
+      }
+
+      .composer {
+        display: flex;
+        gap: 0.5rem;
+        padding: 1rem;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+      }
+
+      .composer input {
+        flex: 1;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        padding: 0.75rem 1rem;
+        background: var(--surface-light);
+        color: var(--text);
+        font-size: 1rem;
+      }
+
+      .composer input::placeholder {
+        color: var(--text-light);
+      }
+
+      .composer button {
+        background: var(--accent-dark);
+        color: white;
+        border: none;
+        border-radius: 18px;
+        padding: 0 1.5rem;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .composer button:hover {
+        background: var(--accent);
+      }
+
+      .chart-msg {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      }
+      .chart-title {
+        font-size: 1.08rem;
+        color: var(--accent-dark);
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+      }
+
+      /* Chat content formatting */
+      .message.bot h1, .message.bot h2, .message.bot h3 { margin: 0.25rem 0; color: var(--text); }
+      .message.bot ul { margin: 0.25rem 0 0.25rem 1.2rem; }
+      .message.bot code { background: #0b1220; color: #e2e8f0; padding: 2px 6px; border-radius: 4px; }
+      .message.bot pre { background: #0b1220; color: #e2e8f0; padding: 8px 10px; border-radius: 6px; overflow: auto; }
+      .message.bot blockquote { border-left: 3px solid var(--accent); margin: 6px 0; padding: 4px 8px; color: var(--text-light); }
+
+      /* Metrics accordion styling */
+      .metrics-accordion { display: flex; flex-direction: column; gap: 8px; }
+      .metric-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+      .metric-item > summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+      .metric-item[open] { border-color: var(--accent); }
+      .fields-inline { display: flex; flex-wrap: wrap; gap: 6px; }
+      .pill { background: var(--surface-light); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; font-size: 12px; color: var(--text-light); }
+      .badge { background: #0b1220; border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; font-size: 12px; color: var(--text-light); }
+      .badge.inrange { background: #0d1b31; color: #c7e0ff; border-color: #1e3a8a; }
+      .metric-body { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+      .field-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; font-size: 13px; color: var(--text-light); }
+      .field-row .field { color: var(--text); }
+
+      /* Optional: Style the sidebar scrollbar for visibility */
+      .sidebar::-webkit-scrollbar {
+        width: 8px;
+      }
+      .sidebar::-webkit-scrollbar-thumb {
+        background: var(--accent);
+        border-radius: 4px;
+      }
+      .sidebar::-webkit-scrollbar-track {
+        background: var(--surface-light);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="sidebar">
+        <h2>Metrics</h2>
+        <ul class="metrics" id="metrics">
+          <!-- Metrics will be loaded dynamically -->
+        </ul>
+      </div>
+      <div class="main">
+        <div class="main-content">
+          <h1>AVM Solutions Analytics</h1>
+          <div class="header">
+            <div class="room-select">
+              <label for="room">Room:</label>
+              <select id="room">
+                <option value="cafe">Cafe</option>
+                <option value="office">Office</option>
+                <!-- Add more rooms dynamically -->
+              </select>
+            </div>
+            <div class="date-selectors">
+              <div>
+                <label for="start">Start:</label>
+                <input type="datetime-local" id="start" />
+              </div>
+              <div>
+                <label for="end">End:</label>
+                <input type="datetime-local" id="end" />
+              </div>
+            </div>
+          </div>
+          <div id="selected-range" style="padding: 0.5rem 1rem; background: var(--surface-light); color: var(--text-light); font-size: 0.98rem;">
+            <!-- JS will fill this with the selected time window -->
+          </div>
+          <div class="chat" id="chat">
+            <div class="message bot">
+              Ask me anything about your building metrics!
+            </div>
+          </div>
+          <div class="composer">
+            <input
+              id="input"
+              type="text"
+              placeholder="Type a question (e.g., Is Room A unoccupied and over 21°C?)"
+            />
+            <button id="send">Send</button>
+          </div>
+        </div>
+        <div class="charts-sidebar" id="chart-sidebar">
+          <!-- Charts will be rendered here, stacked vertically -->
+        </div>
+      </div>
+    </div>
+    
+    <script src="/main.js" type="module"></script>
+  </body>
+</html>
