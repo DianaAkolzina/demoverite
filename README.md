@@ -97,6 +97,30 @@ Weather (optional):
 LLM (optional):
 - `USE_LLM=true`, `LLM_PROVIDER=gemini`, `GEMINI_API_KEY=...`, `LLM_TEMPERATURE`, see `server/index.js`
 
+Graph / Vector:
+- Neo4j (Graph) for topology/tenant scoping — REQUIRED
+  - External (recommended, e.g. Aura over TLS):
+    - `NEO4J_URI=neo4j+s://<instance>.databases.neo4j.io`
+    - `NEO4J_USERNAME=neo4j`
+    - `NEO4J_PASSWORD=...`
+    - `NEO4J_DATABASE=neo4j`
+  - Local (via docker-compose `neo4j` service):
+    - Run `docker compose up` to start `neo4j:5-community`.
+    - Set in `.env`: `NEO4J_URI=bolt://neo4j:7687`, `NEO4J_USERNAME=neo4j`, `NEO4J_PASSWORD` to match `NEO4J_AUTH` in compose (default `test`).
+    - From host: http://localhost:7474 (Browser), `bolt://localhost:7687` (Bolt).
+  - On startup, the server waits for Neo4j to be ready and runs `scripts/populate_neo4j.js` (idempotent MERGEs). To skip seeding, set `NEO4J_SKIP_POPULATE=1`.
+- Chroma (Vector) for doc/profile embeddings — optional
+  - Set `CHROMA_URL` based on how you run:
+    - Local host: `CHROMA_URL=http://localhost:8000`
+    - Docker Compose (uses the `chroma` service name): `CHROMA_URL=http://chroma:8000`
+  - On startup, the server checks Chroma heartbeat and, if reachable, indexes knowledge/profiles via `scripts/index_chroma_http.py` (falls back to client indexer). To skip indexing, set `CHROMA_SKIP_INDEX=1`.
+
+Notes:
+- The app now REQUIRES Neo4j. Startup fails fast if Neo4j env is missing or the database is unreachable.
+- In Docker, Node.js dependencies (including `neo4j-driver`) are installed during the image build so graph features work when env is set.
+- New endpoints: `/api/status` (datastore health/metrics), `/api/graph/summary?zoneType=Cafe|Boardroom|Lab|Toilet`.
+- UI: Sidebar shows datastore status and a mini graph summary (device counts per selected room type).
+
 ## Data Requirements
 
 Per‑room CSVs with `ts` in epoch milliseconds. Examples:
@@ -183,3 +207,8 @@ This removes common comment patterns from .js, .ts, .py, .sh, .css, .html (exclu
   - Weather fetch is skipped; app still runs.
 - Empty charts:
   - Add CSVs to `CSVex/<room>` and restart to re‑ingest.
+ - Chroma errors or timeouts:
+   - Ensure `docker compose up chroma` is running, or run a local Chroma container exposing `8000`.
+   - Set `CHROMA_URL` correctly for your mode (localhost vs docker compose).
+   - The indexer downloads a SentenceTransformers model; if your environment blocks outbound network, set `CHROMA_SKIP_INDEX=1` to start the app without indexing, or pre‑bake the model into the image/mount a cache.
+   - Check `/api/status` — it now reports `chroma.reachable` to confirm connectivity.

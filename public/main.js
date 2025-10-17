@@ -75,7 +75,7 @@ function appendMessage(container, role, text, chartOptions) {
 }
 
 async function init() {
-  const roomSel = document.getElementById('room');
+  // Room selection is now driven by graph (no dropdown)
   const startEl = document.getElementById('start');
   const endEl = document.getElementById('end');
   const chatEl = document.getElementById('chat');
@@ -83,6 +83,41 @@ async function init() {
   const sendBtn = document.getElementById('send');
   const metricsEl = document.getElementById('metrics');
   const sidebar = document.querySelector('.sidebar');
+  const statusEl = document.getElementById('status-card');
+  const toggleGraphBtn = document.getElementById('toggle-graph');
+  const toggleChartsBtn = document.getElementById('toggle-charts');
+  // graphSummaryEl removed (no sidebar graph summary)
+  const graphViewTitle = document.getElementById('graph-view-title');
+  const graphViewChartId = 'graph-view-chart';
+  const scopePillEl = document.getElementById('scope-pill');
+  const confirmBtn = document.getElementById('confirm-scope');
+  const clearBtn = document.getElementById('clear-scope');
+  const selection = { building: null, floor: null, room: null };
+  window.selection = selection;
+  let selectionConfirmed = false;
+  let graphLevel = 'buildings';
+
+  // Toggle handlers for visibility
+  const graphView = document.getElementById('graph-view');
+  const chartsSidebar = document.getElementById('chart-sidebar');
+  if (toggleGraphBtn) toggleGraphBtn.addEventListener('click', () => {
+    if (!graphView) return;
+    const shown = graphView.style.display !== 'none';
+    graphView.style.display = shown ? 'none' : 'flex';
+    if (!shown) refreshGraphView();
+  });
+  if (toggleChartsBtn) toggleChartsBtn.addEventListener('click', () => {
+    if (!chartsSidebar) return;
+    chartsSidebar.classList.toggle('hidden');
+  });
+
+  function renderScopePill() {
+    const parts = [];
+    if (selection.building) parts.push(`Building: ${selection.building}`);
+    if (selection.floor) parts.push(`Floor: ${selection.floor}`);
+    if (selection.room) parts.push(`Room: ${selection.room}`);
+    if (scopePillEl) scopePillEl.textContent = parts.length ? (selectionConfirmed ? '✔ ' : '') + parts.join(' · ') : 'No scope selected';
+  }
 
   function ensureMetricsDropdown() {
     let dd = document.getElementById('metrics-dropdown');
@@ -98,7 +133,8 @@ async function init() {
         if (!v) return;
         inputEl.value = v;
         metricsEl.style.display = '';
-        const room = roomSel.value;
+        const room = selection.room || '';
+        if (!room) { metricsEl.textContent = 'Select a room from the graph to load metrics.'; return; }
         const start = startEl.value ? new Date(startEl.value).getTime() : '';
         const end = endEl.value ? new Date(endEl.value).getTime() : '';
         try {
@@ -118,12 +154,7 @@ async function init() {
     return dd;
   }
 
-  try {
-    const { rooms } = await fetchJSON('/api/rooms');
-    roomSel.innerHTML = rooms.map(r => `<option>${r}</option>`).join('');
-  } catch {
-    roomSel.innerHTML = '';
-  }
+  // No room dropdown to populate
 
   const now = new Date();
   const start = new Date(now);
@@ -144,7 +175,7 @@ async function init() {
 
   async function refreshMetrics() {
     metricsEl.innerHTML = 'Loading…';
-    const room = roomSel.value;
+    const room = selection.room || 'ALL';
     if (!room) { metricsEl.textContent = 'Select a room'; return; }
     try {
       const s = startEl.value ? new Date(startEl.value).getTime() : '';
@@ -166,7 +197,7 @@ async function init() {
   }
 
   async function send() {
-    const room = roomSel.value;
+    const room = selection.room || '';
     const start = startEl.value ? new Date(startEl.value).getTime() : null;
     const end = endEl.value ? new Date(endEl.value).getTime() : null;
     const content = inputEl.value.trim();
@@ -177,10 +208,12 @@ async function init() {
 
     appendMessage(chatEl, 'assistant', 'Thinking…');
 
+    const payload = { messages, room, range: { start, end } };
+    if (selection.building || selection.floor || selection.room) payload.selection = selection;
     const res = await fetchJSON('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, room, range: { start, end } })
+      body: JSON.stringify(payload)
     }).catch(e => ({ error: String(e) }));
 
     // Remove the placeholder last assistant message
@@ -241,14 +274,131 @@ async function init() {
     }
   }
 
+  async function refreshStatus() {
+    try {
+      const st = await fetchJSON('/api/status');
+      const neo = st.neo4j || {}; const vec = st.chroma || {};
+      statusEl.innerHTML = `
+        <div><b>Neo4j:</b> ${neo.connected ? 'Connected' : 'Not connected'}</div>
+        <div style="font-size: 12px; color: ${neo.connected ? '#9ca3af' : '#ef4444'};">nodes: ${neo.nodes ?? '—'}, rels: ${neo.relationships ?? '—'}, tenants: ${neo.tenants ?? '—'}, zones: ${neo.zones ?? '—'}, devices: ${neo.devices ?? '—'}</div>
+        <div style="margin-top:6px;"><b>Chroma:</b> ${vec.configured ? 'Configured' : 'Not configured'}</div>
+      `;
+    } catch (e) {
+      statusEl.textContent = 'Status unavailable';
+    }
+  }
+
+  // Removed small graph summary in sidebar
+
+  // roomToZoneType removed (no longer needed in UI)
+
+  async function refreshGraphView() {
+    // Title stays static with buttons
+    try {
+      const g = await fetchJSON(`/api/graph/full`);
+      const allLinks = (g.links || []).map(e => [e.source, e.target, e.rel]);
+      const colorMap = { Building: '#3b82f6', Floor: '#f59e0b', Zone: '#22c55e', Device: '#8b5cf6', MetricType: '#14b8a6' };
+      const allNodes = (g.nodes || []).map(n => ({ id: n.id, name: n.name, roomId: n.roomId || null, nodeType: n.nodeType || n.label, marker: { radius: n.nodeType==='Building' ? 12 : (n.nodeType==='Zone' ? 9 : 6) }, color: colorMap[n.nodeType || n.label] || undefined }));
+
+      function filterView() {
+        const nodes = [];
+        const links = [];
+        const addNode = (id) => { if (!nodes.find(n => n.id===id)) { const nn = allNodes.find(n=>n.id===id); if (nn) nodes.push(nn);} };
+        const addLink = (a,b) => { if (a && b) links.push([a,b]); };
+        const buildings = allNodes.filter(n=>n.nodeType==='Building');
+        const floors = allNodes.filter(n=>n.nodeType==='Floor');
+        const zones = allNodes.filter(n=>n.nodeType==='Zone');
+        if (graphLevel==='buildings') {
+          buildings.forEach(n=>addNode(n.id));
+        } else if (graphLevel==='floors' && selection.building) {
+          const b = buildings.find(n=>n.name===selection.building);
+          if (b) addNode(b.id);
+          allLinks.filter(l=>l[2]==='BELONGS_TO_BUILDING').forEach(([from,to])=>{ if (b && to===b.id) { addNode(from); addLink(from,to);} });
+        } else if (graphLevel==='rooms' && selection.building && selection.floor) {
+          const b = buildings.find(n=>n.name===selection.building);
+          const f = floors.find(n=>n.name===selection.floor);
+          if (b) addNode(b.id);
+          if (f) { addNode(f.id); addLink(f.id, b?b.id:null); }
+          allLinks.filter(l=>l[2]==='BELONGS_TO_FLOOR').forEach(([from,to])=>{ if (f && to===f.id) { addNode(from); addLink(from,to);} });
+        } else if (graphLevel==='devices' && selection.room) {
+          const z = zones.find(n=>n.roomId===selection.room);
+          if (z) addNode(z.id);
+          allLinks.filter(l=>l[2]==='LOCATED_IN_ZONE').forEach(([from,to])=>{ if (z && to===z.id) { addNode(from); addLink(from,to);} });
+          allLinks.filter(l=>l[2]==='BELONGS_TO_FLOOR').forEach(([from,to])=>{ if (z && from===z.id) { addNode(to); addLink(from,to);} });
+          const floorId = nodes.find(n=>n.nodeType==='Floor')?.id;
+          if (floorId) allLinks.filter(l=>l[2]==='BELONGS_TO_BUILDING').forEach(([from,to])=>{ if (from===floorId) { addNode(to); addLink(from,to);} });
+        } else {
+          allNodes.forEach(n=>addNode(n.id));
+          allLinks.forEach(([a,b])=>addLink(a,b));
+        }
+        return { nodes, links };
+      }
+      const view = filterView();
+      const nodes = view.nodes;
+      const links = view.links;
+      Highcharts.chart(graphViewChartId, {
+        chart: { type: 'networkgraph', backgroundColor: 'transparent' },
+        title: { text: null },
+        tooltip: { formatter() { return `${this.point.nodeType||''}: ${this.point.name||this.point.id}`; } },
+        plotOptions: {
+          networkgraph: {
+            keys: ['from', 'to'],
+            layoutAlgorithm: { enableSimulation: true, friction: -0.9, linkLength: 100 }
+          },
+          series: {
+            point: {
+              events: {
+                click: function () {
+                  const p = this;
+                  if (p.nodeType === 'Building') {
+                    selection.building = p.name; selection.floor = null; selection.room = null; selectionConfirmed = false; graphLevel='floors';
+                  } else if (p.nodeType === 'Floor') {
+                    selection.floor = p.name; selectionConfirmed = false; graphLevel='rooms';
+                  } else if (p.nodeType === 'Zone' && p.roomId) {
+                    selection.room = p.roomId; selectionConfirmed = false; graphLevel='devices';
+                  } else if (p.nodeType === 'Device') {
+                    const rel = links.find(l => l[0]===p.id || l[1]===p.id);
+                    const other = rel ? (rel[0]===p.id ? rel[1] : rel[0]) : null;
+                    const zone = nodes.find(n => n.id === other && n.nodeType==='Zone');
+                    if (zone && zone.roomId) { selection.room = zone.roomId; selectionConfirmed = false; }
+                  }
+                  renderScopePill();
+                  updateSelectedRangeDisplay();
+                  refreshMetrics();
+                  refreshGraphView();
+                }
+              }
+            }
+          }
+        },
+        series: [{
+          dataLabels: { enabled: true, linkFormat: '', style: { color: '#cbd5e1', textOutline: 'none' } },
+          data: links,
+          nodes
+        }],
+        credits: { enabled: false }
+      });
+    } catch (e) {
+      document.getElementById(graphViewChartId).innerHTML = '<div style="color:#94a3b8">Graph view unavailable</div>';
+    }
+  }
+
   sendBtn.addEventListener('click', send);
   inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
-  roomSel.addEventListener('change', refreshMetrics);
-  startEl.addEventListener('change', refreshMetrics);
-  endEl.addEventListener('change', refreshMetrics);
+  // No room dropdown; graph interactions drive selection
+  startEl.addEventListener('change', () => { updateSelectedRangeDisplay(); refreshMetrics(); });
+  endEl.addEventListener('change', () => { updateSelectedRangeDisplay(); refreshMetrics(); });
 
   // initial metrics load
+  updateSelectedRangeDisplay();
   refreshMetrics();
+  refreshStatus();
+  // Removed graph summary
+  refreshGraphView();
+  setInterval(refreshStatus, 30000);
+  // Confirm/Clear scope controls
+  if (confirmBtn) confirmBtn.addEventListener('click', () => { selectionConfirmed = !!(selection.building || selection.floor || selection.room); renderScopePill(); });
+  if (clearBtn) clearBtn.addEventListener('click', () => { selection.building=null; selection.floor=null; selection.room=null; selectionConfirmed=false; graphLevel='buildings'; renderScopePill(); refreshGraphView(); });
 }
 
 function formatDateLocal(ts) {
@@ -264,20 +414,17 @@ function formatDateUTC(ts) {
 function updateSelectedRangeDisplay() {
   const startEl = document.getElementById('start');
   const endEl = document.getElementById('end');
-  const roomSel = document.getElementById('room');
   const rangeDiv = document.getElementById('selected-range');
   const start = startEl.value ? new Date(startEl.value).getTime() : null;
   const end = endEl.value ? new Date(endEl.value).getTime() : null;
+  const sel = (window && window.selection) ? window.selection : { building: null, floor: null, room: null };
   rangeDiv.innerHTML = `
-    <b>Room:</b> ${roomSel.value}<br>
+    <b>Scope:</b> ${sel.building ? 'Building '+sel.building : '—'} ${sel.floor ? ' · Floor '+sel.floor : ''} ${sel.room ? ' · Room '+sel.room : ''}<br>
     <b>Start:</b> ${formatDateLocal(start)} <span style="color:#3b82f6;">(UTC: ${formatDateUTC(start)})</span><br>
     <b>End:</b> ${formatDateLocal(end)} <span style="color:#3b82f6;">(UTC: ${formatDateUTC(end)})</span>
   `;
 }
-document.getElementById('room').addEventListener('change', updateSelectedRangeDisplay);
-document.getElementById('start').addEventListener('change', updateSelectedRangeDisplay);
-document.getElementById('end').addEventListener('change', updateSelectedRangeDisplay);
-updateSelectedRangeDisplay();
+// Listeners are attached in init(); initial render is also triggered there
 
 async function loadRoomMetrics(room) {
   // Try room-specific JSON first, fallback to global data

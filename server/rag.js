@@ -68,16 +68,69 @@ function buildTfidfIndex(docs, { debug = false } = {}) {
 export function buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir }) {
   const docs = [];
   let id = 0;
-  
-  // Knowledge
+
+  // Helpers: walk knowledge directory recursively, parse front-matter, chunk by headings
+  function walk(dir) {
+    const out = [];
+    if (!dir || !fs.existsSync(dir)) return out;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) out.push(...walk(path.join(dir, entry.name)));
+      else out.push(path.join(dir, entry.name));
+    }
+    return out;
+  }
+
+  function parseFrontMatter(text) {
+    const m = text.match(/^---\n([\s\S]*?)\n---\n/);
+    if (!m) return { meta: {}, body: text };
+    const yaml = m[1];
+    const meta = {};
+    for (const line of yaml.split(/\r?\n/)) {
+      const mm = line.match(/^([A-Za-z0-9_\-]+):\s*(.*)$/);
+      if (mm) meta[mm[1].trim()] = mm[2].trim();
+    }
+    return { meta, body: text.slice(m[0].length) };
+  }
+
+  function chunkByHeadings(text, { maxLen = 1200 } = {}) {
+    // Split on ATX headings and keep them with their section; fallback to fixed-size
+    const parts = text.split(/^#{1,6}\s.+$/m);
+    if (parts.length <= 1) {
+      const chunks = [];
+      for (let i = 0; i < text.length; i += maxLen) chunks.push(text.slice(i, i + maxLen));
+      return chunks;
+    }
+    // A more robust approach: iterate lines
+    const lines = text.split(/\r?\n/);
+    const chunks = [];
+    let cur = [];
+    for (const ln of lines) {
+      if (/^#{1,6}\s+/.test(ln) && cur.join('\n').length >= maxLen) {
+        chunks.push(cur.join('\n'));
+        cur = [ln];
+      } else {
+        cur.push(ln);
+        if (cur.join('\n').length >= maxLen) {
+          chunks.push(cur.join('\n'));
+          cur = [];
+        }
+      }
+    }
+    if (cur.length) chunks.push(cur.join('\n'));
+    return chunks;
+  }
+
+  // Knowledge (recursive)
   if (knowledgeDir && fs.existsSync(knowledgeDir)) {
-    for (const f of fs.readdirSync(knowledgeDir)) {
-      if (!/(\.md|\.txt)$/i.test(f)) continue;
-      const text = fs.readFileSync(path.join(knowledgeDir, f), 'utf8');
-      // chunk
-      for (let i = 0; i < text.length; i += 1200) {
-        const chunk = text.slice(i, i + 1200);
-        docs.push({ id: `k_${id++}`, text: chunk, meta: { type: 'knowledge', file: f } });
+    const files = walk(knowledgeDir).filter(f => /\.(md|txt)$/i.test(f));
+    for (const abs of files) {
+      const rel = path.relative(knowledgeDir, abs);
+      const category = path.dirname(rel) === '.' ? null : path.dirname(rel);
+      const raw = fs.readFileSync(abs, 'utf8');
+      const { meta: fm, body } = parseFrontMatter(raw);
+      const chunks = chunkByHeadings(body, { maxLen: 1400 });
+      for (const c of chunks) {
+        docs.push({ id: `k_${id++}`, text: c, meta: { type: 'knowledge', file: rel, category, ...fm } });
       }
     }
   }

@@ -2,7 +2,10 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import url from 'url';
+import { spawn } from 'child_process';
 import { createAgent } from './agent.js';
+import { createGraphFromEnv } from './graph.js';
+import { createVectorClient } from './vector.js';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -16,7 +19,13 @@ if (fs.existsSync(envPath)) {
   const raw = fs.readFileSync(envPath, 'utf8');
   raw.split(/\r?\n/).forEach((line) => {
     const m = line.match(/^([^#=]+)=(.*)$/);
-    if (m) process.env[m[1].trim()] = m[2];
+    if (m) {
+      const key = m[1].trim();
+      // Respect existing env (e.g., runtime overrides) instead of clobbering
+      if (process.env[key] == null || process.env[key] === '') {
+        process.env[key] = m[2];
+      }
+    }
   });
 }
 
@@ -62,6 +71,124 @@ function serveStatic(req, res) {
 
 function readJsonSafe(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
+}
+
+async function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+async function runCmd(cmd, args, env = process.env) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(cmd, args, { stdio: 'inherit', env });
+    p.on('exit', (code) => {
+      if (code === 0) resolve(); else reject(new Error(`${cmd} ${args.join(' ')} exited ${code}`));
+    });
+    p.on('error', reject);
+  });
+}
+
+async function neo4jVerifyConnectivityFromEnv(env = process.env) {
+  const uri = env.NEO4J_URI;
+  const username = env.NEO4J_USERNAME;
+  const password = env.NEO4J_PASSWORD;
+  const database = env.NEO4J_DATABASE || 'neo4j';
+  try {
+    const neo4j = await import('neo4j-driver').then(m => m.default || m).catch(() => null);
+    if (!neo4j) return false;
+    const driver = neo4j.driver(uri, neo4j.auth.basic(username, password), {
+      connectionTimeout: 15000
+    });
+    try {
+      await driver.verifyConnectivity({ database });
+      return true;
+    } finally {
+      await driver.close();
+    }
+  } catch {
+    return false;
+  }
+}
+
+async function ensureDatastores() {
+  if ((process.env.NEO4J_SKIP_CHECK || '0') === '1') {
+    console.warn('[startup] Skipping Neo4j readiness check (NEO4J_SKIP_CHECK=1)');
+    return;
+  }
+  // Neo4j is REQUIRED
+  const { NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD } = process.env;
+  if (!NEO4J_URI || !NEO4J_USERNAME || !NEO4J_PASSWORD) {
+    console.error('[startup] Neo4j env missing. Set NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD');
+    process.exit(1);
+  }
+  let ok = false; let attempts = 0; const maxAttempts = Number(process.env.NEO4J_WAIT_ATTEMPTS || 150); // ~5 minutes at 2s
+  while (!ok && attempts < maxAttempts) {
+    attempts++;
+    try {
+      // Prefer direct verifyConnectivity (avoids cypher permissions/DB name mismatches)
+      ok = await neo4jVerifyConnectivityFromEnv(process.env);
+      if (!ok) {
+        if (attempts % 5 === 0) console.log(`[startup] Waiting for Neo4j... attempt ${attempts}/${maxAttempts}`);
+        await wait(2000);
+      }
+    } catch {
+      await wait(2000);
+    }
+  }
+  if (!ok) {
+    if ((process.env.NEO4J_ALLOW_DEGRADED || '0') === '1') {
+      console.error('[startup] Neo4j not reachable after waiting. Continuing in degraded mode.');
+    } else {
+      console.error('[startup] Neo4j not reachable after waiting. Exiting.');
+      process.exit(1);
+    }
+  }
+  if ((process.env.NEO4J_FORCE_POPULATE || '0') === '1' || (process.env.NEO4J_SKIP_POPULATE || '0') !== '1') {
+    console.log('[startup] Populating Neo4j graph…');
+    await runCmd('node', ['scripts/populate_neo4j.js']);
+  }
+  // After Neo4j is reachable (and optionally populated), capture a lightweight graph snapshot for agent tools
+  try {
+    const g = createGraphFromEnv(process.env);
+    if (g && g.fullHierarchy) {
+      const snap = await g.fullHierarchy();
+      const outDir = path.join(root, 'data');
+      try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
+      const snapPath = path.join(outDir, 'graph_snapshot.json');
+      fs.writeFileSync(snapPath, JSON.stringify({ generatedAt: Date.now(), ...snap }, null, 2));
+      if (process.env.HTTP_DEBUG === '1' || process.env.LOG_LEVEL === 'debug') {
+        console.log('[startup] Wrote graph snapshot to', snapPath, 'nodes', (snap.nodes||[]).length, 'links', (snap.links||[]).length);
+      }
+    }
+  } catch (e) {
+    console.warn('[startup] Graph snapshot failed:', String(e));
+  }
+  if (process.env.CHROMA_URL && (process.env.CHROMA_SKIP_INDEX || '0') !== '1') {
+    const base = String(process.env.CHROMA_URL).replace(/\/$/, '');
+    async function chromaReachable() {
+      try {
+        const r = await fetch(base + '/api/v2/heartbeat', { method: 'GET' }).catch(() => null);
+        if (r && r.ok) return true;
+      } catch {}
+      try {
+        const r2 = await fetch(base + '/api/v1/heartbeat', { method: 'GET' }).catch(() => null);
+        if (r2 && r2.ok) return true;
+      } catch {}
+      return false;
+    }
+    const ok = await chromaReachable();
+    if (!ok) {
+      console.warn('[startup] CHROMA_URL set but Chroma not reachable at', base, '- skipping indexing.');
+    } else {
+      try {
+        console.log('[startup] Indexing Chroma (HTTP)…');
+        await runCmd('python3', ['scripts/index_chroma_http.py']);
+      } catch (e) {
+        console.error('[startup] Chroma HTTP indexing failed, trying client-based indexer:', String(e));
+        try {
+          await runCmd('python3', ['scripts/index_chroma.py']);
+        } catch (e2) {
+          console.error('[startup] Chroma indexing failed (continuing):', String(e2));
+        }
+      }
+    }
+  }
 }
 
 function listRooms() {
@@ -608,9 +735,13 @@ function answerWithFallback(question, room, range) {
   return { answer, chart };
 }
 
+const DEBUG_HTTP = (process.env.HTTP_DEBUG === '1') || (process.env.LOG_LEVEL === 'debug');
 const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url, true);
   const { pathname, query } = parsed;
+  if (DEBUG_HTTP) {
+    console.log(`[HTTP] ${req.method} ${pathname} ${Object.keys(query).length ? JSON.stringify(query) : ''}`);
+  }
 
   if (pathname === '/api/rooms' && req.method === 'GET') {
     return sendJson(res, 200, { rooms: listRooms() });
@@ -619,6 +750,35 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/weather' && req.method === 'GET') {
     const weather = loadWeather();
     return sendJson(res, 200, { count: weather.length, latest: weather.at(-1) || null });
+  }
+
+  if (pathname === '/api/status' && req.method === 'GET') {
+    try {
+      const g = createGraphFromEnv(process.env);
+      const gstats = g && g.stats ? await g.stats() : { error: 'no_graph' };
+      const neo4jConnected = !gstats.error;
+      const vConfigured = !!(process.env.CHROMA_URL);
+      let vReachable = false;
+      if (vConfigured) {
+        const base = String(process.env.CHROMA_URL).replace(/\/$/, '');
+        try {
+          const r = await fetch(base + '/api/v2/heartbeat').catch(() => null);
+          vReachable = !!(r && r.ok);
+        } catch {}
+        if (!vReachable) {
+          try {
+            const r2 = await fetch(base + '/api/v1/heartbeat').catch(() => null);
+            vReachable = !!(r2 && r2.ok);
+          } catch {}
+        }
+      }
+      return sendJson(res, 200, {
+        neo4j: { connected: neo4jConnected, ...gstats },
+        chroma: { configured: vConfigured, reachable: vReachable }
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'status_failed', detail: String(e) });
+    }
   }
 
   if (pathname === '/api/schema' && req.method === 'GET') {
@@ -633,6 +793,46 @@ const server = http.createServer(async (req, res) => {
       return [k, metrics];
     }));
     return sendJson(res, 200, { schema });
+  }
+
+  if (pathname === '/api/graph/summary' && req.method === 'GET') {
+    const zoneTypeRaw = String(query.zoneType || '').trim();
+    const zoneType = zoneTypeRaw ? (zoneTypeRaw[0].toUpperCase() + zoneTypeRaw.slice(1).toLowerCase()) : '';
+    if (!zoneType) return sendJson(res, 400, { error: 'zoneType required' });
+    try {
+      const g = createGraphFromEnv(process.env);
+      if (!g || !g.devicesByZoneType) return sendJson(res, 500, { error: 'graph_not_configured' });
+      const out = await g.devicesByZoneType(zoneType);
+      return sendJson(res, 200, out);
+    } catch (e) {
+      return sendJson(res, 500, { error: 'graph_failed', detail: String(e) });
+    }
+  }
+
+  if (pathname === '/api/graph/subgraph' && req.method === 'GET') {
+    const zoneTypeRaw = String(query.zoneType || '').trim();
+    const zoneType = zoneTypeRaw ? (zoneTypeRaw[0].toUpperCase() + zoneTypeRaw.slice(1).toLowerCase()) : '';
+    if (!zoneType) return sendJson(res, 400, { error: 'zoneType required' });
+    try {
+      const g = createGraphFromEnv(process.env);
+      if (!g || !g.subgraphByZoneType) return sendJson(res, 500, { error: 'graph_not_configured' });
+      const out = await g.subgraphByZoneType(zoneType);
+      return sendJson(res, 200, { zoneType, ...out });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'graph_failed', detail: String(e) });
+    }
+  }
+
+  if (pathname === '/api/graph/full' && req.method === 'GET') {
+    try {
+      const g = createGraphFromEnv(process.env);
+      if (!g || !g.fullHierarchy) return sendJson(res, 500, { error: 'graph_not_configured' });
+      const out = await g.fullHierarchy();
+      if (DEBUG_HTTP) console.log('[HTTP] /api/graph/full -> nodes', out.nodes?.length || 0, 'links', out.links?.length || 0);
+      return sendJson(res, 200, out);
+    } catch (e) {
+      return sendJson(res, 500, { error: 'graph_failed', detail: String(e) });
+    }
   }
 
   if (pathname === '/api/meta' && req.method === 'GET') {
@@ -734,8 +934,38 @@ const server = http.createServer(async (req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { messages = [], room, range } = JSON.parse(body || '{}');
-        if (!room) return sendJson(res, 400, { error: 'room required' });
+        const { messages = [], room, range, selection } = JSON.parse(body || '{}');
+        if (DEBUG_HTTP) console.log('[API/chat] selection:', selection);
+        // Compute effective scope/room from selection (building/floor/room)
+        let effRoom = room || null;
+        let scopeNote = '';
+        let selectionRooms = [];
+        try {
+          if ((!effRoom || effRoom === 'ALL') && selection && (selection.building || selection.floor || selection.room)) {
+            const g = createGraphFromEnv(process.env);
+            if (selection.room) {
+              effRoom = selection.room;
+              scopeNote = `Scope: room=${selection.room}`;
+            } else if (g && g.roomsByScope) {
+              const rs = await g.roomsByScope({ building: selection.building || null, floor: selection.floor || null });
+              let rooms = (rs.rooms || []).filter(Boolean);
+              // Enforce local filtering by building/floor in case the graph returns extra items
+              const bMatch = String(selection.building || '').match(/Building\s+([A-Za-z])$/);
+              const bLetter = bMatch ? bMatch[1].toUpperCase() : null;
+              const fMatch = String(selection.floor || '').match(/Floor\s*(\d+)/i);
+              const fCode = fMatch ? `F${fMatch[1]}` : null;
+              if (bLetter) rooms = rooms.filter(r => String(r).startsWith(`${bLetter}_`));
+              if (fCode) rooms = rooms.filter(r => String(r).split('_')[1] === fCode);
+              if (rooms.length) {
+                effRoom = 'ALL';
+                scopeNote = `Scope: ${selection.building ? 'building='+selection.building+' ' : ''}${selection.floor ? 'floor='+selection.floor+' ' : ''}rooms=[${rooms.slice(0,30).join(', ')}${rooms.length>30?' …':''}]`;
+                selectionRooms = rooms;
+              }
+            }
+          }
+        } catch {}
+        if (!effRoom) return sendJson(res, 400, { error: 'room required (or select scope from graph)' });
+        if (DEBUG_HTTP) console.log('[API/chat] effective room=', effRoom, 'note=', scopeNote);
 
         // --- LOGGING ADDED HERE ---
         console.log('[API/chat] Received range:', range);
@@ -747,7 +977,7 @@ const server = http.createServer(async (req, res) => {
 
         const userLast = [...messages].reverse().find(m => m.role === 'user' || m.role === 'User' || m.role === 'human');
         const question = userLast?.content || '';
-        const tables = loadRoomTables(room);
+        const tables = effRoom && effRoom !== 'ALL' ? loadRoomTables(effRoom) : {};
         const context = {
           instruction: 'You are a building analytics chat assistant. Answer succinctly. If plotting helps, include a JSON HighchartsOptions with yAxis as time and xAxis as chosen metric. Do not include code fences in the JSON.',
           tables: Object.keys(tables),
@@ -758,12 +988,13 @@ const server = http.createServer(async (req, res) => {
         };
 
         // Use the tool-enabled agent (RAG + tools). If it can't complete, fall back to heuristics.
-        const { message, chart } = await agent.run(messages.concat({ role: 'user', content: question }), { room, range });
+        const effMessages = scopeNote ? [{ role: 'user', content: scopeNote }, ...messages, { role: 'user', content: question }] : messages.concat({ role: 'user', content: question });
+        const { message, chart, trace, extras } = await agent.run(effMessages, { room: effRoom, range, selectionRooms });
         if (!message || !message.content || /^Unable to complete tool-based reasoning/i.test(message.content)) {
           const fb = answerWithFallback(question, room, range || {});
-          return sendJson(res, 200, { message: { role: 'assistant', content: fb.answer }, chart: fb.chart, mode: 'fallback' });
+          return sendJson(res, 200, { message: { role: 'assistant', content: fb.answer }, chart: fb.chart, mode: 'fallback', trace: [] });
         }
-        return sendJson(res, 200, { message, chart, extras: (agent && agent.extras) ? agent.extras : (undefined), mode: 'agent' });
+        return sendJson(res, 200, { message, chart, extras: extras || ((agent && agent.extras) ? agent.extras : undefined), trace, mode: 'agent' });
       } catch (e) {
         return sendJson(res, 500, { error: 'bad_request', detail: String(e) });
       }
@@ -835,28 +1066,49 @@ If a chart will help, return a JSON block labeled HighchartsOptions that can be 
 function listKnowledge() {
   const kdir = path.join(root, 'knowledge');
   if (!fs.existsSync(kdir)) return [];
-  return fs.readdirSync(kdir).filter(f => f.endsWith('.md') || f.endsWith('.txt'));
+  const out = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(p);
+      else if (/\.(md|txt)$/i.test(entry.name)) out.push(path.relative(kdir, p));
+    }
+  };
+  walk(kdir);
+  return out;
 }
 
 function loadKnowledge() {
   const kdir = path.join(root, 'knowledge');
   const files = listKnowledge();
-  return files.map(f => ({ name: f, text: fs.readFileSync(path.join(kdir, f), 'utf8').slice(0, 5000) }));
+  return files.map(rel => ({ name: rel, text: fs.readFileSync(path.join(kdir, rel), 'utf8').slice(0, 5000) }));
 }
 
 const PORT = process.env.PORT || 3000;
 // Initialize agent (RAG + tools)
+const graph = createGraphFromEnv(process.env);
+const vector = createVectorClient({ chromaUrl: process.env.CHROMA_URL || '' });
+
 const agent = createAgent({
   dataDir,
   listRooms,
   loadRoomTables,
   loadWeather,
-  callGeminiChat
+  callGeminiChat,
+  graph,
+  vector
 });
 
-server.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
-});
+ensureDatastores()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`Server listening on http://localhost:${PORT}`);
+    });
+  })
+  .catch((e) => {
+    console.error('[startup] Initialization failed:', e);
+    process.exit(1);
+  });
 
 // Graceful shutdown for Docker and local runs
 function shutdown(sig) {

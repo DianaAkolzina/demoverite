@@ -1,4 +1,4 @@
-Reasoning Guide for Queries and Math Mapping
+Reasoning Guide for Queries and Math Mapping (Updated)
 
 - Time windows:
   - Always use the exact Start and End dates provided by the user.
@@ -15,11 +15,13 @@ Reasoning Guide for Queries and Math Mapping
   - distribution → histogram
   - share, composition → pie/stacked
 
-- Tool selection hints:
-  - max/min/sum/avg over period → stat
-  - compare floors/rooms → stacked or pie; table grouped by floor/sensor
-  - busiest day of week → seasonality(period=week) and/or forecast occupancy
-  - best cleaning window → occupancy minima by hour/day, seasonality(period=week)
-  - most energy and why → forecast(energy_kwh) + scatter(weather, occupancy) for drivers
-  - anomalies → night baseload vs occupancy, water use outside occupancy
+- Tool selection hints (use exact tool names; see tools_playbook.md for details):
+  - max/min/sum/avg over period → `stats({ room, table, field, start, end })`
+  - compare rooms on one metric (timeseries) → `compare_series_cross_room` (line chart with dataRef)
+  - rank rooms by a metric → `compare_rooms_on_metric` (bar chart)
+  - compare multiple metrics within a room → `compare_metrics_in_room`
+  - busiest hour/day patterns → `hour_of_day_stats`
+  - correlations among metrics → `correlation_matrix`
+  - no rows in window → inspect `fetch_table_meta` and adapt within available range
 
+See also: tools_playbook.md (Authoritative) for current tool list, chart patterns (dataRef only), and scope/time window rules.

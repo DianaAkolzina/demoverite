@@ -1,8 +1,11 @@
 import { buildDocsFromData, buildRagIndex } from './rag.js';
+import { classifyQuery, suggestRetrievalFilters } from './router.js';
+import { hybridRetrieve } from './retrieval.js';
+import { evaluateQA } from './eval.js';
 import fs from 'fs';
 import path from 'path';
 
-export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, callGeminiChat }) {
+export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, callGeminiChat, graph = null, vector = null }) {
   const DEBUG = process.env.RAG_DEBUG === '1' || process.env.LOG_LEVEL === 'debug';
   const log = (...a) => { if (DEBUG) console.log('[Agent]', ...a); };
   
@@ -15,6 +18,16 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
   });
   log(`Initialized RAG with ${docs.length} docs`);
   const rag = buildRagIndex(docs, { debug: DEBUG });
+
+  // Graph snapshot loader for sync graph-aware tools
+  function loadGraphSnapshot() {
+    try {
+      const rootDir = path.join(path.dirname(dataDir));
+      const p = path.join(rootDir, 'data', 'graph_snapshot.json');
+      const raw = fs.readFileSync(p, 'utf8');
+      return JSON.parse(raw);
+    } catch { return null; }
+  }
 
   function toolDefs() {
     return [
@@ -55,7 +68,23 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       { name: 'forecast_exponential_smoothing', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', alpha: 'number?', horizon_hours: 'number?' }, desc: 'Simple exponential smoothing forecast' },
       { name: 'forecast_moving_average', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', window: 'number?', horizon_hours: 'number?' }, desc: 'Moving average forecast' },
       { name: 'forecast_seasonal_hourly', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', horizon_hours: 'number?' }, desc: 'Seasonal naive forecast using previous weeks' },
-      { name: 'forecast_polyfit', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', degree: 'number?', horizon_hours: 'number?' }, desc: 'Polynomial regression forecast (degree 2)' }
+      { name: 'forecast_polyfit', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', degree: 'number?', horizon_hours: 'number?' }, desc: 'Polynomial regression forecast (degree 2)' },
+      { name: 'graph_rooms_by_tenant', args: { tenant: 'string' }, desc: 'List rooms permitted for a tenant from Neo4j' },
+      { name: 'graph_devices_by_scope', args: { tenant: 'string?', building: 'string?', floor: 'string?', zone: 'string?', type: 'string?' }, desc: 'List devices within the provided scope from Neo4j' },
+      { name: 'graph_rooms_by_scope', args: { building: 'string?', floor: 'string?' }, desc: 'List room IDs within a building and/or floor scope (uses graph snapshot if available, else local inference)' },
+      { name: 'scope_list_buildings', args: {}, desc: 'List buildings from graph snapshot (fallback: infer from room IDs)' },
+      { name: 'scope_list_floors', args: { building: 'string' }, desc: 'List floors for a building (graph snapshot fallback: infer from room IDs)' },
+      { name: 'scope_list_rooms', args: { building: 'string?', floor: 'string?' }, desc: 'List rooms filtered by building and/or floor' },
+      { name: 'scope_list_detectors', args: { room: 'string' }, desc: 'List detectors/sensor types present in a room based on available tables' },
+      { name: 'graph_zone_devices', args: { room: 'string' }, desc: 'List devices and measured metric types for a room (from graph snapshot)' },
+      { name: 'vector_search_docs', args: { query: 'string', k: 'number?' }, desc: 'Search documentation via vector store (fallbacks to TF-IDF if unavailable)' },
+      { name: 'aggregate_stats_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Aggregate a metric across all rooms (sum, avg, min, max) over the selected window' },
+      { name: 'aggregate_hourly_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Aggregate per-hour across rooms (sum or avg) returning [{ts, y}]' },
+      { name: 'compare_field_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Compute per-room value (avg/sum/peak) for ranking and comparison' },
+      { name: 'compare_rooms_on_metric', args: { rooms: 'string[]?', table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Rank rooms by metric aggregate within selection (uses selectionRooms if rooms omitted). Returns [{room, value}] sorted desc.' },
+      { name: 'compare_metrics_in_room', args: { room: 'string', table: 'string', fields: 'string[]', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Compare multiple metrics within one room; returns [{field, value}]' },
+      { name: 'common_metrics_in_scope', args: { rooms: 'string[]?' }, desc: 'List metrics common to all scoped rooms (intersection of first-row keys excluding ts)' },
+      { name: 'correlation_matrix', args: { room: 'string', table: 'string', fields: 'string[]', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Pairwise Pearson correlation among fields within a room/table over the window' }
     ];
   }
 
@@ -87,8 +116,18 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
         // Extract data based on the reference
         let sourceData = toolResult;
         
-        // If ref specifies a field (e.g., "historical" or "forecast" from forecast tools)
-        if (ref.field && toolResult[ref.field]) {
+        // If compare_series_cross_room returned a map, select series by ref.field or series.name
+        if (ref.tool === 'compare_series_cross_room' && sourceData && typeof sourceData === 'object' && !Array.isArray(sourceData)) {
+          const keys = Object.keys(sourceData);
+          let key = ref.field || series.name || '';
+          let match = keys.find(k => k === key) || keys.find(k => k.toLowerCase() === String(key).toLowerCase());
+          if (!match && key) match = keys.find(k => k.toLowerCase().includes(String(key).toLowerCase()));
+          if (!match) match = keys[0];
+          sourceData = sourceData[match] || [];
+        }
+        
+        // If ref specifies a field (e.g., forecast blocks)
+        if (ref.field && Array.isArray(toolResult?.[ref.field])) {
           sourceData = toolResult[ref.field];
         }
         
@@ -207,6 +246,11 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     return null;
   }
 
+  function isAllRooms(sel) {
+    const s = String(sel || '').toLowerCase();
+    return s === 'all' || s === '*';
+  }
+
   
   function norm(s) { 
     return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); 
@@ -244,7 +288,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     // Synonyms
     for (const [canon, syns] of Object.entries(FIELD_SYNONYMS)) {
       const cn = norm(canon);
-      if (target === cn || syns.includes(target)) {
+      if (target === cn || syns.some(s => norm(s) === target)) {
         for (const set of Object.values(availableSets)) {
           for (const f of set) if (norm(f) === cn) return f;
           for (const s of syns) {
@@ -260,9 +304,17 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     return null;
   }
 
-  function parseFieldsFromQuestion(question, availableSets) {
-    const q = String(question || '').toLowerCase();
-    const fields = [];
+function parseFieldsFromQuestion(question, availableSets) {
+  const q = String(question || '').toLowerCase();
+  const fields = [];
+  // Recognize air exchange rate synonyms explicitly
+  try {
+    const airSyns = ['air exchangerate','air exchange rate','airexchangerate','airchangerate','airchange','ach'];
+    if (airSyns.some(s => q.includes(s))) {
+      const f = inferFieldName('airExchangeRate', availableSets) || inferFieldName('ach', availableSets);
+      if (f && !fields.includes(f)) fields.push(f);
+    }
+  } catch {}
     // 1) explicit "x vs y"
     if (q.includes(' vs ')) {
       const parts = question.split(/\s+vs\s+/i).map(s => s.trim());
@@ -285,7 +337,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       }
     }
     // 3) single metric mentions
-    const candidates = ['co2','voc','lux','pressure','humidity','temperature','people_count','people','pm1','pm25','pm10','nh3','h2s','odor','odor_level','value','total_kwh','energy'];
+    const candidates = ['co2','co₂','voc','lux','light','illum', 'pressure','humidity','humid','temperature','temp','people_count','people','occupancy','pm1','pm25','pm10','nh3','h2s','odor','odour','odor_level','value','total_kwh','energy','kwh','power'];
     for (const c of candidates) {
       if (fields.length >= 2) break;
       if (q.includes(c)) {
@@ -294,6 +346,82 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       }
     }
     return fields;
+  }
+
+  // Lightweight intent classifier tolerant to varied phrasing
+  function classifyIntent(question) {
+    const q = String(question || '').toLowerCase();
+    const has = (...words) => words.some(w => q.includes(w));
+    const typeRegex = /(boardroom|meeting|lab|laboratory|toilet|restroom|bathroom|wc|cafe|cafeteria|kitchen)/i;
+    return {
+      selectionTime: has('what selection','what scope and time','what selection and time','what time period are you analys','current range','current window','what scope do you see','selection and time','selection and time frame','selection and time period','what selection and time'),
+      metricsEachRoom: (
+        has(
+          'metrics in each room','metrics in every room','metrics per room',
+          'what metrics are in each','what metrics are in the rooms',
+          'metrics are measured in these rooms','metrics measured in these rooms',
+          'what metrics are measured in these rooms','what metrics are measured in the rooms',
+          'metrics in these rooms','metrics for these rooms','metrics across these rooms'
+        ) ||
+        (
+          (has('in scope','in the scope','in selection','in the selection','here','these rooms','the rooms')
+            && has('metrics','detectors') && has('room','rooms'))
+          || (has('detectors') && has('each','every','rooms'))
+        )
+      ),
+      devicesInRoom: has('what detectors','what devices','what sensors') && !has('each','every'),
+      plotAcrossRooms: (has('plot','chart','visualize') && (has('across all rooms','on this floor','on this building'))) || has('compare across rooms','timeseries across rooms'),
+      rankRooms: (has('highest','top','most') && (has('avg','average','mean','peak') || true) && (has('on this floor') || has('on this building'))),
+      plotSingle: has('plot','chart','visualize') && !has('across all rooms','on this floor','on this building'),
+      correlation: has('correlation','correlate','matrix')
+      ,
+      compareTypes: (q.includes('compare') && /\b(and|vs|versus)\b/i.test(q) && typeRegex.test(q))
+    };
+  }
+
+  function resolveMetricAndTableFromQuestion(question, availableSets, fallbackField='people_count') {
+    const fields = parseFieldsFromQuestion(question, availableSets);
+    const field = fields[0] || (question.toLowerCase().includes('occup') ? 'people_count' : (question.toLowerCase().includes('energy') ? 'value' : fallbackField));
+    let table = null;
+    for (const [t, set] of Object.entries(availableSets)) if (set.has(field)) { table = t; break; }
+    if (!table) table = (field === 'value' || field === 'total_kwh') ? 'energy' : 'iaq';
+    return { field, table };
+  }
+
+  function resolveToolName(name) {
+    const t = String(name || '').toLowerCase();
+    const map = new Map([
+      ['list_rooms_in_scope','graph_rooms_by_scope'],
+      ['rooms_in_scope','graph_rooms_by_scope'],
+      ['scope_rooms','graph_rooms_by_scope'],
+      ['graph_rooms_in_scope','graph_rooms_by_scope'],
+      ['list_buildings','scope_list_buildings'],
+      ['buildings','scope_list_buildings'],
+      ['list_floors','scope_list_floors'],
+      ['floors','scope_list_floors'],
+      ['list_rooms','scope_list_rooms'],
+      ['rooms','scope_list_rooms'],
+      ['list_detectors','scope_list_detectors'],
+      ['detectors_in_room','scope_list_detectors'],
+      ['room_detectors','scope_list_detectors'],
+      ['sensors_in_room','scope_list_detectors'],
+      ['list_sensors','scope_list_detectors'],
+      ['devices_in_room','graph_zone_devices'],
+      ['list_devices','graph_zone_devices'],
+      ['common_metrics','common_metrics_in_scope'],
+      ['common_fields','common_metrics_in_scope'],
+      ['metrics_in_scope','common_metrics_in_scope'],
+      ['rank_rooms','compare_rooms_on_metric'],
+      ['top_rooms','compare_rooms_on_metric'],
+      ['highest_avg','compare_rooms_on_metric'],
+      ['compare_metrics','compare_metrics_in_room'],
+      ['compare_fields','compare_metrics_in_room'],
+      ['correlate_metrics','correlation_matrix'],
+      ['correlationmatrix','correlation_matrix'],
+      ['vector_search','vector_search_docs'],
+      ['search_docs','vector_search_docs']
+    ]);
+    return map.get(t) || name;
   }
 
   function wantsChart(question) {
@@ -320,6 +448,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     nh3: ['ammonia', 'nh_3', 'nh-3'],
     h2s: ['hydrogen_sulfide', 'hydrogensulfide', 'h_2_s', 'h-2-s'],
     odor_level: ['odor','odour','odorlevel','smell','odor_level'],
+    airExchangeRate: ['air exchange rate','airexchangerate','airchangerate','airchange','ach','air_exch_rate','air_exch','airexchagerate'],
     battery: ['battery_level', 'batt'],
     rssi: ['signal', 'signalstrength'],
     value: ['reading', 'measurement'],
@@ -328,6 +457,40 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     time: ['timestamp', 'datetime'],
     date: ['datestamp']
   };
+
+  function normalizeRoomTypeFromId(roomId) {
+    const m = String(roomId || '').toLowerCase().match(/^[a-z]_f\d+_([a-z0-9]+)/);
+    return m ? m[1] : null;
+  }
+
+  function roomsByType(selectionRooms, type) {
+    const t = String(type || '').toLowerCase();
+    const synonyms = {
+      boardroom: ['boardroom','meeting'],
+      lab: ['lab','laboratory'],
+      toilet: ['toilet','restroom','bathroom','wc'],
+      cafe: ['cafe','cafeteria','kitchen']
+    };
+    const keys = synonyms[t] || [t];
+    return (selectionRooms||[]).filter(r => keys.some(k => String(r).toLowerCase().includes(k)));
+  }
+
+  function pickFieldsForRoom(room, count = 3) {
+    const tablesSets = availableFieldsByTable(room);
+    const priority = ['people_count','co2','temperature','humidity','lux','value','total_kwh','voc','pm25','pm10'];
+    const out = [];
+    for (const p of priority) {
+      if (out.length >= count) break;
+      for (const set of Object.values(tablesSets)) { if (set.has(p)) { out.push(p); break; } }
+    }
+    // Fallback: any fields
+    if (out.length < count) {
+      const any = new Set();
+      for (const set of Object.values(tablesSets)) for (const f of set) if (f !== 'ts') any.add(f);
+      for (const f of any) { if (out.length >= count) break; if (!out.includes(f)) out.push(f); }
+    }
+    return out.slice(0, count);
+  }
   
   function resolveField(rows, field) {
     const keys = Object.keys(rows?.[0] || {});
@@ -336,7 +499,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     let k = keys.find(x => norm(x) === target);
     if (k) return k;
     for (const [canon, syns] of Object.entries(FIELD_SYNONYMS)) {
-      if (norm(canon) === target || syns.includes(target)) {
+      if (norm(canon) === target || syns.some(s => norm(s) === target)) {
         k = keys.find(x => norm(x) === norm(canon));
         if (k) return k;
         for (const s of syns) { 
@@ -482,7 +645,8 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     
     fetch_timeseries({ room, table, fields = [], start = null, end = null, limit = 2000, after_ts = null }) {
       const t = loadRoomTables(room);
-      const arr = t[table] || [];
+      const tab = resolveTable(room, table);
+      const arr = t[tab] || [];
       
       // If limit is small (like 1) and no specific start, get from the end (most recent)
       const getLatest = limit <= 5 && !start && !after_ts;
@@ -504,7 +668,8 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     
     stats({ room, table, field, start = null, end = null }) {
       const t = loadRoomTables(room);
-      const arr = t[table] || [];
+      const tab = resolveTable(room, table);
+      const arr = t[tab] || [];
       let count = 0, min = Infinity, max = -Infinity, sum = 0;
       for (const r of arr) {
         if (!withinRange(r.ts, start, end)) continue;
@@ -801,6 +966,149 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       }
       return { ts: bestTs, delta: bestDelta };
     },
+
+    aggregate_stats_across_rooms({ table, field, agg = 'sum', start = null, end = null }) {
+      let values = [];
+      for (const r of listRooms()) {
+        const t = loadRoomTables(r);
+        const tab = resolveTable(r, table);
+        const arr = (t[tab] || []).filter(row => withinRange(row.ts, start, end));
+        for (const row of arr) {
+          const v = Number(row[field]);
+          if (Number.isFinite(v)) values.push(v);
+        }
+      }
+      if (!values.length) return { agg, value: null, count: 0 };
+      const sum = values.reduce((a,b)=>a+b,0);
+      const avg = sum / values.length;
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const map = { sum, avg, min, max };
+      const value = map[agg] != null ? map[agg] : sum;
+      return { agg, value, count: values.length, sum, avg, min, max };
+    },
+
+    aggregate_hourly_across_rooms({ table, field, agg = 'sum', start = null, end = null }) {
+      const buckets = new Map();
+      for (const r of listRooms()) {
+        const hourly = getHourlySeries(r, table, field, start, end);
+        for (const p of hourly) {
+          if (!Number.isFinite(p.avg)) continue;
+          const b = buckets.get(p.ts) || { sum: 0, n: 0 };
+          b.sum += p.avg;
+          b.n += 1;
+          buckets.set(p.ts, b);
+        }
+      }
+      const out = [];
+      for (const [ts, b] of Array.from(buckets.entries()).sort((a,b)=>a[0]-b[0])) {
+        const y = agg === 'avg' ? (b.n ? b.sum / b.n : null) : b.sum;
+        out.push({ ts, y });
+      }
+      return out;
+    },
+
+    compare_rooms_on_metric({ rooms = null, table, field, agg = 'avg', start = null, end = null }) {
+      const targetRooms = Array.isArray(rooms) && rooms.length ? rooms : listRooms();
+      const out = [];
+      for (const r of targetRooms) {
+        const t = loadRoomTables(r);
+        const tab = resolveTable(r, table);
+        const arr = (t[tab] || []).filter(row => withinRange(row.ts, start, end));
+        const vals = arr.map(row => Number(row[field])).filter(Number.isFinite);
+        if (!vals.length) { out.push({ room: r, value: null }); continue; }
+        const sum = vals.reduce((a,b)=>a+b,0);
+        const avg = sum / vals.length;
+        const peak = Math.max(...vals);
+        const map = { sum, avg, peak };
+        out.push({ room: r, value: map[agg] != null ? map[agg] : avg });
+      }
+      out.sort((a,b)=> (b.value ?? -Infinity) - (a.value ?? -Infinity));
+      return out;
+    },
+
+    compare_metrics_in_room({ room, table, fields = [], agg = 'avg', start = null, end = null }) {
+      const t = loadRoomTables(room);
+      const tab = resolveTable(room, table);
+      const arr = (t[tab] || []).filter(row => withinRange(row.ts, start, end));
+      const out = [];
+      for (const f of fields) {
+        const vals = arr.map(r => Number(r[f])).filter(Number.isFinite);
+        if (!vals.length) { out.push({ field: f, value: null }); continue; }
+        const sum = vals.reduce((a,b)=>a+b,0);
+        const avg = sum / vals.length;
+        const peak = Math.max(...vals);
+        const map = { sum, avg, peak };
+        out.push({ field: f, value: map[agg] != null ? map[agg] : avg });
+      }
+      out.sort((a,b)=> (b.value ?? -Infinity) - (a.value ?? -Infinity));
+      return out;
+    },
+
+    common_metrics_in_scope({ rooms = null }) {
+      const rs = Array.isArray(rooms) && rooms.length ? rooms : listRooms();
+      let common = null;
+      for (const r of rs) {
+        const t = loadRoomTables(r);
+        const set = new Set();
+        for (const [name, rows] of Object.entries(t)) {
+          const first = rows?.[0] || {};
+          for (const k of Object.keys(first)) if (k !== 'ts') set.add(k);
+        }
+        if (common == null) common = set; else common = new Set([...common].filter(x => set.has(x)));
+      }
+      return Array.from(common || []);
+    },
+
+    correlation_matrix({ room, table, fields = [], start = null, end = null, time_window_ms = 30 * 60 * 1000 }) {
+      const t = loadRoomTables(room);
+      const tab = resolveTable(room, table);
+      const arr = (t[tab] || []).filter(r => withinRange(r.ts, start, end));
+      // Build per-field time aligned vectors by ts
+      const byTs = new Map();
+      for (const r of arr) {
+        const o = byTs.get(r.ts) || {}; byTs.set(r.ts, o);
+        for (const f of fields) { if (r[f] != null) o[f] = Number(r[f]); }
+      }
+      const xs = Array.from(byTs.values());
+      const n = fields.length;
+      const matrix = Array.from({ length: n }, () => Array(n).fill(null));
+      function corr(a, b) {
+        let sx=0, sy=0, sxx=0, syy=0, sxy=0, k=0;
+        for (const row of xs) {
+          const x = row[a]; const y = row[b];
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+          sx += x; sy += y; sxx += x*x; syy += y*y; sxy += x*y; k++;
+        }
+        if (k < 3) return null;
+        const cov = (sxy - (sx*sy)/k) / k;
+        const vx = (sxx - (sx*sx)/k) / k; const vy = (syy - (sy*sy)/k) / k;
+        const denom = Math.sqrt(vx*vy);
+        return denom>0 ? cov/denom : null;
+      }
+      for (let i=0;i<n;i++) for (let j=i;j<n;j++) {
+        const c = i===j ? 1 : corr(fields[i], fields[j]);
+        matrix[i][j] = c; matrix[j][i] = c;
+      }
+      return { fields, matrix };
+    },
+
+    compare_field_across_rooms({ table, field, agg = 'avg', start = null, end = null }) {
+      const perRoom = {};
+      for (const r of listRooms()) {
+        const t = loadRoomTables(r);
+        const tab = resolveTable(r, table);
+        const arr = (t[tab] || []).filter(row => withinRange(row.ts, start, end));
+        const vals = arr.map(row => Number(row[field])).filter(Number.isFinite);
+        if (!vals.length) { perRoom[r] = null; continue; }
+        const sum = vals.reduce((a,b)=>a+b,0);
+        const avg = sum / vals.length;
+        const peak = Math.max(...vals);
+        const map = { sum, avg, peak };
+        perRoom[r] = map[agg] != null ? map[agg] : avg;
+      }
+      return perRoom;
+    },
     
     weather_fetch({ fields = [], start = null, end = null, limit = 2000 }) {
       const arr = loadWeather();
@@ -813,6 +1121,157 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
         if (out.length >= limit) break;
       }
       return out;
+    },
+
+    // Graph adapters (Neo4j) — return synchronous placeholders if adapter is async in this context
+    graph_rooms_by_tenant({ tenant }) {
+      try {
+        if (!graph || !graph.roomsByTenant) return { rooms: [], error: 'graph_not_configured' };
+        const res = graph.roomsByTenant(tenant);
+        return res && typeof res.then === 'function' ? { rooms: [], pending: true } : res;
+      } catch (e) { return { rooms: [], error: String(e) }; }
+    },
+
+    graph_devices_by_scope({ tenant = null, building = null, floor = null, zone = null, type = null }) {
+      try {
+        if (!graph || !graph.devicesByScope) return { devices: [], error: 'graph_not_configured' };
+        const args = { tenant, building, floor, zone, type };
+        const res = graph.devicesByScope(args);
+        return res && typeof res.then === 'function' ? { devices: [], pending: true } : res;
+      } catch (e) { return { devices: [], error: String(e) }; }
+    },
+
+    graph_rooms_by_scope({ building = null, floor = null }) {
+      // Prefer graph snapshot or adapter; otherwise infer from room IDs locally
+      try {
+        const snap = loadGraphSnapshot();
+        if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
+          const buildingName = building && /Building\s+/i.test(building) ? building : (building ? `Building ${building}` : null);
+          const floors = new Map();
+          const nodesById = new Map(snap.nodes.map(n => [n.id, n]));
+          const hasRel = (from, to, rel) => snap.links.some(l => l.source===from && l.target===to && (!rel || l.rel===rel));
+          const rooms = [];
+          // Iterate zones and backtrack to floor/building
+          for (const n of snap.nodes) {
+            if ((n.nodeType||n.label) !== 'Zone') continue;
+            const zid = n.id;
+            // find floor
+            const floorLink = snap.links.find(l => l.source===zid && l.rel==='BELONGS_TO_FLOOR');
+            const fid = floorLink ? floorLink.target : null;
+            const fNode = fid ? nodesById.get(fid) : null;
+            // find building
+            let bNode = null;
+            if (fid) {
+              const bLink = snap.links.find(l => l.source===fid && l.rel==='BELONGS_TO_BUILDING');
+              const bid = bLink ? bLink.target : null;
+              bNode = bid ? nodesById.get(bid) : null;
+            }
+            const bOk = buildingName ? (bNode && bNode.name === buildingName) : true;
+            const fOk = floor ? (fNode && (fNode.name === floor || fNode.name.endsWith(` ${String(floor).replace(/^F/, '')}`))) : true;
+            if (bOk && fOk) {
+              if (n.roomId) rooms.push(n.roomId);
+            }
+          }
+          return { rooms: Array.from(new Set(rooms)) };
+        }
+      } catch {}
+      const rooms = listRooms();
+      function normBuilding(b) { if (!b) return null; const m = String(b).match(/([A-Za-z])$/); return m ? m[1].toUpperCase() : String(b).toUpperCase(); }
+      function normFloor(f) { if (!f) return null; const m = String(f).match(/(\d+)/); return m ? `F${m[1]}` : String(f); }
+      const b = normBuilding(building);
+      const f = normFloor(floor);
+      const out = rooms.filter(r => {
+        const m = String(r).match(/^([A-Za-z])_(F\d+)_.+$/);
+        if (!m) return false;
+        const rb = m[1].toUpperCase();
+        const rf = m[2];
+        if (b && rb !== b) return false;
+        if (f && rf !== f) return false;
+        return true;
+      });
+      return { rooms: out };
+    },
+
+    scope_list_buildings() {
+      const snap = loadGraphSnapshot();
+      if (snap && Array.isArray(snap.nodes)) {
+        const bs = snap.nodes.filter(n => (n.nodeType||n.label)==='Building').map(n => n.name).filter(Boolean);
+        return Array.from(new Set(bs)).sort();
+      }
+      const rooms = listRooms();
+      const set = new Set();
+      for (const r of rooms) { const m = String(r).match(/^([A-Za-z])_/); if (m) set.add(`Building ${m[1].toUpperCase()}`); }
+      return Array.from(set).sort();
+    },
+
+    scope_list_floors({ building }) {
+      const snap = loadGraphSnapshot();
+      if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
+        const targetB = building && /Building\s+/i.test(building) ? building : (building ? `Building ${building}` : null);
+        const floorNames = new Set();
+        for (const n of snap.nodes) {
+          if ((n.nodeType||n.label) !== 'Floor') continue;
+          const fid = n.id;
+          const bLink = snap.links.find(l => l.source===fid && l.rel==='BELONGS_TO_BUILDING');
+          const bid = bLink ? bLink.target : null;
+          const bNode = bid ? snap.nodes.find(nn => nn.id===bid) : null;
+          if (targetB && (!bNode || bNode.name !== targetB)) continue;
+          floorNames.add(n.name);
+        }
+        return Array.from(floorNames).sort((a,b)=> Number(a.replace(/\D+/g,'')) - Number(b.replace(/\D+/g,'')));
+      }
+      // Fallback to inference
+      const rooms = listRooms();
+      const set = new Set();
+      const b = (String(building||'').match(/([A-Za-z])$/) || [,''])[1].toUpperCase();
+      for (const r of rooms) { const m = String(r).match(/^([A-Za-z])_(F\d+)_/); if (m && (!b || m[1].toUpperCase()===b)) set.add(`Floor ${m[2].slice(1)}`); }
+      return Array.from(set).sort((a,b)=> Number(a.split(' ').at(-1)) - Number(b.split(' ').at(-1)));
+    },
+
+    scope_list_rooms({ building = null, floor = null }) {
+      return (this.graph_rooms_by_scope({ building, floor })?.rooms) || [];
+    },
+
+    scope_list_detectors({ room }) {
+      const t = loadRoomTables(room);
+      const detectors = [];
+      if (t.iaq && t.iaq.length) detectors.push('IAQ_Sensor');
+      if (t.energy && t.energy.length) detectors.push('Energy_Meter');
+      if (t.people && t.people.length) detectors.push('People_Counter');
+      if (t.water && t.water.length) detectors.push('Water_Meter');
+      return detectors;
+    },
+
+    graph_zone_devices({ room }) {
+      const snap = loadGraphSnapshot();
+      if (!snap || !Array.isArray(snap.nodes) || !Array.isArray(snap.links)) return { devices: [] };
+      const nodesById = new Map(snap.nodes.map(n => [n.id, n]));
+      // Find zone node by roomId
+      const z = snap.nodes.find(n => (n.nodeType||n.label)==='Zone' && n.roomId === room);
+      if (!z) return { devices: [] };
+      const devs = [];
+      for (const l of snap.links) {
+        if (l.target === z.id && l.rel === 'LOCATED_IN_ZONE') {
+          const d = nodesById.get(l.source);
+          if (d && (d.nodeType||d.label)==='Device') devs.push({ id: d.id, name: d.name, type: d.deviceType || d.type || 'Device' });
+        }
+      }
+      // Attach metric types measured
+      const withMetrics = devs.map(d => {
+        const mids = snap.links.filter(l => l.target===d.id && l.rel==='MEASURES').map(l => l.source);
+        const metrics = mids.map(mid => (nodesById.get(mid)?.name)).filter(Boolean);
+        return { ...d, metrics };
+      });
+      return { devices: withMetrics };
+    },
+
+    // Vector search — fallback stub (the system already has TF‑IDF rag)
+    vector_search_docs({ query, k = 6 }) {
+      try {
+        if (!vector || !vector.searchDocs) return { hits: [], error: 'vector_not_configured' };
+        const res = vector.searchDocs({ query, k });
+        return res && typeof res.then === 'function' ? { hits: [], pending: true } : (res || { hits: [] });
+      } catch (e) { return { hits: [], error: String(e) }; }
     },
 
     compare_series_cross_room({ series = [], start = null, end = null }) {
@@ -836,7 +1295,8 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
 
     latest_value({ room, table, field, start = null, end = null }) {
       const t = loadRoomTables(room);
-      const arr = (t[table] || []).filter(r => withinRange(r.ts, start, end));
+      const tab = resolveTable(room, table);
+      const arr = (t[tab] || []).filter(r => withinRange(r.ts, start, end));
       for (let i = arr.length - 1; i >= 0; i--) {
         const v = arr[i][field];
         if (v != null && Number.isFinite(Number(v))) return { ts: arr[i].ts, value: Number(v) };
@@ -847,7 +1307,8 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       const out = [];
       for (const r of listRooms()) {
         const t = loadRoomTables(r);
-        const arr = (t[table] || []).filter(x => withinRange(x.ts, start, end));
+        const tab = resolveTable(r, table);
+        const arr = (t[tab] || []).filter(x => withinRange(x.ts, start, end));
         let val = null, ts = null;
         for (let i = arr.length - 1; i >= 0; i--) {
           const v = arr[i][field];
@@ -953,7 +1414,8 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     },
     busiest_day_of_week({ room, table, field, start = null, end = null, agg = 'avg' }) {
       const t = loadRoomTables(room);
-      const arr = (t[table] || []).filter(r => withinRange(r.ts, start, end));
+      const tab = resolveTable(room, table);
+      const arr = (t[tab] || []).filter(r => withinRange(r.ts, start, end));
       const buckets = Array.from({ length: 7 }, () => ({ sum: 0, n: 0 }));
       for (const r of arr) { const v = Number(r[field]); if (!Number.isFinite(v)) continue; const d = new Date(r.ts).getDay(); buckets[d].sum += v; buckets[d].n += 1; }
       const stats = buckets.map((b,i)=>({ day:i, avg: b.n? b.sum/b.n : 0, sum: b.sum, n:b.n }));
@@ -963,7 +1425,8 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     },
     weekday_weekend_comparison({ room, table, field, start = null, end = null }) {
       const t = loadRoomTables(room);
-      const arr = (t[table] || []).filter(r => withinRange(r.ts, start, end));
+      const tab = resolveTable(room, table);
+      const arr = (t[tab] || []).filter(r => withinRange(r.ts, start, end));
       let wSum=0,wN=0, weSum=0,weN=0;
       for (const r of arr) { const v=Number(r[field]); if(!Number.isFinite(v)) continue; const d=new Date(r.ts).getDay(); if(d===0||d===6){ weSum+=v; weN++; } else { wSum+=v; wN++; } }
       return { weekday_avg: wN? wSum/wN: null, weekend_avg: weN? weSum/weN: null, weekday_n:wN, weekend_n:weN };
@@ -1011,11 +1474,12 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     },
     detect_spikes({ room, table, field, z = 3, start = null, end = null }) {
       const t = loadRoomTables(room);
-      const arr = (t[table] || []).filter(r => withinRange(r.ts, start, end)).map(r => Number(r[field])).filter(Number.isFinite);
+      const tab = resolveTable(room, table);
+      const arr = (t[tab] || []).filter(r => withinRange(r.ts, start, end)).map(r => Number(r[field])).filter(Number.isFinite);
       if (arr.length < 5) return [];
       const mean = arr.reduce((a,b)=>a+b,0)/arr.length;
       const sd = Math.sqrt(arr.reduce((a,b)=>a+(b-mean)*(b-mean),0)/arr.length) || 1;
-      const rows = (t[table] || []).filter(r => withinRange(r.ts, start, end));
+      const rows = (t[tab] || []).filter(r => withinRange(r.ts, start, end));
       const out = [];
       for (const r of rows) { const v=Number(r[field]); if(!Number.isFinite(v)) continue; const zz=(v-mean)/sd; if (Math.abs(zz) >= z) out.push({ ts:r.ts, value:v, z:zz }); }
       return out;
@@ -1041,7 +1505,8 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     },
     histogram({ room, table, field, bins = 10, start = null, end = null }) {
       const t = loadRoomTables(room);
-      const vals = (t[table] || []).filter(r => withinRange(r.ts, start, end)).map(r => Number(r[field])).filter(Number.isFinite);
+      const tab = resolveTable(room, table);
+      const vals = (t[tab] || []).filter(r => withinRange(r.ts, start, end)).map(r => Number(r[field])).filter(Number.isFinite);
       if (!vals.length) return [];
       const min = Math.min(...vals), max = Math.max(...vals);
       const width = (max - min) || 1;
@@ -1102,20 +1567,22 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     },
     distinct_values({ room, table, field, limit = 50 }) {
       const t = loadRoomTables(room);
+      const tab = resolveTable(room, table);
       const set = new Set();
-      for (const r of (t[table]||[])) { const v=r[field]; if (v!=null) { set.add(String(v)); if (set.size>=limit) break; } }
+      for (const r of (t[tab]||[])) { const v=r[field]; if (v!=null) { set.add(String(v)); if (set.size>=limit) break; } }
       return Array.from(set);
     }
 ,
 
     fetch_table_meta({ room, table }) {
       const t = loadRoomTables(room);
-      const arr = t[table] || [];
+      const tab = resolveTable(room, table);
+      const arr = t[tab] || [];
       const n = arr.length;
       const fields = Object.keys(arr[0] || {});
       const tsMin = n ? arr[0].ts : null;
       const tsMax = n ? arr[n - 1].ts : null;
-      return { count: n, fields, tsMin, tsMax };
+      return { count: n, fields, tsMin, tsMax, table: tab };
     },
     
     dump_room({ room, start = null, end = null, max_rows_per_table = null }) {
@@ -1154,7 +1621,8 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     
     hour_of_day_stats({ room, table, field, start = null, end = null }) {
       const t = loadRoomTables(room);
-      const arr = t[table] || [];
+      const tab = resolveTable(room, table);
+      const arr = t[tab] || [];
       const bins = Array.from({ length: 24 }, () => ({ 
         count: 0, 
         sum: 0, 
@@ -1569,20 +2037,29 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     return JSON.stringify(toolDefs(), null, 0);
   }
 
-  function buildContextSnippet(question, room, range) {
-    const hits = rag.search(question, 6);
-    const head = hits.map(h => 
-      `Score:${h.score.toFixed(3)} Meta:${JSON.stringify(h.meta)}\n${h.text}`
+  async function buildContextSnippet(question, room, range, selectionRooms = []) {
+    const retrieved = await hybridRetrieve({ query: question, ragIndex: rag, vectorClient: vector, k: 6 }).catch(() => []);
+    const head = (retrieved || []).map(h => 
+      `Score:${(h.final ?? h.rrf ?? h.scoreRaw ?? 0).toFixed(3)} Meta:${JSON.stringify(h.meta)}\n${h.text}`
     ).join('\n---\n');
     
-    const schema = room ? 
-      Object.fromEntries(
-        Object.entries(loadRoomTables(room))
-          .map(([k, v]) => [k, Object.keys(v?.[0] || {})])
-      ) : {};
+    let schema = {};
+    if (room && room !== 'ALL') {
+      schema = Object.fromEntries(
+        Object.entries(loadRoomTables(room)).map(([k, v]) => [k, Object.keys(v?.[0] || {})])
+      );
+    } else if (Array.isArray(selectionRooms) && selectionRooms.length) {
+      const perRoom = {};
+      for (const r of selectionRooms.slice(0, 20)) {
+        perRoom[r] = Object.fromEntries(
+          Object.entries(loadRoomTables(r)).map(([k, v]) => [k, Object.keys(v?.[0] || {})])
+        );
+      }
+      schema = { _multiRoom: true, rooms: perRoom };
+    }
     
     const meta = {};
-    if (room) {
+    if (room && room !== 'ALL') {
       const tables = loadRoomTables(room);
       for (const [t, rows] of Object.entries(tables)) {
         const n = rows.length;
@@ -1590,41 +2067,71 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
         const tsMax = n ? rows[n-1].ts : null;
         meta[t] = { count: n, tsMin, tsMax };
       }
+    } else if (Array.isArray(selectionRooms) && selectionRooms.length) {
+      const agg = {};
+      for (const r of selectionRooms.slice(0, 20)) {
+        const tables = loadRoomTables(r);
+        for (const [t, rows] of Object.entries(tables)) {
+          const n = rows.length;
+          const tsMin = n ? rows[0].ts : null;
+          const tsMax = n ? rows[n-1].ts : null;
+          const cur = agg[t] || { count: 0, tsMin: null, tsMax: null };
+          cur.count += n;
+          cur.tsMin = (cur.tsMin == null || (tsMin != null && tsMin < cur.tsMin)) ? tsMin : cur.tsMin;
+          cur.tsMax = (cur.tsMax == null || (tsMax != null && tsMax > cur.tsMax)) ? tsMax : cur.tsMax;
+          agg[t] = cur;
+        }
+      }
+      Object.assign(meta, agg);
     }
-    return { retrieved: head, schema, meta, range, room };
+    return { retrieved: head, schema, meta, range, room, selectionRooms, _retrievedDocs: retrieved };
   }
 
-  async function run(messages, { room, range }) {
+  async function run(messages, { room, range, selectionRooms = [] }) {
     const question = messages[messages.length - 1]?.content || '';
 
-    // --- QUERY ENRICHMENT: RAG Knowledge Pack ---
-    const ragHits = rag.search(question, 6);
-    const knowledgeSnippets = ragHits
+    // --- ROUTING & HYBRID RETRIEVAL ---
+    const routing = classifyQuery(question);
+    const filters = suggestRetrievalFilters(routing.level);
+    const hybridHits = await hybridRetrieve({ query: question, ragIndex: rag, vectorClient: vector, k: routing?.pipeline?.retrieval?.k || 6 }).catch(()=>[]);
+
+    // --- QUERY ENRICHMENT: Knowledge Pack ---
+    let knowledgeSnippets = hybridHits
       .filter(h => h.meta?.type === 'knowledge')
       .map(h => `From ${h.meta.file}: ${h.text}`)
       .join('\n---\n');
+    if (knowledgeSnippets && knowledgeSnippets.length > 1500) {
+      knowledgeSnippets = knowledgeSnippets.slice(0, 1500) + '\n…';
+    }
     // --------------------------------------------
 
-    const ctx = buildContextSnippet(question, room, range);
+    const ctx = await buildContextSnippet(question, room && room !== 'ALL' ? room : null, range, selectionRooms);
     log('Question:', question);
     if (DEBUG) log('Context snippet schema keys:', Object.keys(ctx.schema));
 
     const rr = range || {};
     // Inject knowledge enrichment into system prompt
     const startDate = rr.start ? new Date(rr.start) : null;
-const endDate = rr.end ? new Date(rr.end) : null;
+    const endDate = rr.end ? new Date(rr.end) : null;
 const startFmt = startDate ? `${startDate.toLocaleString()} (UTC: ${startDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
 const endFmt = endDate ? `${endDate.toLocaleString()} (UTC: ${endDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
 
 const sys = `You are a senior data analyst agent for building operations.
 Selected room: ${room || '(none)'}.
+Rooms in scope: ${Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room || '(none)')}
+${room === 'ALL' && selectionRooms && selectionRooms.length ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these rooms. Do NOT invent other rooms.` : ''}
 Selected time window: 
 - Local: ${startFmt} to ${endFmt}
 - Epoch ms: start=${rr.start ?? 'none'} end=${rr.end ?? 'none'}
 
 MANDATORY: Always use this time window for all analysis and answers. Do NOT invent or assume any other period. If the user asks "what time period are you analysing", repeat this exact window.
-=== KNOWLEDGE PACK ENRICHMENT ===
+
+FREEDOM TO ANALYZE: You are encouraged to analyze the data, derive insights, compare across rooms within scope, and synthesize conclusions. Use tools as needed; if tools are insufficient, explain and proceed with reasoned analysis using available data.
+
+=== KNOWLEDGE PACK ENRICHMENT (REPHRASE ONLY) ===
 ${knowledgeSnippets || 'No extra knowledge found for this query.'}
+
+RULE: Do NOT dump or quote long passages from knowledge. If you use it, REPHRASE concisely in your own words and keep it brief.
 
 === CRITICAL CHART RULES ===
 NEVER embed data arrays directly in chart JSON. This will ALWAYS cause truncation and failure.
@@ -1747,6 +2254,11 @@ Notes:
 - Use 'hour_of_day_stats' for "best time" by CO2 or occupancy.
 - Use 'busiest_day_of_week' for questions about "busiest day", "which weekday", "most crowded day", "highest occupancy day", etc.
 For IAQ table: common fields are temperature, humidity, co2, pm25, pm10, lux, airexchangerate
+When user asks to COMPARE between rooms or metrics, prefer these tools:
+- compare_series_cross_room (timeseries across rooms)
+- compare_rooms_on_metric (rank rooms by agg over window)
+- compare_metrics_in_room (compare multiple fields within one room)
+- correlation_matrix (pairwise correlations among metrics)
 Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
 
     const convo = [
@@ -1754,12 +2266,236 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       ...messages
     ];
 
+    // Deterministic handling: if user asks about the current analysis time window, return it explicitly.
+    const ql_time = (question || '').toLowerCase();
+    if (/what\s+(time|period|window)\s+are\s+you\s+analys/i.test(ql_time)
+      || /what\s+time\s+period/i.test(ql_time)
+      || /current\s+(range|window)/i.test(ql_time)
+      || /what\s+scope\s+and\s+time/i.test(ql_time)
+      || /what\s+scope\s+do\s+you\s+see/i.test(ql_time)
+      || /selection\s+and\s+time\s*(frame|period|window)?/i.test(ql_time)
+      || /what\s+selection\s+and\s+time/i.test(ql_time)
+      || /what\s+selection\s+do\s+you\s+see/i.test(ql_time)) {
+      const st = rr.start != null ? `${startDate?.toLocaleString()} (UTC: ${startDate?.toISOString().replace('T',' ').slice(0,16)})` : 'none';
+      const en = rr.end != null ? `${endDate?.toLocaleString()} (UTC: ${endDate?.toISOString().replace('T',' ').slice(0,16)})` : 'none';
+      const scopeRooms = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room && room!=='ALL' ? room : '(none)');
+      const txt = `Scope rooms: ${scopeRooms}\nTime window:\n- Local: ${st} → ${en}\n- Epoch (ms): start=${rr.start ?? 'none'}, end=${rr.end ?? 'none'}`;
+      return { message: { role: 'assistant', content: txt }, chart: null, trace: [] };
+    }
+
+    // Selection only (no time) direct answer
+    if (/what\s+selection\s+do\s+you\s+see/i.test(ql_time) || /what\s+scope\s+do\s+you\s+see/i.test(ql_time)) {
+      const scopeRooms = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room && room!=='ALL' ? room : '(none)');
+      return { message: { role: 'assistant', content: `Scope rooms: ${scopeRooms}` }, chart: null, trace: [] };
+    }
+
+    // EARLY PLOTTING: floor/building scope cross-room plots
+    const ql = (question || '').toLowerCase();
+    const intent = classifyIntent(question);
+    const floorAll = isAllRooms(room) && Array.isArray(selectionRooms) && selectionRooms.length;
+    const multiScope = Array.isArray(selectionRooms) && selectionRooms.length >= 2;
+    const wantsAcrossRooms = /across\s+all\s+rooms|on\s+this\s+floor|on\s+this\s+building/.test(ql);
+    if ((floorAll || multiScope) && (intent.plotAcrossRooms || ((ql.includes('plot') || ql.includes('chart')) && wantsAcrossRooms))) {
+      try {
+        const tablesSets = availableFieldsByTable(selectionRooms[0]);
+        const { field: f } = resolveMetricAndTableFromQuestion(question, tablesSets, (ql.includes('occupancy')||ql.includes('people')) ? 'people_count' : 'temperature');
+        const compareArgs = { start: rr.start || undefined, end: rr.end || undefined, series: [] };
+        for (const r of selectionRooms.slice(0, 8)) {
+          const t = loadRoomTables(r);
+          let tableMatch = null;
+          for (const [tname, rows] of Object.entries(t)) { if (rows.length && Object.keys(rows[0] || {}).includes(f)) { tableMatch = tname; break; } }
+          compareArgs.series.push({ room: r, table: tableMatch || 'iaq', field: f, name: `${r} ${f}` });
+        }
+        const result = tools.compare_series_cross_room(compareArgs);
+        const seriesKeys = Object.keys(result || {}).slice(0, 8);
+        const chart = seriesKeys.length ? {
+          chart: { type: 'line' },
+          title: { text: `${f} across rooms` },
+          xAxis: { type: 'datetime' },
+          yAxis: { title: { text: f } },
+          series: seriesKeys.map(k => ({ name: k, dataRef: { tool: 'compare_series_cross_room', field: k, xField: 'ts', yField: 'y' } }))
+        } : null;
+        const trace = [{ tool: 'compare_series_cross_room', args: compareArgs, result }];
+        const valid = validateChart(chart, trace);
+        if (valid) {
+          return { message: { role: 'assistant', content: `Plotted ${f} across ${seriesKeys.length} room(s) in scope.` }, chart: valid, trace };
+        }
+      } catch (e) { log('early plot across rooms failed:', String(e)); }
+    }
+
+    // EARLY COMPARE between two room types (e.g., "compare humidity in the cafe and boardroom")
+    if ((floorAll || multiScope) && intent.compareTypes) {
+      try {
+        // Extract two room-type keywords
+        const types = [];
+        const tokens = ql.split(/[^a-z0-9_]+/).filter(Boolean);
+        const typeWords = ['boardroom','meeting','lab','laboratory','toilet','restroom','bathroom','wc','cafe','cafeteria','kitchen'];
+        for (const tk of tokens) {
+          if (typeWords.includes(tk) && !types.includes(tk)) types.push(tk);
+          if (types.length >= 2) break;
+        }
+        const norm = (t) => (t==='meeting'?'boardroom': t==='laboratory'?'lab': (t==='restroom'||t==='bathroom'||t==='wc')?'toilet': (t==='cafeteria'||t==='kitchen')?'cafe': t);
+        const t1 = types[0] ? norm(types[0]) : null;
+        const t2 = types[1] ? norm(types[1]) : null;
+        const tablesSets = availableFieldsByTable(selectionRooms[0]);
+        const { field: f } = resolveMetricAndTableFromQuestion(question, tablesSets, 'humidity');
+        const r1 = t1 ? roomsByType(selectionRooms, t1)[0] : null;
+        const r2 = t2 ? roomsByType(selectionRooms, t2)[0] : null;
+        const compareArgs = { start: rr.start || undefined, end: rr.end || undefined, series: [] };
+        if (r1) {
+          let tableMatch = null; for (const [tname, rows] of Object.entries(loadRoomTables(r1))) { if (rows.length && Object.keys(rows[0]||{}).includes(f)) { tableMatch = tname; break; } }
+          compareArgs.series.push({ room: r1, table: tableMatch || 'iaq', field: f, name: `${r1} ${f}` });
+        }
+        if (r2) {
+          let tableMatch = null; for (const [tname, rows] of Object.entries(loadRoomTables(r2))) { if (rows.length && Object.keys(rows[0]||{}).includes(f)) { tableMatch = tname; break; } }
+          compareArgs.series.push({ room: r2, table: tableMatch || 'iaq', field: f, name: `${r2} ${f}` });
+        }
+        if (compareArgs.series.length >= 2) {
+          const result = tools.compare_series_cross_room(compareArgs);
+          const keys = Object.keys(result || {}).slice(0, 8);
+          const chart = keys.length ? {
+            chart: { type: 'line' }, title: { text: `${f} comparison` }, xAxis: { type: 'datetime' }, yAxis: { title: { text: f } },
+            series: keys.map(k => ({ name: k, dataRef: { tool: 'compare_series_cross_room', field: k, xField: 'ts', yField: 'y' } }))
+          } : null;
+          const trace = [{ tool: 'compare_series_cross_room', args: compareArgs, result }];
+          const valid = validateChart(chart, trace);
+          if (valid) return { message: { role: 'assistant', content: `Compared ${f} between ${r1} and ${r2}.` }, chart: valid, trace };
+        }
+      } catch (e) { log('early compareTypes failed:', String(e)); }
+    }
+
+    // EARLY METRICS SUMMARY: "what metrics are in each room" at floor/building scope
+    if ((floorAll || multiScope) && (intent.metricsEachRoom || /(what|which)\s+(metrics|detectors)[^?]*\b(each|every)\b[^?]*\brooms?/i.test(ql))) {
+      try {
+        const lines = [];
+        for (const r of selectionRooms.slice(0, 20)) {
+          const t = loadRoomTables(r);
+          const detectors = [];
+          if (t.iaq && t.iaq.length) detectors.push('IAQ_Sensor');
+          if (t.energy && t.energy.length) detectors.push('Energy_Meter');
+          if (t.people && t.people.length) detectors.push('People_Counter');
+          if (t.water && t.water.length) detectors.push('Water_Meter');
+          const fields = new Set();
+          for (const rows of Object.values(t)) {
+            const first = (rows||[])[0] || {};
+            for (const k of Object.keys(first)) if (k !== 'ts') fields.add(k);
+          }
+          lines.push(`- ${r}: detectors=[${detectors.join(', ')||'—'}], metrics=[${Array.from(fields).sort().join(', ')||'—'}]`);
+        }
+        const msg = `Metrics by room in current scope:\n${lines.join('\n')}`;
+        return { message: { role: 'assistant', content: msg }, chart: null, trace: [] };
+      } catch (e) { log('early metrics summary failed:', String(e)); }
+    }
+
+    // EARLY: compare metric between exactly two rooms in scope (e.g., "compare temperature between the two rooms in the scope")
+    if (multiScope && selectionRooms.length === 2 && /\bcompare\b/i.test(question)) {
+      try {
+        const rA = selectionRooms[0];
+        const rB = selectionRooms[1];
+        const tablesSetsA = availableFieldsByTable(rA);
+        const { field: f } = resolveMetricAndTableFromQuestion(question, tablesSetsA, 'temperature');
+        const compareArgs = { start: rr.start || undefined, end: rr.end || undefined, series: [] };
+        // room A
+        let tabA = null; for (const [tname, rows] of Object.entries(loadRoomTables(rA))) { if (rows.length && Object.keys(rows[0]||{}).includes(f)) { tabA = tname; break; } }
+        compareArgs.series.push({ room: rA, table: tabA || 'iaq', field: f, name: `${rA} ${f}` });
+        // room B
+        let tabB = null; for (const [tname, rows] of Object.entries(loadRoomTables(rB))) { if (rows.length && Object.keys(rows[0]||{}).includes(f)) { tabB = tname; break; } }
+        compareArgs.series.push({ room: rB, table: tabB || 'iaq', field: f, name: `${rB} ${f}` });
+        const result = tools.compare_series_cross_room(compareArgs);
+        const keys = Object.keys(result || {});
+        const chart = keys.length ? {
+          chart: { type: 'line' }, title: { text: `${f} comparison` }, xAxis: { type: 'datetime' }, yAxis: { title: { text: f } },
+          series: keys.map(k => ({ name: k, dataRef: { tool: 'compare_series_cross_room', field: k, xField: 'ts', yField: 'y' } }))
+        } : null;
+        const trace = [{ tool: 'compare_series_cross_room', args: compareArgs, result }];
+        const valid = validateChart(chart, trace);
+        if (valid) return { message: { role: 'assistant', content: `Compared ${f} between ${rA} and ${rB}.` }, chart: valid, trace };
+      } catch (e) { log('early compare two rooms failed:', String(e)); }
+    }
+
+    // Devices/Detectors for a specific room (broad phrasing)
+    if (intent.devicesInRoom) {
+      let r = inferRoomFromText(question) || (selectionRooms && selectionRooms.length===1 ? selectionRooms[0] : null);
+      if (!r && floorAll) {
+        // Try by room type keyword in question
+        const types = ['boardroom','lab','toilet','cafe'];
+        for (const tp of types) {
+          if (ql.includes(tp) || (tp==='boardroom' && ql.includes('meeting'))) {
+            const matches = roomsByType(selectionRooms, tp);
+            if (matches.length) { r = matches[0]; break; }
+          }
+        }
+      }
+      if (r) {
+        try {
+          const dets = tools.scope_list_detectors({ room: r });
+          const tables = loadRoomTables(r);
+          const fieldSet = new Set();
+          for (const rows of Object.values(tables)) { const first=(rows||[])[0]||{}; for (const k of Object.keys(first)) if (k!=='ts') fieldSet.add(k); }
+          const msg = `${r}: detectors=[${(Array.isArray(dets)?dets:[]).join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`;
+          return { message: { role: 'assistant', content: msg }, chart: null, trace: [] };
+        } catch (e) { log('early devices summary failed:', String(e)); }
+      }
+    }
+
+    // Plot metrics in the boardroom/lab/toilet/cafe with N random (or available) series
+    if (floorAll && intent.plotSingle && /(boardroom|meeting|lab|laboratory|toilet|restroom|bathroom|wc|cafe|cafeteria|kitchen)/i.test(question)) {
+      try {
+        let roomForPlot = inferRoomFromText(question);
+        if (!roomForPlot) {
+          const types = ['boardroom','lab','toilet','cafe'];
+          for (const tp of types) { if (ql.includes(tp) || (tp==='boardroom' && ql.includes('meeting'))) { const matches = roomsByType(selectionRooms, tp); if (matches.length) { roomForPlot = matches[0]; break; } } }
+        }
+        if (roomForPlot) {
+          const nMatch = question.match(/(\d+)\s*(random|metrics|series)?/i);
+          const n = nMatch ? Math.max(1, Math.min(5, parseInt(nMatch[1], 10))) : 3;
+          const fields = pickFieldsForRoom(roomForPlot, n);
+          const tablesSets = availableFieldsByTable(roomForPlot);
+          const series = fields.map(f => {
+            let table = null; for (const [t, set] of Object.entries(tablesSets)) if (set.has(f)) { table = t; break; }
+            return { name: `${roomForPlot} ${f}`, dataRef: { tool: 'fetch_timeseries', room: roomForPlot, xField: 'ts', yField: f } };
+          });
+          const chart = { chart: { type: 'line' }, title: { text: `${roomForPlot} — ${fields.join(', ')}` }, xAxis: { type: 'datetime' }, yAxis: { title: { text: 'Value' } }, series };
+          // Ensure tool results are present
+          const trace = [];
+          for (const f of fields) {
+            // Decide table for this field
+            let tab = null; for (const [t, set] of Object.entries(tablesSets)) if (set.has(f)) { tab = t; break; }
+            const args = { room: roomForPlot, table: tab || 'iaq', fields: [f], start: rr.start || undefined, end: rr.end || undefined };
+            const res = tools.fetch_timeseries(args);
+            trace.push({ tool: 'fetch_timeseries', args, result: res });
+          }
+          const valid = validateChart(chart, trace);
+          if (valid) return { message: { role: 'assistant', content: `Plotted ${fields.length} metric(s) for ${roomForPlot}.` }, chart: valid, trace };
+        }
+      } catch (e) { log('plot room-type random metrics failed:', String(e)); }
+    }
+
+    // EARLY RANKING: highest average co2 (or similar) on this floor/building
+    if (floorAll && /(highest|top|most)\s+(avg|average|mean)?\s*(co2|temperature|humidity|lux|pm25|pm10|value)/i.test(question)) {
+      try {
+        const m = question.match(/(co2|temperature|humidity|lux|pm25|pm10|value)/i);
+        const field = (m && m[1]) ? m[1].toLowerCase() : 'co2';
+        const tableGuess = field==='value' ? 'energy' : 'iaq';
+        const ranking = tools.compare_rooms_on_metric({ rooms: selectionRooms, table: tableGuess, field, agg: 'avg', start: rr.start || undefined, end: rr.end || undefined });
+        const top = ranking.filter(r => r.value!=null).slice(0, 5).map(r => `${r.room}: ${Number(r.value).toFixed(2)}`).join('\n');
+        const chart = ranking.length ? {
+          chart: { type: 'bar' },
+          title: { text: `Average ${field} by room` },
+          xAxis: { categories: ranking.map(r => r.room) },
+          yAxis: { title: { text: field } },
+          series: [{ name: `avg(${field})`, data: ranking.map(r => (r.value!=null ? Number(r.value) : null)) }]
+        } : null;
+        return { message: { role: 'assistant', content: `Top rooms by average ${field} in the selected window:\n${top || 'No data'}` }, chart, trace: [] };
+      } catch (e) { log('early ranking failed:', String(e)); }
+    }
+
     const trace = [];
     let lastToolSig = '';
     let repeatCount = 0;
     let totalToolCalls = 0;
     
-    for (let step = 0; step < 6; step++) {
+    for (let step = 0; step < 10; step++) {
       const t0 = Date.now();
       const reply = await callGeminiChat(convo, {});
       const dt = Date.now() - t0;
@@ -1769,7 +2505,7 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       if (DEBUG) log('LLM raw reply:', reply.slice(0, 600));
       
       // Force finalization if we've made enough tool calls
-      if (totalToolCalls >= 2 && step >= 1) {
+      if (totalToolCalls >= 6 && step >= 4) {
         const recentlyPaired = trace.some(t => t.tool === 'pair_timeseries');
         if (recentlyPaired && step < 4) {
           // Allow one extra iteration to let the model produce a chart using the paired dataRef
@@ -1778,7 +2514,7 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
           log('Strongly encouraging finalization after', totalToolCalls, 'tool calls at step', step);
         
         // CRITICAL: After 2 tools and step 2+, FORCE finalization with very explicit instructions
-        if (step >= 2) {
+        if (step >= 3) {
           const ql = question.toLowerCase();
           const isCorrelationPlot = ql.includes('correlation') && (ql.includes('plot') || ql.includes('show'));
           const isScatterPlot = ql.includes('scatter') || ql.includes('scatterplot');
@@ -2094,7 +2830,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
       if (obj.action === 'tool_calls' && Array.isArray(obj.tools)) {
         const results = [];
         for (const tc of obj.tools) {
-          const tool = tc.tool;
+          const tool = resolveToolName(tc.tool);
           const args = { ...(tc.args || {}) };
           if (!tools[tool]) {
             results.push({ tool, args, result: { error: `Tool ${tool} not found` } });
@@ -2114,7 +2850,8 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
       }
 
       if (obj.action === 'tool_call') {
-        const { tool, args } = obj;
+        let { tool, args } = obj;
+        tool = resolveToolName(tool);
         log('Tool call:', tool, 'args:', args);
         totalToolCalls += 1;
         
@@ -2161,9 +2898,13 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
               yAxis: { title: { text: '' } },
               series
             } : null;
+            const answerText = entries.length ? 'Compared series across rooms.' : 'No data available to compare in the selected period.';
+            const evalMetrics = evaluateQA({ question, answer: answerText, retrievedDocs: ctx._retrievedDocs || [] });
+            const extraEval = { message: { role: 'assistant', content: `Eval grounding=${(evalMetrics.grounding*100).toFixed(0)}% uncertainty=${(evalMetrics.uncertainty*100).toFixed(0)}%` }, chart: null };
             return {
-              message: { role: 'assistant', content: entries.length ? 'Compared series across rooms.' : 'No data available to compare in the selected period.' },
+              message: { role: 'assistant', content: answerText },
               chart,
+              extras: [extraEval],
               trace
             };
           } catch (e) {
@@ -2233,9 +2974,11 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
               Object.entries(summary)
                 .map(([t, cols]) => `${t} [${cols.join(', ')}]`)
                 .join('; ');
+            const evalMetrics = evaluateQA({ question, answer, retrievedDocs: ctx._retrievedDocs || [] });
             return { 
               message: { role: 'assistant', content: answer }, 
               chart: null, 
+              extras: [{ message: { role: 'assistant', content: `Query ${routing.level}; grounding ${(evalMetrics.grounding*100).toFixed(0)}%; uncertainty ${(evalMetrics.uncertainty*100).toFixed(0)}%` }, chart: null }],
               trace 
             };
           }
@@ -2335,6 +3078,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
               };
             } else {
               const fields = parseFieldsFromQuestion(question, tablesSets);
+              const floorAll = isAllRooms(room) && Array.isArray(selectionRooms) && selectionRooms.length;
               if (fields.length >= 2) {
                 obj.chart = {
                   chart: { type: 'scatter' },
@@ -2343,7 +3087,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                   yAxis: { title: { text: fields[1] } },
                   series: [{ name: `${fields[0]} vs ${fields[1]}`, dataRef: { tool: 'pair_timeseries', xField: 'x', yField: 'y', field1: fields[0], field2: fields[1] } }]
                 };
-              } else if (fields.length === 1 || wantsChart(question)) {
+              } else if ((fields.length === 1 && !floorAll) || (wantsChart(question) && !floorAll)) {
                 const f = fields[0] || 'temperature';
                 obj.chart = {
                   chart: { type: 'line' },
@@ -2352,6 +3096,30 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                   yAxis: { title: { text: f } },
                   series: [{ name: f, dataRef: { tool: 'fetch_timeseries', xField: 'ts', yField: f } }]
                 };
+              } else if (floorAll && fields.length >= 1) {
+                // Build cross-room comparison line chart for selected rooms
+                const f = fields[0];
+                obj.chart = {
+                  chart: { type: 'line' },
+                  title: { text: `${f} across rooms` },
+                  xAxis: { type: 'datetime' },
+                  yAxis: { title: { text: f } },
+                  series: selectionRooms.slice(0, 8).map(r => ({ name: `${r} ${f}`, dataRef: { tool: 'compare_series_cross_room', field: `${r} ${f}`, xField: 'ts', yField: 'y' } }))
+                };
+                // Ensure compare tool result is present in trace
+                try {
+                  const compareArgs = { start: rr.start || undefined, end: rr.end || undefined, series: [] };
+                  for (const r of selectionRooms.slice(0, 8)) {
+                    const t = loadRoomTables(r);
+                    let tableMatch = null;
+                    for (const [tname, rows] of Object.entries(t)) {
+                      if (rows.length && Object.keys(rows[0] || {}).includes(f)) { tableMatch = tname; break; }
+                    }
+                    compareArgs.series.push({ room: r, table: tableMatch || 'iaq', field: f, name: `${r} ${f}` });
+                  }
+                  const compareResult = tools.compare_series_cross_room(compareArgs);
+                  trace.push({ tool: 'compare_series_cross_room', args: compareArgs, result: compareResult });
+                } catch (e) { log('auto-compare build failed:', String(e)); }
               }
             }
           } catch (e) {
@@ -2373,7 +3141,14 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                 if (ref.tool === 'fetch_timeseries') {
                   // Try to auto-detect the correct table for the requested field
                   let table = null;
-                  let roomForRef = ref.room || inferRoomFromText(series.name) || inferRoomFromText(question) || room;
+                  let roomForRef = ref.room || inferRoomFromText(series.name) || inferRoomFromText(question) || (isAllRooms(room) ? null : room);
+                  if (!roomForRef && isAllRooms(room) && Array.isArray(selectionRooms) && selectionRooms.length) {
+                    // Prefer rooms matching keywords in the question (toilet/lab/boardroom/cafe)
+                    const ql3 = (question||'').toLowerCase();
+                    const typeHint = ['toilet','lab','boardroom','cafe'].find(tk => ql3.includes(tk));
+                    const pick = selectionRooms.find(r => typeHint ? r.toLowerCase().includes(typeHint) : true);
+                    roomForRef = pick || selectionRooms[0];
+                  }
                   const tables = loadRoomTables(roomForRef);
                   for (const [tname, rows] of Object.entries(tables)) {
                     if (rows.length && Object.keys(rows[0]).includes(ref.yField)) {
@@ -2391,7 +3166,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                   };
                 } else if (ref.tool === 'pair_timeseries') {
                   // Attempt to infer fields from ref or series name
-                  let roomForRef = ref.room || inferRoomFromText(series.name) || inferRoomFromText(question) || room;
+                  let roomForRef = ref.room || inferRoomFromText(series.name) || inferRoomFromText(question) || (isAllRooms(room) ? null : room);
                   const tables = loadRoomTables(roomForRef);
                   const allFields = Object.fromEntries(Object.entries(tables).map(([t, rows]) => [t, new Set(rows.length ? Object.keys(rows[0]) : [])]));
                   // Prefer explicit ref fields if provided
@@ -2450,12 +3225,27 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                   args = { room, table1: t1, field1: f1, table2: t2, field2: f2, start: (range && range.start) || undefined, end: (range && range.end) || undefined };
                 } else if (ref.tool === 'histogram') {
                   let table = null;
-                  const roomForRef = room;
+                  const roomForRef = isAllRooms(room) ? (inferRoomFromText(series.name) || inferRoomFromText(question) || listRooms()[0]) : room;
                   const tables = loadRoomTables(roomForRef);
                   for (const [tname, rows] of Object.entries(tables)) {
                     if (rows.length && Object.keys(rows[0]).includes(ref.field)) { table = tname; break; }
                   }
                   args = { room: roomForRef, table: table || 'iaq', field: ref.field, bins: 12, start: (range && range.start) || undefined, end: (range && range.end) || undefined };
+                } else if (ref.tool === 'compare_series_cross_room') {
+                  const roomsList = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.slice(0, 8) : (room && !isAllRooms(room) ? [room] : listRooms().slice(0, 4));
+                  // Infer field from ref or series name/question
+                  const tablesSetsAny = roomsList.length ? availableFieldsByTable(roomsList[0]) : {};
+                  let field = ref.yField || ref.field || inferFieldName(series.name, tablesSetsAny) || inferFieldName(question, tablesSetsAny) || 'temperature';
+                  const seriesArgs = [];
+                  for (const r of roomsList) {
+                    const t = loadRoomTables(r);
+                    let tableMatch = null;
+                    for (const [tname, rows] of Object.entries(t)) {
+                      if (rows.length && Object.keys(rows[0]||{}).includes(field)) { tableMatch = tname; break; }
+                    }
+                    seriesArgs.push({ room: r, table: tableMatch || 'iaq', field, name: `${r} ${field}` });
+                  }
+                  args = { start: (range && range.start) || undefined, end: (range && range.end) || undefined, series: seriesArgs };
                 }
                 // Add other tool types as needed
                 missingToolCalls.push({ tool: ref.tool, args });
@@ -2474,9 +3264,29 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
         }
 
         // Now resolve chart as usual
-        const validChart = validateChart(obj.chart, trace);
+        let validChart = validateChart(obj.chart, trace);
         if (obj.chart && !validChart) {
-          log('Chart validation failed - returning without chart');
+          log('Chart validation failed - attempting fallback synthesis');
+        }
+
+        // Fallback: if no valid chart, synthesize from latest compare_series_cross_room
+        if (!validChart) {
+          try {
+            let lastCompare = null;
+            for (let i = trace.length - 1; i >= 0; i--) {
+              const t = trace[i];
+              if (t && t.tool === 'compare_series_cross_room' && t.result && typeof t.result === 'object') { lastCompare = t; break; }
+            }
+            if (lastCompare) {
+              const keys = Object.keys(lastCompare.result || {}).slice(0, 8);
+              if (keys.length) {
+                const series = keys.map((k) => ({ name: String(k), dataRef: { tool: 'compare_series_cross_room', field: k, xField: 'ts', yField: 'y' } }));
+                const fallbackChart = { chart: { type: 'line' }, title: { text: 'Cross-Room Comparison' }, xAxis: { type: 'datetime', title: { text: 'Time' } }, yAxis: { title: { text: 'Value' } }, series };
+                const vc = validateChart(fallbackChart, trace);
+                if (vc) { validChart = vc; log('Synthesized fallback chart from compare_series_cross_room'); }
+              }
+            }
+          } catch (e) { log('Fallback chart synthesis failed:', String(e)); }
         }
 
         // Optionally execute background tools and return as extras
@@ -2501,6 +3311,13 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
             }
           }
         } catch (e) { log('background_tools execution failed:', String(e)); }
+
+        // Inject routing info and evaluation into extras
+        try {
+          const evalMetrics = evaluateQA({ question, answer: obj.answer || reply, retrievedDocs: ctx._retrievedDocs || [] });
+          extras = extras || [];
+          extras.unshift({ message: { role: 'assistant', content: `Query ${routing.level}; grounding ${(evalMetrics.grounding*100).toFixed(0)}%; uncertainty ${(evalMetrics.uncertainty*100).toFixed(0)}%` }, chart: null });
+        } catch {}
 
         return {
           message: { role: 'assistant', content: obj.answer || reply },
@@ -2533,7 +3350,27 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
       if (last.includes('"tool_results"') || last.includes('"tool_result"') || last.includes('"tool_hint"')) {
         log('Prevented tool results JSON from being returned as final answer');
         
-        // Try to construct a useful answer from the trace
+        // If detectors/metrics per room were fetched, summarize them explicitly
+        try {
+          const recentDet = trace.filter(t => t && (t.tool === 'scope_list_detectors'));
+          if (recentDet.length) {
+            const lines = [];
+            for (const t of recentDet) {
+              const r = t.args && t.args.room;
+              if (!r) continue;
+              const dets = Array.isArray(t.result) ? t.result : [];
+              const tables = loadRoomTables(r);
+              const fieldSet = new Set();
+              for (const rows of Object.values(tables)) { const first=(rows||[])[0]||{}; for (const k of Object.keys(first)) if (k!=='ts') fieldSet.add(k); }
+              lines.push(`- ${r}: detectors=[${dets.join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`);
+            }
+            if (lines.length) {
+              return { message: { role: 'assistant', content: `Metrics by room in current scope:\n${lines.join('\n')}` }, chart: null, trace };
+            }
+          }
+        } catch (e) { log('detectors summary in tool_results fallback failed:', String(e)); }
+
+        // Try to construct a useful answer from the last tool otherwise
         let answer = 'I analyzed the data. ';
         const lastTool = trace[trace.length - 1];
         
@@ -2578,6 +3415,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
         try {
           const tablesSets = availableFieldsByTable(room);
           const fields = parseFieldsFromQuestion(question, tablesSets);
+          const floorAll = isAllRooms(room) && Array.isArray(selectionRooms) && selectionRooms.length;
           if (fields.length >= 2) {
             autoChart = {
               chart: { type: 'scatter' },
@@ -2586,7 +3424,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
               yAxis: { title: { text: fields[1] } },
               series: [{ name: `${fields[0]} vs ${fields[1]}`, dataRef: { tool: 'pair_timeseries', xField: 'x', yField: 'y', field1: fields[0], field2: fields[1] } }]
             };
-          } else if (fields.length === 1 || wantsChart(question)) {
+          } else if ((fields.length === 1 && !floorAll) || (wantsChart(question) && !floorAll)) {
             const f = fields[0] || 'temperature';
             autoChart = {
               chart: { type: 'line' },
@@ -2595,13 +3433,56 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
               yAxis: { title: { text: f } },
               series: [{ name: f, dataRef: { tool: 'fetch_timeseries', xField: 'ts', yField: f } }]
             };
+          } else if (floorAll) {
+            // Build a cross-room comparison from last compare_series_cross_room or run one now
+            let compare = null;
+            for (let i = trace.length - 1; i >= 0; i--) {
+              if (trace[i].tool === 'compare_series_cross_room' && trace[i].result && typeof trace[i].result === 'object') { compare = trace[i]; break; }
+            }
+            const f = fields[0] || 'people_count';
+            if (!compare) {
+              // Execute compare now for scoped rooms
+              const compareArgs = { start: rr.start || undefined, end: rr.end || undefined, series: [] };
+              for (const r of selectionRooms.slice(0, 8)) {
+                const t = loadRoomTables(r);
+                let tableMatch = null;
+                for (const [tname, rows] of Object.entries(t)) { if (rows.length && Object.keys(rows[0] || {}).includes(f)) { tableMatch = tname; break; } }
+                compareArgs.series.push({ room: r, table: tableMatch || 'iaq', field: f, name: `${r} ${f}` });
+              }
+              const result = tools.compare_series_cross_room(compareArgs);
+              trace.push({ tool: 'compare_series_cross_room', args: compareArgs, result });
+              compare = { result };
+            }
+            const keys = Object.keys(compare.result || {}).slice(0, 8);
+            if (keys.length) {
+              autoChart = {
+                chart: { type: 'line' },
+                title: { text: `${f} across rooms` },
+                xAxis: { type: 'datetime' },
+                yAxis: { title: { text: f } },
+                series: keys.map(k => ({ name: k, dataRef: { tool: 'compare_series_cross_room', field: k, xField: 'ts', yField: 'y' } }))
+              };
+            }
           }
         } catch {}
-        return { 
-          message: { role: 'assistant', content: last }, 
-          chart: autoChart, 
-          trace 
-        };
+        // If recent trace includes scope_list_detectors calls, summarize detectors/metrics per room
+        try {
+          const recent = trace.filter(t => t.tool === 'scope_list_detectors' && t.args && t.args.room);
+          if (recent.length) {
+            const lines = [];
+            for (const t of recent) {
+              const r = t.args.room;
+              const dets = Array.isArray(t.result) ? t.result : [];
+              const tables = loadRoomTables(r);
+              const fieldSet = new Set();
+              for (const rows of Object.values(tables)) { const first = (rows||[])[0]||{}; for (const k of Object.keys(first)) if (k!=='ts') fieldSet.add(k); }
+              lines.push(`- ${r}: detectors=[${dets.join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`);
+            }
+            const msg = `Metrics by room in current scope:\n${lines.join('\n')}`;
+            return { message: { role: 'assistant', content: msg }, chart: autoChart, trace };
+          }
+        } catch {}
+        return { message: { role: 'assistant', content: last }, chart: autoChart, trace };
       }
     }
     

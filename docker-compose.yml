@@ -2,21 +2,42 @@ services:
   avmsolutions:
     build: .
     image: avmsolutions:latest
-    environment:
-      - PORT=3000
-      - NODE_ENV=production
-      - CSV_DIR=/data/CSVex_enriched
-      - CSV_SOURCE_DIR=/data/CSVex
-      - CSV_TARGET_DIR=/data/CSVex_enriched
-      - SKIP_INGEST=0
-      # OpenWeather settings (optional)
-      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
-      - OPENWEATHER_LAT=${OPENWEATHER_LAT:-51.5072}
-      - OPENWEATHER_LON=${OPENWEATHER_LON:-0.1276}
-      - OPENWEATHER_BACKFILL_DAYS=5
+    env_file:
+      - .env
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    # All environment variables are sourced from .env via env_file above.
     volumes:
-      - ./CSVex:/data/CSVex:ro
+      - ./CSVex:/data/CSVex
       - ./csvex_enriched:/data/CSVex_enriched
       - ./knowledge:/app/knowledge:ro
     ports:
       - "3000:3000"
+
+  # Optional local Neo4j service for development.
+  # If you prefer to connect to an external Neo4j (e.g., Aura), you can ignore this service.
+  neo4j:
+    image: neo4j:5-community
+    container_name: neo4j
+    environment:
+      # Ensure Neo4j starts with a known password for local dev
+      - NEO4J_AUTH=${NEO4J_AUTH:-neo4j/testtest}
+    # NEO4J_AUTH will be sourced from .env if present
+    volumes:
+      - ./neo4j/data:/data
+      - ./neo4j/logs:/logs
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+
+  chroma:
+    image: ghcr.io/chroma-core/chroma:latest
+    container_name: chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ALLOW_RESET=TRUE
+    volumes:
+      - ./chroma:/chroma
+    ports:
+      - "8000:8000"

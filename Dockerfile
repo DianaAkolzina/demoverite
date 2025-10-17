@@ -1,19 +1,25 @@
-FROM node:18-bullseye-slim
+FROM node:18-bookworm-slim
 
 WORKDIR /app
 
 # System packages for Python runtime
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-       python3 python3-pip ca-certificates \
+       python3 python3-pip python3-venv ca-certificates sqlite3 libsqlite3-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy manifests first for better layer caching
-COPY package.json ./
+COPY package*.json ./
 COPY requirements.txt ./
 
-# Install Python deps
-RUN python3 -m pip install --no-cache-dir -r requirements.txt
+# Create isolated Python environment (PEP 668 safe) and install deps
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Node.js deps (production only)
+# Use npm install with dev dependencies omitted to avoid lockfile sync issues with npm ci
+RUN npm install --omit=dev
 
 # Copy the rest of the app
 COPY . .

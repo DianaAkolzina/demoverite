@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>AVM Solutions Analytics</title>
     <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/networkgraph.js"></script>
     <style>
       :root {
         --bg: #0f172a;
@@ -32,21 +33,22 @@
 
       .app {
         width: 100%;
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 2rem auto;
         background: var(--surface);
         border-radius: 16px;
         box-shadow: 0 4px 20px var(--shadow);
         display: flex;
         flex-direction: row;
-        overflow: hidden;
-        height: 90vh;
+        overflow: visible; /* allow page to scroll */
+        height: auto;      /* grow with content */
+        min-height: 90vh;
       }
 
       .sidebar {
-        width: 320px; /* wider sidebar */
-        min-width: 220px;
-        max-width: 400px;
+        width: 260px; /* narrower to give chat more space */
+        min-width: 200px;
+        max-width: 320px;
         background: var(--surface-light);
         border-right: 1px solid var(--border);
         padding: 1rem 0.5rem;
@@ -105,7 +107,7 @@
       }
 
       .main-content {
-        flex: 2;
+        flex: 4;
         display: flex;
         flex-direction: column;
         min-width: 0;
@@ -113,9 +115,9 @@
       }
 
       .charts-sidebar {
-        flex: 1.3;
-        min-width: 400px;
-        max-width: 600px;
+        flex: 0.9;
+        min-width: 300px;
+        max-width: 440px;
         background: var(--surface-light);
         border-left: 1px solid var(--border);
         padding: 1rem 0.5rem;
@@ -145,6 +147,8 @@
         background: var(--surface-light);
       }
 
+      .hidden { display: none !important; }
+
       h1 {
         text-align: center;
         padding: 1rem 0;
@@ -159,35 +163,27 @@
       .header {
         display: flex;
         align-items: flex-start;
-        gap: 2rem;
+        gap: 1rem;
         padding: 0.75rem 1rem;
         background: var(--surface-light);
         border-bottom: 1px solid var(--border);
         justify-content: flex-start;
+        flex-wrap: wrap;
       }
-      .header .room-select {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-      .header .date-selectors {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
+      .header .date-selectors { display: flex; flex-direction: row; gap: 1rem; flex: 1 1 600px; }
       .header label {
         color: var(--text-light);
         font-size: 0.95rem;
         margin-right: 0.5rem;
       }
-      .header select,
       .header input[type="datetime-local"] {
         background: var(--surface);
         color: var(--text);
         border: 1px solid var(--border);
         border-radius: 8px;
-        padding: 0.3rem 0.7rem;
+        padding: 0.4rem 0.7rem;
         font-size: 1rem;
+        min-width: 240px;
       }
 
       .chat {
@@ -343,6 +339,10 @@
   <body>
     <div class="app">
       <div class="sidebar">
+        <h2>Datastores</h2>
+        <div id="status-card" class="metric-item" style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px; color: var(--text-light); font-size: 0.95rem;">
+          <!-- Filled by JS: Neo4j/Chroma status -->
+        </div>
         <h2>Metrics</h2>
         <ul class="metrics" id="metrics">
           <!-- Metrics will be loaded dynamically -->
@@ -352,14 +352,7 @@
         <div class="main-content">
           <h1>AVM Solutions Analytics</h1>
           <div class="header">
-            <div class="room-select">
-              <label for="room">Room:</label>
-              <select id="room">
-                <option value="cafe">Cafe</option>
-                <option value="office">Office</option>
-                <!-- Add more rooms dynamically -->
-              </select>
-            </div>
+            <!-- Removed room dropdown; selection is from graph -->
             <div class="date-selectors">
               <div>
                 <label for="start">Start:</label>
@@ -370,6 +363,22 @@
                 <input type="datetime-local" id="end" />
               </div>
             </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <button id="toggle-graph" class="pill" style="cursor:pointer;">Toggle Graph</button>
+              <button id="toggle-charts" class="pill" style="cursor:pointer;">Toggle Charts</button>
+            </div>
+          </div>
+          <div id="graph-view" style="height: 520px; background: var(--surface-light); border-top: 1px solid var(--border);
+               display: flex; flex-direction: column; gap: 6px; padding: 8px;">
+            <div id="graph-view-title" style="display:flex; align-items:center; justify-content: space-between; font-size: 0.95rem; color: var(--text-light);">
+              <div>Graph: Building → Floor → Room → Devices</div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span id="scope-pill" class="pill">No scope selected</span>
+                <button id="confirm-scope" class="pill" style="cursor:pointer; background: var(--accent-dark); color:#fff; border: none;">Use Selection</button>
+                <button id="clear-scope" class="pill" style="cursor:pointer;">Clear</button>
+              </div>
+            </div>
+            <div id="graph-view-chart" style="flex: 1;"></div>
           </div>
           <div id="selected-range" style="padding: 0.5rem 1rem; background: var(--surface-light); color: var(--text-light); font-size: 0.98rem;">
             <!-- JS will fill this with the selected time window -->
