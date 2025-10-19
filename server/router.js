@@ -29,10 +29,10 @@ export function classifyQuery(question) {
 
   // Suggested pipeline knobs
   const pipeline = {
-    L1: { retrieval: { mode: 'hybrid', k: 6 }, reasoning: 'direct' },
-    L2: { retrieval: { mode: 'hybrid-iterative', k: 8, hops: 2 }, reasoning: 'iterative' },
-    L3: { retrieval: { mode: 'hybrid+rules', k: 10, focus: ['norms', 'iaq_guidelines'] }, reasoning: 'workflow' },
-    L4: { retrieval: { mode: 'broad-hybrid', k: 12 }, reasoning: 'cot' }
+    L1: { retrieval: { mode: 'hybrid', k: 8 }, reasoning: 'direct' },
+    L2: { retrieval: { mode: 'hybrid-iterative', k: 12, hops: 2 }, reasoning: 'iterative' },
+    L3: { retrieval: { mode: 'hybrid+rules', k: 18, focus: ['norms', 'iaq_guidelines'] }, reasoning: 'workflow' },
+    L4: { retrieval: { mode: 'broad-hybrid', k: 24 }, reasoning: 'cot' }
   }[level];
 
   return { level, pipeline };
@@ -45,4 +45,3 @@ export function suggestRetrievalFilters(level) {
   }
   return {};
 }
-

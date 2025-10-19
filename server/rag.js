@@ -55,7 +55,8 @@ function buildTfidfIndex(docs, { debug = false } = {}) {
       }
       scored.sort((a, b) => b.score - a.score);
       if (debug) {
-        console.log(`[RAG] Search query="${q.slice(0,120)}" -> top ${Math.min(k, scored.length)} of ${scored.length}`);
+        const qDisp = '<redacted>';
+        console.log(`[RAG] Search query="${qDisp}" -> top ${Math.min(k, scored.length)} of ${scored.length}`);
         for (const h of scored.slice(0, k)) {
           console.log(`[RAG] hit id=${h.id} score=${h.score.toFixed(3)} meta=${JSON.stringify(h.meta)}`);
         }

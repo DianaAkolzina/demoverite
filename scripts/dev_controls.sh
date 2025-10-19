@@ -88,6 +88,10 @@ index_chroma() {
 }
 
 start_app() {
+  echo "[dev] Ensuring Chroma (port ${CHROMA_PORT}) before starting app..."
+  ensure_chroma
+  echo "[dev] Indexing knowledge/profiles into Chroma"
+  index_chroma
   echo "[dev] Starting app on :$APP_PORT"
   if docker ps -a --format '{{.Names}}' | grep -q "^${APP_CONTAINER}$"; then docker rm -f "$APP_CONTAINER" >/dev/null || true; fi
   docker run -d --name "$APP_CONTAINER" -p ${APP_PORT}:3000 \
@@ -140,7 +144,7 @@ Commands:
   ingest           Ingest CSVs into csvex_enriched
   populate-neo     Populate Neo4j Aura with mock graph
   index-chroma     Index knowledge + profiles into Chroma
-  start            Start the app container (no reingest/reindex)
+  start            Ensure Chroma, index knowledge, then start the app container
   restart          Full rebuild + seed + ingest + populate + index + start
   logs             Tail app logs
   chroma-logs      Tail chroma logs

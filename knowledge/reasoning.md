@@ -24,4 +24,4 @@ Reasoning Guide for Queries and Math Mapping (Updated)
   - correlations among metrics → `correlation_matrix`
   - no rows in window → inspect `fetch_table_meta` and adapt within available range
 
-See also: tools_playbook.md (Authoritative) for current tool list, chart patterns (dataRef only), and scope/time window rules.
+See also: tools_playbook.md (Authoritative) for current tool list, chart patterns (prefer dataRef; small arrays allowed for short windows), and scope/time window rules.

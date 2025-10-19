@@ -106,7 +106,7 @@ export function createVectorClient({ chromaUrl, defaultCollection = process.env.
     }
   }
 
-  async function searchProfiles({ room, metric, horizon = '7d', k = 6, collection = 'profiles' }) {
+  async function searchProfiles({ room, metric, horizon = '7d', k = 6, collection = (process.env.CHROMA_COLLECTION_PROFILES || 'profiles') }) {
     // Query by textual description; real deployments should add proper filter params when available
     const q = `room:${room} metric:${metric} horizon:${horizon}`;
     return searchDocs({ query: q, k, collection });

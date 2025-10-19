@@ -2106,7 +2106,7 @@ function parseFieldsFromQuestion(question, availableSets) {
     // --------------------------------------------
 
     const ctx = await buildContextSnippet(question, room && room !== 'ALL' ? room : null, range, selectionRooms);
-    log('Question:', question);
+    log('Question:', '<redacted>');
     if (DEBUG) log('Context snippet schema keys:', Object.keys(ctx.schema));
 
     const rr = range || {};
@@ -2280,7 +2280,8 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       const en = rr.end != null ? `${endDate?.toLocaleString()} (UTC: ${endDate?.toISOString().replace('T',' ').slice(0,16)})` : 'none';
       const scopeRooms = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room && room!=='ALL' ? room : '(none)');
       const txt = `Scope rooms: ${scopeRooms}\nTime window:\n- Local: ${st} → ${en}\n- Epoch (ms): start=${rr.start ?? 'none'}, end=${rr.end ?? 'none'}`;
-      return { message: { role: 'assistant', content: txt }, chart: null, trace: [] };
+      const extras = [{ message: { role: 'assistant', content: `Query ${routing.level}` }, chart: null }];
+      return { message: { role: 'assistant', content: txt }, chart: null, trace: [], extras };
     }
 
     // Selection only (no time) direct answer
@@ -2359,7 +2360,10 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
           } : null;
           const trace = [{ tool: 'compare_series_cross_room', args: compareArgs, result }];
           const valid = validateChart(chart, trace);
-          if (valid) return { message: { role: 'assistant', content: `Compared ${f} between ${r1} and ${r2}.` }, chart: valid, trace };
+          if (valid) {
+            const extras = [{ message: { role: 'assistant', content: `Query ${routing.level}` }, chart: null }];
+            return { message: { role: 'assistant', content: `Compared ${f} between ${r1} and ${r2}.` }, chart: valid, trace, extras };
+          }
         }
       } catch (e) { log('early compareTypes failed:', String(e)); }
     }
@@ -2383,7 +2387,8 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
           lines.push(`- ${r}: detectors=[${detectors.join(', ')||'—'}], metrics=[${Array.from(fields).sort().join(', ')||'—'}]`);
         }
         const msg = `Metrics by room in current scope:\n${lines.join('\n')}`;
-        return { message: { role: 'assistant', content: msg }, chart: null, trace: [] };
+        const extras = [{ message: { role: 'assistant', content: `Query ${routing.level}` }, chart: null }];
+        return { message: { role: 'assistant', content: msg }, chart: null, trace: [], extras };
       } catch (e) { log('early metrics summary failed:', String(e)); }
     }
 
@@ -2433,7 +2438,8 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
           const fieldSet = new Set();
           for (const rows of Object.values(tables)) { const first=(rows||[])[0]||{}; for (const k of Object.keys(first)) if (k!=='ts') fieldSet.add(k); }
           const msg = `${r}: detectors=[${(Array.isArray(dets)?dets:[]).join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`;
-          return { message: { role: 'assistant', content: msg }, chart: null, trace: [] };
+          const extras = [{ message: { role: 'assistant', content: `Query ${routing.level}` }, chart: null }];
+          return { message: { role: 'assistant', content: msg }, chart: null, trace: [], extras };
         } catch (e) { log('early devices summary failed:', String(e)); }
       }
     }
@@ -2490,6 +2496,65 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       } catch (e) { log('early ranking failed:', String(e)); }
     }
 
+    // Auto-handle plotting intents by directly building charts without LLM
+    {
+      const qlc = String(question||'').toLowerCase();
+      const isPlotIntent = /(plot|chart|graph|scatter|histogram|heatmap)\b/.test(qlc);
+      if (isPlotIntent && room && room !== 'ALL') {
+        function pickMetric(q) {
+          const s = String(q||'').toLowerCase();
+          if (s.includes('humidity')) return 'humidity';
+          if (s.includes('co2')) return 'co2';
+          if (s.includes('temperature') || s.includes('temp')) return 'temperature';
+          if (s.includes('lux') || s.includes('light')) return 'lux';
+          if (s.includes('energy') || s.includes('kwh')) return 'total_kwh';
+          if (s.includes('people') || s.includes('occupancy')) return 'people_count';
+          return 'co2';
+        }
+        const metric = pickMetric(question);
+        let granularity = 'raw';
+        if (qlc.includes('daily')) granularity = 'daily';
+        else if (qlc.includes('hourly')) granularity = 'hourly';
+        else if (qlc.includes('scatter') || qlc.includes(' vs ')) granularity = 'scatter';
+        else if (qlc.includes('histogram') || qlc.includes('distribution')) granularity = 'histogram';
+        else if (qlc.includes('heatmap') || qlc.includes('correlation')) granularity = 'heatmap';
+        try {
+          const rr = range || {};
+          const traceAuto = [];
+          if (granularity === 'histogram') {
+            const res = tools.histogram({ room, table: 'iaq', field: metric, bins: 20, start: rr.start || undefined, end: rr.end || undefined });
+            traceAuto.push({ tool: 'histogram', args: { room, table: 'iaq', field: metric }, result: res });
+            const chart = { chart: { type: 'column' }, title: { text: `Histogram of ${metric}` }, xAxis: { title: { text: metric } }, yAxis: { title: { text: 'Count' } }, series: [{ name: `${room} ${metric}`, dataRef: { tool: 'histogram', xField: 'binStart', yField: 'count' } }] };
+            const valid = validateChart(chart, traceAuto);
+            if (valid) return { message: { role: 'assistant', content: `Plotted ${metric} histogram for ${room}.` }, chart: valid, trace: traceAuto };
+          } else if (granularity === 'heatmap') {
+            const fields = ['temperature','humidity','co2','lux'];
+            const res = tools.correlation_matrix({ room, table: 'iaq', fields, start: rr.start || undefined, end: rr.end || undefined });
+            traceAuto.push({ tool: 'correlation_matrix', args: { room, table: 'iaq', fields }, result: res });
+            const chart = { chart: { type: 'heatmap' }, title: { text: 'Correlation Heatmap' }, colorAxis: { min: -1, max: 1 }, series: [{ name: 'Correlation', dataRef: { tool: 'correlation_matrix', format: 'heatmap' } }] };
+            const valid = validateChart(chart, traceAuto);
+            if (valid) return { message: { role: 'assistant', content: `Correlation heatmap for ${room}.` }, chart: valid, trace: traceAuto };
+          } else if (granularity === 'scatter') {
+            const res = tools.pair_timeseries({ room, table1: 'iaq', field1: metric, table2: 'weather', field2: 'temp', start: rr.start || undefined, end: rr.end || undefined, time_window_ms: 60*60*1000 });
+            traceAuto.push({ tool: 'pair_timeseries', args: { room, table1: 'iaq', field1: metric, table2: 'weather', field2: 'temp' }, result: res });
+            const chart = { chart: { type: 'scatter' }, title: { text: `${metric} vs outside temp` }, series: [{ name: `${metric} vs temp`, dataRef: { tool: 'pair_timeseries', xField: 'x', yField: 'y' } }] };
+            const valid = validateChart(chart, traceAuto);
+            if (valid) return { message: { role: 'assistant', content: `Scatter plotted for ${metric} vs outside temp.` }, chart: valid, trace: traceAuto };
+          } else {
+            // time series
+            let res = null, yField = metric, toolName = 'fetch_timeseries';
+            if (granularity === 'hourly') { res = tools.hourly_timeseries({ room, table: 'iaq', field: metric, start: rr.start || undefined, end: rr.end || undefined }); toolName = 'hourly_timeseries'; yField = 'avg'; }
+            else if (granularity === 'daily') { res = tools.daily_avg({ room, table: 'iaq', field: metric, start: rr.start || undefined, end: rr.end || undefined }); toolName = 'daily_avg'; yField = 'avg'; }
+            else { res = tools.fetch_timeseries({ room, table: 'iaq', fields: [metric], start: rr.start || undefined, end: rr.end || undefined }); }
+            traceAuto.push({ tool: toolName, args: { room, table: 'iaq', field: metric, fields: [metric], start: rr.start || undefined, end: rr.end || undefined }, result: res });
+            const chart = { chart: { type: 'line' }, title: { text: `${room} — ${metric} (${granularity})` }, xAxis: { type: 'datetime' }, yAxis: [{ title: { text: metric } }], series: [{ name: `${room} ${metric}`, dataRef: { tool: toolName, xField: 'ts', yField } }] };
+            const valid = validateChart(chart, traceAuto);
+            if (valid) return { message: { role: 'assistant', content: `Plotted ${metric} for ${room}.` }, chart: valid, trace: traceAuto };
+          }
+        } catch (e) { log('auto-plot failed:', String(e)); }
+      }
+    }
+
     const trace = [];
     let lastToolSig = '';
     let repeatCount = 0;
@@ -2497,7 +2562,12 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
     
     for (let step = 0; step < 10; step++) {
       const t0 = Date.now();
-      const reply = await callGeminiChat(convo, {});
+    // Enforce chart_query for plotting intents
+    const qlc = String(question||'').toLowerCase();
+    if (/(plot|chart|graph|scatter|histogram|heatmap)\b/.test(qlc)) {
+      convo.push({ role: 'model', content: 'Reminder: For plotting questions, first call chart_query to produce a plan and chart with dataRef, then execute the plan and finalize with the chart.' });
+    }
+    const reply = await callGeminiChat(convo, {});
       const dt = Date.now() - t0;
       log(`LLM step ${step} took ${dt}ms`);
       
@@ -2839,6 +2909,21 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
           if (args.room == null && room) args.room = room;
           if (args.start == null && rr.start != null) args.start = rr.start;
           if (args.end == null && rr.end != null) args.end = rr.end;
+          // Steer tool args toward intended metric/table inferred from the question
+          const want = (String(question||'').toLowerCase().includes('humidity') ? 'humidity' :
+                       String(question||'').toLowerCase().includes('temperature') || String(question||'').toLowerCase().includes('temp') ? 'temperature' :
+                       String(question||'').toLowerCase().includes('co2') ? 'co2' :
+                       String(question||'').toLowerCase().includes('lux') || String(question||'').toLowerCase().includes('light') ? 'lux' : null);
+          function inferTbl(m) { if (!m) return null; if (['co2','temperature','humidity','lux'].includes(m)) return 'iaq'; if (m==='people_count') return 'people'; if (m==='total_kwh') return 'energy'; return null; }
+          if (want) {
+            if (tool === 'fetch_timeseries') {
+              if (!args.fields || !args.fields.length || !args.fields.includes(want)) args.fields = [want];
+              if (!args.table) { const t = inferTbl(want); if (t) args.table = t; }
+            } else if (tool === 'hourly_timeseries' || tool === 'daily_avg' || tool === 'stats' || tool === 'hour_of_day_stats' || tool === 'histogram') {
+              if (!args.field) args.field = want;
+              if (!args.table) { const t = inferTbl(want); if (t) args.table = t; }
+            }
+          }
           let result = null;
           try { result = tools[tool](args); } catch (e) { result = { error: String(e) }; }
           results.push({ tool, args, result });
@@ -2868,6 +2953,21 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
         if (filledArgs.room == null && room) filledArgs.room = room;
         if (filledArgs.start == null && rr.start != null) filledArgs.start = rr.start;
         if (filledArgs.end == null && rr.end != null) filledArgs.end = rr.end;
+        // Steer tool args toward intended metric/table inferred from the question
+        const want = (String(question||'').toLowerCase().includes('humidity') ? 'humidity' :
+                     String(question||'').toLowerCase().includes('temperature') || String(question||'').toLowerCase().includes('temp') ? 'temperature' :
+                     String(question||'').toLowerCase().includes('co2') ? 'co2' :
+                     String(question||'').toLowerCase().includes('lux') || String(question||'').toLowerCase().includes('light') ? 'lux' : null);
+        function inferTbl(m) { if (!m) return null; if (['co2','temperature','humidity','lux'].includes(m)) return 'iaq'; if (m==='people_count') return 'people'; if (m==='total_kwh') return 'energy'; return null; }
+        if (want) {
+          if (tool === 'fetch_timeseries') {
+            if (!filledArgs.fields || !filledArgs.fields.length || !filledArgs.fields.includes(want)) filledArgs.fields = [want];
+            if (!filledArgs.table) { const t = inferTbl(want); if (t) filledArgs.table = t; }
+          } else if (tool === 'hourly_timeseries' || tool === 'daily_avg' || tool === 'stats' || tool === 'hour_of_day_stats' || tool === 'histogram') {
+            if (!filledArgs.field) filledArgs.field = want;
+            if (!filledArgs.table) { const t = inferTbl(want); if (t) filledArgs.table = t; }
+          }
+        }
         
         let result = null;
         try { 

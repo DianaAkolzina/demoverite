@@ -3,7 +3,7 @@
 This document enumerates all agent tools, their arguments, returned shapes, and dataRef chart patterns. Always:
 - Respect scope (only rooms in selection)
 - Respect time window (use start/end; adapt via fetch_table_meta if needed)
-- Use dataRef (never embed arrays) when returning charts
+- Prefer dataRef when returning charts; for short windows or small datasets you may embed compact arrays.
 
 ## 1) Discovery / Schema
 
@@ -111,7 +111,7 @@ This document enumerates all agent tools, their arguments, returned shapes, and 
 - People: `people` → people_count
 - Water (if present): `water` → value, total_liters
 
-## Chart Patterns (dataRef only)
+## Chart Patterns (prefer dataRef)
 
 - Single metric line: use `fetch_timeseries` dataRef with yField=metric
 - Cross-room comparison: use `compare_series_cross_room` with field=<series key>
@@ -124,4 +124,6 @@ This document enumerates all agent tools, their arguments, returned shapes, and 
 - If a tool returns no rows, run `fetch_table_meta` and adapt within available range; explain briefly.
 - Don’t invent rooms or metrics; use selection and schema.
 - Answer succinctly; add chart when it clarifies a trend or comparison.
-
+- `daily_avg({ room, table, field, start?, end? })` → `[{ ts, avg }]` (daily buckets at local midnight)
+- `daily_avg_across_rooms({ rooms[], table, field, start?, end? })` → `{ perRoom: { [room]: [{ ts, avg }] }, combined: [{ ts, avg }] }`
+  - Use for “average by day” questions per room and combined. Chart with multiple series (per room) or a single combined line.

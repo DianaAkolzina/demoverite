@@ -84,6 +84,7 @@ async function init() {
   const metricsEl = document.getElementById('metrics');
   const sidebar = document.querySelector('.sidebar');
   const statusEl = document.getElementById('status-card');
+  const queryLevelEl = document.getElementById('query-level');
   const toggleGraphBtn = document.getElementById('toggle-graph');
   const toggleChartsBtn = document.getElementById('toggle-charts');
   // graphSummaryEl removed (no sidebar graph summary)
@@ -239,6 +240,12 @@ async function init() {
       }
     }
 
+    // Update query level indicator from extras if present
+    if (Array.isArray(res.extras) && queryLevelEl) {
+      const lvl = extractQueryLevel(res.extras);
+      setQueryLevel(lvl);
+    }
+
     // Render chart in sidebar instead of chat
     const { chart } = res;
     if (chart) {
@@ -272,6 +279,30 @@ async function init() {
         }
       }
     }
+  }
+
+  function extractQueryLevel(extras) {
+    try {
+      for (const ex of extras) {
+        const txt = ex && ex.message && ex.message.content;
+        if (!txt) continue;
+        const m = String(txt).match(/\bQuery\s+(L[1-4])\b/i);
+        if (m) return m[1].toUpperCase();
+      }
+    } catch {}
+    return null;
+  }
+
+  function setQueryLevel(lvl) {
+    if (!queryLevelEl) return;
+    queryLevelEl.textContent = lvl ? `Query: ${lvl}` : 'Query: —';
+    queryLevelEl.classList.remove('level-l1','level-l2','level-l3','level-l4');
+    if (!lvl) return;
+    const c = lvl.toLowerCase();
+    if (c === 'l1') queryLevelEl.classList.add('level-l1');
+    else if (c === 'l2') queryLevelEl.classList.add('level-l2');
+    else if (c === 'l3') queryLevelEl.classList.add('level-l3');
+    else if (c === 'l4') queryLevelEl.classList.add('level-l4');
   }
 
   async function refreshStatus() {

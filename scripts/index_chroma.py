@@ -40,7 +40,8 @@ def get_client():
     return chromadb.HttpClient(host=host, port=port, settings=Settings(allow_reset=True))
 
 def index_knowledge(client):
-    coll = client.get_or_create_collection(name='knowledge', embedding_function=EF)
+    name = os.environ.get('CHROMA_COLLECTION', 'knowledge')
+    coll = client.get_or_create_collection(name=name, embedding_function=EF)
     files = [f for f in glob.glob('knowledge/**/*.*', recursive=True) if f.lower().endswith(('.md','.txt'))]
     docs, ids, metas = [], [], []
     for i, f in enumerate(files):
@@ -61,7 +62,8 @@ def make_profile_doc(building, room, metric, horizon, summary):
     }
 
 def index_profiles(client):
-    coll = client.get_or_create_collection(name='profiles', embedding_function=EF)
+    name = os.environ.get('CHROMA_COLLECTION_PROFILES', 'profiles')
+    coll = client.get_or_create_collection(name=name, embedding_function=EF)
     buildings = ['Alpha Tower','Alpha Annex','Beta Plaza','Beta Lofts']
     base_rooms = ['Cafe 1','Boardroom 1','Lab 1','Toilet 1','Cafe 2','Boardroom 2']
     metrics = ['co2','people_count','total_kwh','lux','temperature','humidity']

@@ -1,5 +1,6 @@
 // Hybrid retrieval: combine sparse TF-IDF (ragIndex) with vector store (Chroma)
 // using Reciprocal Rank Fusion (RRF) and a light lexical rerank.
+import { spawn } from 'child_process';
 
 function tokenize(s) {
   return String(s || '')
@@ -86,6 +87,34 @@ export async function hybridRetrieve({ query, ragIndex, vectorClient, k = 6 }) {
     it.final = 0.7 * it.rrf + 0.3 * it.lex;
   }
   fused.sort((a, b) => b.final - a.final);
-  return fused.slice(0, k);
-}
 
+  // Optional: Python SBERT reranker (SciBERT ST) for top-M
+  async function sbertRerank(query, items) {
+    const enabled = String(process.env.RERANK_ENABLED || '1') === '1';
+    if (!enabled || !items.length) return items;
+    const topM = Math.min(Number(process.env.RERANK_TOP || 20), items.length);
+    const subset = items.slice(0, topM);
+    try {
+      const p = spawn('python3', ['scripts/rerank.py'], { stdio: ['pipe', 'pipe', 'pipe'] });
+      const payload = JSON.stringify({ query, texts: subset.map(x => x.text) });
+      p.stdin.write(payload);
+      p.stdin.end();
+      const chunks = [];
+      for await (const d of p.stdout) chunks.push(d);
+      const out = Buffer.concat(chunks).toString('utf8');
+      const res = JSON.parse(out);
+      const scores = Array.isArray(res?.scores) ? res.scores : [];
+      const scored = subset.map((it, i) => ({ ...it, rerank: Number(scores[i] || 0) }));
+      scored.sort((a, b) => b.rerank - a.rerank);
+      // merge back with tail
+      const merged = scored.concat(items.slice(topM));
+      return merged;
+    } catch (e) {
+      // Fall back on fused ordering
+      return items;
+    }
+  }
+
+  const reranked = await sbertRerank(query, fused);
+  return reranked.slice(0, k);
+}

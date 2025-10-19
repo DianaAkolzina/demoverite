@@ -34,6 +34,13 @@ ENV PORT=3000 \
     CSV_SOURCE_DIR=CSVex \
     CSV_TARGET_DIR=${CSV_DIR}
 
+# Optional: prefetch sentence-transformers model (can be overridden at runtime)
+# Default to a public, science-oriented, commercially usable model
+# (AllenAI SPECTER via Sentence-Transformers wrapper)
+ARG CHROMA_EMB_MODEL=sentence-transformers/allenai-specter
+ENV CHROMA_EMB_MODEL=${CHROMA_EMB_MODEL}
+RUN python3 -c "import os; from sentence_transformers import SentenceTransformer; m=os.environ.get('CHROMA_EMB_MODEL','sentence-transformers/allenai-specter'); print('[build] Prefetch embedding model:', m); SentenceTransformer(m)" || true
+
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

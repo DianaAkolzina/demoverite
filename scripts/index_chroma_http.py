@@ -30,23 +30,63 @@ def raise_for_status(r: requests.Response):
         raise
 
 def get_or_create_collection(name: str):
-    # Try v2 first, fallback to v1. Some v2 builds don't support name query param, so list all and filter.
-    def _list(base):
-        r = requests.get(f"{CHROMA_URL}{base}/collections")
-        raise_for_status(r)
-        data = r.json()
-        items = data.get('collections') or []
-        for c in items:
-            if c.get('name') == name:
-                return c
-        # Not found → create
-        rc = requests.post(f"{CHROMA_URL}{base}/collections", json={'name': name})
-        raise_for_status(rc)
-        return rc.json()
+    """Be tolerant of Chroma API variants.
+    Strategy:
+    - Try create on v2: POST /api/v2/collections {name}
+    - Fallback create on v1: POST /api/v1/collections {name}
+    - If creation not supported, try list on v2 then v1 and match by name.
+    """
+    # Try create v2
     try:
-        return _list('/api/v2')
+        rc = requests.post(f"{CHROMA_URL}/api/v2/collections", json={'name': name})
+        if 200 <= rc.status_code < 300:
+            return rc.json()
     except Exception:
-        return _list('/api/v1')
+        pass
+    # Try create v2 (default database path)
+    try:
+        rc = requests.post(f"{CHROMA_URL}/api/v2/databases/default/collections", json={'name': name})
+        if 200 <= rc.status_code < 300:
+            return rc.json()
+    except Exception:
+        pass
+    # Try create v1
+    try:
+        rc = requests.post(f"{CHROMA_URL}/api/v1/collections", json={'name': name})
+        if 200 <= rc.status_code < 300:
+            return rc.json()
+    except Exception:
+        pass
+    # Try list v2
+    try:
+        r = requests.get(f"{CHROMA_URL}/api/v2/collections")
+        if r.ok:
+            data = r.json()
+            for c in data.get('collections') or []:
+                if c.get('name') == name:
+                    return c
+    except Exception:
+        pass
+    # Try list v2 (default database path)
+    try:
+        r = requests.get(f"{CHROMA_URL}/api/v2/databases/default/collections")
+        if r.ok:
+            data = r.json()
+            # Some servers may return a list of objects with 'name' or 'collection'
+            items = data.get('collections') or data.get('data') or []
+            for c in items:
+                if (isinstance(c, dict) and (c.get('name') == name or c.get('collection', {}).get('name') == name)):
+                    return c
+    except Exception:
+        pass
+    # Try list v1
+    r = requests.get(f"{CHROMA_URL}/api/v1/collections")
+    raise_for_status(r)
+    data = r.json()
+    for c in data.get('collections') or []:
+        if c.get('name') == name:
+            return c
+    raise RuntimeError('Unable to create or find collection: ' + name)
 
 def add_batch(collection_id: str, ids, documents=None, metadatas=None, embeddings=None):
     payload = { 'ids': ids }

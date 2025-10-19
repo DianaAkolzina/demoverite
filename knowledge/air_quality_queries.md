@@ -11,6 +11,7 @@ Air Quality & Health — Tool Playbook
 - Virus risk level per room: use `virusrisk` field if available; otherwise proxy via high `co2` + low `airExchangeRate`.
 - Poorest air quality today: rank rooms by high `co2`/`pm25`/`pm10` averages in the window.
 - Occupancy impact on CO₂/PM: use `correlate` between `people.people_count` and `co2` or `pm25`.
+- Daily CO₂ averages by room and combined: use `daily_avg` per room or `daily_avg_across_rooms` for combined series; chart as line(s) with datetime x-axis.
 - Times with highest virus risk: find hours with high `co2` and low `airExchangeRate` using `hour_of_day_stats` and/or `pair_timeseries`.
 - Ventilation rate vs risk: correlate `airExchangeRate` (if present) with `virusrisk` or `co2`.
 - Humidity vs risk: correlate `humidity` with `virusrisk`; look for extremes outside 40–60%.

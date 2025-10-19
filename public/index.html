@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>AVM Solutions Analytics</title>
     <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/highcharts-more.js"></script>
+    <script src="https://code.highcharts.com/modules/heatmap.js"></script>
     <script src="https://code.highcharts.com/modules/networkgraph.js"></script>
     <style>
       :root {
@@ -334,6 +336,12 @@
       .sidebar::-webkit-scrollbar-track {
         background: var(--surface-light);
       }
+
+      /* Query level pill color coding */
+      .level-l1 { background: #15803d !important; color: #fff !important; }
+      .level-l2 { background: #2563eb !important; color: #fff !important; }
+      .level-l3 { background: #f59e0b !important; color: #111827 !important; }
+      .level-l4 { background: #7c3aed !important; color: #fff !important; }
     </style>
   </head>
   <body>
@@ -351,7 +359,7 @@
       <div class="main">
         <div class="main-content">
           <h1>AVM Solutions Analytics</h1>
-          <div class="header">
+      <div class="header">
             <!-- Removed room dropdown; selection is from graph -->
             <div class="date-selectors">
               <div>
@@ -362,6 +370,9 @@
                 <label for="end">End:</label>
                 <input type="datetime-local" id="end" />
               </div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span id="query-level" class="pill" title="Last query classification">Query: —</span>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
               <button id="toggle-graph" class="pill" style="cursor:pointer;">Toggle Graph</button>
