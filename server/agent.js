@@ -2986,18 +2986,39 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
         if (tool === 'compare_series_cross_room' && result && typeof result === 'object' && !Array.isArray(result)) {
           try {
             const entries = Object.entries(result);
-            const series = entries.map(([name, pts]) => ({
-              name,
-              data: Array.isArray(pts) ? pts.filter(p => p && p.ts != null && Number.isFinite(Number(p.y))).map(p => [Number(p.ts), Number(p.y)]) : []
-            }));
-            const any = series.some(s => s.data && s.data.length);
-            const chart = any ? {
-              chart: { type: 'line' },
-              title: { text: 'Comparison' },
-              xAxis: { type: 'datetime' },
-              yAxis: { title: { text: '' } },
-              series
-            } : null;
+            const qlc = String(question||'').toLowerCase();
+            let chart = null;
+            if (/(histogram|distribution)\b/.test(qlc)) {
+              // Build histograms per series (per room/field)
+              const colSeries = [];
+              const requested = (args && Array.isArray(args.series)) ? args.series : [];
+              for (const s of requested) {
+                const roomReq = s.room;
+                const fieldReq = s.field;
+                const tableReq = s.table || 'iaq';
+                try {
+                  const hist = tools.histogram({ room: roomReq, table: tableReq, field: fieldReq, bins: 20, start: args.start || undefined, end: args.end || undefined });
+                  trace.push({ tool: 'histogram', args: { room: roomReq, table: tableReq, field: fieldReq }, result: hist });
+                  const data = Array.isArray(hist) ? hist.map(h => [Number(h.binStart), Number(h.count)]) : [];
+                  colSeries.push({ name: `${roomReq} ${fieldReq}`, data });
+                } catch (e) { /* ignore */ }
+              }
+              const any = colSeries.some(s => s.data && s.data.length);
+              chart = any ? { chart: { type: 'column' }, title: { text: 'Histogram Comparison' }, xAxis: { title: { text: 'Value' } }, yAxis: { title: { text: 'Count' } }, series: colSeries } : null;
+            } else {
+              const lineSeries = entries.map(([name, pts]) => ({
+                name,
+                data: Array.isArray(pts) ? pts.filter(p => p && p.ts != null && Number.isFinite(Number(p.y))).map(p => [Number(p.ts), Number(p.y)]) : []
+              }));
+              const any = lineSeries.some(s => s.data && s.data.length);
+              chart = any ? {
+                chart: { type: 'line' },
+                title: { text: 'Comparison' },
+                xAxis: { type: 'datetime' },
+                yAxis: { title: { text: '' } },
+                series: lineSeries
+              } : null;
+            }
             const answerText = entries.length ? 'Compared series across rooms.' : 'No data available to compare in the selected period.';
             const evalMetrics = evaluateQA({ question, answer: answerText, retrievedDocs: ctx._retrievedDocs || [] });
             const extraEval = { message: { role: 'assistant', content: `Eval grounding=${(evalMetrics.grounding*100).toFixed(0)}% uncertainty=${(evalMetrics.uncertainty*100).toFixed(0)}%` }, chart: null };

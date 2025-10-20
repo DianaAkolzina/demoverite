@@ -1,5 +1,24 @@
-node_modules
-CSVex
-csvex_enriched
-.env
+# Node & Python envs
+node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Local data directories (large, not for Git)
+CSVex/
+csvex_enriched/
+chroma/
+neo4j/
+
+# Logs and caches
+*.log
+*.tmp
+*.cache
+
+# OS/editor files
 .DS_Store
+.idea/
+.vscode/
+
+# Env files
+.env
