@@ -1,0 +1,13 @@
+{
+  "name": "l4_forecast_co2_week",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "Forecast daily average CO2 in B_F3_lab for next 7 days",
+  "target_metric": "co2",
+  "target_chart": "line",
+  "latency_sec": 49.261425495147705,
+  "reference": "Baseline forecast: last daily avg CO2 ≈ 717.9 ppm; forecasting next 7 days."
+}

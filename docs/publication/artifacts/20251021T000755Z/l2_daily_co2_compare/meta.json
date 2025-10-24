@@ -1,0 +1,13 @@
+{
+  "name": "l2_daily_co2_compare",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "Daily average CO2 across B_F3_lab and B_F3_toilet",
+  "target_metric": "co2",
+  "target_chart": "line",
+  "latency_sec": 40.37046551704407,
+  "reference": "Daily CO2 summary — B_F3_lab: 690.0 ppm, B_F3_toilet: 596.7 ppm, combined: 643.4 ppm."
+}

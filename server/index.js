@@ -42,6 +42,434 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || 'models/gemini-2.5-flash';
 const dataDir = path.join(root, 'data');
 const publicDir = path.join(root, 'public');
 
+// S3 data source (lazy) — used when AWS_S3_ENABLED=1
+let _s3 = null; // { client, bucket, prefix }
+async function s3Ensure() {
+  if (_s3) return _s3;
+  const enabled = (process.env.AWS_S3_ENABLED || '0') === '1';
+  if (!enabled) return null;
+  const bucket = process.env.AWS_S3_BUCKET || '';
+  const prefix = (process.env.AWS_S3_PREFIX || '').replace(/^\/+|\/+$/g, '') + '/';
+  const region = process.env.AWS_S3_REGION || process.env.AWS_REGION || 'eu-west-2';
+  if (!bucket) return null;
+  try {
+    const mod = await import('@aws-sdk/client-s3').catch(() => null);
+    if (!mod) { console.warn('[s3] @aws-sdk/client-s3 not installed; falling back to local CSVex'); return null; }
+    const { S3Client, ListObjectsV2Command, GetObjectCommand } = mod;
+    const client = new S3Client({ region });
+    _s3 = { client, bucket, prefix, ListObjectsV2Command, GetObjectCommand };
+    return _s3;
+  } catch (e) {
+    console.warn('[s3] init failed:', String(e));
+    return null;
+  }
+}
+
+async function s3ListDeviceIds(limit = 1000) {
+  const s3 = await s3Ensure(); if (!s3) return [];
+  const { client, bucket, prefix, ListObjectsV2Command } = s3;
+  let token = undefined; const out = new Set();
+  try {
+    while (out.size < limit) {
+      const cmd = new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token, MaxKeys: 1000 });
+      const res = await client.send(cmd);
+      for (const o of (res.Contents || [])) {
+        const key = o.Key || '';
+        if (!key.endsWith('.csv')) continue;
+        const fname = key.slice(key.lastIndexOf('/') + 1);
+        const deviceId = fname.replace(/\.csv$/i, '');
+        if (deviceId) out.add(deviceId);
+        if (out.size >= limit) break;
+      }
+      if (!res.IsTruncated) break; token = res.NextContinuationToken;
+    }
+  } catch (e) { console.warn('[s3] list failed:', String(e)); }
+  return Array.from(out);
+}
+
+async function s3FetchDeviceCSV(deviceId) {
+  const s3 = await s3Ensure(); if (!s3) return null;
+  const { client, bucket, prefix, GetObjectCommand } = s3;
+  const key = `${prefix}${deviceId}.csv`;
+  try {
+    const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    const buf = await res.Body?.transformToByteArray?.();
+    if (!buf) return null;
+    const text = new TextDecoder().decode(buf);
+    return parseCSVText(text);
+  } catch (e) {
+    if (String(e).includes('NoSuchKey')) return null;
+    console.warn('[s3] get failed:', String(e));
+    return null;
+  }
+}
+
+// In-memory graph snapshot + filtered cache to speed up UI graph
+let GRAPH_SNAPSHOT_MEM = null; // { nodes, links, generatedAt }
+const GRAPH_FILTER_CACHE = new Map(); // key: JSON.stringify({tenant, role}) -> { nodes, links, ts }
+const GRAPH_FILTER_TTL_MS = 120000; // 2 min cache
+const SNAPSHOT_REFRESH_MS = Number(process.env.NEO4J_SNAPSHOT_REFRESH_MS || 120000); // 2 min default
+// CSV room mapping cache
+let CSV_MAP_CACHE = null; // { ts, items, byKey }
+const CSV_MAP_TTL_MS = 60000; // 60s
+
+function slugify(s) { return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
+
+function loadCsvAliases() {
+  try {
+    const p = path.join(root, 'graph_gen_data', 'csv_room_aliases.json');
+    if (!fs.existsSync(p)) return null;
+    const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+    return raw;
+  } catch { return null; }
+}
+
+async function buildCsvMapping(g) {
+  const now = Date.now();
+  if (CSV_MAP_CACHE && (now - CSV_MAP_CACHE.ts) < CSV_MAP_TTL_MS) return CSV_MAP_CACHE;
+  const ali = loadCsvAliases();
+  const rooms = new Set(listRooms());
+  const cypher = `
+    MATCH (b:Building)
+    OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
+    OPTIONAL MATCH (z:Zone)-[:LOCATED_ON_FLOOR]->(f)
+    WITH b,f,z
+    WHERE z IS NOT NULL
+    OPTIONAL MATCH (d:Device)-[:LOCATED_IN_ZONE]->(z)
+    RETURN b.name AS building, f.name AS floor, z.name AS zone, z.roomId AS roomId, z.type AS zoneType, collect(d) AS devices
+  `;
+  const { records } = g && g.runQuery ? await g.runQuery(cypher, {}) : { records: [] };
+  const items = [];
+  function deriveCandidates({ building, floor, zone, roomId, zoneType }) {
+    const out = [];
+    if (roomId) out.push(String(roomId));
+    const bInit = (String(building||'').match(/\b([A-Za-z])[A-Za-z]*$/) || [,''])[1].toUpperCase();
+    // Extract integer floor index from names like "First Floor", "Floor 3", "3rd Floor"; fallback F1
+    let fIndex = null;
+    const mNum = String(floor||'').match(/(\d+)/);
+    if (mNum) fIndex = mNum[1];
+    // common words mapping
+    const lower = String(floor||'').toLowerCase();
+    if (!fIndex) {
+      if (/ground/.test(lower)) fIndex = '0';
+      else if (/first/.test(lower)) fIndex = '1';
+      else if (/second/.test(lower)) fIndex = '2';
+      else if (/third/.test(lower)) fIndex = '3';
+    }
+    const fCode = fIndex ? `F${fIndex}` : 'F1';
+    const zSlug = slugify(zoneType || zone || 'room');
+    if (bInit && fCode) out.push(`${bInit}_${fCode}_${zSlug}`);
+    out.push(slugify(zone||''));
+    return Array.from(new Set(out.filter(Boolean)));
+  }
+  function applyAlias(building, floor, zone, roomId) {
+    if (!ali) return null;
+    try {
+      if (Array.isArray(ali)) {
+        // Array of entries: {building?, floor?, zone?, roomId?, csv}
+        for (const a of ali) {
+          if (!a || !a.csv) continue;
+          const okB = a.building ? String(a.building) === String(building) : true;
+          const okF = a.floor ? String(a.floor) === String(floor) : true;
+          const okZ = a.zone ? String(a.zone) === String(zone) : true;
+          const okR = a.roomId ? String(a.roomId) === String(roomId) : true;
+          if (okB && okF && okZ && okR) return String(a.csv);
+        }
+      } else if (typeof ali === 'object') {
+        // Object map: "Zone:Reception:First Floor:Salford Office" -> "S_F1_reception"
+        const key1 = `Zone:${zone}:${floor}:${building}`;
+        const key2 = roomId ? `RoomId:${roomId}` : null;
+        if (ali[key1]) return String(ali[key1]);
+        if (key2 && ali[key2]) return String(ali[key2]);
+      }
+    } catch {}
+    return null;
+  }
+  for (const r of (records || [])) {
+    const building = r.get('building');
+    const floor = r.get('floor');
+    const zone = r.get('zone');
+    const roomId = r.get('roomId');
+    const zoneType = r.get('zoneType');
+    const cands = deriveCandidates({ building, floor, zone, roomId, zoneType });
+    let match = applyAlias(building, floor, zone, roomId);
+    if (!match) match = cands.find(c => rooms.has(c)) || null;
+    items.push({ building, floor, zone, roomId, zoneType, candidates: cands, match });
+  }
+  const byKey = new Map();
+  for (const it of items) {
+    const k1 = it.roomId ? `roomId:${it.roomId}` : null;
+    const k2 = `k:${it.building}|${it.floor}|${it.zone}`;
+    if (k1 && it.match) byKey.set(k1, it.match);
+    if (it.match) byKey.set(k2, it.match);
+  }
+  CSV_MAP_CACHE = { ts: now, items, byKey };
+  return CSV_MAP_CACHE;
+}
+
+async function resolveCsvRoomsFromScope({ building = null, floor = null, tenant = null }) {
+  // If S3 mode is enabled, map scope -> device IDs from graph (match deviceId)
+  const s3 = await s3Ensure();
+  const g = createGraphFromEnv(process.env);
+  if (s3 && g && g.devicesByScope) {
+    try {
+      const { devices = [] } = await g.devicesByScope({ tenant: tenant || null, building: building || null, floor: floor || null, zone: null, type: null });
+      const ids = (devices || []).map(d => String(d.id || d.name || '')).filter(Boolean);
+      // Optionally, intersect with S3-listed IDs for accuracy without incurring per-key HEAD
+      const available = new Set(await s3ListDeviceIds(5000));
+      const filtered = ids.filter(id => available.size ? available.has(id) : true);
+      return Array.from(new Set(filtered));
+    } catch (e) { console.warn('[scope] device scope failed, fallback to zone mapping:', String(e)); }
+  }
+  // Fallback: Use graph zones, then map to local CSVex rooms
+  const rs = g && g.roomsByScope ? await g.roomsByScope({ building, floor, tenant }) : { rooms: [] };
+  let zones = (rs.rooms || []).filter(Boolean);
+  // Fallback: if empty, use local snapshot to discover zones for fuzzy floor names (e.g., "1st Floor" vs "First Floor")
+  if ((!zones || !zones.length) && (building || floor)) {
+    try {
+      const snap = loadGraphSnapshotMem();
+      if (snap) {
+        const nodes = snap.nodes || [];
+        const links = snap.links || [];
+        const byId = new Map(nodes.map(n => [n.id, n]));
+        const buildingNode = nodes.find(n => n.nodeType==='Building' && n.name===building) || nodes.find(n => n.nodeType==='Building' && n.name===`Building ${building}`);
+        const floorNodes = [];
+        if (buildingNode) {
+          for (const l of links) {
+            if (l.target===buildingNode.id && (l.rel==='BELONGS_TO_BUILDING' || l.rel==='HAS_FLOOR' || l.rel==='IN_BUILDING' || l.rel==='PART_OF')) {
+              const fn = byId.get(l.source);
+              if (fn && fn.nodeType==='Floor') floorNodes.push(fn);
+            }
+          }
+        } else {
+          for (const n of nodes) if (n.nodeType==='Floor') floorNodes.push(n);
+        }
+        function sameFloorName(a,b) {
+          if (!a||!b) return false; if (a===b) return true;
+          const na = String(a).toLowerCase(); const nb=String(b).toLowerCase();
+          const num = (s)=>{ const m = String(s).match(/(\d+)/); if (m) return m[1]; if (/ground/.test(String(s).toLowerCase())) return '0'; if(/first/.test(String(s).toLowerCase())) return '1'; if(/second/.test(String(s).toLowerCase())) return '2'; if(/third/.test(String(s).toLowerCase())) return '3'; return null; };
+          const ia = num(na), ib = num(nb); return !!(ia && ib && ia===ib);
+        }
+        const targetFloors = floor ? floorNodes.filter(fn => sameFloorName(fn.name, floor)) : floorNodes;
+        const zoneNames = new Set();
+        for (const f of targetFloors) {
+          for (const l of links) {
+            if (l.target===f.id && (l.rel==='BELONGS_TO_FLOOR' || l.rel==='HAS_ZONE' || l.rel==='CONTAINS' || l.rel==='LOCATED_ON_FLOOR')) {
+              const z = byId.get(l.source); if (z && z.nodeType==='Zone') zoneNames.add(z.roomId || z.name);
+            }
+          }
+        }
+        zones = Array.from(zoneNames);
+      }
+    } catch {}
+  }
+  const map = await buildCsvMapping(g);
+  const out = new Set();
+  for (const z of zones) {
+    // try match by roomId key
+    const k1 = `roomId:${z}`;
+    const m1 = map.byKey.get(k1);
+    if (m1) { out.add(m1); continue; }
+    // try composed keys using each mapping item with same zone name (when roomsByScope returns names)
+    for (const it of map.items) {
+      if (it.roomId === z || it.zone === z) {
+        if (it.match) out.add(it.match);
+      }
+    }
+  }
+  return Array.from(out);
+}
+
+// Load static building→tenant mapping from graph_gen_data/buildings.csv (id,name,tenantID,...)
+let BUILDING_TENANT_MAP = null; // { byName: Map(name->tenantID), byId: Map(id->tenantID), namesByTenantId: Map(id->Set(names)) }
+function loadBuildingTenantMap() {
+  if (BUILDING_TENANT_MAP) return BUILDING_TENANT_MAP;
+  try {
+    const p = path.join(root, 'graph_gen_data', 'buildings.csv');
+    if (!fs.existsSync(p)) { BUILDING_TENANT_MAP = { byName: new Map(), byId: new Map(), namesByTenantId: new Map() }; return BUILDING_TENANT_MAP; }
+    const lines = fs.readFileSync(p, 'utf8').trim().split(/\r?\n/);
+    const header = lines.shift().split(',');
+    const idx = Object.fromEntries(header.map((h,i)=>[h.trim(), i]));
+    const byName = new Map(); const byId = new Map(); const namesByTenantId = new Map();
+    for (const line of lines) {
+      const cols = line.split(',');
+      const id = Number(cols[idx['id']]);
+      const name = cols[idx['name']];
+      const tenantID = Number(cols[idx['tenantID']]);
+      byName.set(name, tenantID);
+      byId.set(id, tenantID);
+      if (!namesByTenantId.has(tenantID)) namesByTenantId.set(tenantID, new Set());
+      namesByTenantId.get(tenantID).add(name);
+    }
+    BUILDING_TENANT_MAP = { byName, byId, namesByTenantId };
+  } catch { BUILDING_TENANT_MAP = { byName: new Map(), byId: new Map(), namesByTenantId: new Map() }; }
+  return BUILDING_TENANT_MAP;
+}
+
+// Tenant CSV map loader (graph_gen_data/tenants.csv: id,name,domain_name,is_active,reseller_id)
+let TENANT_CSV_MAP = null; // { idByNameCI: Map(lowerName->id), nameById: Map(id->name) }
+function loadTenantCsvMap() {
+  if (TENANT_CSV_MAP) return TENANT_CSV_MAP;
+  try {
+    const p = path.join(root, 'graph_gen_data', 'tenants.csv');
+    if (!fs.existsSync(p)) { TENANT_CSV_MAP = { idByNameCI: new Map(), nameById: new Map() }; return TENANT_CSV_MAP; }
+    const lines = fs.readFileSync(p, 'utf8').trim().split(/\r?\n/);
+    const header = lines.shift().split(',');
+    const idx = Object.fromEntries(header.map((h,i)=>[h.trim(), i]));
+    const idByNameCI = new Map();
+    const nameById = new Map();
+    for (const line of lines) {
+      const cols = line.split(',');
+      const id = Number(cols[idx['id']]);
+      const name = cols[idx['name']];
+      if (name) idByNameCI.set(String(name).toLowerCase(), id);
+      nameById.set(id, name);
+    }
+    TENANT_CSV_MAP = { idByNameCI, nameById };
+  } catch { TENANT_CSV_MAP = { idByNameCI: new Map(), nameById: new Map() }; }
+  return TENANT_CSV_MAP;
+}
+
+async function resolveTenantIdGeneric({ tenant, g }) {
+  // numeric -> id
+  if (/^\d+$/.test(String(tenant))) return Number(tenant);
+  // Try graph: name -> id
+  try {
+    const tq = await g.runQuery('MATCH (t:Tenant) WHERE t.name=$name RETURN t.id AS id', { name: tenant });
+    const v = tq.records && tq.records[0] ? (tq.records[0].get('id') ?? null) : null;
+    if (v != null) return typeof v === 'number' ? v : Number(v);
+  } catch {}
+  // Try CSV tenants map (case-insensitive by name)
+  try {
+    const m = loadTenantCsvMap();
+    const id = m.idByNameCI.get(String(tenant).toLowerCase());
+    if (id != null) return id;
+  } catch {}
+  return null;
+}
+
+function loadGraphSnapshotMem() {
+  if (GRAPH_SNAPSHOT_MEM) return GRAPH_SNAPSHOT_MEM;
+  const p = path.join(root, 'data', 'graph_snapshot.json');
+  try {
+    const raw = fs.readFileSync(p, 'utf8');
+    const snap = JSON.parse(raw);
+    if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
+      GRAPH_SNAPSHOT_MEM = { nodes: snap.nodes, links: snap.links, generatedAt: snap.generatedAt || Date.now() };
+      return GRAPH_SNAPSHOT_MEM;
+    }
+  } catch {}
+  return null;
+}
+
+async function maybeRefreshSnapshot(g, { force = false } = {}) {
+  const now = Date.now();
+  const snap = loadGraphSnapshotMem();
+  const stale = !snap || ((now - (snap.generatedAt || 0)) > SNAPSHOT_REFRESH_MS);
+  if (!force && !stale) return snap;
+  if (!g || !g.fullHierarchy) return snap;
+  try {
+    const fresh = positionGraph(await g.fullHierarchy());
+    const outDir = path.join(root, 'data');
+    try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
+    const snapPath = path.join(outDir, 'graph_snapshot.json');
+    fs.writeFileSync(snapPath, JSON.stringify({ generatedAt: Date.now(), ...fresh }, null, 2));
+    GRAPH_SNAPSHOT_MEM = { ...fresh, generatedAt: Date.now() };
+    GRAPH_FILTER_CACHE.clear();
+    // Warm per-tenant filtered cache to speed up first UI render
+    try { await warmTenantGraphCache(g); } catch {}
+    return GRAPH_SNAPSHOT_MEM;
+  } catch { return snap; }
+}
+
+// Compute deterministic positions for graph nodes to avoid client-side simulation
+function positionGraph(snap) {
+  try {
+    const nodes = snap.nodes || [];
+    const links = snap.links || [];
+    const byId = new Map(nodes.map(n => [n.id, n]));
+    const children = new Map(); // parentId -> childIds
+    function addChild(parent, child) { if (!children.has(parent)) children.set(parent, []); children.get(parent).push(child); }
+    for (const l of links) {
+      if (l.rel === 'BELONGS_TO_BUILDING' || l.rel === 'LOCATED_IN_BUILDING') {
+        // floor -> building or zone -> building
+        addChild(l.target, l.source);
+      } else if (l.rel === 'BELONGS_TO_FLOOR') {
+        addChild(l.target, l.source);
+      } else if (l.rel === 'LOCATED_IN_ZONE') {
+        addChild(l.target, l.source);
+      } else if (l.rel === 'IN_BUILDING' || l.rel === 'HAS_FLOOR' || l.rel === 'HAS_ZONE' || l.rel === 'LOCATED_ON_FLOOR' || l.rel === 'LOCATED_IN_BUILDING') {
+        addChild(l.target, l.source);
+      }
+    }
+    const buildings = nodes.filter(n => (n.nodeType === 'Building'));
+    // Layout constants
+    const X_STEP_B = 300, Y_STEP = 220, X_STEP_F = 180, X_STEP_Z = 140, X_STEP_D = 100;
+    // Place buildings in a row
+    buildings.forEach((b, i) => { b.x = i * X_STEP_B; b.y = 0; });
+    // Floors under each building
+    for (const b of buildings) {
+      const bids = (children.get(b.id) || []).filter(cid => (byId.get(cid)?.nodeType === 'Floor'));
+      bids.forEach((fid, idx) => {
+        const f = byId.get(fid); if (!f) return;
+        f.x = b.x + (idx - (bids.length - 1) / 2) * X_STEP_F; f.y = b.y + Y_STEP;
+        // Zones under floor
+        const zids = (children.get(f.id) || []).filter(cid => (byId.get(cid)?.nodeType === 'Zone'));
+        zids.forEach((zid, j) => {
+          const z = byId.get(zid); if (!z) return;
+          z.x = f.x + (j - (zids.length - 1) / 2) * X_STEP_Z; z.y = f.y + Y_STEP;
+          // Devices near zone
+          const dids = (children.get(z.id) || []).filter(cid => (byId.get(cid)?.nodeType === 'Device'));
+          dids.forEach((did, k) => { const d = byId.get(did); if (!d) return; d.x = z.x + (k - (dids.length - 1) / 2) * X_STEP_D; d.y = z.y + Y_STEP; });
+        });
+      });
+    }
+    // Fallback: any nodes without position go to origin spread
+    let rr = 0;
+    for (const n of nodes) { if (typeof n.x !== 'number' || typeof n.y !== 'number') { n.x = rr * 50; n.y = 0; rr++; } }
+  } catch {}
+  return snap;
+}
+
+// Precompute filtered graphs per tenant into GRAPH_FILTER_CACHE
+async function warmTenantGraphCache(g) {
+  if (!g || !g.runQuery) return;
+  const base = loadGraphSnapshotMem();
+  if (!base) return;
+  try {
+    const { records } = await g.runQuery('MATCH (t:Tenant) RETURN DISTINCT t.name AS name ORDER BY name');
+    const tenants = (records || []).map(r => r.get('name')).filter(Boolean);
+    for (const tenant of tenants) {
+      try {
+        // Derive allowed buildings for tenant
+        const cy = `
+          MATCH (t:Tenant)
+          WHERE t.name=$tenant OR toString(t.id)=$tenant
+          OPTIONAL MATCH (b:Building)-[:BELONGS_TO_TENANT]->(t)
+          WITH collect(DISTINCT b.name) AS names
+          UNWIND names AS n WITH collect(DISTINCT n) AS names
+          RETURN names
+        `;
+        const bq = await g.runQuery(cy, { tenant });
+        const names = (bq.records && bq.records[0] && bq.records[0].get('names')) || [];
+        const allowed = new Set((names || []).filter(Boolean));
+        if (!allowed.size) continue;
+        const nodes = base.nodes || [];
+        const links = base.links || [];
+        const byId = new Map(nodes.map(n => [n.id, n]));
+        const adj = new Map();
+        for (const l of links) { const a=l.source, b=l.target; if (!adj.has(a)) adj.set(a, new Set()); if (!adj.has(b)) adj.set(b, new Set()); adj.get(a).add(b); adj.get(b).add(a); }
+        const keep = new Set();
+        for (const n of nodes) if (n.nodeType==='Building' && allowed.has(n.name)) keep.add(n.id);
+        const q = [...keep];
+        while (q.length) { const cur = q.shift(); for (const nb of (adj.get(cur)||[])) if (!keep.has(nb)) { keep.add(nb); q.push(nb); } }
+        const out = { nodes: nodes.filter(n => keep.has(n.id)), links: links.filter(l => keep.has(l.source) && keep.has(l.target)) };
+        GRAPH_FILTER_CACHE.set(JSON.stringify({ tenant }), { nodes: out.nodes, links: out.links, ts: Date.now() });
+      } catch {}
+    }
+  } catch {}
+}
+
 function sendJson(res, status, obj) {
   const body = JSON.stringify(obj);
   res.writeHead(status, {
@@ -50,6 +478,12 @@ function sendJson(res, status, obj) {
   });
   res.end(body);
 }
+
+// ---- Role-based filtering disabled ----
+function normRole(role) { return ''; }
+function getRolePreset(role) { return { showDevices: true, allow: 'ALL' }; }
+function roleAllowsField(role, field) { return true; }
+function maskTablesByRole(tables, role) { return tables; }
 
 function serveStatic(req, res) {
   let pathname = url.parse(req.url).pathname;
@@ -145,15 +579,45 @@ async function ensureDatastores() {
   }
   // After Neo4j is reachable (and optionally populated), capture a lightweight graph snapshot for agent tools
   try {
+    // Require S3 when enabled and validate prefix
+    if ((process.env.AWS_S3_ENABLED || '0') === '1') {
+      try {
+        const s3 = await s3Ensure();
+        if (!s3) throw new Error('S3 client not initialized');
+        const { client, bucket, prefix, ListObjectsV2Command } = s3;
+        const probe = await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, MaxKeys: 1 }));
+        if (!probe) throw new Error('S3 list failed');
+        console.log('[startup] S3 ready:', bucket, prefix);
+      } catch (e) {
+        console.error('[startup] S3 required but not reachable:', String(e));
+        process.exit(1);
+      }
+    }
     const g = createGraphFromEnv(process.env);
     if (g && g.fullHierarchy) {
-      const snap = await g.fullHierarchy();
+      const snap = positionGraph(await g.fullHierarchy());
       const outDir = path.join(root, 'data');
       try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
       const snapPath = path.join(outDir, 'graph_snapshot.json');
       fs.writeFileSync(snapPath, JSON.stringify({ generatedAt: Date.now(), ...snap }, null, 2));
       if (process.env.HTTP_DEBUG === '1' || process.env.LOG_LEVEL === 'debug') {
         console.log('[startup] Wrote graph snapshot to', snapPath, 'nodes', (snap.nodes||[]).length, 'links', (snap.links||[]).length);
+      }
+      // CSV generation from graph is fully disabled to enforce S3-only telemetry.
+      // Optionally prefetch weather for all buildings with lat/lon
+      if ((process.env.WEATHER_FETCH_ALL_BUILDINGS || '0') === '1') {
+        try {
+          console.log('[startup] Fetching weather for all buildings with coordinates…');
+          const { records } = await g.runQuery('MATCH (b:Building) RETURN b.name AS name, b.lat AS lat, b.long AS lon, b.longitude AS lon2, b.latitude AS lat2');
+          const items = (records || []).map(r => ({ name: r.get('name'), lat: r.get('lat') ?? r.get('lat2'), lon: r.get('lon') ?? r.get('lon2') })).filter(x => x && x.name && x.lat != null && x.lon != null);
+          for (const it of items) {
+            try {
+              const res = await fetchAndCacheWeatherForBuilding(it.name, it.lat, it.lon);
+              if (res && res.ok) console.log(`[startup] Weather cached for ${it.name} → ${res.rows} rows`);
+            } catch (e) { console.warn('[startup] Weather fetch failed for', it.name, String(e)); }
+            await wait(300); // be polite to API
+          }
+        } catch (e) { console.warn('[startup] Weather prefetch step failed (continuing):', String(e)); }
       }
     }
   } catch (e) {
@@ -192,6 +656,17 @@ async function ensureDatastores() {
 }
 
 function listRooms() {
+  const s3Enabled = (process.env.AWS_S3_ENABLED || '0') === '1';
+  if (s3Enabled) {
+    // In S3-only mode, list locally mirrored device CSVs if present
+    const localDir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+    try {
+      if (!fs.existsSync(localDir)) return [];
+      return fs.readdirSync(localDir)
+        .filter(f => f.endsWith('.csv'))
+        .map(f => f.replace(/\.csv$/i, ''));
+    } catch { return []; }
+  }
   if (!fs.existsSync(csvexDir)) return [];
   return fs.readdirSync(csvexDir, { withFileTypes: true })
     .filter(d => d.isDirectory())
@@ -220,7 +695,41 @@ function parseCSV(filePath) {
   return rows;
 }
 
+function parseCSVText(text) {
+  const rows = [];
+  if (!text) return rows;
+  const lines = String(text).split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return rows;
+  const headers = lines[0].split(',');
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(',');
+    const row = {};
+    headers.forEach((h, idx) => {
+      let v = vals[idx];
+      if (h === 'ts') v = Number(v);
+      else if (!isNaN(Number(v))) v = Number(v);
+      row[h] = v;
+    });
+    rows.push(row);
+  }
+  return rows;
+}
+
 function loadRoomTables(room) {
+  // If S3 mode: interpret room as deviceId and return a single table 'telemetry' from local mirror if available
+  const enabled = (process.env.AWS_S3_ENABLED || '0') === '1';
+  if (enabled) {
+    try {
+      const localDir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+      const filePath = path.join(localDir, `${room}.csv`);
+      if (!fs.existsSync(filePath)) return {};
+      const out = { telemetry: parseCSV(filePath) };
+      const arr = (out.telemetry || []).filter(r => r && r.ts != null);
+      arr.sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+      out.telemetry = arr;
+      return out;
+    } catch { return {}; }
+  }
   const roomDir = path.join(csvexDir, room);
   if (!fs.existsSync(roomDir)) return {};
   const files = fs.readdirSync(roomDir).filter(f => f.endsWith('.csv'));
@@ -230,7 +739,6 @@ function loadRoomTables(room) {
     const filePath = path.join(roomDir, f);
     out[table] = parseCSV(filePath);
   });
-  // Normalize: sort each table by ts ascending and drop rows without ts
   for (const k of Object.keys(out)) {
     const arr = (out[k] || []).filter(r => r && r.ts != null);
     arr.sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
@@ -261,8 +769,17 @@ function withinRange(ts, start, end) {
   return (!start || ts >= start) && (!end || ts <= end);
 }
 
-function loadWeather() {
+function buildingSlug(name) { return String(name||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
+
+function loadWeather(building = null) {
   try {
+    if (building) {
+      const bslug = buildingSlug(building);
+      const csvb = path.join(csvexDir, 'weather_buildings', `${bslug}.csv`);
+      if (fs.existsSync(csvb)) {
+        return parseCSV(csvb).map(r => ({ ts: Number(r.ts), temp: Number(r.temp), humidity: Number(r.humidity), pressure: Number(r.pressure), wind_speed: Number(r.wind_speed), wind_deg: Number(r.wind_deg), clouds: Number(r.clouds), weather_main: r.weather_main, weather_desc: r.weather_desc }));
+      }
+    }
     const csv1 = path.join(csvexDir, 'weather', 'weather.csv');
     const csv2 = path.join(csvexDir, 'weather.csv');
     const csvPath = fs.existsSync(csv1) ? csv1 : (fs.existsSync(csv2) ? csv2 : null);
@@ -279,6 +796,37 @@ function loadWeather() {
       weather_desc: r.weather_desc
     }));
   } catch { return []; }
+}
+
+// Fetch and cache weather for a building (OpenWeather 5-day/3-hour forecast + current)
+async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
+  const key = process.env.OPENWEATHER_API_KEY;
+  if (!key || !lat || !lon) return { error: 'missing_api_or_coords' };
+  try {
+    const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&appid=${encodeURIComponent(key)}&units=metric`;
+    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&appid=${encodeURIComponent(key)}&units=metric`;
+    const [curRes, fcRes] = await Promise.all([ fetch(currentUrl), fetch(forecastUrl) ]);
+    const cur = await curRes.json();
+    const fc = await fcRes.json();
+    const rows = [];
+    const push = (ts, main, wind, clouds, weather) => rows.push({
+      ts, temp: main?.temp, humidity: main?.humidity, pressure: main?.pressure,
+      wind_speed: wind?.speed, wind_deg: wind?.deg, clouds: (clouds?.all ?? 0),
+      weather_main: (weather && weather[0] && weather[0].main) || '', weather_desc: (weather && weather[0] && weather[0].description) || ''
+    });
+    if (cur && cur.dt) push(cur.dt * 1000, cur.main, cur.wind, cur.clouds, cur.weather);
+    if (fc && Array.isArray(fc.list)) fc.list.forEach(x => push(x.dt * 1000, x.main, x.wind, x.clouds, x.weather));
+    // Write CSV
+    const outDir = path.join(csvexDir, 'weather_buildings');
+    try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
+    const outFile = path.join(outDir, `${buildingSlug(buildingName)}.csv`);
+    const header = 'ts,temp,humidity,pressure,wind_speed,wind_deg,clouds,weather_main,weather_desc\n';
+    const csv = header + rows.map(r => [r.ts, r.temp, r.humidity, r.pressure, r.wind_speed, r.wind_deg, r.clouds, JSON.stringify(r.weather_main).replace(/"/g,''), JSON.stringify(r.weather_desc).replace(/"/g,'')].join(',')).join('\n') + '\n';
+    fs.writeFileSync(outFile, csv);
+    return { ok: true, rows: rows.length, file: outFile };
+  } catch (e) {
+    return { error: String(e) };
+  }
 }
 
 // Basic analytics helpers used both by rule fallback and for LLM context
@@ -748,8 +1296,52 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === '/api/weather' && req.method === 'GET') {
-    const weather = loadWeather();
-    return sendJson(res, 200, { count: weather.length, latest: weather.at(-1) || null });
+    const building = String(query.building || '').trim();
+    if (building) {
+      const g = createGraphFromEnv(process.env);
+      const snap = loadGraphSnapshotMem();
+      // Find building lat/lon from snapshot or via a quick query
+      let lat = null, lon = null;
+      if (snap) {
+        const b = (snap.nodes || []).find(n => n.nodeType==='Building' && n.name===building);
+        lat = b?.lat ?? null; lon = b?.lon ?? null;
+      }
+      if (!lat || !lon) {
+        try {
+          const { records } = await g.runQuery('MATCH (b:Building {name:$name}) RETURN b.lat AS lat, b.long AS lon, b.longitude AS lon2, b.latitude AS lat2', { name: building });
+          const r0 = records?.[0];
+          lat = r0?.get('lat') ?? r0?.get('lat2') ?? null; lon = r0?.get('lon') ?? r0?.get('lon2') ?? null;
+        } catch {}
+      }
+      if (lat && lon) await fetchAndCacheWeatherForBuilding(building, lat, lon);
+      const rows = loadWeather(building);
+      return sendJson(res, 200, { building, count: rows.length, latest: rows.at(-1) || null, rows: rows.slice(-50) });
+    } else {
+      const weather = loadWeather();
+      return sendJson(res, 200, { count: weather.length, latest: weather.at(-1) || null });
+    }
+  }
+
+  if (pathname === '/api/auth/options' && req.method === 'GET') {
+    try {
+      const g = createGraphFromEnv(process.env);
+      const tenants = [];
+      const roles = [];
+      if (g && g.runQuery) {
+        try {
+          const tr = await g.runQuery('MATCH (t:Tenant) RETURN DISTINCT t.name AS name ORDER BY name');
+          for (const r of tr.records || []) { const n = r.get('name'); if (n) tenants.push(String(n)); }
+        } catch {}
+        try {
+          const rr = await g.runQuery('MATCH (r:Role) RETURN DISTINCT r.name AS name ORDER BY name');
+          for (const r of rr.records || []) { const n = r.get('name'); if (n) roles.push(String(n)); }
+        } catch {}
+      }
+      if (!roles.length) roles.push('Guest','Host','Analyst','Admin');
+      return sendJson(res, 200, { tenants, roles });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'options_failed', detail: String(e) });
+    }
   }
 
   if (pathname === '/api/status' && req.method === 'GET') {
@@ -784,6 +1376,7 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/schema' && req.method === 'GET') {
     const room = query.room;
     if (!room) return sendJson(res, 400, { error: 'room required' });
+    const role = '';
     const tables = loadRoomTables(room);
     const schema = Object.fromEntries(Object.entries(tables).map(([k, rows]) => {
       const first = rows?.[0] || {};
@@ -793,6 +1386,57 @@ const server = http.createServer(async (req, res) => {
       return [k, metrics];
     }));
     return sendJson(res, 200, { schema });
+  }
+
+  // Read-only Neo4j schema summary to help adapt to live Aura schemas.
+  if (pathname === '/api/graph/schema' && req.method === 'GET') {
+    try {
+      const g = createGraphFromEnv(process.env);
+      if (!g || !g.runQuery) return sendJson(res, 500, { error: 'graph_not_configured' });
+      const results = {};
+      const out = {};
+      // Node labels
+      const labelsRes = await g.runQuery('SHOW NODE LABELS YIELD label RETURN label ORDER BY label');
+      out.nodeLabels = (labelsRes.records || []).map(r => r.get('label'));
+      // Relationship types
+      const relTypesRes = await g.runQuery('SHOW RELATIONSHIP TYPES YIELD relationshipType RETURN relationshipType ORDER BY relationshipType');
+      out.relationshipTypes = (relTypesRes.records || []).map(r => r.get('relationshipType'));
+      // Global counts
+      const nodesCnt = await g.runQuery('MATCH (n) RETURN count(n) AS c');
+      const relsCnt = await g.runQuery('MATCH ()-[r]->() RETURN count(r) AS c');
+      out.counts = {
+        nodes: nodesCnt.records?.[0]?.get('c') ?? 0,
+        relationships: relsCnt.records?.[0]?.get('c') ?? 0
+      };
+      // Nodes by label (counts)
+      const nbl = await g.runQuery('MATCH (n) UNWIND labels(n) AS label RETURN label, count(*) AS c ORDER BY c DESC');
+      out.nodesByLabel = (nbl.records || []).map(r => ({ label: r.get('label'), count: r.get('c') }));
+      // Relationships by type (counts)
+      const rbt = await g.runQuery('MATCH ()-[r]->() RETURN type(r) AS type, count(r) AS c ORDER BY c DESC');
+      out.relsByType = (rbt.records || []).map(r => ({ type: r.get('type'), count: r.get('c') }));
+      // Top label-rel-label triples (to see hierarchy shape)
+      const triples = await g.runQuery(`
+        MATCH (a)-[r]->(b)
+        RETURN head(labels(a)) AS from, type(r) AS rel, head(labels(b)) AS to, count(*) AS c
+        ORDER BY c DESC LIMIT 200
+      `);
+      out.topTriples = (triples.records || []).map(r => ({ from: r.get('from'), rel: r.get('rel'), to: r.get('to'), count: r.get('c') }));
+      // Property keys by primary label (sampled)
+      const props = await g.runQuery(`
+        MATCH (n)
+        WITH head(labels(n)) AS label, n
+        WITH label, collect(n)[0..500] AS ns
+        UNWIND ns AS n1
+        WITH label, keys(n1) AS ks
+        UNWIND ks AS k
+        WITH label, collect(DISTINCT k) AS keys
+        RETURN label, keys ORDER BY size(keys) DESC LIMIT 50
+      `);
+      out.propertyKeysByLabel = (props.records || []).map(r => ({ label: r.get('label'), keys: r.get('keys') }));
+      return sendJson(res, 200, out);
+    } catch (e) {
+      return sendJson(res, 500, { error: 'schema_summary_failed', detail: String(e) });
+    }
   }
 
   if (pathname === '/api/graph/summary' && req.method === 'GET') {
@@ -826,10 +1470,352 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/graph/full' && req.method === 'GET') {
     try {
       const g = createGraphFromEnv(process.env);
-      if (!g || !g.fullHierarchy) return sendJson(res, 500, { error: 'graph_not_configured' });
-      const out = await g.fullHierarchy();
+      const role = '';
+      const tenant = String(query.tenant || '').trim();
+      const force = String(query.force || '').trim() === '1';
+
+      // Fast path: use local snapshot + cached filtered views when possible
+      const baseSnap = await maybeRefreshSnapshot(g, { force });
+      let out = null;
+      if (baseSnap) {
+        // cache by tenant+role
+        const cacheKey = JSON.stringify({ tenant });
+        const now = Date.now();
+        const cached = GRAPH_FILTER_CACHE.get(cacheKey);
+        if (cached && (now - cached.ts) < GRAPH_FILTER_TTL_MS) {
+          out = { nodes: cached.nodes, links: cached.links };
+        } else {
+          out = { nodes: baseSnap.nodes.slice(), links: baseSnap.links.slice() };
+        }
+      } else {
+        if (!g || !g.fullHierarchy) return sendJson(res, 500, { error: 'graph_not_configured' });
+        out = await g.fullHierarchy();
+      }
+      // Role-based scope discovery disabled
+
+      // Tenant filter → restrict buildings and descendants
+      if (tenant) {
+        try {
+          const qTen = `
+            MATCH (t:Tenant)
+            WHERE t.name=$tenant OR toString(t.id)=$tenant
+            OPTIONAL MATCH (b1:Building)-[:BELONGS_TO_TENANT]->(t)
+            WITH t, collect(DISTINCT b1.name) AS names
+            OPTIONAL MATCH (t)<-[:BELONGS_TO_TENANT]-(b2:Building)
+            WITH names + collect(DISTINCT b2.name) AS names
+            UNWIND names AS n WITH collect(DISTINCT n) AS names
+            RETURN names
+          `;
+          const bq = g && g.runQuery ? await g.runQuery(qTen, { tenant }) : { records: [] };
+          const names = (bq.records && bq.records[0] && bq.records[0].get('names')) || [];
+          let allowed = new Set((names || []).filter(Boolean));
+          if (!allowed.size) {
+            // Property-based fallback: match buildings by tenantID present in snapshot
+            try {
+              const nodesAll = out.nodes || [];
+              const linksAll = out.links || [];
+              const byId = new Map(nodesAll.map(n => [n.id, n]));
+              let tenantId = null;
+              if (/^\d+$/.test(String(tenant))) {
+                tenantId = Number(tenant);
+              } else {
+                try {
+                  const tq = await g.runQuery('MATCH (t:Tenant) WHERE t.name=$name RETURN t.id AS id', { name: tenant });
+                  tenantId = tq.records && tq.records[0] ? (tq.records[0].get('id') ?? null) : null;
+                  if (tenantId != null && typeof tenantId !== 'number') tenantId = Number(tenantId);
+                } catch {}
+              }
+              if (tenantId != null) {
+                for (const n of nodesAll) {
+                  if (n.nodeType === 'Building' && Number(n.tenantID) === tenantId) allowed.add(n.name);
+                }
+                // Also derive via floors/zones tenantID
+                for (const l of linksAll) {
+                  if (l.rel === 'IN_BUILDING') {
+                    const f = byId.get(l.source); const b = byId.get(l.target);
+                    if (f && b && f.nodeType==='Floor' && Number(f.tenantID)===tenantId) allowed.add(b.name);
+                  }
+                  if (l.rel === 'LOCATED_ON_FLOOR') {
+                    const z = byId.get(l.source); const f = byId.get(l.target);
+                    if (z && f && z.nodeType==='Zone' && Number(z.tenantID)===tenantId) {
+                      const lb = linksAll.find(x => x.source===f.id && x.rel==='IN_BUILDING');
+                      const bb = lb ? byId.get(lb.target) : null; if (bb) allowed.add(bb.name);
+                    }
+                  }
+                  if (l.rel === 'LOCATED_IN_BUILDING') {
+                    const z = byId.get(l.source); const b = byId.get(l.target);
+                    if (z && b && z.nodeType==='Zone' && Number(z.tenantID)===tenantId) allowed.add(b.name);
+                  }
+                }
+                // Static mapping fallback from graph_gen_data/buildings.csv
+                try {
+                  const map = loadBuildingTenantMap();
+                  const namesSet = map.namesByTenantId.get(tenantId);
+                  if (namesSet && namesSet.size) { for (const nm of namesSet) allowed.add(nm); }
+                } catch {}
+              }
+            } catch {}
+          }
+          if (allowed.size) {
+            const nodes = out.nodes || [];
+            const links = out.links || [];
+            const byId = new Map(nodes.map(n => [n.id, n]));
+            const adj = new Map();
+            for (const l of links) {
+              const a = l.source, b = l.target; if (!adj.has(a)) adj.set(a, new Set()); if (!adj.has(b)) adj.set(b, new Set());
+              adj.get(a).add(b); adj.get(b).add(a);
+            }
+            const keep = new Set();
+            // seed with allowed buildings
+            for (const n of nodes) if (n.nodeType === 'Building' && allowed.has(n.name)) keep.add(n.id);
+            // BFS to include neighbors
+            const q = [...keep];
+            while (q.length) {
+              const cur = q.shift();
+              for (const nb of (adj.get(cur) || [])) if (!keep.has(nb)) { keep.add(nb); q.push(nb); }
+            }
+            out = {
+              nodes: nodes.filter(n => keep.has(n.id)),
+              links: links.filter(l => keep.has(l.source) && keep.has(l.target))
+            };
+          } else {
+            // Strict tenant selection: if no buildings matched, show nothing
+            out = { nodes: [], links: [] };
+          }
+        } catch {}
+      }
+      // Role filter → optionally hide devices and apply scope allowlists
+      // Role-based node filtering disabled
+      // Attach csvRoom (local CSV) or deviceIds (S3) to Zone nodes for instant UI selection mapping
+      try {
+        const s3Enabled = (process.env.AWS_S3_ENABLED || '0') === '1';
+        const nodes = out.nodes || [];
+        const links = out.links || [];
+        const byId = new Map(nodes.map(n => [n.id, n]));
+        if (s3Enabled) {
+          for (const n of nodes) {
+            if (n.nodeType === 'Zone') {
+              const devIds = [];
+              for (const l of links) {
+                if (l.target === n.id && l.rel === 'LOCATED_IN_ZONE') {
+                  const d = byId.get(l.source);
+                  if (d && d.nodeType === 'Device') {
+                    const deviceId = d.idProp || (d.name || '').split(':').slice(1).join(':') || null;
+                    if (deviceId) devIds.push(deviceId);
+                  }
+                }
+              }
+              n.deviceIds = Array.from(new Set(devIds));
+            }
+          }
+        } else {
+          const map = await buildCsvMapping(g);
+          const items = map && Array.isArray(map.items) ? map.items : [];
+          const tripleMap = new Map();
+          for (const it of items) {
+            const key = `${it.building}|${it.floor}|${it.zone}`;
+            if (it.match) tripleMap.set(key, it.match);
+            if (it.roomId && it.match) tripleMap.set(`roomId:${it.roomId}`, it.match);
+          }
+          for (const n of nodes) {
+            if (n.nodeType === 'Zone') {
+              let floorName = null, buildingName = null;
+              const lf = links.find(l => l.source === n.id && (l.rel === 'LOCATED_ON_FLOOR' || l.rel === 'BELONGS_TO_FLOOR'));
+              const f = lf ? byId.get(lf.target) : null;
+              floorName = f ? f.name : null;
+              if (f) {
+                const lb = links.find(l => l.source === f.id && (l.rel === 'IN_BUILDING' || l.rel === 'BELONGS_TO_BUILDING' || l.rel === 'LOCATED_IN_BUILDING'));
+                const b = lb ? byId.get(lb.target) : null; buildingName = b ? b.name : null;
+              } else {
+                const lb2 = links.find(l => l.source === n.id && (l.rel === 'LOCATED_IN_BUILDING' || l.rel === 'IN_BUILDING' || l.rel === 'BELONGS_TO_BUILDING'));
+                const b2 = lb2 ? byId.get(lb2.target) : null; buildingName = b2 ? b2.name : null;
+              }
+              let csv = null;
+              if (n.roomId) csv = tripleMap.get(`roomId:${n.roomId}`) || null;
+              if (!csv && buildingName && floorName) csv = tripleMap.get(`${buildingName}|${floorName}|${n.name}`) || null;
+              n.csvRoom = csv || null;
+            }
+          }
+        }
+      } catch {}
+      if (baseSnap) {
+        // store filtered view to cache
+        const cacheKey = JSON.stringify({ tenant });
+        GRAPH_FILTER_CACHE.set(cacheKey, { nodes: out.nodes, links: out.links, ts: Date.now() });
+      }
       if (DEBUG_HTTP) console.log('[HTTP] /api/graph/full -> nodes', out.nodes?.length || 0, 'links', out.links?.length || 0);
       return sendJson(res, 200, out);
+    } catch (e) {
+      return sendJson(res, 500, { error: 'graph_failed', detail: String(e) });
+    }
+  }
+
+  // Resolve current selection (tenant/building/floor) to CSV room IDs
+  if (pathname === '/api/scope/csv-rooms' && req.method === 'GET') {
+    try {
+      const tenant = String(query.tenant || '').trim() || null;
+      const building = String(query.building || '').trim() || null;
+      const floor = String(query.floor || '').trim() || null;
+      const rooms = await resolveCsvRoomsFromScope({ building, floor, tenant });
+      return sendJson(res, 200, { tenant, building, floor, rooms });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'scope_map_failed', detail: String(e) });
+    }
+  }
+
+  // Devices present on a specific floor (by type and list), optionally filtered by tenant and role
+  if (pathname === '/api/graph/floor-devices' && req.method === 'GET') {
+    try {
+      const building = String(query.building || '').trim();
+      const floor = String(query.floor || '').trim();
+      const tenant = String(query.tenant || '').trim();
+      const role = '';
+      if (!building || !floor) return sendJson(res, 400, { error: 'building and floor required' });
+      // Role-based device visibility disabled; always return devices
+      const g = createGraphFromEnv(process.env);
+      if (!g || !g.runQuery) return sendJson(res, 500, { error: 'graph_not_configured' });
+      const cypher = `
+        MATCH (b:Building {name:$building})
+        MATCH (f:Floor {name:$floor})-[:LOCATED_IN_BUILDING]->(b)
+        OPTIONAL MATCH (z:Zone)-[:LOCATED_ON_FLOOR]->(f)
+        OPTIONAL MATCH (d:Device)-[:LOCATED_IN_ZONE]->(z)
+        ${tenant ? 'MATCH (b)-[:BELONGS_TO_TENANT]->(t:Tenant) WHERE t.name=$tenant OR toString(t.id)=$tenant' : ''}
+        RETURN z, collect(d) AS devs
+      `;
+      const { records, error } = await g.runQuery(cypher, { building, floor, tenant: tenant || null });
+      if (error) return sendJson(res, 500, { error: 'graph_failed', detail: String(error) });
+      const zones = [];
+      const typeTally = new Map();
+      for (const r of (records || [])) {
+        const z = r.get('z');
+        if (!z) continue;
+        const zname = z.properties?.name || null;
+        const roomId = z.properties?.roomId || null;
+        const devs = (r.get('devs') || []).map(d => ({ id: d.properties?.id || d.properties?.name || null, name: d.properties?.name || null, type: d.properties?.type || null }));
+        for (const d of devs) if (d.type) typeTally.set(d.type, (typeTally.get(d.type)||0)+1);
+        zones.push({ zone: zname, roomId, devices: devs });
+      }
+      const byType = Array.from(typeTally.entries()).map(([type, count]) => ({ type, count }));
+      // CSV mapping: in S3 mode, expose device IDs; otherwise map to local CSV rooms
+      const s3Enabled = (process.env.AWS_S3_ENABLED || '0') === '1';
+      let zonesOut = [];
+      let byCsvRoom = [];
+      if (s3Enabled) {
+        const idCounts = new Map();
+        zonesOut = zones.map(z => {
+          for (const d of z.devices || []) {
+            const id = d.id || d.name; if (!id) continue;
+            idCounts.set(id, (idCounts.get(id)||0) + 1);
+          }
+          return { zone: z.zone, roomId: z.roomId, csvRoom: null, count: z.devices?.length || 0 };
+        });
+        byCsvRoom = Array.from(idCounts.entries()).map(([csvRoom, count]) => ({ csvRoom, count }));
+      } else {
+        const map = await buildCsvMapping(g);
+        const csvCounts = new Map();
+        zonesOut = zones.map(z => {
+          let csv = null;
+          if (z.roomId) csv = map.byKey.get(`roomId:${z.roomId}`) || null;
+          if (!csv) csv = (map.items||[]).find(it => it.building===building && it.floor===floor && it.zone===z.zone)?.match || null;
+          if (csv) csvCounts.set(csv, (csvCounts.get(csv)||0) + (z.devices?.length || 0));
+          return { zone: z.zone, roomId: z.roomId, csvRoom: csv, count: z.devices?.length || 0 };
+        });
+        byCsvRoom = Array.from(csvCounts.entries()).map(([csvRoom, count]) => ({ csvRoom, count }));
+      }
+      return sendJson(res, 200, { building, floor, byType, zones: zonesOut, byCsvRoom });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'graph_failed', detail: String(e) });
+    }
+  }
+
+  if (pathname === '/api/graph/csv-map' && req.method === 'GET') {
+    try {
+      const g = createGraphFromEnv(process.env);
+      const map = await buildCsvMapping(g);
+      return sendJson(res, 200, { count: (map.items||[]).length, mapped: (map.items||[]).filter(x => x.match).length, items: map.items });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'graph_failed', detail: String(e) });
+    }
+  }
+
+  if (pathname === '/api/graph/tenant-buildings' && req.method === 'GET') {
+    try {
+      const g = createGraphFromEnv(process.env);
+      const tenant = String(query.tenant || '').trim();
+      if (!tenant) return sendJson(res, 400, { error: 'tenant required' });
+      const cypher = `
+        MATCH (t:Tenant)
+        WHERE t.name=$tenant OR toString(t.id)=$tenant
+        OPTIONAL MATCH (b:Building)-[:BELONGS_TO_TENANT]->(t)
+        WITH t, collect(DISTINCT b.name) AS names
+        OPTIONAL MATCH (t)<-[:BELONGS_TO_TENANT]-(b2:Building)
+        WITH names + collect(DISTINCT b2.name) AS names
+        UNWIND names AS n WITH collect(DISTINCT n) AS names
+        RETURN names
+      `;
+      const { records } = await g.runQuery(cypher, { tenant });
+      let names = (records && records[0] && records[0].get('names')) || [];
+      names = (names || []).filter(Boolean);
+      // Fallback: property-based match by Building.tenantID in snapshot
+      if (!names.length) {
+        try {
+          const snap = loadGraphSnapshotMem();
+          if (snap && Array.isArray(snap.nodes)) {
+            let tenantId = null;
+            if (/^\d+$/.test(tenant)) {
+              tenantId = Number(tenant);
+            } else {
+              const tq = await g.runQuery('MATCH (t:Tenant) WHERE t.name=$name RETURN t.id AS id', { name: tenant });
+              tenantId = tq.records && tq.records[0] ? (tq.records[0].get('id') ?? null) : null;
+              if (tenantId != null && typeof tenantId !== 'number') tenantId = Number(tenantId);
+            }
+            if (tenantId != null) {
+              names = (snap.nodes || [])
+                .filter(n => n.nodeType === 'Building' && Number(n.tenantID) === tenantId)
+                .map(n => n.name);
+            }
+          }
+        } catch {}
+      }
+      return sendJson(res, 200, { tenant, buildings: names });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'tenant_buildings_failed', detail: String(e) });
+    }
+  }
+
+  // Dump relationships (debug): list of edges with labels and names
+  if (pathname === '/api/graph/relations' && req.method === 'GET') {
+    try {
+      const g = createGraphFromEnv(process.env);
+      const limit = Number(query.limit || 1000);
+      const cypher = `
+        MATCH (a)-[r]->(b)
+        RETURN labels(a) AS fromLabels, a.name AS fromName, type(r) AS rel, labels(b) AS toLabels, b.name AS toName
+        LIMIT $limit
+      `;
+      const { records, error } = await g.runQuery(cypher, { limit });
+      if (error) return sendJson(res, 500, { error: 'graph_failed', detail: String(error) });
+      const items = (records || []).map(r => ({ fromLabels: r.get('fromLabels'), fromName: r.get('fromName'), rel: r.get('rel'), toLabels: r.get('toLabels'), toName: r.get('toName') }));
+      return sendJson(res, 200, { count: items.length, items });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'graph_failed', detail: String(e) });
+    }
+  }
+
+  // Dump nodes (debug): list node names by label
+  if (pathname === '/api/graph/nodes' && req.method === 'GET') {
+    try {
+      const g = createGraphFromEnv(process.env);
+      const label = String(query.label || '').trim();
+      if (!label) return sendJson(res, 400, { error: 'label required' });
+      const cypher = `
+        MATCH (n:` + label + `)
+        RETURN DISTINCT n.name AS name LIMIT 5000
+      `;
+      const { records, error } = await g.runQuery(cypher, {});
+      if (error) return sendJson(res, 500, { error: 'graph_failed', detail: String(error) });
+      const items = (records || []).map(r => r.get('name')).filter(Boolean);
+      return sendJson(res, 200, { label, count: items.length, items });
     } catch (e) {
       return sendJson(res, 500, { error: 'graph_failed', detail: String(e) });
     }
@@ -840,7 +1826,16 @@ const server = http.createServer(async (req, res) => {
     if (!room) return sendJson(res, 400, { error: 'room required' });
     const start = query.start ? Number(query.start) : null;
     const end = query.end ? Number(query.end) : null;
-    const tables = loadRoomTables(room);
+    const role = String(query.role || '').trim();
+    const s3Enabled = (process.env.AWS_S3_ENABLED || '0') === '1';
+    let tables = {};
+    if (s3Enabled) {
+      const rows = await s3FetchDeviceCSV(String(room));
+      const arr = Array.isArray(rows) ? rows.filter(r => r && r.ts != null).sort((a,b)=>(a.ts??0)-(b.ts??0)) : [];
+      tables = { telemetry: arr };
+    } else {
+      tables = loadRoomTables(room);
+    }
     const meta = {};
     for (const [tname, rows] of Object.entries(tables)) {
       const info = { count: rows.length, tsMin: null, tsMax: null, fields: [], fieldSpans: {}, types: {}, inRangeCount: 0 };
@@ -868,7 +1863,9 @@ const server = http.createServer(async (req, res) => {
           info.fieldSpans[k] = f;
         }
       }
-      info.fields = Array.from(fieldSet);
+      let fields = Array.from(fieldSet);
+      if (role) fields = fields.filter(f => roleAllowsField(role, f));
+      info.fields = fields;
       info.tsMin = isFinite(minTs) ? minTs : null;
       info.tsMax = isFinite(maxTs) ? maxTs : null;
       meta[tname] = info;
@@ -905,28 +1902,44 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/series' && req.method === 'GET') {
     const room = query.room;
     const field = query.field;
+    const role = String(query.role || '').trim();
     const start = query.start ? Number(query.start) : null;
     const end = query.end ? Number(query.end) : null;
     if (!room || !field) return sendJson(res, 400, { error: 'room and field required' });
-    const match = findFieldTable(room, field);
-    if (!match) return sendJson(res, 404, { error: 'field_not_found' });
-    const tables = loadRoomTables(room);
-    const arr = tables[match.table] || [];
-    const data = [];
-    for (const r of arr) {
-      if (r?.ts == null || r?.[match.field] == null) continue;
-      if (!withinRange(r.ts, start, end)) continue;
-      const y = Number(r[match.field]);
-      if (!Number.isFinite(y)) continue;
-      data.push([Number(r.ts), y]);
+    // Role-based field restriction disabled
+    const s3Enabled = (process.env.AWS_S3_ENABLED || '0') === '1';
+    if (s3Enabled) {
+      const rows = await s3FetchDeviceCSV(String(room));
+      if (!Array.isArray(rows) || rows.length === 0) return sendJson(res, 404, { error: 'no_data' });
+      // find field directly in telemetry
+      const headers = Object.keys(rows[0] || {}).filter(k => k !== 'ts');
+      let matched = headers.find(h => String(h).toLowerCase() === String(field).toLowerCase());
+      if (!matched) matched = headers.find(h => String(h).toLowerCase().includes(String(field).toLowerCase()));
+      if (!matched) return sendJson(res, 404, { error: 'field_not_found' });
+      const data = [];
+      for (const r of rows) {
+        if (r?.ts == null || r?.[matched] == null) continue;
+        if (!withinRange(r.ts, start, end)) continue;
+        const y = Number(r[matched]);
+        if (!Number.isFinite(y)) continue;
+        data.push([Number(r.ts), y]);
+      }
+      return sendJson(res, 200, { room, table: 'telemetry', field: matched, count: data.length, data });
+    } else {
+      const match = findFieldTable(room, field);
+      if (!match) return sendJson(res, 404, { error: 'field_not_found' });
+      const tables = loadRoomTables(room);
+      const arr = tables[match.table] || [];
+      const data = [];
+      for (const r of arr) {
+        if (r?.ts == null || r?.[match.field] == null) continue;
+        if (!withinRange(r.ts, start, end)) continue;
+        const y = Number(r[match.field]);
+        if (!Number.isFinite(y)) continue;
+        data.push([Number(r.ts), y]);
+      }
+      return sendJson(res, 200, { room, table: match.table, field: match.field, count: data.length, data });
     }
-    return sendJson(res, 200, {
-      room,
-      table: match.table,
-      field: match.field,
-      count: data.length,
-      data
-    });
   }
 
   if (pathname === '/api/chat' && req.method === 'POST') {
@@ -935,37 +1948,61 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const { messages = [], room, range, selection } = JSON.parse(body || '{}');
-        if (DEBUG_HTTP) console.log('[API/chat] selection:', selection);
+        const DEBUG_CHAT = (process.env.HTTP_DEBUG === '1') || (process.env.LOG_LEVEL === 'debug');
+        if (DEBUG_CHAT) console.log('[API/chat] selection:', selection);
         // Compute effective scope/room from selection (building/floor/room)
         let effRoom = room || null;
         let scopeNote = '';
         let selectionRooms = [];
         try {
-          if ((!effRoom || effRoom === 'ALL') && selection && (selection.building || selection.floor || selection.room)) {
+          if ((!effRoom || effRoom === 'ALL') && selection && (selection.building || selection.floor || selection.room || (Array.isArray(selection.rooms) && selection.rooms.length))) {
             const g = createGraphFromEnv(process.env);
+            if (Array.isArray(selection.rooms) && selection.rooms.length) {
+              selectionRooms = selection.rooms.filter(Boolean);
+              effRoom = 'ALL';
+              scopeNote = `Scope: rooms=[${selectionRooms.slice(0,30).join(', ')}${selectionRooms.length>30?' …':''}]`;
+            } else 
             if (selection.room) {
-              effRoom = selection.room;
-              scopeNote = `Scope: room=${selection.room}`;
-            } else if (g && g.roomsByScope) {
-              const rs = await g.roomsByScope({ building: selection.building || null, floor: selection.floor || null });
-              let rooms = (rs.rooms || []).filter(Boolean);
-              // Enforce local filtering by building/floor in case the graph returns extra items
-              const bMatch = String(selection.building || '').match(/Building\s+([A-Za-z])$/);
-              const bLetter = bMatch ? bMatch[1].toUpperCase() : null;
-              const fMatch = String(selection.floor || '').match(/Floor\s*(\d+)/i);
-              const fCode = fMatch ? `F${fMatch[1]}` : null;
-              if (bLetter) rooms = rooms.filter(r => String(r).startsWith(`${bLetter}_`));
-              if (fCode) rooms = rooms.filter(r => String(r).split('_')[1] === fCode);
-              if (rooms.length) {
+              // If room matches a CSV folder, use it; otherwise map via csv-map
+              const known = new Set(listRooms());
+              let mapped = null;
+              if (!known.has(selection.room)) {
+                try {
+                  const g = createGraphFromEnv(process.env);
+                  const map = await buildCsvMapping(g);
+                  const zslug = String(selection.room).toLowerCase();
+                  // Try direct roomId match first, then composite key, then zone name slug
+                  const k1 = `roomId:${selection.room}`;
+                  mapped = map.byKey.get(k1) || null;
+                  if (!mapped && selection.building && selection.floor) {
+                    const k2 = `k:${selection.building}|${selection.floor}|${selection.room}`;
+                    mapped = map.byKey.get(k2) || null;
+                  }
+                  if (!mapped) {
+                    for (const it of map.items) {
+                      const zsl = (it.zone ? it.zone.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') : '');
+                      if (zsl === zslug && it.match) { mapped = it.match; break; }
+                    }
+                  }
+                } catch {}
+              }
+              effRoom = mapped || selection.room;
+              scopeNote = `Scope: room=${selection.room}${mapped ? ` (csv=${mapped})` : ''}`;
+            } else if (g) {
+              const csvRooms = await resolveCsvRoomsFromScope({ building: selection.building || null, floor: selection.floor || null, tenant: selection.tenant || null });
+              if (csvRooms && csvRooms.length) {
                 effRoom = 'ALL';
-                scopeNote = `Scope: ${selection.building ? 'building='+selection.building+' ' : ''}${selection.floor ? 'floor='+selection.floor+' ' : ''}rooms=[${rooms.slice(0,30).join(', ')}${rooms.length>30?' …':''}]`;
-                selectionRooms = rooms;
+                scopeNote = `Scope: ${selection.tenant? 'tenant='+selection.tenant+' ' : ''}${selection.building ? 'building='+selection.building+' ' : ''}${selection.floor ? 'floor='+selection.floor+' ' : ''}rooms=[${csvRooms.slice(0,30).join(', ')}${csvRooms.length>30?' …':''}]`;
+                selectionRooms = csvRooms;
               }
             }
           }
         } catch {}
-        if (!effRoom) return sendJson(res, 400, { error: 'room required (or select scope from graph)' });
-        if (DEBUG_HTTP) console.log('[API/chat] effective room=', effRoom, 'note=', scopeNote);
+        if (!effRoom) {
+          // Allow broad queries without explicit room; tools can narrow via selection/tenant/role
+          effRoom = 'ALL';
+        }
+        if (DEBUG_CHAT) console.log('[API/chat] effective room=', effRoom, 'note=', scopeNote, 'selectionRooms=', selectionRooms);
 
         // --- LOGGING ADDED HERE ---
         console.log('[API/chat] Received range:', range);
@@ -977,7 +2014,9 @@ const server = http.createServer(async (req, res) => {
 
         const userLast = [...messages].reverse().find(m => m.role === 'user' || m.role === 'User' || m.role === 'human');
         const question = userLast?.content || '';
-        const tables = effRoom && effRoom !== 'ALL' ? loadRoomTables(effRoom) : {};
+        const role = '';
+        const tablesRaw = effRoom && effRoom !== 'ALL' ? loadRoomTables(effRoom) : {};
+        const tables = tablesRaw;
         const context = {
           instruction: 'You are a building analytics chat assistant. Answer succinctly. If plotting helps, include a JSON HighchartsOptions with yAxis as time and xAxis as chosen metric. Do not include code fences in the JSON.',
           tables: Object.keys(tables),
@@ -989,14 +2028,42 @@ const server = http.createServer(async (req, res) => {
 
         // Use the tool-enabled agent (RAG + tools). If it can't complete, fall back to heuristics.
         const effMessages = scopeNote ? [{ role: 'user', content: scopeNote }, ...messages, { role: 'user', content: question }] : messages.concat({ role: 'user', content: question });
-        const { message, chart, trace, extras } = await agent.run(effMessages, { room: effRoom, range, selectionRooms });
+        const { message, chart, trace, extras } = await agent.run(effMessages, { room: effRoom, range, selectionRooms, tenant: selection?.tenant || null, role: null });
+        try {
+          if (DEBUG_CHAT) {
+            const tools = Array.isArray(trace) ? trace.map(t => t.tool).filter(Boolean) : [];
+            console.log('[API/chat] tools used:', tools);
+            if (Array.isArray(trace)) {
+              for (const t of trace.slice(-6)) {
+                console.log('[API/chat] trace:', JSON.stringify({ tool: t.tool, args: t.args, result_keys: t.result ? Object.keys(t.result).slice(0,8) : null }).slice(0, 1500));
+              }
+            }
+          }
+        } catch (e) { console.warn('[API/chat] debug trace print failed:', String(e)); }
+
+        // If no CSV-mapped rooms but a selection exists, surface graph rooms for visibility
+        let scopeExtras = [];
+        try {
+          if ((!Array.isArray(selectionRooms) || selectionRooms.length === 0) && (selection && (selection.building || selection.floor || selection.tenant))) {
+            const g = createGraphFromEnv(process.env);
+            if (g && g.roomsByScope) {
+              const rs2 = await g.roomsByScope({ building: selection.building || null, floor: selection.floor || null, tenant: selection.tenant || null });
+              const rooms2 = (rs2.rooms || []).filter(Boolean).slice(0, 50);
+              if (rooms2.length) {
+                scopeExtras.push({ message: { role: 'assistant', content: `Graph scope rooms (${rooms2.length}):\n- ${rooms2.join('\n- ')}` }, chart: null });
+              }
+            }
+          }
+        } catch {}
+
         if (!message || !message.content || /^Unable to complete tool-based reasoning/i.test(message.content)) {
           const fb = answerWithFallback(question, room, range || {});
           return sendJson(res, 200, { message: { role: 'assistant', content: fb.answer }, chart: fb.chart, mode: 'fallback', trace: [] });
         }
-        return sendJson(res, 200, { message, chart, extras: extras || ((agent && agent.extras) ? agent.extras : undefined), trace, mode: 'agent' });
+        return sendJson(res, 200, { message, chart, extras: (scopeExtras.length ? scopeExtras.concat(extras || []) : (extras || ((agent && agent.extras) ? agent.extras : undefined))), trace, mode: 'agent' });
       } catch (e) {
-        return sendJson(res, 500, { error: 'bad_request', detail: String(e) });
+        console.error('[API/chat] error:', e?.stack || String(e));
+        return sendJson(res, 500, { error: 'bad_request', detail: e?.stack || String(e) });
       }
     });
     return;

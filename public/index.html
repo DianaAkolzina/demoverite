@@ -351,6 +351,14 @@
         <div id="status-card" class="metric-item" style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px; color: var(--text-light); font-size: 0.95rem;">
           <!-- Filled by JS: Neo4j/Chroma status -->
         </div>
+        <h2>Scope</h2>
+        <div class="metric-item" style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px; color: var(--text-light); font-size: 0.95rem; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button id="scope-rooms-btn" class="pill" style="cursor:pointer; align-self:flex-start;">Scope Rooms (<span id="scope-rooms-count">0</span>)</button>
+            <button id="scope-rooms-apply" class="pill" style="cursor:pointer;">Use Selected</button>
+          </div>
+          <div id="scope-rooms-list" style="max-height:180px; overflow:auto; font-size: 0.92rem;"></div>
+        </div>
         <h2>Metrics</h2>
         <ul class="metrics" id="metrics">
           <!-- Metrics will be loaded dynamically -->
@@ -379,11 +387,20 @@
               <button id="toggle-charts" class="pill" style="cursor:pointer;">Toggle Charts</button>
             </div>
           </div>
-          <div id="graph-view" style="height: 520px; background: var(--surface-light); border-top: 1px solid var(--border);
+            <div id="graph-view" style="height: 520px; background: var(--surface-light); border-top: 1px solid var(--border);
                display: flex; flex-direction: column; gap: 6px; padding: 8px;">
-            <div id="graph-view-title" style="display:flex; align-items:center; justify-content: space-between; font-size: 0.95rem; color: var(--text-light);">
+              <div id="graph-view-title" style="display:flex; align-items:center; justify-content: space-between; font-size: 0.95rem; color: var(--text-light);">
               <div>Graph: Building → Floor → Room → Devices</div>
               <div style="display:flex; gap:8px; align-items:center;">
+                <label for="tenant-select">Tenant:</label>
+                <select id="tenant-select"><option value="">All</option></select>
+                <label for="role-select">Role:</label>
+                <select id="role-select">
+                  <option value="Guest">Guest</option>
+                  <option value="Host">Host</option>
+                  <option value="Analyst">Analyst</option>
+                  <option value="Admin">Admin</option>
+                </select>
                 <span id="scope-pill" class="pill">No scope selected</span>
                 <button id="confirm-scope" class="pill" style="cursor:pointer; background: var(--accent-dark); color:#fff; border: none;">Use Selection</button>
                 <button id="clear-scope" class="pill" style="cursor:pointer;">Clear</button>

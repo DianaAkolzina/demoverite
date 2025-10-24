@@ -1,0 +1,13 @@
+{
+  "name": "l4_forecast_humidity_24h",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "Predict hourly humidity in B_F3_lab for the next 24 hours",
+  "target_metric": "humidity",
+  "target_chart": "line",
+  "latency_sec": 36.59861636161804,
+  "reference": "Baseline forecast: last hourly avg humidity ≈ 49.9 %; forecasting next 24 hours."
+}

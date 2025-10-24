@@ -1,0 +1,13 @@
+{
+  "name": "scatter_lux_vs_temp",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "Scatter plot lux vs outside temperature in B_F3_lab",
+  "target_metric": "lux",
+  "target_chart": "scatter",
+  "latency_sec": 32.166953325271606,
+  "reference": "Correlation(lux, outside temp)=0.856 (n=379)."
+}

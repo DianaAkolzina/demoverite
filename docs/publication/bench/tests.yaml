@@ -1,0 +1,144 @@
+tests:
+- name: l1_latest_co2
+  question: What is the latest CO2 in B_F3_lab?
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: co2
+  target_chart: null
+  reference: Latest CO2 is 912 ppm at 2025-10-15 17:00.
+- name: l1_latest_humidity
+  question: What is the latest humidity in B_F3_lab?
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: humidity
+  target_chart: null
+  reference: Latest humidity is 49.9 % at 2025-10-15 17:00.
+- name: l1_latest_temperature
+  question: What is the latest temperature in B_F3_lab?
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: temperature
+  target_chart: null
+  reference: Latest temperature is 20.43 °C at 2025-10-15 17:00.
+- name: l2_daily_humidity_compare
+  question: Daily average humidity across B_F3_lab and B_F3_toilet with combined line
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: humidity
+  target_chart: line
+  reference: 'Daily humidity summary — B_F3_lab: 46.01%, B_F3_toilet: 44.98%, combined:
+    45.49%.'
+- name: l2_daily_co2_compare
+  question: Daily average CO2 across B_F3_lab and B_F3_toilet
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: co2
+  target_chart: line
+  reference: 'Daily CO2 summary — B_F3_lab: 690.0 ppm, B_F3_toilet: 596.7 ppm, combined:
+    643.4 ppm.'
+- name: l2_hourly_temperature_compare
+  question: Hourly temperature across B_F3_lab and B_F3_toilet
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: temperature
+  target_chart: line
+  reference: 'Hourly temperature summary — B_F3_lab: 20.86 °C, B_F3_toilet: 20.81
+    °C.'
+- name: histogram_lux_lab
+  question: Histogram of lux in B_F3_lab
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: lux
+  target_chart: column
+  reference: 'Lux summary — mean: 349.86, min: 0, max: 880.'
+- name: heatmap_corr_lab
+  question: Correlation heatmap for temperature, humidity, co2 in B_F3_lab
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: null
+  target_chart: heatmap
+  reference: Correlation(temp,humidity)=-0.006, Correlation(temp,co2)=0.135, Correlation(humidity,co2)=0.011.
+- name: scatter_lux_vs_temp
+  question: Scatter plot lux vs outside temperature in B_F3_lab
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: lux
+  target_chart: scatter
+  reference: Correlation(lux, outside temp)=0.856 (n=379).
+- name: l3_ventilation_compliance
+  question: Are daily average CO2 levels in B_F3_lab within recommended 800 ppm this
+    week?
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: co2
+  target_chart: line
+  reference: No. 68.1% of samples under 800 ppm.
+- name: l3_humidity_band
+  question: Is humidity in B_F3_lab within 40-60% most of the time this period?
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: humidity
+  target_chart: line
+  reference: Mostly. 83.1% of samples within 40-60%.
+- name: l4_energy_reasoning
+  question: Why did energy peak midweek in B_F3_lab? Consider occupancy and outside
+    temperature.
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: total_kwh
+  target_chart: null
+  reference: 'Energy peak summary: peak at 2025-10-07 10:00 with delta_kwh≈2.06. avg
+    occupancy≈8.09. avg outside temp≈19.69 °C.'
+- name: l4_humidity_pattern
+  question: Explain daily humidity peaks in B_F3_lab by correlating with outside temperature.
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: humidity
+  target_chart: scatter
+  reference: Humidity vs outside temp correlation=0.015.
+- name: l4_forecast_co2_week
+  question: Forecast daily average CO2 in B_F3_lab for next 7 days
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: co2
+  target_chart: line
+  reference: 'Baseline forecast: last daily avg CO2 ≈ 717.9 ppm; forecasting next
+    7 days.'
+- name: l4_forecast_humidity_24h
+  question: Predict hourly humidity in B_F3_lab for the next 24 hours
+  room: B_F3_lab
+  range:
+    start: 1759186800000
+    end: 1760548380000
+  target_metric: humidity
+  target_chart: line
+  reference: 'Baseline forecast: last hourly avg humidity ≈ 49.9 %; forecasting next
+    24 hours.'

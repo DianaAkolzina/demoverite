@@ -1,0 +1,13 @@
+{
+  "name": "l2_daily_humidity_compare",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "Daily average humidity across B_F3_lab and B_F3_toilet with combined line",
+  "target_metric": "humidity",
+  "target_chart": "line",
+  "latency_sec": 31.81928062438965,
+  "reference": "Daily humidity summary — B_F3_lab: 46.01%, B_F3_toilet: 44.98%, combined: 45.49%."
+}

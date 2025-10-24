@@ -1,0 +1,13 @@
+{
+  "name": "l4_energy_reasoning",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "Why did energy peak midweek in B_F3_lab? Consider occupancy and outside temperature.",
+  "target_metric": "total_kwh",
+  "target_chart": null,
+  "latency_sec": 33.337400674819946,
+  "reference": "Energy peak summary: peak at 2025-10-07 10:00 with delta_kwh≈2.06. avg occupancy≈8.09. avg outside temp≈19.69 °C."
+}

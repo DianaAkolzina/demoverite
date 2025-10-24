@@ -1,0 +1,13 @@
+{
+  "name": "l1_latest_temperature",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "What is the latest temperature in B_F3_lab?",
+  "target_metric": "temperature",
+  "target_chart": null,
+  "latency_sec": 26.433557987213135,
+  "reference": "Latest temperature is 20.43 °C at 2025-10-15 17:00."
+}

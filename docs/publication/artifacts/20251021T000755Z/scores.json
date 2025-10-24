@@ -1,0 +1,94 @@
+{
+  "cases": [
+    {
+      "name": "heatmap_corr_lab",
+      "latency_sec": 15.061245918273926,
+      "chart_success": true,
+      "metric_ok": null
+    },
+    {
+      "name": "histogram_lux_lab",
+      "latency_sec": 15.308011531829834,
+      "chart_success": true,
+      "metric_ok": true
+    },
+    {
+      "name": "l1_latest_co2",
+      "latency_sec": 26.925464153289795,
+      "chart_success": true,
+      "metric_ok": true
+    },
+    {
+      "name": "l1_latest_humidity",
+      "latency_sec": 26.050435304641724,
+      "chart_success": true,
+      "metric_ok": true
+    },
+    {
+      "name": "l1_latest_temperature",
+      "latency_sec": 26.433557987213135,
+      "chart_success": true,
+      "metric_ok": true
+    },
+    {
+      "name": "l2_daily_co2_compare",
+      "latency_sec": 40.37046551704407,
+      "chart_success": true,
+      "metric_ok": false
+    },
+    {
+      "name": "l2_daily_humidity_compare",
+      "latency_sec": 31.81928062438965,
+      "chart_success": true,
+      "metric_ok": true
+    },
+    {
+      "name": "l2_hourly_temperature_compare",
+      "latency_sec": 30.31485891342163,
+      "chart_success": true,
+      "metric_ok": true
+    },
+    {
+      "name": "l3_humidity_band",
+      "latency_sec": 42.9949164390564,
+      "chart_success": true,
+      "metric_ok": true
+    },
+    {
+      "name": "l3_ventilation_compliance",
+      "latency_sec": 33.624985456466675,
+      "chart_success": true,
+      "metric_ok": true
+    },
+    {
+      "name": "l4_energy_reasoning",
+      "latency_sec": 33.337400674819946,
+      "chart_success": true,
+      "metric_ok": false
+    },
+    {
+      "name": "l4_forecast_co2_week",
+      "latency_sec": 49.261425495147705,
+      "chart_success": false,
+      "metric_ok": false
+    },
+    {
+      "name": "l4_forecast_humidity_24h",
+      "latency_sec": 36.59861636161804,
+      "chart_success": true,
+      "metric_ok": true
+    },
+    {
+      "name": "l4_humidity_pattern",
+      "latency_sec": 38.78765296936035,
+      "chart_success": true,
+      "metric_ok": true
+    },
+    {
+      "name": "scatter_lux_vs_temp",
+      "latency_sec": 32.166953325271606,
+      "chart_success": true,
+      "metric_ok": true
+    }
+  ]
+}

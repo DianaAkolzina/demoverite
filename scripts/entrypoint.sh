@@ -9,11 +9,9 @@ if [ "${CSV_PURGE_ON_START:-0}" = "1" ]; then
   rm -rf "${CSV_TARGET_DIR:-${CSV_DIR:-CSVex}}"/* || true
 fi
 
-if [ "${CSV_AUTO_SEED:-0}" = "1" ]; then
-  echo "[entrypoint] Seeding sample building graph data..."
-  CSV_SOURCE_DIR="${CSV_SOURCE_DIR:-CSVex}" START="${START:-}" DAYS="${DAYS:-180}" \
-    python3 scripts/prepare_building_graph.py || echo "[entrypoint][warn] Sample data seed failed"
-fi
+# Removed legacy CSV_AUTO_SEED of mock data; CSVs are generated from Neo4j instead
+
+# CSV generation from graph is disabled — telemetry comes from S3 only.
 
 if [ "${SKIP_INGEST:-0}" != "1" ]; then
   echo "[entrypoint] Running Python ingestion..."

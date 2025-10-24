@@ -1,0 +1,13 @@
+{
+  "name": "l1_latest_humidity",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "What is the latest humidity in B_F3_lab?",
+  "target_metric": "humidity",
+  "target_chart": null,
+  "latency_sec": 26.050435304641724,
+  "reference": "Latest humidity is 49.9 % at 2025-10-15 17:00."
+}

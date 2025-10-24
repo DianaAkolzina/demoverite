@@ -93,10 +93,17 @@ async function init() {
   const scopePillEl = document.getElementById('scope-pill');
   const confirmBtn = document.getElementById('confirm-scope');
   const clearBtn = document.getElementById('clear-scope');
-  const selection = { building: null, floor: null, room: null };
+  const tenantSelect = document.getElementById('tenant-select');
+  const roleSelect = document.getElementById('role-select');
+  const scopeRoomsBtn = document.getElementById('scope-rooms-btn');
+  const scopeRoomsList = document.getElementById('scope-rooms-list');
+  const selection = { building: null, floor: null, room: null, deviceType: null, tenant: '', role: 'Guest' };
   window.selection = selection;
   let selectionConfirmed = false;
   let graphLevel = 'buildings';
+  const graphCache = new Map(); // key: JSON.stringify({tenant, role}) -> { nodes, links }
+  let graphChart = null;
+  function debounce(fn, ms) { let t=null; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
 
   // Toggle handlers for visibility
   const graphView = document.getElementById('graph-view');
@@ -114,10 +121,58 @@ async function init() {
 
   function renderScopePill() {
     const parts = [];
+    if (selection.tenant) parts.push(`Tenant: ${selection.tenant}`);
+    if (selection.role) parts.push(`Role: ${selection.role}`);
     if (selection.building) parts.push(`Building: ${selection.building}`);
     if (selection.floor) parts.push(`Floor: ${selection.floor}`);
     if (selection.room) parts.push(`Room: ${selection.room}`);
+    if (selection.deviceType) parts.push(`Device: ${selection.deviceType}`);
     if (scopePillEl) scopePillEl.textContent = parts.length ? (selectionConfirmed ? '✔ ' : '') + parts.join(' · ') : 'No scope selected';
+  }
+
+  async function refreshScopeRoomsList() {
+    if (!scopeRoomsList) return;
+    scopeRoomsList.textContent = 'Loading…';
+    try {
+      const qs = `?tenant=${encodeURIComponent(selection.tenant||'')}&building=${encodeURIComponent(selection.building||'')}&floor=${encodeURIComponent(selection.floor||'')}`;
+      const [res, dev] = await Promise.all([
+        fetchJSON(`/api/scope/csv-rooms${qs}`),
+        fetchJSON(`/api/graph/floor-devices?building=${encodeURIComponent(selection.building||'')}&floor=${encodeURIComponent(selection.floor||'')}&tenant=${encodeURIComponent(selection.tenant||'')}&role=${encodeURIComponent(selection.role||'')}`)
+      ]);
+      const rooms = Array.isArray(res.rooms) ? res.rooms : [];
+      const scopeRoomsCount = document.getElementById('scope-rooms-count');
+      if (scopeRoomsCount) scopeRoomsCount.textContent = rooms.length;
+      if (!rooms.length) {
+        scopeRoomsList.innerHTML = '<span style="color:#94a3b8">No mapped rooms</span>';
+        return;
+      }
+      const counts = new Map();
+      if (dev && Array.isArray(dev.byCsvRoom)) dev.byCsvRoom.forEach(p => { if (p && p.csvRoom) counts.set(p.csvRoom, p.count || 0); });
+      const html = ['<ul style="list-style:none; padding-left:0; margin:0;">']
+        .concat(rooms.map(r => {
+          const c = counts.get(r) || 0;
+          return `<li style="padding:2px 0;" data-room="${r}">
+            <label style="cursor:pointer; display:flex; justify-content:space-between; gap:8px; align-items:center;">
+              <span><input type="checkbox" data-room-check="${r}" style="margin-right:6px;"> ${r}</span>
+              <span class="badge">${c}</span>
+            </label>
+          </li>`;
+        }))
+        .concat(['</ul>'])
+        .join('');
+      scopeRoomsList.innerHTML = html;
+      // Click label to single-select quickly
+      scopeRoomsList.querySelectorAll('li[data-room] label span:first-child').forEach(el => {
+        el.addEventListener('click', (e) => {
+          const li = e.currentTarget.closest('li[data-room]');
+          if (!li) return; const room = li.getAttribute('data-room');
+          selection.room = room; selection.rooms = [];
+          selectionConfirmed = false; renderScopePill(); updateSelectedRangeDisplay(); refreshMetrics();
+        });
+      });
+    } catch (e) {
+      scopeRoomsList.textContent = 'Failed to load';
+    }
   }
 
   function ensureMetricsDropdown() {
@@ -139,7 +194,7 @@ async function init() {
         const start = startEl.value ? new Date(startEl.value).getTime() : '';
         const end = endEl.value ? new Date(endEl.value).getTime() : '';
         try {
-          const res = await fetchJSON(`/api/series?room=${encodeURIComponent(room)}&field=${encodeURIComponent(v)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+          const res = await fetchJSON(`/api/series?room=${encodeURIComponent(room)}&field=${encodeURIComponent(v)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&role=${encodeURIComponent(selection.role||'')}`);
           // Keep existing charts intact in the right sidebar
           const rows = res.data || [];
           const maxRows = 2000;
@@ -181,7 +236,7 @@ async function init() {
     try {
       const s = startEl.value ? new Date(startEl.value).getTime() : '';
       const e = endEl.value ? new Date(endEl.value).getTime() : '';
-      const meta = await fetchJSON(`/api/meta?room=${encodeURIComponent(room)}&start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`);
+      const meta = await fetchJSON(`/api/meta?room=${encodeURIComponent(room)}&start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}&role=${encodeURIComponent(selection.role||'')}`);
       metricsEl.innerHTML = ''
 
 
@@ -190,7 +245,18 @@ async function init() {
       Object.values(meta.tables || {}).forEach(info => {
         (info.fields || []).forEach(f => { if (f !== 'ts') fieldSet.add(f); });
       });
-      const opts = [''].concat(Array.from(fieldSet).sort());
+      let fields = Array.from(fieldSet).sort();
+      const dt = (selection.deviceType || '').toLowerCase();
+      if (dt) {
+        const pref = new Set();
+        if (dt.includes('energy')) ['value','total_kwh'].forEach(x => pref.add(x));
+        else if (dt.includes('people') || dt.includes('occup')) ['people_count'].forEach(x => pref.add(x));
+        else if (dt.includes('iaq') || dt.includes('air') || dt.includes('sensor')) ['temperature','humidity','co2','pm25','pm10','lux'].forEach(x => pref.add(x));
+        const preferred = fields.filter(f => pref.has(f));
+        const rest = fields.filter(f => !pref.has(f));
+        if (preferred.length) fields = preferred.concat(rest);
+      }
+      const opts = [''].concat(fields);
       dd.innerHTML = opts.map(v => v ? `<option value="${v}">${v}</option>` : '<option value="">Select a metric…</option>').join('');
     } catch {
       metricsEl.textContent = 'Failed to load metrics';
@@ -323,13 +389,25 @@ async function init() {
 
   // roomToZoneType removed (no longer needed in UI)
 
-  async function refreshGraphView() {
+  const refreshGraphView = debounce(async function () {
     // Title stays static with buttons
     try {
-      const g = await fetchJSON(`/api/graph/full`);
+      const key = JSON.stringify({ tenant: selection.tenant||'', role: selection.role||'' });
+      let g = graphCache.get(key);
+      if (!g) {
+        const qs = `?tenant=${encodeURIComponent(selection.tenant||'')}&role=${encodeURIComponent(selection.role||'')}`;
+        g = await fetchJSON(`/api/graph/full${qs}`);
+        graphCache.set(key, g);
+      }
+      // If no tenant selected, show an instructional message and do not render buildings
+      if (!selection.tenant) {
+        const el = document.getElementById(graphViewChartId);
+        if (el) el.innerHTML = '<div style="padding:16px; color:#94a3b8">Select a tenant and role to view buildings.</div>';
+        return;
+      }
       const allLinks = (g.links || []).map(e => [e.source, e.target, e.rel]);
       const colorMap = { Building: '#3b82f6', Floor: '#f59e0b', Zone: '#22c55e', Device: '#8b5cf6', MetricType: '#14b8a6' };
-      const allNodes = (g.nodes || []).map(n => ({ id: n.id, name: n.name, roomId: n.roomId || null, nodeType: n.nodeType || n.label, marker: { radius: n.nodeType==='Building' ? 12 : (n.nodeType==='Zone' ? 9 : 6) }, color: colorMap[n.nodeType || n.label] || undefined }));
+      const allNodes = (g.nodes || []).map(n => ({ id: n.id, name: n.name, roomId: n.roomId || null, csvRoom: n.csvRoom || null, nodeType: n.nodeType || n.label, deviceType: n.deviceType || null, x: typeof n.x === 'number' ? n.x : undefined, y: typeof n.y === 'number' ? n.y : undefined, marker: { radius: n.nodeType==='Building' ? 12 : (n.nodeType==='Zone' ? 9 : 6) }, color: colorMap[n.nodeType || n.label] || undefined }));
 
       function filterView() {
         const nodes = [];
@@ -340,24 +418,37 @@ async function init() {
         const floors = allNodes.filter(n=>n.nodeType==='Floor');
         const zones = allNodes.filter(n=>n.nodeType==='Zone');
         if (graphLevel==='buildings') {
+          // Only show buildings when a tenant is selected (enforced above); rely on server-side tenant pruning
           buildings.forEach(n=>addNode(n.id));
         } else if (graphLevel==='floors' && selection.building) {
           const b = buildings.find(n=>n.name===selection.building);
           if (b) addNode(b.id);
-          allLinks.filter(l=>l[2]==='BELONGS_TO_BUILDING').forEach(([from,to])=>{ if (b && to===b.id) { addNode(from); addLink(from,to);} });
+          const before = nodes.length;
+          const isFB = (l)=> l[2]==='IN_BUILDING' || l[2]==='BELONGS_TO_BUILDING' || l[2]==='LOCATED_IN_BUILDING';
+          const isZF = (l)=> l[2]==='LOCATED_ON_FLOOR' || l[2]==='BELONGS_TO_FLOOR';
+          allLinks.filter(isFB).forEach(([from,to])=>{ if (b && to===b.id) { const nFrom = allNodes.find(n=>n.id===from); if (nFrom && nFrom.nodeType==='Floor') { addNode(from); addLink(from,to);} }});
+          if (nodes.length === before && b) {
+            allLinks.filter(isFB).forEach(([from,to])=>{ if (to===b.id) { const nFrom = allNodes.find(n=>n.id===from); if (nFrom && nFrom.nodeType==='Zone') { addNode(from); addLink(from,to);} }});
+          }
         } else if (graphLevel==='rooms' && selection.building && selection.floor) {
           const b = buildings.find(n=>n.name===selection.building);
-          const f = floors.find(n=>n.name===selection.floor);
+          const f = floors.find(n=> (n.name===selection.floor) || (n.id===selection.floor));
           if (b) addNode(b.id);
           if (f) { addNode(f.id); addLink(f.id, b?b.id:null); }
-          allLinks.filter(l=>l[2]==='BELONGS_TO_FLOOR').forEach(([from,to])=>{ if (f && to===f.id) { addNode(from); addLink(from,to);} });
+          allLinks.filter(l=> (l[2]==='LOCATED_ON_FLOOR' || l[2]==='BELONGS_TO_FLOOR')).forEach(([from,to])=>{ if (f && to===f.id) { addNode(from); addLink(from,to);} });
         } else if (graphLevel==='devices' && selection.room) {
           const z = zones.find(n=>n.roomId===selection.room);
           if (z) addNode(z.id);
           allLinks.filter(l=>l[2]==='LOCATED_IN_ZONE').forEach(([from,to])=>{ if (z && to===z.id) { addNode(from); addLink(from,to);} });
-          allLinks.filter(l=>l[2]==='BELONGS_TO_FLOOR').forEach(([from,to])=>{ if (z && from===z.id) { addNode(to); addLink(from,to);} });
+          allLinks.filter(l=> (l[2]==='LOCATED_ON_FLOOR' || l[2]==='BELONGS_TO_FLOOR')).forEach(([from,to])=>{ if (z && from===z.id) { addNode(to); addLink(from,to);} });
+          if (!z) {
+            const b = buildings.find(n=>n.name===selection.building);
+            if (b) {
+              allLinks.filter(l=>l[2]==='LOCATED_IN_BUILDING').forEach(([from,to])=>{ if (to===b.id) { const nFrom = allNodes.find(n=>n.id===from); if (nFrom && nFrom.nodeType==='Device') { addNode(from); addLink(from,to);} }});
+            }
+          }
           const floorId = nodes.find(n=>n.nodeType==='Floor')?.id;
-          if (floorId) allLinks.filter(l=>l[2]==='BELONGS_TO_BUILDING').forEach(([from,to])=>{ if (from===floorId) { addNode(to); addLink(from,to);} });
+          if (floorId) allLinks.filter(l=> (l[2]==='IN_BUILDING' || l[2]==='BELONGS_TO_BUILDING' || l[2]==='LOCATED_IN_BUILDING')).forEach(([from,to])=>{ if (from===floorId) { addNode(to); addLink(from,to);} });
         } else {
           allNodes.forEach(n=>addNode(n.id));
           allLinks.forEach(([a,b])=>addLink(a,b));
@@ -367,31 +458,57 @@ async function init() {
       const view = filterView();
       const nodes = view.nodes;
       const links = view.links;
-      Highcharts.chart(graphViewChartId, {
+
+      // Arrange building nodes in neat rows to avoid hugging the borders
+      try {
+        if (graphLevel === 'buildings') {
+          const bnodes = nodes.filter(n => n.nodeType === 'Building');
+          const perRow = Math.max(1, Math.min(6, Math.ceil(Math.sqrt(bnodes.length || 1)) * 2));
+          const xStep = 220, yStep = 180;
+          bnodes.forEach((n, i) => {
+            const col = i % perRow;
+            const row = Math.floor(i / perRow);
+            const x0 = -((perRow - 1) / 2) * xStep;
+            n.x = x0 + col * xStep;
+            n.y = row * yStep;
+          });
+        }
+      } catch {}
+      const options = {
         chart: { type: 'networkgraph', backgroundColor: 'transparent' },
         title: { text: null },
         tooltip: { formatter() { return `${this.point.nodeType||''}: ${this.point.name||this.point.id}`; } },
         plotOptions: {
           networkgraph: {
             keys: ['from', 'to'],
-            layoutAlgorithm: { enableSimulation: true, friction: -0.9, linkLength: 100 }
+            layoutAlgorithm: { enableSimulation: false, linkLength: 80 }
           },
           series: {
+            cursor: 'pointer',
             point: {
               events: {
                 click: function () {
                   const p = this;
                   if (p.nodeType === 'Building') {
-                    selection.building = p.name; selection.floor = null; selection.room = null; selectionConfirmed = false; graphLevel='floors';
+                    selection.building = p.name; selection.floor = null; selection.room = null; selection.deviceType = null; selectionConfirmed = false; graphLevel='floors';
                   } else if (p.nodeType === 'Floor') {
-                    selection.floor = p.name; selectionConfirmed = false; graphLevel='rooms';
-                  } else if (p.nodeType === 'Zone' && p.roomId) {
-                    selection.room = p.roomId; selectionConfirmed = false; graphLevel='devices';
+                    selection.floor = p.name || p.id; selection.deviceType = null; selectionConfirmed = false; graphLevel='rooms';
+          } else if (p.nodeType === 'Zone') {
+                    if (Array.isArray(p.deviceIds) && p.deviceIds.length) {
+                      selection.rooms = p.deviceIds.slice(0, 200);
+                      selection.room = '';
+                    } else {
+                      const rid = p.csvRoom || p.roomId || (p.name ? String(p.name).trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') : 'zone');
+                      selection.room = rid;
+                      selection.rooms = [];
+                    }
+                    selection.deviceType = null; selectionConfirmed = false; graphLevel='devices';
                   } else if (p.nodeType === 'Device') {
                     const rel = links.find(l => l[0]===p.id || l[1]===p.id);
                     const other = rel ? (rel[0]===p.id ? rel[1] : rel[0]) : null;
                     const zone = nodes.find(n => n.id === other && n.nodeType==='Zone');
                     if (zone && zone.roomId) { selection.room = zone.roomId; selectionConfirmed = false; }
+                    selection.deviceType = p.deviceType || p.name || null;
                   }
                   renderScopePill();
                   updateSelectedRangeDisplay();
@@ -408,11 +525,24 @@ async function init() {
           nodes
         }],
         credits: { enabled: false }
-      });
+      };
+
+      if (graphChart) {
+        try {
+          const s = graphChart.series[0];
+          s.update({ nodes }, false);
+          s.setData(links, true);
+        } catch (e) {
+          graphChart.destroy();
+          graphChart = Highcharts.chart(graphViewChartId, options);
+        }
+      } else {
+        graphChart = Highcharts.chart(graphViewChartId, options);
+      }
     } catch (e) {
       document.getElementById(graphViewChartId).innerHTML = '<div style="color:#94a3b8">Graph view unavailable</div>';
     }
-  }
+  }, 80);
 
   sendBtn.addEventListener('click', send);
   inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
@@ -430,6 +560,69 @@ async function init() {
   // Confirm/Clear scope controls
   if (confirmBtn) confirmBtn.addEventListener('click', () => { selectionConfirmed = !!(selection.building || selection.floor || selection.room); renderScopePill(); });
   if (clearBtn) clearBtn.addEventListener('click', () => { selection.building=null; selection.floor=null; selection.room=null; selectionConfirmed=false; graphLevel='buildings'; renderScopePill(); refreshGraphView(); });
+
+  // Load tenants/roles and bind selectors
+  function loadSelectionFromStorage() {
+    try {
+      const raw = localStorage.getItem('selection');
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s && typeof s === 'object') {
+        selection.tenant = s.tenant || selection.tenant;
+        selection.role = s.role || selection.role;
+        selection.building = s.building || selection.building;
+        selection.floor = s.floor || selection.floor;
+        selection.room = s.room || selection.room;
+      }
+    } catch {}
+  }
+  function saveSelectionToStorage() {
+    try { localStorage.setItem('selection', JSON.stringify({ tenant: selection.tenant, role: selection.role, building: selection.building, floor: selection.floor, room: selection.room })); } catch {}
+  }
+
+  async function loadAuthOptions() {
+    try {
+      const o = await fetchJSON('/api/auth/options');
+      // tenants
+      if (tenantSelect) {
+        const tenants = o.tenants || [];
+        const opts = ['<option value="">All</option>'].concat(tenants.map(t => `<option value="${t}">${t}</option>`));
+        tenantSelect.innerHTML = opts.join('');
+        // Default to first tenant if none selected
+        if (!selection.tenant && tenants.length) {
+          selection.tenant = tenants[0];
+          tenantSelect.value = tenants[0];
+        } else if (selection.tenant) {
+          tenantSelect.value = selection.tenant;
+        }
+      }
+      if (roleSelect && (o.roles||[]).length) {
+        roleSelect.innerHTML = (o.roles||[]).map(r => `<option value="${r}">${r}</option>`).join('');
+        if (selection.role) roleSelect.value = selection.role;
+      }
+      renderScopePill();
+      refreshGraphView();
+      refreshMetrics();
+    } catch (e) {
+      // ignore
+    }
+  }
+  if (tenantSelect) tenantSelect.addEventListener('change', () => { selection.tenant = tenantSelect.value || ''; saveSelectionToStorage(); renderScopePill(); refreshGraphView(); refreshMetrics(); });
+  if (roleSelect) roleSelect.addEventListener('change', () => { selection.role = roleSelect.value || 'Guest'; saveSelectionToStorage(); renderScopePill(); refreshGraphView(); refreshMetrics(); });
+  if (scopeRoomsBtn) scopeRoomsBtn.addEventListener('click', () => { refreshScopeRoomsList(); });
+  const scopeRoomsApply = document.getElementById('scope-rooms-apply');
+  if (scopeRoomsApply) scopeRoomsApply.addEventListener('click', () => {
+    if (!scopeRoomsList) return;
+    const checks = scopeRoomsList.querySelectorAll('input[type="checkbox"][data-room-check]');
+    const sel = [];
+    checks.forEach(ch => { if (ch.checked) sel.push(ch.getAttribute('data-room-check')); });
+    selection.rooms = sel;
+    selection.room = sel.length === 1 ? sel[0] : '';
+    selectionConfirmed = false;
+    renderScopePill(); updateSelectedRangeDisplay(); refreshMetrics();
+  });
+  loadSelectionFromStorage();
+  loadAuthOptions();
 }
 
 function formatDateLocal(ts) {

@@ -99,8 +99,7 @@ export function buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir
   const csvPath = fs.existsSync(csvWeather1) ? csvWeather1 : (fs.existsSync(csvWeather2) ? csvWeather2 : null);
   if (csvPath && fs.existsSync(csvPath)) {
     try {
-      const hdr = fs.readFileSync(csvPath, 'utf8').split(/?
-/)[0] || '';
+      const hdr = fs.readFileSync(csvPath, 'utf8').split(/\n/)[0] || '';
       const keys = hdr.split(',').filter(h => h && h !== 'ts');
       const text = `Weather CSV fields ${keys.join(', ')} available.`;
       docs.push({ id: `w_${id++}`, text, meta: { type: 'weather' } });

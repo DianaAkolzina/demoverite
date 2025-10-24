@@ -37,18 +37,13 @@ On startup the container will:
 - Backfill weather to `/data/CSVex_enriched/weather/weather.csv` if OpenWeather API is configured
 - Launch the server at `http://localhost:3000`
 
-Generate sample CSVs (optional)
-- Create quick demo data directly in `CSVex`:
-```
-CSV_SOURCE_DIR=CSVex ROOM=cafe START=2025-10-01T00:00:00Z DAYS=2   python3 scripts/generate_sample_csvex.py
-```
-- Then rebuild/start: `docker compose up --build`
+Generate sample CSVs
+- Disabled. Telemetry now comes exclusively from S3 by deviceId.
 
-## Running Without CSV Data
+## Running Without Local CSV Data
 
 You can run the app even if `CSVex` is empty or missing.
-- The Python ingester logs a warning and continues.
-- The app starts and the chat UI works; room charts will be empty until CSVs are provided.
+- The app starts and the chat UI works; telemetry is fetched from S3.
 - Weather (if configured) is still fetched and used by the agent.
 
 To add data later:
@@ -94,32 +89,8 @@ Weather (optional):
 - `OPENWEATHER_BACKFILL_DAYS` (default `5`)
 - `OPENWEATHER_UNITS` (default `metric`), `OPENWEATHER_LANG` (default `en`)
 
-LLM (optional):
+LLM:
 - `USE_LLM=true`, `LLM_PROVIDER=gemini`, `GEMINI_API_KEY=...`, `LLM_TEMPERATURE`, see `server/index.js`
-
-Graph / Vector:
-- Neo4j (Graph) for topology/tenant scoping — REQUIRED
-  - External (recommended, e.g. Aura over TLS):
-    - `NEO4J_URI=neo4j+s://<instance>.databases.neo4j.io`
-    - `NEO4J_USERNAME=neo4j`
-    - `NEO4J_PASSWORD=...`
-    - `NEO4J_DATABASE=neo4j`
-  - Local (via docker-compose `neo4j` service):
-    - Run `docker compose up` to start `neo4j:5-community`.
-    - Set in `.env`: `NEO4J_URI=bolt://neo4j:7687`, `NEO4J_USERNAME=neo4j`, `NEO4J_PASSWORD` to match `NEO4J_AUTH` in compose (default `test`).
-    - From host: http://localhost:7474 (Browser), `bolt://localhost:7687` (Bolt).
-  - On startup, the server waits for Neo4j to be ready and runs `scripts/populate_neo4j.js` (idempotent MERGEs). To skip seeding, set `NEO4J_SKIP_POPULATE=1`.
-- Chroma (Vector) for doc/profile embeddings — optional
-  - Set `CHROMA_URL` based on how you run:
-    - Local host: `CHROMA_URL=http://localhost:8000`
-    - Docker Compose (uses the `chroma` service name): `CHROMA_URL=http://chroma:8000`
-  - On startup, the server checks Chroma heartbeat and, if reachable, indexes knowledge/profiles via `scripts/index_chroma_http.py` (falls back to client indexer). To skip indexing, set `CHROMA_SKIP_INDEX=1`.
-
-Notes:
-- The app now REQUIRES Neo4j. Startup fails fast if Neo4j env is missing or the database is unreachable.
-- In Docker, Node.js dependencies (including `neo4j-driver`) are installed during the image build so graph features work when env is set.
-- New endpoints: `/api/status` (datastore health/metrics), `/api/graph/summary?zoneType=Cafe|Boardroom|Lab|Toilet`.
-- UI: Sidebar shows datastore status and a mini graph summary (device counts per selected room type).
 
 ## Data Requirements
 
@@ -134,14 +105,14 @@ The ingester will:
 - Sort ascending by `ts`
 - Write atomically
 
-### Populate CSVex step‑by‑step
+### Populate CSVex step‑by‑step (disabled)
 
 1) Create room folder(s):
 ```
 mkdir -p CSVex/cafe
 ```
 
-2) Create minimal CSVs (example for cafe):
+2) Create minimal CSVs (example for cafe) or use the google disk files:
 ```
 cat > CSVex/cafe/cafe_iaq_data.csv <<EOF
 ts,temperature,humidity,co2,lux,pm25,pm10,voc
@@ -162,10 +133,7 @@ ts,value,total_kwh
 EOF
 ```
 
-3) Rebuild and start to ingest and serve:
-```
-docker compose up --build   # or: docker-compose up --build
-```
+3) Disabled in S3-only mode.
 
 4) In the app:
 - Select room: cafe
@@ -207,8 +175,20 @@ This removes common comment patterns from .js, .ts, .py, .sh, .css, .html (exclu
   - Weather fetch is skipped; app still runs.
 - Empty charts:
   - Add CSVs to `CSVex/<room>` and restart to re‑ingest.
- - Chroma errors or timeouts:
-   - Ensure `docker compose up chroma` is running, or run a local Chroma container exposing `8000`.
-   - Set `CHROMA_URL` correctly for your mode (localhost vs docker compose).
-   - The indexer downloads a SentenceTransformers model; if your environment blocks outbound network, set `CHROMA_SKIP_INDEX=1` to start the app without indexing, or pre‑bake the model into the image/mount a cache.
-   - Check `/api/status` — it now reports `chroma.reachable` to confirm connectivity.
+
+## S3 Telemetry Mode (by device ID)
+
+If you receive device telemetry as CSV files in an S3 bucket (one CSV per deviceId), you can switch the server to read directly from S3 and map data to the graph via deviceId:
+
+- Set in your environment:
+  - `AWS_S3_ENABLED=1`
+  - `AWS_S3_BUCKET=digispace-external`
+  - `AWS_S3_REGION=eu-west-2` (or your region)
+  - `AWS_S3_PREFIX=digispace_backup_24_10_2025` (or your daily folder)
+
+Behavior changes:
+- `/api/scope/csv-rooms` returns a list of deviceIds for the current selection (tenant/building/floor) based on the Neo4j graph.
+- `/api/meta` and `/api/series` fetch `s3://$AWS_S3_BUCKET/$AWS_S3_PREFIX/<deviceId>.csv` and expose it as a single `telemetry` table.
+- Local CSV generation from the graph is automatically skipped when S3 mode is enabled.
+
+Note: This requires `@aws-sdk/client-s3` to be installed in the server environment. Local CSV generation is removed; dev scripts no longer create or ingest CSVex.

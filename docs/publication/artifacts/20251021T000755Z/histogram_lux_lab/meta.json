@@ -1,0 +1,13 @@
+{
+  "name": "histogram_lux_lab",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "Histogram of lux in B_F3_lab",
+  "target_metric": "lux",
+  "target_chart": "column",
+  "latency_sec": 15.308011531829834,
+  "reference": "Lux summary — mean: 349.86, min: 0, max: 880."
+}

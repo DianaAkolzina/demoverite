@@ -10,13 +10,17 @@
     "import:csv": "node scripts/import_csv.js",
     "import:weather": "node scripts/openweather_import.js",
     "enrich:csv": "node scripts/enrich_csvs.js",
+    "s3:sync": "node scripts/s3_sync_telemetry.js",
     "docker:up": "docker build -t avmsolutions-analytics . && docker run -d --name avmsolutions-analytics -p 3000:3000 --env-file .env avmsolutions-analytics",
     "docker:down": "docker stop avmsolutions-analytics && docker rm avmsolutions-analytics",
     "docker:logs": "docker logs -f avmsolutions-analytics",
-    "index:chroma": "python3 scripts/index_chroma.py"
+    "index:chroma": "python3 scripts/index_chroma.py",
+    "s3:sync": "node scripts/s3_sync_telemetry.js",
+    "s3:purge-local": "node scripts/purge_local_csvs.js"
   },
   "dependencies": {
     "node-fetch": "^3.3.2",
-    "neo4j-driver": "^5.22.0"
+    "neo4j-driver": "^5.22.0",
+    "@aws-sdk/client-s3": "^3.624.0"
   }
 }

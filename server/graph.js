@@ -61,8 +61,9 @@ export function createGraphClient({ uri, username, password, database }) {
 
   async function devicesByZoneType(zoneType) {
     const cypher = `
-      MATCH (z:Zone {type:$zoneType})<-[:LOCATED_IN_ZONE]-(d:Device)
-      RETURN d.type AS type, count(*) AS c
+      MATCH (z:Zone {type:$zoneType})
+      OPTIONAL MATCH (d:Device)-[:LOCATED_IN_ZONE]->(z)
+      RETURN d.type AS type, count(d) AS c
     `;
     const { records, error } = await runQuery(cypher, { zoneType });
     if (error) return { counts: [], error };
@@ -71,9 +72,12 @@ export function createGraphClient({ uri, username, password, database }) {
   }
 
   async function subgraphByZoneType(zoneType, { maxZones = 12, maxDevicesPerZone = 4 } = {}) {
-    // Fetch hierarchy: Tenant -> Building -> Floor -> Zone (filtered by type)
+    // Fetch hierarchy using the canonical relationships from the model
     const hRes = await runQuery(`
-      MATCH (t:Tenant)<-[:BELONGS_TO_TENANT]-(b:Building)<-[:BELONGS_TO_BUILDING]-(f:Floor)<-[:BELONGS_TO_FLOOR]-(z:Zone {type:$zoneType})
+      MATCH (t:Tenant)
+      OPTIONAL MATCH (b:Building)-[:BELONGS_TO_TENANT]->(t)
+      OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
+      OPTIONAL MATCH (z:Zone {type:$zoneType})-[:LOCATED_ON_FLOOR]->(f)
       RETURN DISTINCT t,b,f,z
     `, { zoneType });
     if (hRes.error) return { nodes: [], links: [], error: hRes.error };
@@ -113,9 +117,10 @@ export function createGraphClient({ uri, username, password, database }) {
     // Devices per filtered zones
     if (limitedZones.length) {
       const dRes = await runQuery(`
-        MATCH (z:Zone {type:$zoneType})<-[:LOCATED_IN_ZONE]-(d:Device)
+        MATCH (z:Zone {type:$zoneType})
         WHERE z.name IN $zoneNames
-        OPTIONAL MATCH (d)-[:HAS_PROFILE]->(p:DeviceProfile)
+        OPTIONAL MATCH (d:Device)-[:LOCATED_IN_ZONE]->(z)
+        OPTIONAL MATCH (d)-[:HAS_DEVICE_PROFILE]->(p:DeviceProfile)
         RETURN z,d,p
       `, { zoneType, zoneNames });
       if (!dRes.error) {
@@ -143,9 +148,9 @@ export function createGraphClient({ uri, username, password, database }) {
   // Rooms by tenant (expects nodes/labels in your graph; adapt cypher as needed)
   async function roomsByTenant(tenant) {
     const cypher = `
-      MATCH (t:Tenant {name:$tenant})-[:OWNS|:LEASES|:BELONGS_TO*1..3]->(z:Zone)
-      OPTIONAL MATCH (z)-[:HAS_NAME]->(n)
-      RETURN DISTINCT coalesce(z.name, n.value, z.id) AS room
+      MATCH (t:Tenant {name:$tenant})
+      OPTIONAL MATCH (z:Zone)-[:BELONGS_TO_TENANT]->(t)
+      RETURN DISTINCT coalesce(z.roomId, z.name) AS room
     `;
     const { records, error } = await runQuery(cypher, { tenant });
     if (error) return { rooms: [], error };
@@ -154,21 +159,38 @@ export function createGraphClient({ uri, username, password, database }) {
   }
 
   // Rooms by scope (building and/or floor), returns roomIds if present or zone names
-  async function roomsByScope({ building = null, floor = null } = {}) {
+  async function roomsByScope({ building = null, floor = null, tenant = null } = {}) {
     let cypher = '';
     const params = {};
     if (building && floor) {
       cypher = `
-        MATCH (b:Building {name:$building})<-[:BELONGS_TO_BUILDING]-(f:Floor {name:$floor})<-[:BELONGS_TO_FLOOR]-(z:Zone)
+        MATCH (b:Building {name:$building})
+        MATCH (f:Floor {name:$floor})-[:LOCATED_IN_BUILDING]->(b)
+        OPTIONAL MATCH (z:Zone)-[:LOCATED_ON_FLOOR]->(f)
         RETURN coalesce(z.roomId, z.name) AS room
       `;
       params.building = building; params.floor = floor;
     } else if (building) {
       cypher = `
-        MATCH (b:Building {name:$building})<-[:BELONGS_TO_BUILDING]-(f:Floor)<-[:BELONGS_TO_FLOOR]-(z:Zone)
+        MATCH (b:Building {name:$building})
+        MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
+        OPTIONAL MATCH (z:Zone)-[:LOCATED_ON_FLOOR]->(f)
         RETURN coalesce(z.roomId, z.name) AS room
       `;
       params.building = building;
+    } else if (tenant) {
+      cypher = `
+        MATCH (t:Tenant)
+        WHERE t.name=$tenant OR toString(t.id)=$tenant
+        OPTIONAL MATCH (b:Building)-[:BELONGS_TO_TENANT]->(t)
+        WITH collect(DISTINCT b) AS bs
+        UNWIND bs AS b
+        WITH DISTINCT b
+        OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
+        OPTIONAL MATCH (z:Zone)-[:LOCATED_ON_FLOOR]->(f)
+        RETURN coalesce(z.roomId, z.name) AS room
+      `;
+      params.tenant = tenant;
     } else {
       cypher = `MATCH (z:Zone) RETURN coalesce(z.roomId, z.name) AS room`;
     }
@@ -180,25 +202,21 @@ export function createGraphClient({ uri, username, password, database }) {
 
   // Devices by scope (tenant/building/floor/zone/type)
   async function devicesByScope({ tenant, building, floor, zone, type }) {
-    const filters = [];
-    if (tenant) filters.push(' (t:Tenant {name:$tenant}) ');
-    if (building) filters.push(' (b:Building {name:$building}) ');
-    if (floor) filters.push(' (f:Floor {name:$floor}) ');
-    if (zone) filters.push(' (z:Zone {name:$zone}) ');
-    const typeFilter = type ? 'WHERE d.type = $type' : '';
     const cypher = `
       MATCH (d:Device)
-      ${tenant ? 'MATCH (t:Tenant {name:$tenant})<--*1..4--(d)' : ''}
-      ${building ? 'MATCH (b:Building {name:$building})<--*1..4--(d)' : ''}
-      ${floor ? 'MATCH (f:Floor {name:$floor})<--*1..4--(d)' : ''}
-      ${zone ? 'MATCH (z:Zone {name:$zone})<--*1..4--(d)' : ''}
-      ${typeFilter}
-      WITH DISTINCT d
+      OPTIONAL MATCH (d)-[:BELONGS_TO_TENANT]->(t:Tenant)
+      OPTIONAL MATCH (d)-[:IN_BUILDING]->(b:Building)
+      OPTIONAL MATCH (d)-[:LOCATED_ON_FLOOR]->(f:Floor)
       OPTIONAL MATCH (d)-[:LOCATED_IN_ZONE]->(z:Zone)
-      OPTIONAL MATCH (d)-[:LOCATED_IN_BUILDING]->(b:Building)
+      WHERE ($tenant IS NULL OR (t.name = $tenant OR toString(t.id) = $tenant))
+        AND ($building IS NULL OR b.name = $building)
+        AND ($floor IS NULL OR f.name = $floor)
+        AND ($zone IS NULL OR z.name = $zone)
+        AND ($type IS NULL OR d.type = $type)
+      WITH DISTINCT d, z, b
       RETURN d.id AS id, d.name AS name, d.type AS type, coalesce(z.name, d.zone) AS zone, coalesce(b.name, d.building) AS building
     `;
-    const params = { tenant, building, floor, zone, type };
+    const params = { tenant: tenant || null, building: building || null, floor: floor || null, zone: zone || null, type: type || null };
     const { records, error } = await runQuery(cypher, params);
     if (error) return { devices: [], error };
     const devices = records.map(r => ({
@@ -225,30 +243,30 @@ export function createGraphClient({ uri, username, password, database }) {
       // Fetch buildings, floors, zones, devices, metric types
       const q = `
         MATCH (b:Building)
-        OPTIONAL MATCH (f:Floor)-[:BELONGS_TO_BUILDING]->(b)
-        OPTIONAL MATCH (z:Zone)-[:BELONGS_TO_FLOOR]->(f)
+        OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
+        OPTIONAL MATCH (z:Zone)-[:LOCATED_ON_FLOOR]->(f)
         OPTIONAL MATCH (d:Device)-[:LOCATED_IN_ZONE]->(z)
-        OPTIONAL MATCH (d)-[:MEASURES]->(mt:MetricType)
-        RETURN b,f,z,d,mt
+        OPTIONAL MATCH (d)-[:IN_BUILDING]->(b)
+        OPTIONAL MATCH (d)-[:HAS_DEVICE_PROFILE]->(:DeviceProfile)
+        OPTIONAL MATCH (d)-[:HAS_TELEMETRY_KEY]->(:TelemetryKey)
+        RETURN b,f,z,d
       `;
       const { records, error } = await runQuery(q, {});
       if (error) return { nodes: [], links: [], error };
       for (const r of records) {
-        const b = r.get('b'); const f = r.get('f'); const z = r.get('z'); const d = r.get('d'); const mt = r.get('mt');
+        const b = r.get('b'); const f = r.get('f'); const z = r.get('z'); const d = r.get('d');
         const bid = b ? `Building:${b.properties?.name}` : null;
         const fid = f ? `Floor:${f.properties?.name}:${b?.properties?.name || ''}` : null;
         const zid = z ? `Zone:${z.properties?.name}:${f?.properties?.name || ''}:${b?.properties?.name || ''}` : null;
         const did = d ? `Device:${d.properties?.id || d.properties?.name}` : null;
-        const mid = mt ? `MetricType:${mt.properties?.name}` : null;
-        if (b) addNode(bid, { label: 'Building', name: b.properties?.name, nodeType: 'Building' });
+        if (b) addNode(bid, { label: 'Building', name: b.properties?.name, nodeType: 'Building', tenantID: b.properties?.tenantID ?? null });
         if (f) addNode(fid, { label: 'Floor', name: f.properties?.name, nodeType: 'Floor' });
         if (z) addNode(zid, { label: 'Zone', name: z.properties?.name, nodeType: 'Zone', roomId: z.properties?.roomId || null, zoneType: z.properties?.type || null });
-        if (d) addNode(did, { label: 'Device', name: d.properties?.name, nodeType: 'Device', deviceType: d.properties?.type || null });
-        if (mt) addNode(mid, { label: 'MetricType', name: mt.properties?.name, nodeType: 'MetricType' });
-        if (f && b) addLink(fid, bid, 'BELONGS_TO_BUILDING');
-        if (z && f) addLink(zid, fid, 'BELONGS_TO_FLOOR');
+        if (d) addNode(did, { label: 'Device', name: d.properties?.name, nodeType: 'Device', deviceType: d.properties?.type || null, idProp: d.properties?.id || null });
+        if (f && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
+        if (z && f) addLink(zid, fid, 'LOCATED_ON_FLOOR');
         if (d && z) addLink(did, zid, 'LOCATED_IN_ZONE');
-        if (mt && d) addLink(mid, did, 'MEASURES');
+        if (d && b) addLink(did, bid, 'IN_BUILDING');
       }
       return { nodes: Array.from(outNodes.values()), links: outLinks };
     },

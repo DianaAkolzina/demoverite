@@ -1,0 +1,224 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "Plotted lux histogram for B_F3_lab."
+  },
+  "chart": {
+    "chart": {
+      "type": "column"
+    },
+    "title": {
+      "text": "Histogram of lux"
+    },
+    "xAxis": {
+      "title": {
+        "text": "lux"
+      }
+    },
+    "yAxis": {
+      "title": {
+        "text": "Count"
+      }
+    },
+    "series": [
+      {
+        "name": "B_F3_lab lux",
+        "data": [
+          [
+            0,
+            33
+          ],
+          [
+            44,
+            71
+          ],
+          [
+            88,
+            54
+          ],
+          [
+            132,
+            13
+          ],
+          [
+            176,
+            7
+          ],
+          [
+            220,
+            8
+          ],
+          [
+            264,
+            8
+          ],
+          [
+            308,
+            12
+          ],
+          [
+            352,
+            16
+          ],
+          [
+            396,
+            12
+          ],
+          [
+            440,
+            20
+          ],
+          [
+            484,
+            12
+          ],
+          [
+            528,
+            12
+          ],
+          [
+            572,
+            12
+          ],
+          [
+            616,
+            5
+          ],
+          [
+            660,
+            6
+          ],
+          [
+            704,
+            11
+          ],
+          [
+            748,
+            19
+          ],
+          [
+            792,
+            27
+          ],
+          [
+            836,
+            21
+          ]
+        ]
+      }
+    ]
+  },
+  "trace": [
+    {
+      "tool": "histogram",
+      "args": {
+        "room": "B_F3_lab",
+        "table": "iaq",
+        "field": "lux"
+      },
+      "result": [
+        {
+          "binStart": 0,
+          "binEnd": 44,
+          "count": 33
+        },
+        {
+          "binStart": 44,
+          "binEnd": 88,
+          "count": 71
+        },
+        {
+          "binStart": 88,
+          "binEnd": 132,
+          "count": 54
+        },
+        {
+          "binStart": 132,
+          "binEnd": 176,
+          "count": 13
+        },
+        {
+          "binStart": 176,
+          "binEnd": 220,
+          "count": 7
+        },
+        {
+          "binStart": 220,
+          "binEnd": 264,
+          "count": 8
+        },
+        {
+          "binStart": 264,
+          "binEnd": 308,
+          "count": 8
+        },
+        {
+          "binStart": 308,
+          "binEnd": 352,
+          "count": 12
+        },
+        {
+          "binStart": 352,
+          "binEnd": 396,
+          "count": 16
+        },
+        {
+          "binStart": 396,
+          "binEnd": 440,
+          "count": 12
+        },
+        {
+          "binStart": 440,
+          "binEnd": 484,
+          "count": 20
+        },
+        {
+          "binStart": 484,
+          "binEnd": 528,
+          "count": 12
+        },
+        {
+          "binStart": 528,
+          "binEnd": 572,
+          "count": 12
+        },
+        {
+          "binStart": 572,
+          "binEnd": 616,
+          "count": 12
+        },
+        {
+          "binStart": 616,
+          "binEnd": 660,
+          "count": 5
+        },
+        {
+          "binStart": 660,
+          "binEnd": 704,
+          "count": 6
+        },
+        {
+          "binStart": 704,
+          "binEnd": 748,
+          "count": 11
+        },
+        {
+          "binStart": 748,
+          "binEnd": 792,
+          "count": 19
+        },
+        {
+          "binStart": 792,
+          "binEnd": 836,
+          "count": 27
+        },
+        {
+          "binStart": 836,
+          "binEnd": 880,
+          "count": 21
+        }
+      ]
+    }
+  ],
+  "mode": "agent"
+}

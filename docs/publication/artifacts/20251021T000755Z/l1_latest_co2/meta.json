@@ -1,0 +1,13 @@
+{
+  "name": "l1_latest_co2",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "What is the latest CO2 in B_F3_lab?",
+  "target_metric": "co2",
+  "target_chart": null,
+  "latency_sec": 26.925464153289795,
+  "reference": "Latest CO2 is 912 ppm at 2025-10-15 17:00."
+}

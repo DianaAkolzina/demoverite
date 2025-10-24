@@ -65,20 +65,10 @@ ensure_chroma() {
   wait_for_http "http://localhost:${CHROMA_PORT}/api/v2/heartbeat" 40 || wait_for_http "http://localhost:${CHROMA_PORT}/api/v1/heartbeat" 10 || { echo "[dev] ERROR: Chroma not reachable" >&2; exit 1; }
 }
 
-seed() {
-  echo "[dev] Generating mock CSVs (2x3x2) for the last 120 days"
-  docker run --rm -v "$ROOT_DIR/CSVex:/data/CSVex" -v "$ROOT_DIR/csvex_enriched:/data/CSVex_enriched" \
-    --env-file "$ROOT_DIR/.env" -e DAYS=120 "$IMAGE_NAME" python3 scripts/prepare_mock_data.py
-}
-
 ingest() {
   echo "[dev] Ingesting CSVs"
   docker run --rm -v "$ROOT_DIR/CSVex:/data/CSVex" -v "$ROOT_DIR/csvex_enriched:/data/CSVex_enriched" \
     --env-file "$ROOT_DIR/.env" "$IMAGE_NAME" python3 scripts/ingest_csvex.py
-}
-
-populate_neo() {
-  echo "[dev] Populating Neo4j Aura"; docker run --rm --env-file "$ROOT_DIR/.env" "$IMAGE_NAME" node scripts/populate_neo4j_mock.js
 }
 
 index_chroma() {
@@ -100,12 +90,12 @@ start_app() {
     -v "$ROOT_DIR/knowledge:/app/knowledge:ro" \
     $ADD_HOST_OPT --env-file "$ROOT_DIR/.env" \
     -e CHROMA_URL=http://host.docker.internal:${CHROMA_PORT} \
-    -e CHROMA_SKIP_INDEX=1 -e NEO4J_SKIP_POPULATE=1 -e SKIP_INGEST=1 \
+    -e CHROMA_SKIP_INDEX=1 -e NEO4J_SKIP_POPULATE=1 -e CSV_GENERATE_FROM_GRAPH=0 \
     "$IMAGE_NAME" >/dev/null
 }
 
 restart() {
-  build; ensure_chroma; seed; ingest; populate_neo; index_chroma; start_app
+  build; ensure_chroma; index_chroma; start_app
   echo "[dev] Status:"; curl -fsS "http://localhost:${APP_PORT}/api/status" || true
 }
 
@@ -121,11 +111,25 @@ cmd=${1:-help}
 case "$cmd" in
   build) build ;;
   ensure-chroma) ensure_chroma ;;
-  seed) seed ;;
   ingest) ingest ;;
-  populate-neo) populate_neo ;;
   index-chroma) index_chroma ;;
   start) start_app ;;
+  run)
+    # Build, generate CSVs from Neo4j (read-only), ingest, then run app in foreground with verbose logging
+  build
+  echo "[dev] S3-only mode: skipping any CSV generation/ingestion"
+  echo "[dev] Running app in foreground on :$APP_PORT"
+    if docker ps -a --format '{{.Names}}' | grep -q "^${APP_CONTAINER}$"; then docker rm -f "$APP_CONTAINER" >/dev/null || true; fi
+    docker run --rm --name "$APP_CONTAINER" -p ${APP_PORT}:3000 \
+      -v "$ROOT_DIR/CSVex:/data/CSVex" \
+      -v "$ROOT_DIR/csvex_enriched:/data/CSVex_enriched" \
+      -v "$ROOT_DIR/knowledge:/app/knowledge:ro" \
+      $ADD_HOST_OPT --env-file "$ROOT_DIR/.env" \
+      -e CHROMA_URL=http://host.docker.internal:${CHROMA_PORT} \
+      -e CHROMA_SKIP_INDEX=1 -e NEO4J_SKIP_POPULATE=1 -e CSV_GENERATE_FROM_GRAPH=0 \
+      -e HTTP_DEBUG=1 -e LOG_LEVEL=debug \
+      "$IMAGE_NAME"
+    ;;
   restart) restart ;;
   logs) logs ;;
   chroma-logs) chroma_logs ;;
@@ -134,13 +138,21 @@ case "$cmd" in
   rooms) rooms ;;
   stop) stop ;;
   clean) clean ;;
+  s3-sync)
+    echo "[dev] Syncing S3 telemetry to CSVex_s3/"; npm run --silent s3:sync ;;
+  reset)
+    echo "[dev] Clearing caches and rebuilding...";
+    rm -f "$ROOT_DIR/data/graph_snapshot.json" || true;
+    mkdir -p "$ROOT_DIR/CSVex_s3"; rm -f "$ROOT_DIR/CSVex_s3"/*.csv || true;
+    npm run --silent s3:sync || true;
+    restart ;;
   *)
     cat <<USAGE
 Usage: $0 <command>
 Commands:
   build            Build the Docker image
   ensure-chroma    Start Chroma or reuse running one and wait for heartbeat
-  seed             Generate mock CSVs (2x3x2)
+  seed             [disabled] (S3-only mode)
   ingest           Ingest CSVs into csvex_enriched
   populate-neo     Populate Neo4j Aura with mock graph
   index-chroma     Index knowledge + profiles into Chroma
@@ -153,6 +165,8 @@ Commands:
   rooms            List rooms from /api/rooms
   stop             Stop the app container
   clean            Remove app and chroma containers
+  s3-sync          Mirror S3 telemetry CSVs into CSVex_s3/
+  reset            Clear caches, re-sync S3 locally, and restart app
 USAGE
     ;;
 esac

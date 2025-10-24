@@ -1,0 +1,13 @@
+{
+  "name": "l3_ventilation_compliance",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "Are daily average CO2 levels in B_F3_lab within recommended 800 ppm this week?",
+  "target_metric": "co2",
+  "target_chart": "line",
+  "latency_sec": 33.624985456466675,
+  "reference": "No. 68.1% of samples under 800 ppm."
+}

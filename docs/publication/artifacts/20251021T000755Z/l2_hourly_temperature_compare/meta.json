@@ -1,0 +1,13 @@
+{
+  "name": "l2_hourly_temperature_compare",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "Hourly temperature across B_F3_lab and B_F3_toilet",
+  "target_metric": "temperature",
+  "target_chart": "line",
+  "latency_sec": 30.31485891342163,
+  "reference": "Hourly temperature summary — B_F3_lab: 20.86 °C, B_F3_toilet: 20.81 °C."
+}

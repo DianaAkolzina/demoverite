@@ -1,0 +1,13 @@
+{
+  "name": "l3_humidity_band",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "Is humidity in B_F3_lab within 40-60% most of the time this period?",
+  "target_metric": "humidity",
+  "target_chart": "line",
+  "latency_sec": 42.9949164390564,
+  "reference": "Mostly. 83.1% of samples within 40-60%."
+}

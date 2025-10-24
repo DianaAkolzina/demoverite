@@ -1,0 +1,13 @@
+{
+  "name": "heatmap_corr_lab",
+  "room": "B_F3_lab",
+  "range": {
+    "start": 1759186800000,
+    "end": 1760548380000
+  },
+  "question": "Correlation heatmap for temperature, humidity, co2 in B_F3_lab",
+  "target_metric": null,
+  "target_chart": "heatmap",
+  "latency_sec": 15.061245918273926,
+  "reference": "Correlation(temp,humidity)=-0.006, Correlation(temp,co2)=0.135, Correlation(humidity,co2)=0.011."
+}

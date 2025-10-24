@@ -9,6 +9,7 @@ services:
       - 1.1.1.1
     # All environment variables are sourced from .env via env_file above.
     volumes:
+      # Local CSV volumes are optional in S3 mode. Keep mounts for backward compatibility.
       - ./CSVex:/data/CSVex
       - ./csvex_enriched:/data/CSVex_enriched
       - ./knowledge:/app/knowledge:ro

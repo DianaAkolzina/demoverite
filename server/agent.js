@@ -29,6 +29,11 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     } catch { return null; }
   }
 
+  // State used by weather_fetch_by_scope
+  let lastBuildingForWeather = null;
+  let lastSelectionRooms = [];
+  let lastRoom = null;
+
   function toolDefs() {
     return [
       { name: 'list_rooms', args: {}, desc: 'List available rooms' },
@@ -77,6 +82,8 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       { name: 'scope_list_rooms', args: { building: 'string?', floor: 'string?' }, desc: 'List rooms filtered by building and/or floor' },
       { name: 'scope_list_detectors', args: { room: 'string' }, desc: 'List detectors/sensor types present in a room based on available tables' },
       { name: 'graph_zone_devices', args: { room: 'string' }, desc: 'List devices and measured metric types for a room (from graph snapshot)' },
+      { name: 'knowledge_search', args: { query: 'string', k: 'number?' }, desc: 'Search knowledge base and return top snippets with metadata' },
+      { name: 'scope_csv_rooms', args: { building: 'string?', floor: 'string?', zone: 'string?', tenant: 'string?' }, desc: 'Map graph scope to CSV room IDs using snapshot heuristics' },
       { name: 'vector_search_docs', args: { query: 'string', k: 'number?' }, desc: 'Search documentation via vector store (fallbacks to TF-IDF if unavailable)' },
       { name: 'aggregate_stats_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Aggregate a metric across all rooms (sum, avg, min, max) over the selected window' },
       { name: 'aggregate_hourly_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Aggregate per-hour across rooms (sum or avg) returning [{ts, y}]' },
@@ -173,7 +180,41 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       return null;
     }
     
-    // Resolve any dataRef references
+    // Resolve any dataRef references (with support for special formats)
+    // Special-case: correlation_matrix → heatmap triples + categories
+    try {
+      for (const s of (chartObj.series || [])) {
+        const ref = s && s.dataRef;
+        if (ref && ref.tool === 'correlation_matrix') {
+          // Find the latest correlation_matrix result in trace
+          let last = null;
+          for (let i = trace.length - 1; i >= 0; i--) {
+            const t = trace[i];
+            if (t && t.tool === 'correlation_matrix' && t.result && Array.isArray(t.result.matrix)) { last = t.result; break; }
+          }
+          if (last && Array.isArray(last.matrix) && Array.isArray(last.fields)) {
+            const fields = last.fields;
+            const triples = [];
+            for (let i = 0; i < last.matrix.length; i++) {
+              for (let j = 0; j < last.matrix[i].length; j++) {
+                const v = last.matrix[i][j];
+                if (v == null) continue;
+                triples.push([i, j, Number(v)]);
+              }
+            }
+            s.data = triples;
+            delete s.dataRef;
+            // Provide categories for heatmap axes if not already present
+            chartObj.xAxis = chartObj.xAxis || {};
+            chartObj.yAxis = chartObj.yAxis || {};
+            if (!chartObj.xAxis.categories) chartObj.xAxis.categories = fields;
+            if (!chartObj.yAxis.categories) chartObj.yAxis.categories = fields;
+          }
+        }
+      }
+    } catch (e) { log('Heatmap correlation_matrix resolve failed:', String(e)); }
+
+    // Resolve generic dataRefs afterwards
     chartObj = resolveChartDataRefs(chartObj, trace);
     
     // Check if series has data
@@ -1110,8 +1151,8 @@ function parseFieldsFromQuestion(question, availableSets) {
       return perRoom;
     },
     
-    weather_fetch({ fields = [], start = null, end = null, limit = 2000 }) {
-      const arr = loadWeather();
+    weather_fetch({ fields = [], start = null, end = null, limit = 2000, building = null }) {
+      const arr = (typeof loadWeather === 'function') ? loadWeather(building || null) : [];
       const out = [];
       for (const r of arr) {
         if (!withinRange(r.ts, start, end)) continue;
@@ -1141,12 +1182,12 @@ function parseFieldsFromQuestion(question, availableSets) {
       } catch (e) { return { devices: [], error: String(e) }; }
     },
 
-    graph_rooms_by_scope({ building = null, floor = null }) {
+    graph_rooms_by_scope({ building = null, floor = null, tenant = null }) {
       // Prefer graph snapshot or adapter; otherwise infer from room IDs locally
       try {
         const snap = loadGraphSnapshot();
         if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
-          const buildingName = building && /Building\s+/i.test(building) ? building : (building ? `Building ${building}` : null);
+          const buildingNames = building ? [building, `Building ${building}`] : [];
           const floors = new Map();
           const nodesById = new Map(snap.nodes.map(n => [n.id, n]));
           const hasRel = (from, to, rel) => snap.links.some(l => l.source===from && l.target===to && (!rel || l.rel===rel));
@@ -1166,7 +1207,14 @@ function parseFieldsFromQuestion(question, availableSets) {
               const bid = bLink ? bLink.target : null;
               bNode = bid ? nodesById.get(bid) : null;
             }
-            const bOk = buildingName ? (bNode && bNode.name === buildingName) : true;
+            // tenant filter: building must belong to tenant if provided
+            if (tenant && bNode) {
+              const tLink = snap.links.find(l => l.source===bNode.id && l.rel==='BELONGS_TO_TENANT');
+              if (!tLink) continue;
+              const tNode = nodesById.get(tLink.target);
+              if (!tNode || (tNode.name !== tenant)) continue;
+            }
+            const bOk = building ? (bNode && buildingNames.includes(bNode.name)) : true;
             const fOk = floor ? (fNode && (fNode.name === floor || fNode.name.endsWith(` ${String(floor).replace(/^F/, '')}`))) : true;
             if (bOk && fOk) {
               if (n.roomId) rooms.push(n.roomId);
@@ -1207,7 +1255,7 @@ function parseFieldsFromQuestion(question, availableSets) {
     scope_list_floors({ building }) {
       const snap = loadGraphSnapshot();
       if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
-        const targetB = building && /Building\s+/i.test(building) ? building : (building ? `Building ${building}` : null);
+        const targets = building ? [building, `Building ${building}`] : [];
         const floorNames = new Set();
         for (const n of snap.nodes) {
           if ((n.nodeType||n.label) !== 'Floor') continue;
@@ -1215,7 +1263,7 @@ function parseFieldsFromQuestion(question, availableSets) {
           const bLink = snap.links.find(l => l.source===fid && l.rel==='BELONGS_TO_BUILDING');
           const bid = bLink ? bLink.target : null;
           const bNode = bid ? snap.nodes.find(nn => nn.id===bid) : null;
-          if (targetB && (!bNode || bNode.name !== targetB)) continue;
+          if (building && (!bNode || !targets.includes(bNode.name))) continue;
           floorNames.add(n.name);
         }
         return Array.from(floorNames).sort((a,b)=> Number(a.replace(/\D+/g,'')) - Number(b.replace(/\D+/g,'')));
@@ -1263,6 +1311,66 @@ function parseFieldsFromQuestion(question, availableSets) {
         return { ...d, metrics };
       });
       return { devices: withMetrics };
+    },
+
+    knowledge_search({ query, k = 6 }) {
+      try {
+        const hits = rag.search(String(query||''), Math.max(1, Math.min(24, k||6))) || [];
+        return hits.map(h => ({ id: h.id, score: h.score, meta: h.meta, text: h.text.slice(0, 1500) }));
+      } catch (e) { return { error: String(e), hits: [] }; }
+    },
+
+    scope_csv_rooms({ building = null, floor = null, zone = null, tenant = null }) {
+      // Heuristic mapping: use graph snapshot and CSVex rooms list
+      const snap = loadGraphSnapshot();
+      if (!snap || !Array.isArray(snap.nodes) || !Array.isArray(snap.links)) return { rooms: [] };
+      const rooms = new Set(listRooms());
+      const nodes = snap.nodes;
+      const links = snap.links;
+      const byId = new Map(nodes.map(n => [n.id, n]));
+      const zones = nodes.filter(n => (n.nodeType||n.label)==='Zone');
+      function slugify(s) { return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
+      const out = new Set();
+      for (const z of zones) {
+        // Optional tenant filter via Building -> Tenant in snapshot (if present)
+        let floorNode = null, buildingNode = null;
+        const lf = links.find(l => l.source===z.id && l.rel==='BELONGS_TO_FLOOR');
+        if (lf) floorNode = byId.get(lf.target);
+        if (floorNode) {
+          const lb = links.find(l => l.source===floorNode.id && l.rel==='BELONGS_TO_BUILDING');
+          if (lb) buildingNode = byId.get(lb.target);
+        } else {
+          const lb2 = links.find(l => l.source===z.id && (l.rel==='BELONGS_TO_BUILDING' || l.rel==='IN_BUILDING'));
+          if (lb2) buildingNode = byId.get(lb2.target);
+        }
+        if (tenant) {
+          const tb = buildingNode ? links.find(l => l.source===buildingNode.id && l.rel==='BELONGS_TO_TENANT') : null;
+          const tNode = tb ? byId.get(tb.target) : null;
+          if (tNode && tNode.name !== tenant) continue;
+        }
+        const bName = buildingNode?.name || null;
+        const fName = floorNode?.name || null;
+        const zName = z.name;
+        if (building && bName !== building) continue;
+        if (floor && fName !== floor) continue;
+        if (zone && zName !== zone) continue;
+        const cands = [];
+        if (z.roomId) cands.push(String(z.roomId));
+        // Derive F-code from floor name
+        let fIdx = (String(fName||'').match(/(\d+)/) || [,''])[1];
+        const fl = String(fName||'').toLowerCase();
+        if (!fIdx) {
+          if (/ground/.test(fl)) fIdx = '0'; else if (/first/.test(fl)) fIdx = '1'; else if (/second/.test(fl)) fIdx = '2'; else if (/third/.test(fl)) fIdx = '3';
+        }
+        const bInit = (String(bName||'').match(/\b([A-Za-z])[A-Za-z]*$/) || [,''])[1]?.toUpperCase();
+        const fCode = fIdx ? `F${fIdx}` : null;
+        const zSlug = slugify(zName);
+        if (bInit && fCode) cands.push(`${bInit}_${fCode}_${zSlug}`);
+        cands.push(zSlug);
+        const best = cands.find(c => rooms.has(c));
+        if (best) out.add(best);
+      }
+      return { rooms: Array.from(out) };
     },
 
     // Vector search — fallback stub (the system already has TF‑IDF rag)
@@ -2037,7 +2145,36 @@ function parseFieldsFromQuestion(question, availableSets) {
     return JSON.stringify(toolDefs(), null, 0);
   }
 
-  async function buildContextSnippet(question, room, range, selectionRooms = []) {
+  // Role masking helpers
+  const ROLE_PRESETS = {
+    guest: { allow: new Set(['temperature','humidity','co2','pm25','pm10','lux']) },
+    host: { allow: new Set(['temperature','humidity','co2','pm25','pm10','lux','people_count']) },
+    viewer: { allow: new Set(['temperature','humidity','co2','pm25','pm10','lux','people_count']) },
+    analyst: { allow: 'ALL' },
+    admin: { allow: 'ALL' },
+    'tenant admin': { allow: 'ALL' },
+    'reseller admin': { allow: 'ALL' },
+    sa: { allow: 'ALL' }
+  };
+  function normRole(role) { return String(role||'').trim().toLowerCase(); }
+  function roleAllowsField(role, field) {
+    const preset = ROLE_PRESETS[normRole(role)] || ROLE_PRESETS.guest;
+    if (preset.allow === 'ALL') return true;
+    return preset.allow.has(String(field||'').toLowerCase());
+  }
+  function maskTablesByRole(tables, role) {
+    if (!role) return tables;
+    const out = {};
+    for (const [t, rows] of Object.entries(tables || {})) {
+      if (!Array.isArray(rows) || !rows.length) { out[t] = rows; continue; }
+      const cols = Object.keys(rows[0] || {});
+      const keep = cols.filter(c => c === 'ts' || roleAllowsField(role, c));
+      out[t] = rows.map(r => { const o = {}; for (const k of keep) o[k] = r[k]; return o; });
+    }
+    return out;
+  }
+
+  async function buildContextSnippet(question, room, range, selectionRooms = [], role = null) {
     const retrieved = await hybridRetrieve({ query: question, ragIndex: rag, vectorClient: vector, k: 6 }).catch(() => []);
     const head = (retrieved || []).map(h => 
       `Score:${(h.final ?? h.rrf ?? h.scoreRaw ?? 0).toFixed(3)} Meta:${JSON.stringify(h.meta)}\n${h.text}`
@@ -2045,22 +2182,45 @@ function parseFieldsFromQuestion(question, availableSets) {
     
     let schema = {};
     if (room && room !== 'ALL') {
+      const t = maskTablesByRole(loadRoomTables(room), role);
       schema = Object.fromEntries(
-        Object.entries(loadRoomTables(room)).map(([k, v]) => [k, Object.keys(v?.[0] || {})])
+        Object.entries(t).map(([k, v]) => [k, Object.keys(v?.[0] || {})])
       );
     } else if (Array.isArray(selectionRooms) && selectionRooms.length) {
       const perRoom = {};
       for (const r of selectionRooms.slice(0, 20)) {
+        const tr = maskTablesByRole(loadRoomTables(r), role);
         perRoom[r] = Object.fromEntries(
-          Object.entries(loadRoomTables(r)).map(([k, v]) => [k, Object.keys(v?.[0] || {})])
+          Object.entries(tr).map(([k, v]) => [k, Object.keys(v?.[0] || {})])
         );
       }
       schema = { _multiRoom: true, rooms: perRoom };
     }
     
     const meta = {};
+    // Try to infer a single building for weather context
+    function inferBuildingFromRoom(r) {
+      try {
+        const snap = loadGraphSnapshot(); if (!snap) return null;
+        const nodes = snap.nodes || []; const links = snap.links || [];
+        const byId = new Map(nodes.map(n => [n.id, n]));
+        const z = nodes.find(n => (n.nodeType||n.label)==='Zone' && n.roomId === r);
+        if (!z) return null;
+        const lf = links.find(l => l.source===z.id && l.rel==='BELONGS_TO_FLOOR');
+        const f = lf ? byId.get(lf.target) : null;
+        if (f) {
+          const lb = links.find(l => l.source===f.id && l.rel==='BELONGS_TO_BUILDING');
+          const b = lb ? byId.get(lb.target) : null; return b?.name || null;
+        }
+        const lb2 = links.find(l => l.source===z.id && (l.rel==='BELONGS_TO_BUILDING' || l.rel==='IN_BUILDING'));
+        const b2 = lb2 ? byId.get(lb2.target) : null; return b2?.name || null;
+      } catch { return null; }
+    }
+    let buildingForWeather = null;
+    if (room && room !== 'ALL') buildingForWeather = inferBuildingFromRoom(room);
+    if (!buildingForWeather && Array.isArray(selectionRooms) && selectionRooms.length) buildingForWeather = inferBuildingFromRoom(selectionRooms[0]);
     if (room && room !== 'ALL') {
-      const tables = loadRoomTables(room);
+      const tables = maskTablesByRole(loadRoomTables(room), role);
       for (const [t, rows] of Object.entries(tables)) {
         const n = rows.length;
         const tsMin = n ? rows[0].ts : null;
@@ -2070,7 +2230,7 @@ function parseFieldsFromQuestion(question, availableSets) {
     } else if (Array.isArray(selectionRooms) && selectionRooms.length) {
       const agg = {};
       for (const r of selectionRooms.slice(0, 20)) {
-        const tables = loadRoomTables(r);
+        const tables = maskTablesByRole(loadRoomTables(r), role);
         for (const [t, rows] of Object.entries(tables)) {
           const n = rows.length;
           const tsMin = n ? rows[0].ts : null;
@@ -2084,10 +2244,10 @@ function parseFieldsFromQuestion(question, availableSets) {
       }
       Object.assign(meta, agg);
     }
-    return { retrieved: head, schema, meta, range, room, selectionRooms, _retrievedDocs: retrieved };
+    return { retrieved: head, schema, meta, range, room, selectionRooms, buildingForWeather, _retrievedDocs: retrieved };
   }
 
-  async function run(messages, { room, range, selectionRooms = [] }) {
+  async function run(messages, { room, range, selectionRooms = [], tenant = null, role = null }) {
     const question = messages[messages.length - 1]?.content || '';
 
     // --- ROUTING & HYBRID RETRIEVAL ---
@@ -2105,9 +2265,15 @@ function parseFieldsFromQuestion(question, availableSets) {
     }
     // --------------------------------------------
 
-    const ctx = await buildContextSnippet(question, room && room !== 'ALL' ? room : null, range, selectionRooms);
+    const ctx = await buildContextSnippet(question, room && room !== 'ALL' ? room : null, range, selectionRooms, role);
     log('Question:', '<redacted>');
     if (DEBUG) log('Context snippet schema keys:', Object.keys(ctx.schema));
+    lastBuildingForWeather = ctx.buildingForWeather || null;
+    lastSelectionRooms = Array.isArray(selectionRooms) ? selectionRooms.slice(0) : [];
+    lastRoom = room;
+    lastBuildingForWeather = ctx.buildingForWeather || null;
+    lastSelectionRooms = Array.isArray(selectionRooms) ? selectionRooms.slice(0) : [];
+    lastRoom = room;
 
     const rr = range || {};
     // Inject knowledge enrichment into system prompt
@@ -2117,12 +2283,17 @@ const startFmt = startDate ? `${startDate.toLocaleString()} (UTC: ${startDate.to
 const endFmt = endDate ? `${endDate.toLocaleString()} (UTC: ${endDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
 
 const sys = `You are a senior data analyst agent for building operations.
+Tenant: ${tenant || '(none)'}.
 Selected room: ${room || '(none)'}.
 Rooms in scope: ${Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room || '(none)')}
 ${room === 'ALL' && selectionRooms && selectionRooms.length ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these rooms. Do NOT invent other rooms.` : ''}
 Selected time window: 
 - Local: ${startFmt} to ${endFmt}
 - Epoch ms: start=${rr.start ?? 'none'} end=${rr.end ?? 'none'}
+
+Weather context: ${ctx.buildingForWeather ? `Use building-scoped weather for ${ctx.buildingForWeather}` : 'Use site weather if building cannot be inferred.'}
+
+Access policy: role=${role || 'Guest'}${tenant ? `; tenant=${tenant}` : ''}. Do not reveal data outside allowed metrics for this role.
 
 MANDATORY: Always use this time window for all analysis and answers. Do NOT invent or assume any other period. If the user asks "what time period are you analysing", repeat this exact window.
 
@@ -2281,8 +2452,8 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       const scopeRooms = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room && room!=='ALL' ? room : '(none)');
       const txt = `Scope rooms: ${scopeRooms}\nTime window:\n- Local: ${st} → ${en}\n- Epoch (ms): start=${rr.start ?? 'none'}, end=${rr.end ?? 'none'}`;
       const extras = [{ message: { role: 'assistant', content: `Query ${routing.level}` }, chart: null }];
-      return { message: { role: 'assistant', content: txt }, chart: null, trace: [], extras };
-    }
+    return { message: { role: 'assistant', content: txt }, chart: null, trace: [], extras };
+  }
 
     // Selection only (no time) direct answer
     if (/what\s+selection\s+do\s+you\s+see/i.test(ql_time) || /what\s+scope\s+do\s+you\s+see/i.test(ql_time)) {
@@ -2518,6 +2689,12 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
         else if (qlc.includes('scatter') || qlc.includes(' vs ')) granularity = 'scatter';
         else if (qlc.includes('histogram') || qlc.includes('distribution')) granularity = 'histogram';
         else if (qlc.includes('heatmap') || qlc.includes('correlation')) granularity = 'heatmap';
+        const wantsStack = /(stack|stacked|composition)\b/.test(qlc);
+        const wantsArea = /\barea\b/.test(qlc);
+        const wantsDualAxis = /(dual[- ]axis|overlay|outside temperature)/.test(qlc);
+        const wantsColumn = /\bcolumn\b/.test(qlc);
+        const wantsBar = /\bbar\b/.test(qlc);
+        const wantsForecast = /(forecast|predict|next|tomorrow|future)/.test(qlc);
         try {
           const rr = range || {};
           const traceAuto = [];
@@ -2547,7 +2724,28 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
             else if (granularity === 'daily') { res = tools.daily_avg({ room, table: 'iaq', field: metric, start: rr.start || undefined, end: rr.end || undefined }); toolName = 'daily_avg'; yField = 'avg'; }
             else { res = tools.fetch_timeseries({ room, table: 'iaq', fields: [metric], start: rr.start || undefined, end: rr.end || undefined }); }
             traceAuto.push({ tool: toolName, args: { room, table: 'iaq', field: metric, fields: [metric], start: rr.start || undefined, end: rr.end || undefined }, result: res });
-            const chart = { chart: { type: 'line' }, title: { text: `${room} — ${metric} (${granularity})` }, xAxis: { type: 'datetime' }, yAxis: [{ title: { text: metric } }], series: [{ name: `${room} ${metric}`, dataRef: { tool: toolName, xField: 'ts', yField } }] };
+            const chartType = wantsArea ? 'area' : (wantsColumn ? 'column' : (wantsBar ? 'bar' : 'line'));
+            const chart = { chart: { type: chartType }, title: { text: `${room} — ${metric} (${granularity})` }, xAxis: { type: 'datetime' }, yAxis: [{ title: { text: metric } }], plotOptions: wantsStack ? { series: { stacking: 'normal' } } : {}, series: [{ name: `${room} ${metric}`, dataRef: { tool: toolName, xField: 'ts', yField } }] };
+            if (wantsDualAxis) {
+              const wf = tools.weather_fetch({ fields: ['temp'], start: rr.start || undefined, end: rr.end || undefined, limit: 10000 });
+              traceAuto.push({ tool: 'weather_fetch', args: { fields: ['temp'], start: rr.start || undefined, end: rr.end || undefined }, result: wf });
+              chart.yAxis.push({ title: { text: 'Outside Temp' }, opposite: true });
+              chart.series.push({ name: 'Outside Temp', dataRef: { tool: 'weather_fetch', xField: 'ts', yField: 'temp' }, yAxis: 1 });
+            }
+            if (wantsForecast) {
+              if (granularity === 'daily' || /next\s+(7|seven)\s+days|week/.test(qlc)) {
+                const f = tools.forecast_from_profile({ room, table: 'iaq', field: metric, start: rr.start || undefined, end: rr.end || undefined, days: 7 });
+                traceAuto.push({ tool: 'forecast_from_profile', args: { room, table: 'iaq', field: metric, days: 7 }, result: f });
+                chart.series.push({ name: 'Forecast', dataRef: { tool: 'forecast_from_profile', xField: 'ts', yField: 'forecast' }, dashStyle: 'dash', color: '#ff6b6b' });
+              } else {
+                const hours = /next\s+(\d+)\s+hours/.exec(qlc);
+                const h = hours ? Math.max(1, Math.min(240, parseInt(hours[1],10))) : 24;
+                const f = tools.forecast_hourly_linear({ room, table: 'iaq', field: metric, start: rr.start || undefined, end: rr.end || undefined, horizon_hours: h });
+                traceAuto.push({ tool: 'forecast_hourly_linear', args: { room, table: 'iaq', field: metric, horizon_hours: h }, result: f });
+                chart.series.push({ name: 'Forecast', dataRef: { tool: 'forecast_hourly_linear', xField: 'ts', yField: 'forecast' }, dashStyle: 'dash', color: '#ff6b6b' });
+                chart.series.push({ name: 'Forecast CI', dataRef: { tool: 'forecast_hourly_linear', field: 'ci', xField: 'ts', yField: 'range' }, type: 'arearange', color: 'rgba(255,107,107,0.25)', linkedTo: ':previous' });
+              }
+            }
             const valid = validateChart(chart, traceAuto);
             if (valid) return { message: { role: 'assistant', content: `Plotted ${metric} for ${room}.` }, chart: valid, trace: traceAuto };
           }
@@ -3288,6 +3486,13 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                 } else if (ref.tool === 'pair_timeseries') {
                   // Attempt to infer fields from ref or series name
                   let roomForRef = ref.room || inferRoomFromText(series.name) || inferRoomFromText(question) || (isAllRooms(room) ? null : room);
+                  if (!roomForRef && isAllRooms(room) && Array.isArray(selectionRooms) && selectionRooms.length) {
+                    // prefer first room in selection; try type-hinted pick
+                    const ql3 = (question||'').toLowerCase();
+                    const typeHint = ['toilet','lab','boardroom','cafe','lounge','reception'].find(tk => ql3.includes(tk));
+                    const pick = selectionRooms.find(r => typeHint ? r.toLowerCase().includes(typeHint) : true) || selectionRooms[0];
+                    roomForRef = pick;
+                  }
                   const tables = loadRoomTables(roomForRef);
                   const allFields = Object.fromEntries(Object.entries(tables).map(([t, rows]) => [t, new Set(rows.length ? Object.keys(rows[0]) : [])]));
                   // Prefer explicit ref fields if provided
@@ -3300,8 +3505,10 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                       f2 = f2 || m[1].trim();
                     }
                   }
-                  // Fallback: try common fields
-                  const candidates = ['voc','lux','co2','humidity','temperature','people_count','value'];
+                  // Fallback: try common fields (prefer temperature & humidity if asking for scatter)
+                  const candidates = (/(temperature|temp).*?(humidity)|humidity.*?(temperature|temp)/i.test(question||'')
+                    ? ['temperature','humidity','co2','voc','lux','people_count','value']
+                    : ['voc','lux','co2','humidity','temperature','people_count','value']);
                   f1 = f1 || candidates.find(c => Object.values(allFields).some(set => set.has(c)));
                   f2 = f2 || candidates.find(c => c !== f1 && Object.values(allFields).some(set => set.has(c)));
                   // Find tables containing those fields
@@ -3322,7 +3529,13 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                   };
                 } else if (ref.tool === 'pair_timeseries') {
                   // Try to use ref.field1/field2 if present; otherwise infer from series name
-                  let roomForRef = ref.room || inferRoomFromText(series.name) || inferRoomFromText(question) || room;
+                  let roomForRef = ref.room || inferRoomFromText(series.name) || inferRoomFromText(question) || (isAllRooms(room) ? null : room);
+                  if (!roomForRef && isAllRooms(room) && Array.isArray(selectionRooms) && selectionRooms.length) {
+                    const ql3 = (question||'').toLowerCase();
+                    const typeHint = ['toilet','lab','boardroom','cafe','lounge','reception'].find(tk => ql3.includes(tk));
+                    const pick = selectionRooms.find(r => typeHint ? r.toLowerCase().includes(typeHint) : true) || selectionRooms[0];
+                    roomForRef = pick;
+                  }
                   const tables = loadRoomTables(roomForRef);
                   const allFields = Object.fromEntries(Object.entries(tables).map(([t, rows]) => [t, new Set(rows.length ? Object.keys(rows[0]) : [])]));
                   let f1 = ref.field1, f2 = ref.field2;
@@ -3334,7 +3547,9 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                       f2 = f2 || inferFieldName(m[1], allFields);
                     }
                   }
-                  const candidates = ['voc','lux','co2','humidity','temperature','people_count','value','pressure'];
+                  const candidates = (/(temperature|temp).*?(humidity)|humidity.*?(temperature|temp)/i.test(question||'')
+                    ? ['temperature','humidity','co2','voc','lux','people_count','value','pressure']
+                    : ['voc','lux','co2','humidity','temperature','people_count','value','pressure']);
                   f1 = f1 || candidates.find(c => Object.values(allFields).some(set => set.has(c)));
                   f2 = f2 || candidates.find(c => c !== f1 && Object.values(allFields).some(set => set.has(c)));
                   function findTableForField(field) {
@@ -3352,6 +3567,20 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                     if (rows.length && Object.keys(rows[0]).includes(ref.field)) { table = tname; break; }
                   }
                   args = { room: roomForRef, table: table || 'iaq', field: ref.field, bins: 12, start: (range && range.start) || undefined, end: (range && range.end) || undefined };
+                } else if (ref.tool === 'correlation_matrix') {
+                  // Build correlation matrix for a set of fields in a room/table
+                  const roomForRef = isAllRooms(room) ? (inferRoomFromText(series.name) || inferRoomFromText(question) || listRooms()[0]) : (ref.room || room);
+                  const tables = loadRoomTables(roomForRef);
+                  // Pick table containing most of candidate fields
+                  const candidateFields = Array.isArray(ref.fields) && ref.fields.length ? ref.fields : ['temperature','humidity','co2'];
+                  let bestTable = 'iaq'; let bestHit = -1;
+                  for (const [tname, rows] of Object.entries(tables)) {
+                    const keys = rows.length ? Object.keys(rows[0]) : [];
+                    const hit = candidateFields.filter(f => keys.includes(f)).length;
+                    if (hit > bestHit) { bestHit = hit; bestTable = tname; }
+                  }
+                  const fields = candidateFields.filter(f => (tables[bestTable] || []).length && Object.keys((tables[bestTable][0]||{})).includes(f));
+                  args = { room: roomForRef, table: bestTable, fields: fields.length ? fields : candidateFields, start: (range && range.start) || undefined, end: (range && range.end) || undefined };
                 } else if (ref.tool === 'compare_series_cross_room') {
                   const roomsList = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.slice(0, 8) : (room && !isAllRooms(room) ? [room] : listRooms().slice(0, 4));
                   // Infer field from ref or series name/question
@@ -3643,7 +3872,48 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
       message: { 
         role: 'assistant', 
         content: fallbackAnswer
-      }, 
+    },
+
+    // Helper: weather by current scope (uses inferred building)
+    weather_fetch_by_scope({ fields = [], start = null, end = null, limit = 2000, room = null }) {
+      try {
+  // Infer building name from roomId using graph snapshot
+  function inferBuildingFromRoom(roomId) {
+    try {
+      const snap = loadGraphSnapshot(); if (!snap) return null;
+      const nodes = snap.nodes || []; const links = snap.links || [];
+      const byId = new Map(nodes.map(n => [n.id, n]));
+      const z = nodes.find(n => (n.nodeType||n.label)==='Zone' && n.roomId === roomId);
+      if (!z) return null;
+      const lf = links.find(l => l.source===z.id && l.rel==='BELONGS_TO_FLOOR');
+      const f = lf ? byId.get(lf.target) : null;
+      if (f) {
+        const lb = links.find(l => l.source===f.id && l.rel==='BELONGS_TO_BUILDING');
+        const b = lb ? byId.get(lb.target) : null; return b?.name || null;
+      }
+      const lb2 = links.find(l => l.source===z.id && (l.rel==='BELONGS_TO_BUILDING' || l.rel==='IN_BUILDING'));
+      const b2 = lb2 ? byId.get(lb2.target) : null; return b2?.name || null;
+    } catch { return null; }
+  }
+
+  let lastBuildingForWeather = null;
+  let lastSelectionRooms = [];
+  let lastRoom = null;
+        let building = lastBuildingForWeather || null;
+        let roomRef = room || (lastRoom && lastRoom !== 'ALL' ? lastRoom : (lastSelectionRooms[0] || null));
+        if (!building && roomRef) building = inferBuildingFromRoom(roomRef);
+        const arr = (typeof loadWeather === 'function') ? loadWeather(building || null) : [];
+        const out = [];
+        for (const r of arr) {
+          if (!withinRange(r.ts, start, end)) continue;
+          const o = { ts: r.ts };
+          for (const f of fields) if (f in r) o[f] = r[f];
+          out.push(o);
+          if (out.length >= (limit || 2000)) break;
+        }
+        return out;
+      } catch (e) { return { error: String(e) }; }
+    },
       chart: null, 
       trace 
     };
