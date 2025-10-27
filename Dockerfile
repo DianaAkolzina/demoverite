@@ -39,7 +39,20 @@ ENV PORT=3000 \
 # (AllenAI SPECTER via Sentence-Transformers wrapper)
 ARG CHROMA_EMB_MODEL=sentence-transformers/allenai-specter
 ENV CHROMA_EMB_MODEL=${CHROMA_EMB_MODEL}
-RUN python3 -c "import os; from sentence_transformers import SentenceTransformer; m=os.environ.get('CHROMA_EMB_MODEL','sentence-transformers/allenai-specter'); print('[build] Prefetch embedding model:', m); SentenceTransformer(m)" || true
+# Allow skipping prefetch by setting CHROMA_EMB_MODEL=none at build time
+RUN python3 - <<'PY' || true
+import os
+model = os.environ.get('CHROMA_EMB_MODEL', 'sentence-transformers/allenai-specter')
+if model and model.lower() != 'none':
+    print('[build] Prefetch embedding model:', model)
+    try:
+        from sentence_transformers import SentenceTransformer
+        SentenceTransformer(model)
+    except Exception as e:
+        print('[build][warn] Prefetch failed:', e)
+else:
+    print('[build] Skipping embedding prefetch (CHROMA_EMB_MODEL=none)')
+PY
 
 EXPOSE 3000
 

@@ -12,6 +12,7 @@ services:
       # Local CSV volumes are optional in S3 mode. Keep mounts for backward compatibility.
       - ./CSVex:/data/CSVex
       - ./csvex_enriched:/data/CSVex_enriched
+      - ./CSVex_s3:/app/CSVex_s3
       - ./knowledge:/app/knowledge:ro
     ports:
       - "3000:3000"

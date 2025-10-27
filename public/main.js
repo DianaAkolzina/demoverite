@@ -137,7 +137,7 @@ async function init() {
       const qs = `?tenant=${encodeURIComponent(selection.tenant||'')}&building=${encodeURIComponent(selection.building||'')}&floor=${encodeURIComponent(selection.floor||'')}`;
       const [res, dev] = await Promise.all([
         fetchJSON(`/api/scope/csv-rooms${qs}`),
-        fetchJSON(`/api/graph/floor-devices?building=${encodeURIComponent(selection.building||'')}&floor=${encodeURIComponent(selection.floor||'')}&tenant=${encodeURIComponent(selection.tenant||'')}&role=${encodeURIComponent(selection.role||'')}`)
+        fetchJSON(`/api/graph/floor-devices?building=${encodeURIComponent(selection.building||'')}&floor=${encodeURIComponent(selection.floor||'')}&tenant=${encodeURIComponent(selection.tenant||'')}`)
       ]);
       const rooms = Array.isArray(res.rooms) ? res.rooms : [];
       const scopeRoomsCount = document.getElementById('scope-rooms-count');
@@ -194,7 +194,7 @@ async function init() {
         const start = startEl.value ? new Date(startEl.value).getTime() : '';
         const end = endEl.value ? new Date(endEl.value).getTime() : '';
         try {
-          const res = await fetchJSON(`/api/series?room=${encodeURIComponent(room)}&field=${encodeURIComponent(v)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&role=${encodeURIComponent(selection.role||'')}`);
+        const res = await fetchJSON(`/api/series?room=${encodeURIComponent(room)}&field=${encodeURIComponent(v)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
           // Keep existing charts intact in the right sidebar
           const rows = res.data || [];
           const maxRows = 2000;
@@ -231,21 +231,59 @@ async function init() {
 
   async function refreshMetrics() {
     metricsEl.innerHTML = 'Loading…';
-    const room = selection.room || 'ALL';
-    if (!room) { metricsEl.textContent = 'Select a room'; return; }
+    // Prefer explicit selection.rooms (device IDs). If absent but building+floor selected, derive IDs from floor-devices.
+    let deviceIds = Array.isArray(selection.rooms) ? selection.rooms.slice(0, 50) : [];
+    let scopeInfo = null;
+    try {
+      if ((!deviceIds || deviceIds.length === 0) && selection.building && selection.floor) {
+        const dev = await fetchJSON(`/api/graph/floor-devices?building=${encodeURIComponent(selection.building||'')}&floor=${encodeURIComponent(selection.floor||'')}&tenant=${encodeURIComponent(selection.tenant||'')}`);
+        scopeInfo = dev;
+        // If a specific room (zone name) is selected, restrict to that zone's deviceIds
+        let xs = [];
+        if (selection.room && Array.isArray(dev.zones)) {
+          const z = dev.zones.find(z => (z.zone && String(z.zone).toLowerCase() === String(selection.room).toLowerCase()) || (z.roomId && String(z.roomId).toLowerCase() === String(selection.room).toLowerCase()));
+          if (z && Array.isArray(z.deviceIds)) xs = z.deviceIds;
+        }
+        // Otherwise, include all devices on the floor
+        if (!xs.length) {
+          if (Array.isArray(dev.zones)) {
+            xs = dev.zones.flatMap(z => Array.isArray(z.deviceIds) ? z.deviceIds : []).filter(Boolean);
+          }
+          if (!xs.length && Array.isArray(dev.byCsvRoom)) xs = dev.byCsvRoom.map(p => p.csvRoom).filter(Boolean);
+        }
+        deviceIds = Array.from(new Set(xs)).slice(0, 50);
+      }
+    } catch {}
+    // Prefer a concrete deviceId over a zone slug
+    const room = (deviceIds && deviceIds.length) ? deviceIds[0] : (selection.room || 'ALL');
+    if (!room && !deviceIds.length) { metricsEl.textContent = 'Select a room'; return; }
     try {
       const s = startEl.value ? new Date(startEl.value).getTime() : '';
       const e = endEl.value ? new Date(endEl.value).getTime() : '';
-      const meta = await fetchJSON(`/api/meta?room=${encodeURIComponent(room)}&start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}&role=${encodeURIComponent(selection.role||'')}`);
-      metricsEl.innerHTML = ''
+      metricsEl.innerHTML = '';
+      // If multiple deviceIds available, union fields via /api/devices/fields
+      let unionFields = null; let devicesMeta = null;
+      if (deviceIds && deviceIds.length) {
+        try {
+          const dm = await fetchJSON(`/api/devices/fields?ids=${encodeURIComponent(deviceIds.join(','))}&limit=50`);
+          devicesMeta = dm;
+          if (dm && Array.isArray(dm.union)) unionFields = dm.union;
+        } catch {}
+      }
+      const meta = await fetchJSON(`/api/meta?room=${encodeURIComponent(room)}&start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`);
 
 
       const dd = ensureMetricsDropdown();
-      const fieldSet = new Set();
-      Object.values(meta.tables || {}).forEach(info => {
-        (info.fields || []).forEach(f => { if (f !== 'ts') fieldSet.add(f); });
-      });
-      let fields = Array.from(fieldSet).sort();
+      let fields = [];
+      if (unionFields && unionFields.length) {
+        fields = unionFields.slice().sort();
+      } else {
+        const fieldSet = new Set();
+        Object.values(meta.tables || {}).forEach(info => {
+          (info.fields || []).forEach(f => { if (f !== 'ts') fieldSet.add(f); });
+        });
+        fields = Array.from(fieldSet).sort();
+      }
       const dt = (selection.deviceType || '').toLowerCase();
       if (dt) {
         const pref = new Set();
@@ -258,6 +296,29 @@ async function init() {
       }
       const opts = [''].concat(fields);
       dd.innerHTML = opts.map(v => v ? `<option value="${v}">${v}</option>` : '<option value="">Select a metric…</option>').join('');
+      // If multiple devices in selection, render detector list by type/fields
+      if (deviceIds && deviceIds.length > 1) {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'margin:6px 0 10px 0; font-size:12px; color:#94a3b8;';
+        const byId = (devicesMeta && devicesMeta.byId) || {};
+        const items = deviceIds.slice(0, 30).map(id => {
+          const m = byId[id] || { fields: [] , type: 'Device' };
+          const top = (m.fields||[]).slice(0, 4).join(', ');
+          return `<div style="margin:2px 0; cursor:pointer;" data-det="${id}"><span class="badge" style="margin-right:6px;">${m.type||'Device'}</span> <code>${id}</code> <span style="color:#64748b">${top ? '· ' + top : ''}</span></div>`;
+        }).join('');
+        wrap.innerHTML = `<div style="margin-bottom:4px; color:#cbd5e1;">Detectors in scope (${deviceIds.length}):</div>${items}`;
+        // Clicking a detector pins it as active room
+        setTimeout(() => {
+          wrap.querySelectorAll('[data-det]').forEach(el => {
+            el.addEventListener('click', () => {
+              const id = el.getAttribute('data-det');
+              selection.room = id; selection.rooms = [id];
+              renderScopePill(); updateSelectedRangeDisplay(); refreshMetrics();
+            });
+          });
+        }, 0);
+        metricsEl.parentNode.insertBefore(wrap, dd);
+      }
     } catch {
       metricsEl.textContent = 'Failed to load metrics';
     }
@@ -436,19 +497,28 @@ async function init() {
           if (b) addNode(b.id);
           if (f) { addNode(f.id); addLink(f.id, b?b.id:null); }
           allLinks.filter(l=> (l[2]==='LOCATED_ON_FLOOR' || l[2]==='BELONGS_TO_FLOOR')).forEach(([from,to])=>{ if (f && to===f.id) { addNode(from); addLink(from,to);} });
-        } else if (graphLevel==='devices' && selection.room) {
-          const z = zones.find(n=>n.roomId===selection.room);
-          if (z) addNode(z.id);
-          allLinks.filter(l=>l[2]==='LOCATED_IN_ZONE').forEach(([from,to])=>{ if (z && to===z.id) { addNode(from); addLink(from,to);} });
-          allLinks.filter(l=> (l[2]==='LOCATED_ON_FLOOR' || l[2]==='BELONGS_TO_FLOOR')).forEach(([from,to])=>{ if (z && from===z.id) { addNode(to); addLink(from,to);} });
-          if (!z) {
+        } else if (graphLevel==='devices') {
+          if (selection.room) {
+            const z = zones.find(n=>n.roomId===selection.room);
+            if (z) addNode(z.id);
+            allLinks.filter(l=>l[2]==='LOCATED_IN_ZONE').forEach(([from,to])=>{ if (z && to===z.id) { addNode(from); addLink(from,to);} });
+            allLinks.filter(l=> (l[2]==='LOCATED_ON_FLOOR' || l[2]==='BELONGS_TO_FLOOR')).forEach(([from,to])=>{ if (z && from===z.id) { addNode(to); addLink(from,to);} });
+          } else if (Array.isArray(selection.rooms) && selection.rooms.length) {
+            // Show selected devices explicitly
+            const want = new Set(selection.rooms.map(String));
+            const devs = allNodes.filter(n => n.nodeType==='Device' && (n.idProp ? want.has(String(n.idProp)) : false));
+            for (const d of devs) {
+              addNode(d.id);
+              // Link device to its zone and building for context
+              allLinks.filter(l=> l[0]===d.id && (l[2]==='LOCATED_IN_ZONE' || l[2]==='IN_BUILDING')).forEach(([from,to,rel])=>{ addNode(to); addLink(from,to); });
+            }
+          } else {
+            // Fallback to building devices if no specific room(s)
             const b = buildings.find(n=>n.name===selection.building);
             if (b) {
-              allLinks.filter(l=>l[2]==='LOCATED_IN_BUILDING').forEach(([from,to])=>{ if (to===b.id) { const nFrom = allNodes.find(n=>n.id===from); if (nFrom && nFrom.nodeType==='Device') { addNode(from); addLink(from,to);} }});
+              allLinks.filter(l=>l[2]==='LOCATED_IN_BUILDING' || l[2]==='IN_BUILDING').forEach(([from,to])=>{ if (to===b.id) { const nFrom = allNodes.find(n=>n.id===from); if (nFrom && nFrom.nodeType==='Device') { addNode(from); addLink(from,to);} }});
             }
           }
-          const floorId = nodes.find(n=>n.nodeType==='Floor')?.id;
-          if (floorId) allLinks.filter(l=> (l[2]==='IN_BUILDING' || l[2]==='BELONGS_TO_BUILDING' || l[2]==='LOCATED_IN_BUILDING')).forEach(([from,to])=>{ if (from===floorId) { addNode(to); addLink(from,to);} });
         } else {
           allNodes.forEach(n=>addNode(n.id));
           allLinks.forEach(([a,b])=>addLink(a,b));

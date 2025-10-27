@@ -204,17 +204,25 @@ export function createGraphClient({ uri, username, password, database }) {
   async function devicesByScope({ tenant, building, floor, zone, type }) {
     const cypher = `
       MATCH (d:Device)
-      OPTIONAL MATCH (d)-[:BELONGS_TO_TENANT]->(t:Tenant)
       OPTIONAL MATCH (d)-[:IN_BUILDING]->(b:Building)
+      OPTIONAL MATCH (b)-[:BELONGS_TO_TENANT]->(tb:Tenant)
+      OPTIONAL MATCH (d)-[:BELONGS_TO_TENANT]->(td:Tenant)
       OPTIONAL MATCH (d)-[:LOCATED_ON_FLOOR]->(f:Floor)
+      OPTIONAL MATCH (f)-[:BELONGS_TO_TENANT]->(tf:Tenant)
       OPTIONAL MATCH (d)-[:LOCATED_IN_ZONE]->(z:Zone)
+      OPTIONAL MATCH (z)-[:BELONGS_TO_TENANT]->(tz:Tenant)
+      WITH d, b, f, z, coalesce(td, tb, tf, tz) AS t
       WHERE ($tenant IS NULL OR (t.name = $tenant OR toString(t.id) = $tenant))
         AND ($building IS NULL OR b.name = $building)
         AND ($floor IS NULL OR f.name = $floor)
         AND ($zone IS NULL OR z.name = $zone)
         AND ($type IS NULL OR d.type = $type)
       WITH DISTINCT d, z, b
-      RETURN d.id AS id, d.name AS name, d.type AS type, coalesce(z.name, d.zone) AS zone, coalesce(b.name, d.building) AS building
+      RETURN coalesce(d.id, d.cloud_id, d.deviceId, d.name) AS id,
+             d.name AS name,
+             d.type AS type,
+             coalesce(z.name, d.zone) AS zone,
+             coalesce(b.name, d.building) AS building
     `;
     const params = { tenant: tenant || null, building: building || null, floor: floor || null, zone: zone || null, type: type || null };
     const { records, error } = await runQuery(cypher, params);
@@ -239,34 +247,61 @@ export function createGraphClient({ uri, username, password, database }) {
       const outNodes = new Map();
       const outLinks = [];
       const addNode = (id, props) => { if (!outNodes.has(id)) outNodes.set(id, { id, ...props }); };
-      const addLink = (a, b, rel) => { outLinks.push({ source: a, target: b, rel }); };
-      // Fetch buildings, floors, zones, devices, metric types
+      const addLink = (a, b, rel) => { if (a && b) outLinks.push({ source: a, target: b, rel }); };
+      const nodeId = (n, fall) => {
+        try { if (n && (n.elementId || n.identity)) return `n:${n.elementId || String(n.identity)}`; } catch {}
+        return fall;
+      };
+      const nodeName = (n, label) => {
+        if (!n) return null;
+        const p = n.properties || {};
+        return p.name ?? p.title ?? p.label ?? p.id ?? `${label||'Node'} ${n.elementId || n.identity || ''}`;
+      };
+      // Fetch hierarchy including optional tenants
       const q = `
         MATCH (b:Building)
-        OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
-        OPTIONAL MATCH (z:Zone)-[:LOCATED_ON_FLOOR]->(f)
+        OPTIONAL MATCH (b)-[:BELONGS_TO_TENANT]->(t:Tenant)
+        // Floors connected to building via multiple possible relationship types
+        OPTIONAL MATCH (f)-[rb]->(b)
+        WHERE any(l IN labels(f) WHERE l IN ['Floor','Level','Storey']) AND type(rb) IN ['LOCATED_IN_BUILDING','IN_BUILDING','BELONGS_TO_BUILDING','HAS_FLOOR','PART_OF','HAS_LEVEL']
+        // Zones connected to floors via multiple types
+        OPTIONAL MATCH (z)-[rf]->(f)
+        WHERE any(l IN labels(z) WHERE l IN ['Zone','Room','Area','Space']) AND type(rf) IN ['LOCATED_ON_FLOOR','BELONGS_TO_FLOOR','HAS_ZONE','CONTAINS','IN_FLOOR']
+        // Zones may also be directly located in building
+        OPTIONAL MATCH (z)-[:LOCATED_IN_BUILDING]->(b)
+        // Floor/Zone tenant ownership if present
+        OPTIONAL MATCH (f)-[:BELONGS_TO_TENANT]->(tf:Tenant)
+        OPTIONAL MATCH (z)-[:BELONGS_TO_TENANT]->(tz:Tenant)
+        // Devices
         OPTIONAL MATCH (d:Device)-[:LOCATED_IN_ZONE]->(z)
         OPTIONAL MATCH (d)-[:IN_BUILDING]->(b)
-        OPTIONAL MATCH (d)-[:HAS_DEVICE_PROFILE]->(:DeviceProfile)
-        OPTIONAL MATCH (d)-[:HAS_TELEMETRY_KEY]->(:TelemetryKey)
-        RETURN b,f,z,d
+        OPTIONAL MATCH (d)-[:LOCATED_ON_FLOOR]->(f)
+        OPTIONAL MATCH (d)-[:BELONGS_TO_TENANT]->(td:Tenant)
+        RETURN b,t,f,z,d
       `;
       const { records, error } = await runQuery(q, {});
       if (error) return { nodes: [], links: [], error };
       for (const r of records) {
-        const b = r.get('b'); const f = r.get('f'); const z = r.get('z'); const d = r.get('d');
-        const bid = b ? `Building:${b.properties?.name}` : null;
-        const fid = f ? `Floor:${f.properties?.name}:${b?.properties?.name || ''}` : null;
-        const zid = z ? `Zone:${z.properties?.name}:${f?.properties?.name || ''}:${b?.properties?.name || ''}` : null;
-        const did = d ? `Device:${d.properties?.id || d.properties?.name}` : null;
-        if (b) addNode(bid, { label: 'Building', name: b.properties?.name, nodeType: 'Building', tenantID: b.properties?.tenantID ?? null });
-        if (f) addNode(fid, { label: 'Floor', name: f.properties?.name, nodeType: 'Floor' });
-        if (z) addNode(zid, { label: 'Zone', name: z.properties?.name, nodeType: 'Zone', roomId: z.properties?.roomId || null, zoneType: z.properties?.type || null });
-        if (d) addNode(did, { label: 'Device', name: d.properties?.name, nodeType: 'Device', deviceType: d.properties?.type || null, idProp: d.properties?.id || null });
+        const b = r.get('b'); const t = r.get('t'); const f = r.get('f'); const z = r.get('z'); const d = r.get('d');
+        const bid = b ? nodeId(b, `Building:${b?.properties?.name || ''}`) : null;
+        const fid = f ? nodeId(f, `Floor:${f?.properties?.name || ''}:${nodeName(b)||''}`) : null;
+        const zid = z ? nodeId(z, `Zone:${z?.properties?.name || ''}:${nodeName(f)||''}:${nodeName(b)||''}`) : null;
+        const did = d ? nodeId(d, `Device:${d?.properties?.id || d?.properties?.name || ''}`) : null;
+        if (b) addNode(bid, { label: 'Building', name: nodeName(b, 'Building'), nodeType: 'Building', tenantID: b.properties?.tenantID ?? null });
+        if (t) {
+          const tid = nodeId(t, `Tenant:${t?.properties?.name || ''}`);
+          addNode(tid, { label: 'Tenant', name: nodeName(t, 'Tenant'), nodeType: 'Tenant' });
+          addLink(bid, tid, 'BELONGS_TO_TENANT');
+        }
+        if (f) addNode(fid, { label: 'Floor', name: nodeName(f, 'Floor'), nodeType: 'Floor' });
+        if (z) addNode(zid, { label: 'Zone', name: nodeName(z, 'Zone'), nodeType: 'Zone', roomId: z.properties?.roomId || null, zoneType: z.properties?.type || null });
+        if (d) addNode(did, { label: 'Device', name: nodeName(d, 'Device'), nodeType: 'Device', deviceType: d.properties?.type || null, idProp: (d.properties?.id ?? d.properties?.cloud_id ?? d.properties?.deviceId ?? null) });
         if (f && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
         if (z && f) addLink(zid, fid, 'LOCATED_ON_FLOOR');
+        if (z && b) addLink(zid, bid, 'LOCATED_IN_BUILDING');
         if (d && z) addLink(did, zid, 'LOCATED_IN_ZONE');
         if (d && b) addLink(did, bid, 'IN_BUILDING');
+        if (d && f) addLink(did, fid, 'LOCATED_ON_FLOOR');
       }
       return { nodes: Array.from(outNodes.values()), links: outLinks };
     },

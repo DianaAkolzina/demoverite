@@ -7,6 +7,7 @@ __pycache__/
 # Local data directories (large, not for Git)
 CSVex/
 csvex_enriched/
+CSVex_s3/
 chroma/
 neo4j/
 
