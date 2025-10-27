@@ -34,7 +34,7 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-mkdir -p "$ROOT_DIR/CSVex_s3" "$ROOT_DIR/knowledge" "$ROOT_DIR/chroma"
+mkdir -p "$ROOT_DIR/CSVex_s3" "$ROOT_DIR/knowledge" "$ROOT_DIR/chroma" "$ROOT_DIR/data"
 
 is_linux() { [[ "$(uname -s)" == "Linux" ]]; }
 ADD_HOST_OPT=""
@@ -110,6 +110,7 @@ start_app() {
     ${DNS_OPTS} \
     -v "$ROOT_DIR/CSVex_s3:/app/CSVex_s3" \
     -v "$ROOT_DIR/knowledge:/app/knowledge:ro" \
+    -v "$ROOT_DIR/data:/app/data" \
     $ADD_HOST_OPT --env-file "$ROOT_DIR/.env" \
     -e CHROMA_URL=http://host.docker.internal:${CHROMA_PORT} \
     -e CHROMA_SKIP_INDEX=1 -e NEO4J_SKIP_POPULATE=1 -e AWS_S3_ENABLED=1 \

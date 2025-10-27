@@ -93,7 +93,7 @@ async function init() {
   const scopePillEl = document.getElementById('scope-pill');
   const confirmBtn = document.getElementById('confirm-scope');
   const clearBtn = document.getElementById('clear-scope');
-  const selection = { building: null, floor: null, room: null };
+  const selection = { tenant: null, building: null, floor: null, room: null };
   window.selection = selection;
   let selectionConfirmed = false;
   let graphLevel = 'buildings';
@@ -112,11 +112,45 @@ async function init() {
     chartsSidebar.classList.toggle('hidden');
   });
 
+  // Inject tenant selector at top of sidebar
+  let tenantSelect = document.getElementById('tenant-select');
+  if (!tenantSelect) {
+    tenantSelect = document.createElement('select');
+    tenantSelect.id = 'tenant-select';
+    tenantSelect.style.width = '100%';
+    tenantSelect.style.margin = '0 0 8px 0';
+    tenantSelect.innerHTML = '<option value="">All tenants…</option>';
+    if (sidebar) sidebar.insertBefore(tenantSelect, sidebar.firstChild);
+  }
+  // Populate tenants
+  try {
+    const t = await fetchJSON('/api/tenants');
+    const tenants = (t.tenants || []).sort();
+    tenantSelect.innerHTML = '<option value="">All tenants…</option>' + tenants.map(name => `<option value="${name}">${name}</option>`).join('');
+  } catch {}
+  tenantSelect.addEventListener('change', () => {
+    selection.tenant = tenantSelect.value || null;
+    // Reset deeper scope when tenant changes
+    selection.building = null; selection.floor = null; selection.room = null; graphLevel = 'buildings'; selectionConfirmed = false;
+    renderScopePill(); refreshGraphView(); refreshMetrics();
+  });
+
+  // Cache last set of nodes to help label scope pill by zone name
+  let lastGraphNodes = [];
+
   function renderScopePill() {
     const parts = [];
+    if (selection.tenant) parts.push(`Tenant: ${selection.tenant}`);
     if (selection.building) parts.push(`Building: ${selection.building}`);
     if (selection.floor) parts.push(`Floor: ${selection.floor}`);
-    if (selection.room) parts.push(`Room: ${selection.room}`);
+    if (selection.room) {
+      let rlabel = selection.room;
+      try {
+        const z = lastGraphNodes.find(n => n.nodeType==='Zone' && (String(n.roomId)===String(selection.room) || String(n.name)===String(selection.room)));
+        if (z && z.name) rlabel = z.name;
+      } catch {}
+      parts.push(`Room: ${rlabel}`);
+    }
     if (scopePillEl) scopePillEl.textContent = parts.length ? (selectionConfirmed ? '✔ ' : '') + parts.join(' · ') : 'No scope selected';
   }
 
@@ -135,21 +169,33 @@ async function init() {
         inputEl.value = v;
         metricsEl.style.display = '';
         const room = selection.room || '';
-        if (!room) { metricsEl.textContent = 'Select a room from the graph to load metrics.'; return; }
+        const isScope = (room === 'ALL') || !!selection.building || !!selection.floor || (!!selection.room && !room);
         const start = startEl.value ? new Date(startEl.value).getTime() : '';
         const end = endEl.value ? new Date(endEl.value).getTime() : '';
         try {
-          const res = await fetchJSON(`/api/series?room=${encodeURIComponent(room)}&field=${encodeURIComponent(v)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
-          // Keep existing charts intact in the right sidebar
-          const rows = res.data || [];
-          const maxRows = 2000;
-          const shown = rows.slice(-maxRows);
-          const header = `<div class=\"series-header\"><strong>${res.field}</strong> from <em>${res.table}</em> (${shown.length} rows)</div>`;
-          const table = ['<table class=\"series-table\">','<thead><tr><th>ts</th><th>',res.field,'</th></tr></thead><tbody>',shown.map(p => `<tr><td>${new Date(p[0]).toLocaleString()}</td><td>${p[1]}</td></tr>`).join(''),'</tbody></table>'].join('');
-          metricsEl.innerHTML = `<div class=\"series-container\">${header}${table}</div>`;
-        } catch (e) {
-          console.error(e);
-        }
+          if (!room || room === 'ALL' || selection.building || selection.floor || selection.tenant) {
+            // Scope selection: advise user to use chat or compare view; avoid misleading single-room series
+            const params = [
+              selection.tenant ? `tenant=${encodeURIComponent(selection.tenant)}` : '',
+              selection.building ? `building=${encodeURIComponent(selection.building)}` : '',
+              selection.floor ? `floor=${encodeURIComponent(selection.floor)}` : '',
+              selection.room && room !== 'ALL' ? `zone=${encodeURIComponent(selection.room)}` : '',
+              `start=${encodeURIComponent(start)}`,
+              `end=${encodeURIComponent(end)}`
+            ].filter(Boolean).join('&');
+            const scopeMeta = await fetchJSON(`/api/scope/metrics?${params}`);
+            const devicesCount = Array.isArray(scopeMeta.devices) ? scopeMeta.devices.length : (scopeMeta.count || '');
+            metricsEl.innerHTML = `<div class=\"series-container\"><div class=\"series-header\"><strong>${escapeHtml(v)}</strong> in scope</div><div style=\"color:#94a3b8\">Devices in scope: ${devicesCount}. Use chat to plot across devices.</div></div>`;
+          } else {
+            const res = await fetchJSON(`/api/series?room=${encodeURIComponent(room)}&field=${encodeURIComponent(v)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+            const rows = res.data || [];
+            const maxRows = 2000;
+            const shown = rows.slice(-maxRows);
+            const header = `<div class=\"series-header\"><strong>${res.field}</strong> from <em>${res.table}</em> (${shown.length} rows)</div>`;
+            const table = ['<table class=\"series-table\">','<thead><tr><th>ts</th><th>',res.field,'</th></tr></thead><tbody>',shown.map(p => `<tr><td>${new Date(p[0]).toLocaleString()}</td><td>${p[1]}</td></tr>`).join(''),'</tbody></table>'].join('');
+            metricsEl.innerHTML = `<div class=\"series-container\">${header}${table}</div>`;
+          }
+        } catch (e) { console.error(e); }
       });
     }
     return dd;
@@ -181,17 +227,49 @@ async function init() {
     try {
       const s = startEl.value ? new Date(startEl.value).getTime() : '';
       const e = endEl.value ? new Date(endEl.value).getTime() : '';
-      const meta = await fetchJSON(`/api/meta?room=${encodeURIComponent(room)}&start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`);
+      let meta;
+      if (selection.building || selection.floor || selection.room || room === 'ALL') {
+        // Query scope-aware metrics across the selected building/floor/zone
+        const params = [
+          selection.tenant ? `tenant=${encodeURIComponent(selection.tenant)}` : '',
+          selection.building ? `building=${encodeURIComponent(selection.building)}` : '',
+          selection.floor ? `floor=${encodeURIComponent(selection.floor)}` : '',
+          selection.room && room !== 'ALL' ? `zone=${encodeURIComponent(selection.room)}` : '',
+          `start=${encodeURIComponent(s)}`,
+          `end=${encodeURIComponent(e)}`
+        ].filter(Boolean).join('&');
+        meta = await fetchJSON(`/api/scope/metrics?${params}`);
+      } else {
+        meta = await fetchJSON(`/api/meta?room=${encodeURIComponent(room)}&start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}${selection.building ? '&building='+encodeURIComponent(selection.building) : ''}${selection.floor ? '&floor='+encodeURIComponent(selection.floor) : ''}`);
+      }
       metricsEl.innerHTML = ''
 
 
       const dd = ensureMetricsDropdown();
       const fieldSet = new Set();
-      Object.values(meta.tables || {}).forEach(info => {
-        (info.fields || []).forEach(f => { if (f !== 'ts') fieldSet.add(f); });
-      });
+      const cov = meta && meta.coverage ? meta.coverage : {};
+      if (Array.isArray(meta?.metrics) && meta.metrics.length) {
+        meta.metrics.forEach(f => { if (f !== 'ts') fieldSet.add(f); });
+      }
+      // Fallbacks from byZone/byFloor if metrics empty
+      if (!fieldSet.size && meta && meta.byZone) {
+        Object.values(meta.byZone).forEach(arr => (arr||[]).forEach(f => { if (f !== 'ts') fieldSet.add(f); }));
+      }
+      if (!fieldSet.size && meta && meta.byFloor) {
+        Object.values(meta.byFloor).forEach(arr => (arr||[]).forEach(f => { if (f !== 'ts') fieldSet.add(f); }));
+      }
+      // Per-room meta fallback (legacy)
+      if (!fieldSet.size) {
+        Object.values(meta.tables || {}).forEach(info => { (info.fields || []).forEach(f => { if (f !== 'ts') fieldSet.add(f); }); });
+      }
       const opts = [''].concat(Array.from(fieldSet).sort());
-      dd.innerHTML = opts.map(v => v ? `<option value="${v}">${v}</option>` : '<option value="">Select a metric…</option>').join('');
+      dd.innerHTML = opts.map(v => {
+        if (!v) return '<option value="">Select a metric…</option>';
+        const z = Array.isArray(cov[v]?.zones) ? cov[v].zones.length : 0;
+        const f = Array.isArray(cov[v]?.floors) ? cov[v].floors.length : 0;
+        const label = (z||f) ? `${v} (${z} zones, ${f} floors)` : v;
+        return `<option value="${v}">${label}</option>`;
+      }).join('');
     } catch {
       metricsEl.textContent = 'Failed to load metrics';
     }
@@ -324,18 +402,18 @@ async function init() {
   // roomToZoneType removed (no longer needed in UI)
 
   async function refreshGraphView() {
-    // Title stays static with buttons
+    // Title stays static with buttons; use fixed layout (no physics)
     try {
-      const g = await fetchJSON(`/api/graph/full`);
+      const g = await fetchJSON(`/api/graph/full${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`);
       const allLinks = (g.links || []).map(e => [e.source, e.target, e.rel]);
       const colorMap = { Building: '#3b82f6', Floor: '#f59e0b', Zone: '#22c55e', Device: '#8b5cf6', MetricType: '#14b8a6' };
-      const allNodes = (g.nodes || []).map(n => ({ id: n.id, name: n.name, roomId: n.roomId || null, nodeType: n.nodeType || n.label, marker: { radius: n.nodeType==='Building' ? 12 : (n.nodeType==='Zone' ? 9 : 6) }, color: colorMap[n.nodeType || n.label] || undefined }));
+      const allNodes = (g.nodes || []).map(n => ({ id: n.id, name: n.name, roomId: n.roomId || null, nodeType: n.nodeType || n.label, x: n.x, y: n.y, color: colorMap[n.nodeType || n.label], cloudId: n.cloudId || null, hasData: !!n.hasData, dataDevices: n.dataDevices||0 }));
 
       function filterView() {
         const nodes = [];
         const links = [];
-        const addNode = (id) => { if (!nodes.find(n => n.id===id)) { const nn = allNodes.find(n=>n.id===id); if (nn) nodes.push(nn);} };
-        const addLink = (a,b) => { if (a && b) links.push([a,b]); };
+        const addNode = (id) => { if (!nodes.find(n => n.id===id)) { const nn = allNodes.find(n=>n.id===id); if (nn) nodes.push({ ...nn }); } };
+        const addLink = (a,b,rel) => { if (a && b) links.push([a,b,rel]); };
         const buildings = allNodes.filter(n=>n.nodeType==='Building');
         const floors = allNodes.filter(n=>n.nodeType==='Floor');
         const zones = allNodes.filter(n=>n.nodeType==='Zone');
@@ -344,69 +422,93 @@ async function init() {
         } else if (graphLevel==='floors' && selection.building) {
           const b = buildings.find(n=>n.name===selection.building);
           if (b) addNode(b.id);
-          allLinks.filter(l=>l[2]==='BELONGS_TO_BUILDING').forEach(([from,to])=>{ if (b && to===b.id) { addNode(from); addLink(from,to);} });
+          allLinks.filter(l=>l[2]==='LOCATED_IN_BUILDING').forEach(([from,to,rel])=>{
+            if (!(b && to===b.id)) return;
+            const fromNode = allNodes.find(n=>n.id===from);
+            if (fromNode && fromNode.nodeType==='Floor') { addNode(from); addLink(from,to,rel); }
+          });
         } else if (graphLevel==='rooms' && selection.building && selection.floor) {
           const b = buildings.find(n=>n.name===selection.building);
           const f = floors.find(n=>n.name===selection.floor);
           if (b) addNode(b.id);
-          if (f) { addNode(f.id); addLink(f.id, b?b.id:null); }
-          allLinks.filter(l=>l[2]==='BELONGS_TO_FLOOR').forEach(([from,to])=>{ if (f && to===f.id) { addNode(from); addLink(from,to);} });
+          if (f) { addNode(f.id); addLink(f.id, b?b.id:null,'LOCATED_IN_BUILDING'); }
+          allLinks.filter(l=>l[2]==='BELONGS_TO_FLOOR').forEach(([from,to,rel])=>{ if (f && to===f.id) { addNode(from); addLink(from,to,rel);} });
         } else if (graphLevel==='devices' && selection.room) {
-          const z = zones.find(n=>n.roomId===selection.room);
+          const z = zones.find(n=>n.roomId===selection.room || n.name===selection.room);
           if (z) addNode(z.id);
-          allLinks.filter(l=>l[2]==='LOCATED_IN_ZONE').forEach(([from,to])=>{ if (z && to===z.id) { addNode(from); addLink(from,to);} });
-          allLinks.filter(l=>l[2]==='BELONGS_TO_FLOOR').forEach(([from,to])=>{ if (z && from===z.id) { addNode(to); addLink(from,to);} });
+          allLinks.filter(l=>l[2]==='LOCATED_IN_ZONE').forEach(([from,to,rel])=>{ if (z && to===z.id) { addNode(from); addLink(from,to,rel);} });
+          // also add floor and building chain
           const floorId = nodes.find(n=>n.nodeType==='Floor')?.id;
-          if (floorId) allLinks.filter(l=>l[2]==='BELONGS_TO_BUILDING').forEach(([from,to])=>{ if (from===floorId) { addNode(to); addLink(from,to);} });
+          if (floorId) allLinks.filter(l=>l[2]==='LOCATED_IN_BUILDING').forEach(([from,to,rel])=>{ if (from===floorId) { addNode(to); addLink(from,to,rel);} });
         } else {
-          allNodes.forEach(n=>addNode(n.id));
-          allLinks.forEach(([a,b])=>addLink(a,b));
+          // Only include devices that are S3-matched (server now filters, but keep defensive)
+          allNodes.forEach(n=>{ if (n.nodeType!=='Device' || (n.cloudId && n.cloudId.length)) addNode(n.id); });
+          allLinks.forEach(([a,b,rel])=>addLink(a,b,rel));
         }
         return { nodes, links };
       }
+
       const view = filterView();
       const nodes = view.nodes;
       const links = view.links;
+      lastGraphNodes = nodes.slice();
+
+      // Center selected building if available
+      const buildingNode = selection.building ? nodes.find(n => n.nodeType==='Building' && n.name===selection.building) : nodes.find(n => n.nodeType==='Building');
+      const dx = buildingNode && typeof buildingNode.x === 'number' ? -buildingNode.x : 0;
+      const dy = buildingNode && typeof buildingNode.y === 'number' ? -buildingNode.y : 0;
+      const positioned = nodes.map(n => ({...n, x: (typeof n.x==='number'?n.x:0)+dx, y: (typeof n.y==='number'?n.y:0)+dy }));
+
+      // Prepare series data
+      const nodePoints = positioned.map(n => ({
+        x: n.x || 0, y: n.y || 0, id: n.id, name: n.name, nodeType: n.nodeType, roomId: n.roomId, color: n.color,
+        marker: n.nodeType==='Building' ? (n.hasData ? { radius: 11, lineWidth: 3, lineColor: '#22c55e' } : { radius: 10 }) : (n.nodeType==='Zone' ? { radius: 7 } : { radius: 5 })
+      }));
+      const nodeById = new Map(nodePoints.map(p => [p.id, p]));
+      const linkSeg = [];
+      for (const [a,b] of links) {
+        const A = nodeById.get(a), B = nodeById.get(b);
+        if (!A || !B) continue;
+        linkSeg.push([A.x, A.y]);
+        linkSeg.push([B.x, B.y]);
+        linkSeg.push([null, null]); // break between segments
+      }
+
+      // Compute axes range
+      const xs = nodePoints.map(p=>p.x).filter(Number.isFinite);
+      const ys = nodePoints.map(p=>p.y).filter(Number.isFinite);
+      const minX = Math.min(...xs, -100), maxX = Math.max(...xs, 100);
+      const minY = Math.min(...ys, -100), maxY = Math.max(...ys, 100);
+
       Highcharts.chart(graphViewChartId, {
-        chart: { type: 'networkgraph', backgroundColor: 'transparent' },
+        chart: { backgroundColor: 'transparent', animation: false },
         title: { text: null },
-        tooltip: { formatter() { return `${this.point.nodeType||''}: ${this.point.name||this.point.id}`; } },
-        plotOptions: {
-          networkgraph: {
-            keys: ['from', 'to'],
-            layoutAlgorithm: { enableSimulation: true, friction: -0.9, linkLength: 100 }
-          },
-          series: {
-            point: {
-              events: {
-                click: function () {
-                  const p = this;
-                  if (p.nodeType === 'Building') {
-                    selection.building = p.name; selection.floor = null; selection.room = null; selectionConfirmed = false; graphLevel='floors';
-                  } else if (p.nodeType === 'Floor') {
-                    selection.floor = p.name; selectionConfirmed = false; graphLevel='rooms';
-                  } else if (p.nodeType === 'Zone' && p.roomId) {
-                    selection.room = p.roomId; selectionConfirmed = false; graphLevel='devices';
-                  } else if (p.nodeType === 'Device') {
-                    const rel = links.find(l => l[0]===p.id || l[1]===p.id);
-                    const other = rel ? (rel[0]===p.id ? rel[1] : rel[0]) : null;
-                    const zone = nodes.find(n => n.id === other && n.nodeType==='Zone');
-                    if (zone && zone.roomId) { selection.room = zone.roomId; selectionConfirmed = false; }
-                  }
-                  renderScopePill();
-                  updateSelectedRangeDisplay();
-                  refreshMetrics();
-                  refreshGraphView();
-                }
+        xAxis: { min: minX - 60, max: maxX + 60, visible: false },
+        yAxis: { min: minY - 60, max: maxY + 60, visible: false },
+        tooltip: { formatter() { return this.point && this.point.nodeType ? `${this.point.nodeType}: ${this.point.name}` : null; } },
+        series: [
+          { type: 'line', data: linkSeg, color: '#64748b', enableMouseTracking: false, lineWidth: 1, marker: { enabled: false } },
+          { type: 'scatter', data: nodePoints, dataLabels: { enabled: true, style: { color: '#cbd5e1', textOutline: 'none' } },
+            cursor: 'pointer',
+            point: { events: { click: function () {
+              const p = this;
+              if (p.nodeType === 'Building') {
+                selection.building = String(p.name || ''); selection.floor = null; selection.room = null; selectionConfirmed = false; graphLevel='floors';
+              } else if (p.nodeType === 'Floor') {
+                selection.floor = String(p.name || ''); selectionConfirmed = false; graphLevel='rooms';
+              } else if (p.nodeType === 'Zone') {
+                selection.room = String(p.roomId || p.name || ''); selectionConfirmed = false; graphLevel='devices';
+              } else if (p.nodeType === 'Device') {
+                // Find nearest linked zone in local links
+                const rel = links.find(l => l[0]===p.id || l[1]===p.id);
+                const other = rel ? (rel[0]===p.id ? rel[1] : rel[0]) : null;
+                const zone = nodes.find(n => n.id === other && n.nodeType==='Zone');
+                if (zone) { selection.room = String(zone.roomId || zone.name || ''); selectionConfirmed = false; }
               }
-            }
+              renderScopePill(); updateSelectedRangeDisplay(); refreshMetrics(); refreshGraphView();
+            } } }
           }
-        },
-        series: [{
-          dataLabels: { enabled: true, linkFormat: '', style: { color: '#cbd5e1', textOutline: 'none' } },
-          data: links,
-          nodes
-        }],
+        ],
         credits: { enabled: false }
       });
     } catch (e) {

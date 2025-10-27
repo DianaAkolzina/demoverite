@@ -11,6 +11,7 @@ services:
     volumes:
       - ./CSVex_s3:/app/CSVex_s3
       - ./knowledge:/app/knowledge:ro
+      - ./data:/app/data
     ports:
       - "3000:3000"
 

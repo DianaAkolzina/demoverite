@@ -137,7 +137,8 @@ async function ensureDatastores() {
     }
   }
   if (!ok) {
-    if ((process.env.NEO4J_ALLOW_DEGRADED || '0') === '1') {
+    const allowDegraded = (process.env.NEO4J_ALLOW_DEGRADED || process.env.NEO4J_ALLOW_FALLBACK || '0') === '1';
+    if (allowDegraded) {
       console.error('[startup] Neo4j not reachable after waiting. Continuing in degraded mode.');
     } else {
       console.error('[startup] Neo4j not reachable after waiting. Exiting.');
@@ -176,8 +177,32 @@ async function ensureDatastores() {
       console.warn('[startup][graph] Adapter not configured or missing fullHierarchy; writing empty snapshot for UI baselines');
     }
     const snapPath = path.join(outDir, 'graph_snapshot.json');
-    fs.writeFileSync(snapPath, JSON.stringify({ generatedAt: Date.now(), ...snap }, null, 2));
-    console.log('[startup][graph] Wrote snapshot to', snapPath);
+    // Preserve existing snapshot if new one is empty
+    if ((snap.nodes || []).length === 0 && (snap.links || []).length === 0 && fs.existsSync(snapPath)) {
+      console.warn('[startup][graph] New snapshot is empty; preserving existing cache at', snapPath);
+    } else {
+      fs.writeFileSync(snapPath, JSON.stringify({ generatedAt: Date.now(), ...snap }, null, 2));
+      console.log('[startup][graph] Wrote snapshot to', snapPath);
+    }
+
+    // Also create per-tenant snapshots best-effort
+    try {
+      if (g && g.runQuery) {
+        const { records = [] } = await g.runQuery('MATCH (t:Tenant) RETURN DISTINCT t.name AS name ORDER BY name');
+        const tenants = records.map(r => r.get('name')).filter(Boolean);
+        const slug = (s) => String(s).trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+        for (const t of tenants) {
+          try {
+            const tsnap = await g.fullHierarchy(t);
+            const file = path.join(outDir, `graph_snapshot.${slug(t)}.json`);
+            if ((tsnap.nodes || []).length || (tsnap.links || []).length) {
+              fs.writeFileSync(file, JSON.stringify({ generatedAt: Date.now(), tenant: t, ...tsnap }, null, 2));
+              console.log('[startup][graph] Wrote tenant snapshot:', file);
+            }
+          } catch (e) { console.warn('[startup][graph] Tenant snapshot failed:', t, String(e)); }
+        }
+      }
+    } catch (e) { console.warn('[startup][graph] Enumerating tenants failed:', String(e)); }
   } catch (e) {
     console.error('[startup][graph] Snapshot failed:', e?.stack || String(e));
   }
@@ -817,7 +842,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const g = createGraphFromEnv(process.env);
       if (g && g.runQuery) {
-        const { records = [] } = await g.runQuery('MATCH (z:Zone) RETURN DISTINCT coalesce(z.roomId, z.name) AS room ORDER BY room');
+        const { records = [] } = await g.runQuery('MATCH (z:Zone) RETURN DISTINCT coalesce(z.roomId, toString(z.id), z.name) AS room ORDER BY room');
         const zones = records.map(r => r.get('room')).filter(Boolean);
         if (zones.length) return sendJson(res, 200, { rooms: zones, source: 'graph.zones' });
       }
@@ -925,9 +950,11 @@ const server = http.createServer(async (req, res) => {
       const snap = await g.fullHierarchy(tenant);
       const outDir = path.join(root, 'data');
       try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
-      const snapPath = path.join(outDir, 'graph_snapshot.json');
+      const slug = (s) => String(s).trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+      const fileName = tenant ? `graph_snapshot.${slug(tenant)}.json` : 'graph_snapshot.json';
+      const snapPath = path.join(outDir, fileName);
       fs.writeFileSync(snapPath, JSON.stringify({ generatedAt: Date.now(), tenant: tenant || null, ...snap }, null, 2));
-      return sendJson(res, 200, { ok: true, nodes: (snap.nodes||[]).length, links: (snap.links||[]).length, file: 'data/graph_snapshot.json' });
+      return sendJson(res, 200, { ok: true, nodes: (snap.nodes||[]).length, links: (snap.links||[]).length, file: `data/${fileName}` });
     } catch (e) {
       return sendJson(res, 500, { error: 'snapshot_failed', detail: String(e) });
     }
@@ -935,9 +962,65 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/api/meta' && req.method === 'GET') {
     const room = query.room;
+    const building = String(query.building || '').trim() || null;
+    const floor = String(query.floor || '').trim() || null;
     if (!room) return sendJson(res, 400, { error: 'room required' });
     const start = query.start ? Number(query.start) : null;
     const end = query.end ? Number(query.end) : null;
+
+    // If room === ALL and a scope is provided, compute union of metrics across devices on this floor/building
+    if ((room === 'ALL') && (building || floor)) {
+      try {
+        const g = createGraphFromEnv(process.env);
+        if (!g || !g.devicesByScope) return sendJson(res, 500, { error: 'graph_not_configured' });
+        const { devices = [] } = await g.devicesByScope({ tenant: null, building, floor, zone: null, type: null });
+        const deviceIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
+        const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+        const fieldSet = new Set();
+        let tsMin = Infinity, tsMax = -Infinity;
+        let inRangeCount = 0;
+        for (const id of deviceIds) {
+          try {
+            const p = path.join(dir, `${id}.csv`);
+            if (!fs.existsSync(p)) continue;
+            const text = fs.readFileSync(p, 'utf8');
+            const lines = text.split(/\r?\n/).filter(Boolean);
+            if (!lines.length) continue;
+            const headers = lines[0].split(',').map(h => h.trim()).filter(Boolean);
+            headers.filter(h => h !== 'ts').forEach(h => fieldSet.add(h));
+            // Update overall ts range and in-range count roughly
+            for (let i = 1; i < lines.length; i++) {
+              const parts = lines[i].split(',');
+              const ts = Number(parts[0]);
+              if (Number.isFinite(ts)) {
+                if (ts < tsMin) tsMin = ts;
+                if (ts > tsMax) tsMax = ts;
+                if (withinRange(ts, start, end)) inRangeCount += 1;
+              }
+            }
+          } catch {}
+        }
+        const fields = Array.from(fieldSet).sort();
+        return sendJson(res, 200, {
+          scope: { building, floor },
+          devices: deviceIds,
+          tables: {
+            telemetry: {
+              count: null,
+              tsMin: isFinite(tsMin) ? tsMin : null,
+              tsMax: isFinite(tsMax) ? tsMax : null,
+              fields,
+              fieldSpans: {},
+              types: {},
+              inRangeCount
+            }
+          }
+        });
+      } catch (e) {
+        return sendJson(res, 500, { error: 'scope_meta_failed', detail: String(e) });
+      }
+    }
+
     const tables = loadRoomTables(room);
     const meta = {};
     for (const [tname, rows] of Object.entries(tables)) {
@@ -1039,6 +1122,7 @@ const server = http.createServer(async (req, res) => {
         let effRoom = room || null;
         let scopeNote = '';
         let selectionRooms = [];
+        let selectionZones = [];
         try {
           if (selection && (selection.building || selection.floor || selection.room)) {
             const g = createGraphFromEnv(process.env);
@@ -1049,7 +1133,23 @@ const server = http.createServer(async (req, res) => {
               if (devIds.length) {
                 effRoom = 'ALL';
                 selectionRooms = devIds;
-                scopeNote = `Scope: building=${selection.building||''} floor=${selection.floor||''} zone=${selection.room||''} devices=[${devIds.slice(0,30).join(', ')}${devIds.length>30?' …':''}]`;
+                // Include zones list for scope; omit devices from note
+                let roomsList = [];
+                try {
+                  if (g && g.roomsByScope) {
+                    const r = await g.roomsByScope({ building: selection.building || null, floor: selection.floor || null });
+                    const raw = (r && r.rooms) ? r.rooms : [];
+                    try {
+                      const cy = 'UNWIND $ids AS k MATCH (z:Zone) WHERE coalesce(toString(z.roomId),toString(z.id),z.name)=k RETURN DISTINCT z.name AS name';
+                      const rr = await g.runQuery(cy, { ids: raw });
+                      roomsList = (rr.records || []).map(rec => rec.get('name')).filter(Boolean);
+                    } catch {
+                      roomsList = raw;
+                    }
+                    selectionZones = roomsList;
+                  }
+                } catch {}
+                scopeNote = `Scope: ${selection.tenant ? 'tenant='+selection.tenant+' ' : ''}building=${selection.building||''} floor=${selection.floor||''} zones=[${roomsList.slice(0,30).map(z=>`"${z}"`).join(', ')}${roomsList.length>30?' …':''}]`;
               }
             } else if (g && g.devicesByScope && (selection.building || selection.floor)) {
               // Building/floor scope: gather all devices under this scope
@@ -1058,7 +1158,16 @@ const server = http.createServer(async (req, res) => {
               if (devIds.length) {
                 effRoom = 'ALL';
                 selectionRooms = devIds;
-                scopeNote = `Scope: ${selection.building ? 'building='+selection.building+' ' : ''}${selection.floor ? 'floor='+selection.floor+' ' : ''}devices=[${devIds.slice(0,30).join(', ')}${devIds.length>30?' …':''}]`;
+                // Include zones list for scope; omit devices from note
+                let roomsList = [];
+                try {
+                  if (g && g.roomsByScope) {
+                    const r = await g.roomsByScope({ building: selection.building || null, floor: selection.floor || null });
+                    roomsList = (r && r.rooms) ? r.rooms : [];
+                    selectionZones = roomsList;
+                  }
+                } catch {}
+                scopeNote = `Scope: ${selection.tenant ? 'tenant='+selection.tenant+' ' : ''}${selection.building ? 'building='+selection.building+' ' : ''}${selection.floor ? 'floor='+selection.floor+' ' : ''}zones=[${roomsList.slice(0,30).map(z=>`"${z}"`).join(', ')}${roomsList.length>30?' …':''}]`;
               }
             }
           }
@@ -1066,7 +1175,16 @@ const server = http.createServer(async (req, res) => {
         // If still nothing, default to ALL and include all S3 devices
         if (!effRoom) {
           effRoom = 'ALL';
-          try { const all = listRooms(); selectionRooms = all; scopeNote = `Scope: devices=[${all.slice(0,30).join(', ')}${all.length>30?' …':''}]`; } catch {}
+          try {
+            const g = createGraphFromEnv(process.env);
+            if (g && g.roomsByScope) {
+              const r = await g.roomsByScope({});
+              selectionZones = (r && Array.isArray(r.rooms)) ? r.rooms : [];
+            }
+            // devices list kept internal; scope note shows only zones
+            const zList = selectionZones || [];
+            scopeNote = `Scope: zones=[${zList.slice(0,30).map(z=>`"${z}"`).join(', ')}${zList.length>30?' …':''}]`;
+          } catch {}
         }
         if (DEBUG_HTTP) console.log('[API/chat] effective room=', effRoom, 'note=', scopeNote);
 
@@ -1092,7 +1210,7 @@ const server = http.createServer(async (req, res) => {
 
         // Use the tool-enabled agent (RAG + tools). If it can't complete, fall back to heuristics.
         const effMessages = scopeNote ? [{ role: 'user', content: scopeNote }, ...messages, { role: 'user', content: question }] : messages.concat({ role: 'user', content: question });
-        const { message, chart, trace, extras } = await agent.run(effMessages, { room: effRoom, range, selectionRooms });
+        const { message, chart, trace, extras } = await agent.run(effMessages, { room: effRoom, range, selectionRooms, selectionZones, tenant: (selection && selection.tenant) ? String(selection.tenant) : null });
         if (!message || !message.content || /^Unable to complete tool-based reasoning/i.test(message.content)) {
           const fb = answerWithFallback(question, room, range || {});
           return sendJson(res, 200, { message: { role: 'assistant', content: fb.answer }, chart: fb.chart, mode: 'fallback', trace: [] });
@@ -1219,15 +1337,16 @@ const server = http.createServer(async (req, res) => {
         WHERE $tenant IS NULL OR t.name=$tenant OR toString(t.id)=$tenant
         MATCH (b:Building)
         WHERE $tenant IS NULL OR (b)-[:BELONGS_TO_TENANT]->(t)
-        OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING|BELONGS_TO_BUILDING|IN_BUILDING]->(b)
-        OPTIONAL MATCH (z1:Zone)-[:LOCATED_ON_FLOOR|BELONGS_TO_FLOOR]->(f)
-        OPTIONAL MATCH (z2:Zone)-[:LOCATED_IN_BUILDING|BELONGS_TO_BUILDING]->(b)
-        WITH b, f, coalesce(z1, z2) AS z
+        OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
+        OPTIONAL MATCH (z:Zone)-[:LOCATED_IN_BUILDING]->(b)
+        WITH b, f, z
         OPTIONAL MATCH (d:Device)
-        WHERE (z IS NOT NULL AND (d)-[:LOCATED_IN_ZONE]->(z)) OR (z IS NULL AND (d)-[:IN_BUILDING|LOCATED_IN_BUILDING]->(b))
+        WHERE (z IS NOT NULL AND (d)-[:LOCATED_IN_ZONE]->(z))
+           OR (f IS NOT NULL AND (d)-[:LOCATED_ON_FLOOR]->(f))
+           OR (z IS NULL AND f IS NULL AND (d)-[:IN_BUILDING]->(b))
         RETURN b.name AS building,
                f.name AS floor,
-               coalesce(z.roomId, z.name) AS zone,
+               coalesce(z.roomId, toString(z.id), z.name) AS zone,
                collect(DISTINCT coalesce(d.id, d.cloud_id, d.deviceId, d.name)) AS devices
       `;
       const { records } = await g.runQuery(cy, { tenant });
@@ -1262,9 +1381,30 @@ const server = http.createServer(async (req, res) => {
       const g = createGraphFromEnv(process.env);
       if (!g || !g.devicesByScope) return sendJson(res, 500, { error: 'graph_not_configured' });
       const { devices = [] } = await g.devicesByScope({ tenant, building, floor, zone, type: null });
-      const deviceIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
+      // Preserve zone/floor meta per device
+      const devMeta = new Map();
+      for (const d of devices) {
+        const id = String(d.id || '').trim();
+        if (!id) continue;
+        devMeta.set(id, { zone: d.zone || null, floor: d.floor || null, building: d.building || null });
+      }
+      const allDevIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
+      let deviceIds = allDevIds.slice();
+      // Filter to S3-present devices (cloud_id-based filenames)
+      try {
+        const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+        if (fs.existsSync(dir)) {
+          const s3set = new Set(fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.csv')).map(f => f.replace(/\.csv$/i, '')));
+          deviceIds = deviceIds.filter(id => s3set.has(String(id)));
+        }
+      } catch {}
       const byDevice = {};
       const union = new Map();
+      const zonesSet = new Set();
+      const floorsSet = new Set();
+      const byZoneFields = new Map(); // zone -> Set(fields)
+      const byFloorFields = new Map(); // floor -> Set(fields)
+      const coverage = new Map(); // metric -> {zones:Set, floors:Set}
       // Include per-building weather metrics (prefixed) in union if building given
       const weatherFields = [];
       try {
@@ -1290,12 +1430,13 @@ const server = http.createServer(async (req, res) => {
           OPTIONAL MATCH (d)-[:HAS_TELEMETRY_KEY]->(k:TelemetryKey)
           RETURN raw AS id, collect(DISTINCT k.name) AS keys
         `;
-        const { records } = await g.runQuery(cy, { ids: deviceIds });
+        const { records } = await g.runQuery(cy, { ids: allDevIds });
         for (const r of (records || [])) graphKeys.set(String(r.get('id')), (r.get('keys') || []).filter(Boolean));
       } catch {}
       // 2) Fallback to S3 headers when no graph keys present
       const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
-      for (const id of deviceIds) {
+      const idsForFields = deviceIds.length ? deviceIds : allDevIds;
+      for (const id of idsForFields) {
         let fields = graphKeys.get(id) || [];
         if (!fields || fields.length === 0) {
           try {
@@ -1311,12 +1452,44 @@ const server = http.createServer(async (req, res) => {
         const uniq = Array.from(new Set((fields || []).filter(Boolean))).sort();
         byDevice[id] = uniq;
         for (const f of uniq) union.set(f, (union.get(f) || 0) + 1);
+
+        // Aggregate zone/floor per metric
+        const meta = devMeta.get(id) || {};
+        const z = meta.zone || null;
+        const fl = meta.floor || null;
+        if (z) zonesSet.add(z);
+        if (fl) floorsSet.add(fl);
+        for (const m of uniq) {
+          if (!coverage.has(m)) coverage.set(m, { zones: new Set(), floors: new Set() });
+          const c = coverage.get(m);
+          if (z) c.zones.add(z);
+          if (fl) c.floors.add(fl);
+        }
+        // byZoneFields and byFloorFields
+        if (z) {
+          const set = byZoneFields.get(z) || new Set();
+          uniq.forEach(x => set.add(x));
+          byZoneFields.set(z, set);
+        }
+        if (fl) {
+          const set = byFloorFields.get(fl) || new Set();
+          uniq.forEach(x => set.add(x));
+          byFloorFields.set(fl, set);
+        }
       }
       // Add weather.* fields to union (count as 1 for scope)
       for (const wf of weatherFields) union.set(wf, (union.get(wf) || 0) + 1);
       const metrics = Array.from(new Set([...union.keys()])).sort();
       const counts = Object.fromEntries(metrics.map(k => [k, union.get(k)]));
-      return sendJson(res, 200, { scope: { tenant, building, floor, zone }, devices: deviceIds, metrics, counts, byDevice, weather: weatherFields });
+      const zones = Array.from(zonesSet);
+      const floorsArr = Array.from(floorsSet);
+      const byZone = Object.fromEntries(Array.from(byZoneFields.entries()).map(([k,v])=>[k, Array.from(v).sort()]));
+      const byFloor = Object.fromEntries(Array.from(byFloorFields.entries()).map(([k,v])=>[k, Array.from(v).sort()]));
+      const perMetricCoverage = Object.fromEntries(metrics.map(m => [m, {
+        zones: Array.from((coverage.get(m)?.zones || new Set()).values()).sort(),
+        floors: Array.from((coverage.get(m)?.floors || new Set()).values()).sort()
+      }]));
+      return sendJson(res, 200, { scope: { tenant, building, floor, zone }, devices: deviceIds, metrics, counts, byDevice, zones, floors: floorsArr, byZone, byFloor, coverage: perMetricCoverage, weather: weatherFields });
     } catch (e) { return sendJson(res, 500, { error: 'scope_metrics_failed', detail: String(e) }); }
   }
   return serveStatic(req, res);

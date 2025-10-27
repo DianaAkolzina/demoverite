@@ -8,6 +8,7 @@ import path from 'path';
 export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, callGeminiChat, graph = null, vector = null }) {
   const DEBUG = process.env.RAG_DEBUG === '1' || process.env.LOG_LEVEL === 'debug';
   const log = (...a) => { if (DEBUG) console.log('[Agent]', ...a); };
+  let activeTenant = null;
   
   // Build RAG index once at startup
   const docs = buildDocsFromData({
@@ -23,7 +24,9 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
   function loadGraphSnapshot() {
     try {
       const rootDir = path.join(path.dirname(dataDir));
-      const p = path.join(rootDir, 'data', 'graph_snapshot.json');
+      const slug = (s) => String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+      const file = activeTenant ? `graph_snapshot.${slug(activeTenant)}.json` : 'graph_snapshot.json';
+      const p = path.join(rootDir, 'data', file);
       const raw = fs.readFileSync(p, 'utf8');
       return JSON.parse(raw);
     } catch { return null; }
@@ -46,6 +49,11 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       { name: 'weather_fetch', args: { fields: 'string[]', start: 'number?', end: 'number?', limit: 'number?' }, desc: 'Fetch weather rows' },
       { name: 'latest_value', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Latest ts and value for a field in a table within range' },
       { name: 'latest_per_room', args: { table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Latest value per room for a field' },
+      { name: 'rooms_unused_today', args: {}, desc: 'Rooms with no occupancy since local midnight' },
+      { name: 'lowest_occupancy_hours', args: { rooms: 'string[]?', start: 'number?', end: 'number?', top_n: 'number?' }, desc: 'Hours with lowest average occupancy across rooms' },
+      { name: 'energy_per_occupant_scope', args: { rooms: 'string[]?', start: 'number?', end: 'number?' }, desc: 'Energy per occupant across rooms (delta_kwh / total people_count)' },
+      { name: 'demand_response_energy', args: { rooms: 'string[]?', windows: '[{start:number,end:number}]' }, desc: 'Energy used during demand-response windows across rooms' },
+      { name: 'aggregate_timeseries_scope', args: { rooms: 'string[]?', table: 'string', field: 'string', agg: 'string?', bucket: 'string?', start: 'number?', end: 'number?' }, desc: 'Aggregate a metric across rooms over time. agg=sum|avg, bucket=hour|day. Returns [{ts,y}]' },
       { name: 'scope_multiline', args: { tenant: 'string?', building: 'string?', floor: 'string?', zone: 'string?', metric: 'string', start: 'number?', end: 'number?', limit_per_series: 'number?' }, desc: 'Multi-line plotting: for a scope (tenant/building/floor/zone), returns a series per device for the given metric. Uses S3 telemetry and graph mapping.' },
       { name: 'current_occupied_rooms', args: { threshold: 'number?' }, desc: 'Rooms currently occupied based on latest people_count > threshold (default 0)' },
       { name: 'occupancy_current_total', args: {}, desc: 'Sum of latest people_count across all rooms' },
@@ -890,6 +898,74 @@ function parseFieldsFromQuestion(question, availableSets) {
       }
       const corr = pearson(pairs.map(p => p[0]), pairs.map(p => p[1]));
       return { n: pairs.length, corr, field1, field2 };
+    },
+
+    rooms_unused_today() {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const end = now.getTime();
+      return this.rooms_unused_in_window({ start, end });
+    },
+
+    lowest_occupancy_hours({ rooms = null, start = null, end = null, top_n = 3 }) {
+      const R = Array.isArray(rooms) && rooms.length ? rooms : listRooms();
+      const byHour = Array.from({ length: 24 }, () => ({ sum:0, n:0 }));
+      for (const r of R) {
+        const people = (loadRoomTables(r).people || [])
+          .filter(x => withinRange(x.ts, start, end) && Number.isFinite(Number(x.people_count)));
+        for (const p of people) { const h = new Date(p.ts).getHours(); byHour[h].sum += Number(p.people_count)||0; byHour[h].n++; }
+      }
+      const stats = byHour.map((b,h)=>({ h, avg: b.n? b.sum/b.n : null, n: b.n }));
+      const ranked = stats.filter(s=>s.avg!=null).sort((a,b)=>a.avg-b.avg).slice(0, top_n);
+      return { hours: ranked, stats };
+    },
+
+    energy_per_occupant_scope({ rooms = null, start = null, end = null }) {
+      const R = Array.isArray(rooms) && rooms.length ? rooms : listRooms();
+      let totalEnergy = 0, totalPeople = 0; const perRoom = [];
+      for (const r of R) {
+        const e = this.energy_delta_kwh({ room: r, start, end });
+        const p = this.people_total({ room: r, start, end });
+        if (Number.isFinite(e.delta_kwh)) totalEnergy += e.delta_kwh;
+        if (Number.isFinite(p.sum)) totalPeople += p.sum;
+        perRoom.push({ room: r, delta_kwh: e.delta_kwh ?? null, people_sum: p.sum ?? null, kwh_per_person: (e.delta_kwh && p.sum) ? e.delta_kwh / p.sum : null });
+      }
+      const overall = totalPeople ? totalEnergy / totalPeople : null;
+      return { overall_kwh_per_person: overall, total_kwh: totalEnergy, total_people: totalPeople, perRoom };
+    },
+
+    demand_response_energy({ rooms = null, windows = [] }) {
+      const R = Array.isArray(rooms) && rooms.length ? rooms : listRooms();
+      const out = [];
+      for (const w of (Array.isArray(windows)? windows: [])) {
+        let delta = 0;
+        for (const r of R) { const e = this.energy_delta_kwh({ room: r, start: w.start, end: w.end }); if (Number.isFinite(e.delta_kwh)) delta += e.delta_kwh; }
+        out.push({ start: w.start, end: w.end, delta_kwh: delta });
+      }
+      return out;
+    },
+
+    aggregate_timeseries_scope({ rooms = null, table, field, agg = 'sum', bucket = 'hour', start = null, end = null }) {
+      const R = Array.isArray(rooms) && rooms.length ? rooms : listRooms();
+      const byBucket = new Map(); // tsBucket -> { sum, n }
+      function floorDay(ts) { const d=new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
+      const bucketFn = bucket === 'day' ? floorDay : floorHour;
+      for (const r of R) {
+        const t = loadRoomTables(r);
+        const tab = resolveTable(r, table);
+        const arr = (t[tab] || []).filter(x => withinRange(x.ts, start, end));
+        for (const row of arr) {
+          const v = Number(row[field]);
+          if (!Number.isFinite(v)) continue;
+          const k = bucketFn(row.ts);
+          const cur = byBucket.get(k) || { sum: 0, n: 0 };
+          cur.sum += v; cur.n += 1; byBucket.set(k, cur);
+        }
+      }
+      const out = Array.from(byBucket.entries())
+        .sort((a,b)=>a[0]-b[0])
+        .map(([ts, s]) => ({ ts, y: agg === 'avg' ? (s.n ? s.sum / s.n : 0) : s.sum }));
+      return out;
     },
     
     unoccupied_over_temp({ room, temp = 21, start = null, end = null }) {
@@ -2123,7 +2199,8 @@ function parseFieldsFromQuestion(question, availableSets) {
     return { retrieved: head, schema, meta, range, room, selectionRooms, _retrievedDocs: retrieved };
   }
 
-  async function run(messages, { room, range, selectionRooms = [] }) {
+  async function run(messages, { room, range, selectionRooms = [], selectionZones = [], tenant = null }) {
+    activeTenant = tenant || null;
     const question = messages[messages.length - 1]?.content || '';
 
     // --- ROUTING & HYBRID RETRIEVAL ---
@@ -2152,10 +2229,25 @@ function parseFieldsFromQuestion(question, availableSets) {
 const startFmt = startDate ? `${startDate.toLocaleString()} (UTC: ${startDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
 const endFmt = endDate ? `${endDate.toLocaleString()} (UTC: ${endDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
 
+    // Resolve zone labels from snapshot when possible
+    let zoneLabels = selectionZones;
+    try {
+      const snap = loadGraphSnapshot();
+      if (snap && Array.isArray(snap.nodes) && Array.isArray(selectionZones)) {
+        const zNodes = snap.nodes.filter(n => (n.nodeType||n.label)==='Zone');
+        const byId = new Map(zNodes.map(n => [String(n.roomId ?? n.name ?? ''), n]));
+        zoneLabels = selectionZones.map(z => {
+          const key = String(z);
+          const n = byId.get(key) || zNodes.find(nn => String(nn.name)===key);
+          return n && n.name ? n.name : key;
+        });
+      }
+    } catch {}
+
 const sys = `You are a senior data analyst agent for building operations.
 Selected room: ${room || '(none)'}.
-Rooms in scope: ${Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room || '(none)')}
-${room === 'ALL' && selectionRooms && selectionRooms.length ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these rooms. Do NOT invent other rooms.` : ''}
+Rooms in scope: ${Array.isArray(zoneLabels) && zoneLabels.length ? zoneLabels.join(', ') : (Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room || '(none)'))}
+${room === 'ALL' && (selectionZones?.length || selectionRooms?.length) ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these rooms. Do NOT invent other rooms.` : ''}
 Selected time window: 
 - Local: ${startFmt} to ${endFmt}
 - Epoch ms: start=${rr.start ?? 'none'} end=${rr.end ?? 'none'}
@@ -2170,6 +2262,8 @@ DOMAIN NOTE: "Zone" and "Room" are synonyms in this system. When the user mentio
 ${knowledgeSnippets || 'No extra knowledge found for this query.'}
 
 RULE: Do NOT dump or quote long passages from knowledge. If you use it, REPHRASE concisely in your own words and keep it brief.
+
+When you reference a telemetry key (e.g. co2, total_kwh, people_count), briefly define it using the Telemetry Keys Glossary from the knowledge pack when helpful to user understanding.
 
 === CRITICAL CHART RULES ===
 NEVER embed data arrays directly in chart JSON. This will ALWAYS cause truncation and failure.

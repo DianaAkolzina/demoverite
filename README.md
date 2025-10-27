@@ -25,11 +25,13 @@ cd avmsolutions
 scripts/dev_controls.sh start
 ```
 This ensures Chroma, indexes knowledge, mirrors S3 telemetry locally into `./CSVex_s3`, and starts the app on `http://localhost:3000`.
+Snapshots: the server writes graph snapshots to `./data/graph_snapshot.json` and per-tenant files `./data/graph_snapshot.<tenant>.json` (these are volume-mounted from `/app/data`).
 
 Useful commands:
 - `scripts/dev_controls.sh sync-s3` to refresh local telemetry mirror
 - `scripts/dev_controls.sh status` to check /api/status
 - `scripts/dev_controls.sh logs` to tail app logs
+ - `curl -X POST http://localhost:3000/api/graph/snapshot` to regenerate the default snapshot, or `-d '{"tenant":"<name>"}'` for a tenant-specific snapshot saved under `./data`.
 
 ## Telemetry via S3
 
