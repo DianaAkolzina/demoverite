@@ -9,9 +9,7 @@ import { createVectorClient } from './vector.js';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const csvexDir = process.env.CSV_DIR
-  ? path.resolve(root, process.env.CSV_DIR)
-  : path.join(root, 'CSVex');
+const s3LocalDir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
 
 // Simple env loader
 const envPath = path.join(root, '.env');
@@ -73,6 +71,15 @@ function readJsonSafe(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
 }
 
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk; if (data.length > 1e6) { reject(new Error('body too large')); req.destroy(); } });
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+}
+
 async function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 async function runCmd(cmd, args, env = process.env) {
   return new Promise((resolve, reject) => {
@@ -107,27 +114,25 @@ async function neo4jVerifyConnectivityFromEnv(env = process.env) {
 }
 
 async function ensureDatastores() {
-  if ((process.env.NEO4J_SKIP_CHECK || '0') === '1') {
-    console.warn('[startup] Skipping Neo4j readiness check (NEO4J_SKIP_CHECK=1)');
-    return;
-  }
+  const skipCheck = (process.env.NEO4J_SKIP_CHECK || '0') === '1';
+  if (skipCheck) console.warn('[startup] Skipping Neo4j readiness wait (NEO4J_SKIP_CHECK=1)');
   // Neo4j is REQUIRED
   const { NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD } = process.env;
   if (!NEO4J_URI || !NEO4J_USERNAME || !NEO4J_PASSWORD) {
     console.error('[startup] Neo4j env missing. Set NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD');
     process.exit(1);
   }
-  let ok = false; let attempts = 0; const maxAttempts = Number(process.env.NEO4J_WAIT_ATTEMPTS || 150); // ~5 minutes at 2s
+  let ok = skipCheck ? true : false; let attempts = 0; const maxAttempts = Number(process.env.NEO4J_WAIT_ATTEMPTS || 150); // ~5 minutes at 2s
   while (!ok && attempts < maxAttempts) {
     attempts++;
     try {
-      // Prefer direct verifyConnectivity (avoids cypher permissions/DB name mismatches)
       ok = await neo4jVerifyConnectivityFromEnv(process.env);
       if (!ok) {
         if (attempts % 5 === 0) console.log(`[startup] Waiting for Neo4j... attempt ${attempts}/${maxAttempts}`);
         await wait(2000);
       }
-    } catch {
+    } catch (e) {
+      if (attempts % 5 === 0) console.warn('[startup] Neo4j check error:', String(e));
       await wait(2000);
     }
   }
@@ -143,21 +148,38 @@ async function ensureDatastores() {
     console.log('[startup] Populating Neo4j graph…');
     await runCmd('node', ['scripts/populate_neo4j.js']);
   }
-  // After Neo4j is reachable (and optionally populated), capture a lightweight graph snapshot for agent tools
+  // After Neo4j step, attempt to capture a lightweight graph snapshot for agent/UI
   try {
+    console.log('[startup][graph] Taking snapshot...');
+    const outDir = path.join(root, 'data');
+    try { fs.mkdirSync(outDir, { recursive: true }); } catch (e) { console.warn('[startup][graph] mkdir failed:', String(e)); }
     const g = createGraphFromEnv(process.env);
+    let snap = { nodes: [], links: [] };
     if (g && g.fullHierarchy) {
-      const snap = await g.fullHierarchy();
-      const outDir = path.join(root, 'data');
-      try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
-      const snapPath = path.join(outDir, 'graph_snapshot.json');
-      fs.writeFileSync(snapPath, JSON.stringify({ generatedAt: Date.now(), ...snap }, null, 2));
-      if (process.env.HTTP_DEBUG === '1' || process.env.LOG_LEVEL === 'debug') {
-        console.log('[startup] Wrote graph snapshot to', snapPath, 'nodes', (snap.nodes||[]).length, 'links', (snap.links||[]).length);
+      snap = await g.fullHierarchy(null);
+      const nodes = snap?.nodes?.length || 0; const links = snap?.links?.length || 0;
+      console.log('[startup][graph] Snapshot computed: nodes', nodes, 'links', links);
+      if (!nodes || !links) console.warn('[startup][graph] Warning: snapshot has low counts (nodes or links missing). Check relationship names and filters.');
+      // Optional per-building weather
+      if (process.env.OPENWEATHER_API_KEY && (process.env.WEATHER_FETCH_ALL_BUILDINGS || '1') === '1') {
+        try {
+          const { records } = await g.runQuery('MATCH (b:Building) RETURN b.name AS name, b.lat AS lat, b.long AS lon, b.latitude AS lat2, b.longitude AS lon2');
+          const items = (records || []).map(r => ({ name: r.get('name'), lat: r.get('lat') ?? r.get('lat2'), lon: r.get('lon') ?? r.get('lon2') })).filter(x => x && x.name && x.lat != null && x.lon != null);
+          console.log('[startup][weather] Buildings with coordinates:', items.length);
+          for (const it of items) {
+            try { const res = await fetchAndCacheWeatherForBuilding(it.name, it.lat, it.lon); if (res && res.ok) console.log(`[startup][weather] Cached for ${it.name}: rows=${res.rows}`); } catch (e) { console.warn('[startup][weather] Fetch failed:', String(e)); }
+            await wait(300);
+          }
+        } catch (e) { console.warn('[startup][weather] Prefetch step failed:', String(e)); }
       }
+    } else {
+      console.warn('[startup][graph] Adapter not configured or missing fullHierarchy; writing empty snapshot for UI baselines');
     }
+    const snapPath = path.join(outDir, 'graph_snapshot.json');
+    fs.writeFileSync(snapPath, JSON.stringify({ generatedAt: Date.now(), ...snap }, null, 2));
+    console.log('[startup][graph] Wrote snapshot to', snapPath);
   } catch (e) {
-    console.warn('[startup] Graph snapshot failed:', String(e));
+    console.error('[startup][graph] Snapshot failed:', e?.stack || String(e));
   }
   if (process.env.CHROMA_URL && (process.env.CHROMA_SKIP_INDEX || '0') !== '1') {
     const base = String(process.env.CHROMA_URL).replace(/\/$/, '');
@@ -192,10 +214,11 @@ async function ensureDatastores() {
 }
 
 function listRooms() {
-  if (!fs.existsSync(csvexDir)) return [];
-  return fs.readdirSync(csvexDir, { withFileTypes: true })
-    .filter(d => d.isDirectory())
-    .map(d => d.name);
+  // Enumerate device CSVs from local S3 mirror only
+  try {
+    if (!fs.existsSync(s3LocalDir)) return [];
+    return fs.readdirSync(s3LocalDir).filter(f => f.endsWith('.csv')).map(f => f.replace(/\.csv$/i, ''));
+  } catch { return []; }
 }
 
 // Helper to parse CSV files
@@ -221,22 +244,44 @@ function parseCSV(filePath) {
 }
 
 function loadRoomTables(room) {
-  const roomDir = path.join(csvexDir, room);
-  if (!fs.existsSync(roomDir)) return {};
-  const files = fs.readdirSync(roomDir).filter(f => f.endsWith('.csv'));
-  const out = {};
-  files.forEach(f => {
-    const table = f.replace(/\.csv$/, '');
-    const filePath = path.join(roomDir, f);
-    out[table] = parseCSV(filePath);
-  });
-  // Normalize: sort each table by ts ascending and drop rows without ts
-  for (const k of Object.keys(out)) {
-    const arr = (out[k] || []).filter(r => r && r.ts != null);
-    arr.sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
-    out[k] = arr;
-  }
-  return out;
+  // S3 mode: interpret room as deviceId and load its telemetry CSV
+  try {
+    const filePath = path.join(s3LocalDir, `${room}.csv`);
+    if (!fs.existsSync(filePath)) return {};
+    const rows = parseCSV(filePath).filter(r => r && r.ts != null).sort((a,b)=>(a.ts??0)-(b.ts??0));
+    // Optional: log a one-time match hint via Neo4j mapping
+    if (!loadRoomTables._logged) loadRoomTables._logged = new Set();
+    if (!loadRoomTables._logged.has(room)) {
+      loadRoomTables._logged.add(room);
+      try {
+        // Best-effort property match
+        const idNorm = String(room).toLowerCase().replace(/[-_]/g,'');
+        import('neo4j-driver').then(m => {
+          const neo4j = m.default || m;
+          const uri = process.env.NEO4J_URI, user = process.env.NEO4J_USERNAME, pass = process.env.NEO4J_PASSWORD, db = process.env.NEO4J_DATABASE || 'neo4j';
+          if (!uri || !user || !pass) return;
+          const drv = neo4j.driver(uri, neo4j.auth.basic(user, pass));
+          const s = drv.session({ database: db });
+          const cy = `
+            MATCH (d:Device)
+            WITH d, [$idNorm] AS ids
+            WITH d, ids, [toString(d.id), toString(d.cloud_id), toString(d.deviceId), toString(d.name)] AS cands
+            WITH d, [x IN cands WHERE x IS NOT NULL | toLower(replace(replace(x,'-',''),'_',''))] AS norms, ids[0] AS target
+            WHERE target IN norms
+            RETURN coalesce(d.id,d.cloud_id,d.deviceId,d.name) AS matchVal,
+                   CASE WHEN toLower(replace(replace(toString(d.cloud_id),'-',''),'_',''))=target THEN 'cloud_id'
+                        WHEN toLower(replace(replace(toString(d.id),'-',''),'_',''))=target THEN 'id'
+                        WHEN toLower(replace(replace(toString(d.deviceId),'-',''),'_',''))=target THEN 'deviceId'
+                        WHEN toLower(replace(replace(toString(d.name),'-',''),'_',''))=target THEN 'name' ELSE 'unknown' END AS matchedBy
+          `;
+          s.run(cy, { idNorm }).then(r => {
+            const rec = r.records?.[0]; if (rec) console.log('[s3] device match', room, '->', rec.get('matchVal'), 'by', rec.get('matchedBy'));
+          }).catch(()=>{}).finally(()=>{s.close(); drv.close();});
+        }).catch(()=>{});
+      } catch {}
+    }
+    return { telemetry: rows };
+  } catch { return {}; }
 }
 
 function findFieldTable(room, field) {
@@ -261,24 +306,49 @@ function withinRange(ts, start, end) {
   return (!start || ts >= start) && (!end || ts <= end);
 }
 
-function loadWeather() {
+function buildingSlug(name) { return String(name||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
+
+function loadWeather(building = null) {
   try {
-    const csv1 = path.join(csvexDir, 'weather', 'weather.csv');
-    const csv2 = path.join(csvexDir, 'weather.csv');
-    const csvPath = fs.existsSync(csv1) ? csv1 : (fs.existsSync(csv2) ? csv2 : null);
-    if (!csvPath) return [];
-    return parseCSV(csvPath).map(r => ({
-      ts: Number(r.ts),
-      temp: Number(r.temp),
-      humidity: Number(r.humidity),
-      pressure: Number(r.pressure),
-      wind_speed: Number(r.wind_speed),
-      wind_deg: Number(r.wind_deg),
-      clouds: Number(r.clouds),
-      weather_main: r.weather_main,
-      weather_desc: r.weather_desc
-    }));
+    // Per-building weather cached under S3 local mirror
+    if (building) {
+      const bslug = buildingSlug(building);
+      const csvb = path.join(s3LocalDir, 'weather_buildings', `${bslug}.csv`);
+      if (fs.existsSync(csvb)) return parseCSV(csvb).map(r => ({ ts: Number(r.ts), temp: Number(r.temp), humidity: Number(r.humidity), pressure: Number(r.pressure), wind_speed: Number(r.wind_speed), wind_deg: Number(r.wind_deg), clouds: Number(r.clouds), weather_main: r.weather_main, weather_desc: r.weather_desc }));
+    }
+    return [];
   } catch { return []; }
+}
+
+// Fetch and cache per-building weather (OpenWeather) using lat/lon from graph
+async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
+  const key = process.env.OPENWEATHER_API_KEY;
+  if (!key || !lat || !lon) return { error: 'missing_api_or_coords' };
+  try {
+    const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&appid=${encodeURIComponent(key)}&units=metric`;
+    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&appid=${encodeURIComponent(key)}&units=metric`;
+    const [curRes, fcRes] = await Promise.all([ fetch(currentUrl), fetch(forecastUrl) ]);
+    const cur = await curRes.json();
+    const fc = await fcRes.json();
+    const rows = [];
+    const push = (ts, main, wind, clouds, weather) => rows.push({
+      ts, temp: main?.temp, humidity: main?.humidity, pressure: main?.pressure,
+      wind_speed: wind?.speed, wind_deg: wind?.deg, clouds: (clouds?.all ?? 0),
+      weather_main: (weather && weather[0] && weather[0].main) || '', weather_desc: (weather && weather[0] && weather[0].description) || ''
+    });
+    if (cur && cur.dt) push(cur.dt * 1000, cur.main, cur.wind, cur.clouds, cur.weather);
+    if (fc && Array.isArray(fc.list)) fc.list.forEach(x => push(x.dt * 1000, x.main, x.wind, x.clouds, x.weather));
+    // Write under S3 local dir for S3-only mode compatibility
+    const outDir = path.join(s3LocalDir, 'weather_buildings');
+    try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
+    const outFile = path.join(outDir, `${buildingSlug(buildingName)}.csv`);
+    const header = 'ts,temp,humidity,pressure,wind_speed,wind_deg,clouds,weather_main,weather_desc\n';
+    const csv = header + rows.map(r => [r.ts, r.temp, r.humidity, r.pressure, r.wind_speed, r.wind_deg, r.clouds, JSON.stringify(r.weather_main).replace(/"/g,''), JSON.stringify(r.weather_desc).replace(/"/g,'')].join(',')).join('\n') + '\n';
+    fs.writeFileSync(outFile, csv);
+    return { ok: true, rows: rows.length, file: outFile };
+  } catch (e) {
+    return { error: String(e) };
+  }
 }
 
 // Basic analytics helpers used both by rule fallback and for LLM context
@@ -744,7 +814,15 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === '/api/rooms' && req.method === 'GET') {
-    return sendJson(res, 200, { rooms: listRooms() });
+    try {
+      const g = createGraphFromEnv(process.env);
+      if (g && g.runQuery) {
+        const { records = [] } = await g.runQuery('MATCH (z:Zone) RETURN DISTINCT coalesce(z.roomId, z.name) AS room ORDER BY room');
+        const zones = records.map(r => r.get('room')).filter(Boolean);
+        if (zones.length) return sendJson(res, 200, { rooms: zones, source: 'graph.zones' });
+      }
+    } catch {}
+    return sendJson(res, 200, { rooms: listRooms(), source: 's3.devices' });
   }
 
   if (pathname === '/api/weather' && req.method === 'GET') {
@@ -827,11 +905,31 @@ const server = http.createServer(async (req, res) => {
     try {
       const g = createGraphFromEnv(process.env);
       if (!g || !g.fullHierarchy) return sendJson(res, 500, { error: 'graph_not_configured' });
-      const out = await g.fullHierarchy();
+      const tenant = String(query.tenant || '').trim() || null;
+      const out = await g.fullHierarchy(tenant);
       if (DEBUG_HTTP) console.log('[HTTP] /api/graph/full -> nodes', out.nodes?.length || 0, 'links', out.links?.length || 0);
       return sendJson(res, 200, out);
     } catch (e) {
       return sendJson(res, 500, { error: 'graph_failed', detail: String(e) });
+    }
+  }
+
+  // Force-generate and persist the current graph snapshot (optionally filtered by tenant)
+  if (pathname === '/api/graph/snapshot' && req.method === 'POST') {
+    try {
+      const g = createGraphFromEnv(process.env);
+      if (!g || !g.fullHierarchy) return sendJson(res, 500, { error: 'graph_not_configured' });
+      let raw = '';
+      try { raw = await readBody(req); } catch {}
+      let tenant = null; try { const j = raw ? JSON.parse(raw) : {}; tenant = (j && j.tenant) ? String(j.tenant).trim() : null; } catch {}
+      const snap = await g.fullHierarchy(tenant);
+      const outDir = path.join(root, 'data');
+      try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
+      const snapPath = path.join(outDir, 'graph_snapshot.json');
+      fs.writeFileSync(snapPath, JSON.stringify({ generatedAt: Date.now(), tenant: tenant || null, ...snap }, null, 2));
+      return sendJson(res, 200, { ok: true, nodes: (snap.nodes||[]).length, links: (snap.links||[]).length, file: 'data/graph_snapshot.json' });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'snapshot_failed', detail: String(e) });
     }
   }
 
@@ -936,35 +1034,40 @@ const server = http.createServer(async (req, res) => {
       try {
         const { messages = [], room, range, selection } = JSON.parse(body || '{}');
         if (DEBUG_HTTP) console.log('[API/chat] selection:', selection);
-        // Compute effective scope/room from selection (building/floor/room)
+        // Compute effective scope from UI selection (building/floor/room(zone))
+        // In S3-only mode, a "room" is a deviceId; zones are mapped to devices via graph.
         let effRoom = room || null;
         let scopeNote = '';
         let selectionRooms = [];
         try {
-          if ((!effRoom || effRoom === 'ALL') && selection && (selection.building || selection.floor || selection.room)) {
+          if (selection && (selection.building || selection.floor || selection.room)) {
             const g = createGraphFromEnv(process.env);
-            if (selection.room) {
-              effRoom = selection.room;
-              scopeNote = `Scope: room=${selection.room}`;
-            } else if (g && g.roomsByScope) {
-              const rs = await g.roomsByScope({ building: selection.building || null, floor: selection.floor || null });
-              let rooms = (rs.rooms || []).filter(Boolean);
-              // Enforce local filtering by building/floor in case the graph returns extra items
-              const bMatch = String(selection.building || '').match(/Building\s+([A-Za-z])$/);
-              const bLetter = bMatch ? bMatch[1].toUpperCase() : null;
-              const fMatch = String(selection.floor || '').match(/Floor\s*(\d+)/i);
-              const fCode = fMatch ? `F${fMatch[1]}` : null;
-              if (bLetter) rooms = rooms.filter(r => String(r).startsWith(`${bLetter}_`));
-              if (fCode) rooms = rooms.filter(r => String(r).split('_')[1] === fCode);
-              if (rooms.length) {
+            // If a specific zone (room) is selected, gather devices in that zone
+            if (selection.room && g && g.devicesByScope) {
+              const { devices = [] } = await g.devicesByScope({ tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null, zone: selection.room || null, type: null });
+              const devIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
+              if (devIds.length) {
                 effRoom = 'ALL';
-                scopeNote = `Scope: ${selection.building ? 'building='+selection.building+' ' : ''}${selection.floor ? 'floor='+selection.floor+' ' : ''}rooms=[${rooms.slice(0,30).join(', ')}${rooms.length>30?' …':''}]`;
-                selectionRooms = rooms;
+                selectionRooms = devIds;
+                scopeNote = `Scope: building=${selection.building||''} floor=${selection.floor||''} zone=${selection.room||''} devices=[${devIds.slice(0,30).join(', ')}${devIds.length>30?' …':''}]`;
+              }
+            } else if (g && g.devicesByScope && (selection.building || selection.floor)) {
+              // Building/floor scope: gather all devices under this scope
+              const { devices = [] } = await g.devicesByScope({ tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null, zone: null, type: null });
+              const devIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
+              if (devIds.length) {
+                effRoom = 'ALL';
+                selectionRooms = devIds;
+                scopeNote = `Scope: ${selection.building ? 'building='+selection.building+' ' : ''}${selection.floor ? 'floor='+selection.floor+' ' : ''}devices=[${devIds.slice(0,30).join(', ')}${devIds.length>30?' …':''}]`;
               }
             }
           }
-        } catch {}
-        if (!effRoom) return sendJson(res, 400, { error: 'room required (or select scope from graph)' });
+        } catch (e) { if (DEBUG_HTTP) console.warn('[API/chat] selection resolution failed:', String(e)); }
+        // If still nothing, default to ALL and include all S3 devices
+        if (!effRoom) {
+          effRoom = 'ALL';
+          try { const all = listRooms(); selectionRooms = all; scopeNote = `Scope: devices=[${all.slice(0,30).join(', ')}${all.length>30?' …':''}]`; } catch {}
+        }
         if (DEBUG_HTTP) console.log('[API/chat] effective room=', effRoom, 'note=', scopeNote);
 
         // --- LOGGING ADDED HERE ---
@@ -1055,6 +1158,167 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { ok: true, useLLM: USE_LLM, provider: LLM_PROVIDER });
   }
 
+  // Weather endpoint (supports building param)
+  if (pathname === '/api/weather' && req.method === 'GET') {
+    try {
+      const building = String(query.building || '').trim() || null;
+      const rows = loadWeather(building);
+      return sendJson(res, 200, { count: rows.length, latest: rows.at(-1) || null, building });
+    } catch (e) { return sendJson(res, 500, { error: 'weather_failed', detail: String(e) }); }
+  }
+
+  // Tenants list
+  if (pathname === '/api/tenants' && req.method === 'GET') {
+    try {
+      const g = createGraphFromEnv(process.env);
+      if (!g || !g.runQuery) return sendJson(res, 500, { error: 'graph_not_configured' });
+      const { records } = await g.runQuery('MATCH (t:Tenant) RETURN DISTINCT t.name AS name ORDER BY name');
+      const tenants = (records || []).map(r => r.get('name')).filter(Boolean);
+      return sendJson(res, 200, { tenants });
+    } catch (e) { return sendJson(res, 500, { error: 'tenants_failed', detail: String(e) }); }
+  }
+
+  // Buildings list for tenant with counts
+  if (pathname === '/api/buildings' && req.method === 'GET') {
+    try {
+      const tenant = String(query.tenant || '').trim() || null;
+      const g = createGraphFromEnv(process.env);
+      if (!g || !g.runQuery) return sendJson(res, 500, { error: 'graph_not_configured' });
+      const cy = `
+        OPTIONAL MATCH (t:Tenant)
+        WHERE $tenant IS NULL OR t.name=$tenant OR toString(t.id)=$tenant
+        MATCH (b:Building)
+        WHERE $tenant IS NULL OR (b)-[:BELONGS_TO_TENANT]->(t)
+        OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING|BELONGS_TO_BUILDING|IN_BUILDING]->(b)
+        OPTIONAL MATCH (z1:Zone)-[:LOCATED_ON_FLOOR|BELONGS_TO_FLOOR]->(f)
+        OPTIONAL MATCH (z2:Zone)-[:LOCATED_IN_BUILDING|BELONGS_TO_BUILDING]->(b)
+        WITH b, collect(DISTINCT f) AS fs, collect(DISTINCT coalesce(z1,z2)) AS zs
+        OPTIONAL MATCH (d:Device)-[:IN_BUILDING|LOCATED_IN_BUILDING]->(b)
+        OPTIONAL MATCH (d2:Device)-[:LOCATED_IN_ZONE]->(:Zone)-[:LOCATED_IN_BUILDING|BELONGS_TO_BUILDING]->(b)
+        WITH b, fs, zs, collect(DISTINCT coalesce(d,d2)) AS ds
+        RETURN b.name AS name,
+               size([x IN fs WHERE x IS NOT NULL]) AS floors,
+               size([x IN zs WHERE x IS NOT NULL]) AS zones,
+               size([x IN ds WHERE x IS NOT NULL]) AS devices
+        ORDER BY name
+      `;
+      const { records } = await g.runQuery(cy, { tenant });
+      const items = (records || []).map(r => ({ name: r.get('name'), floors: r.get('floors') ?? 0, zones: r.get('zones') ?? 0, devices: r.get('devices') ?? 0 }));
+      return sendJson(res, 200, { tenant, buildings: items });
+    } catch (e) { return sendJson(res, 500, { error: 'buildings_failed', detail: String(e) }); }
+  }
+
+  // Topology (Building -> Floors -> Zones -> Devices)
+  if (pathname === '/api/topology' && req.method === 'GET') {
+    try {
+      const tenant = String(query.tenant || '').trim() || null;
+      const g = createGraphFromEnv(process.env);
+      if (!g || !g.runQuery) return sendJson(res, 500, { error: 'graph_not_configured' });
+      const cy = `
+        OPTIONAL MATCH (t:Tenant)
+        WHERE $tenant IS NULL OR t.name=$tenant OR toString(t.id)=$tenant
+        MATCH (b:Building)
+        WHERE $tenant IS NULL OR (b)-[:BELONGS_TO_TENANT]->(t)
+        OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING|BELONGS_TO_BUILDING|IN_BUILDING]->(b)
+        OPTIONAL MATCH (z1:Zone)-[:LOCATED_ON_FLOOR|BELONGS_TO_FLOOR]->(f)
+        OPTIONAL MATCH (z2:Zone)-[:LOCATED_IN_BUILDING|BELONGS_TO_BUILDING]->(b)
+        WITH b, f, coalesce(z1, z2) AS z
+        OPTIONAL MATCH (d:Device)
+        WHERE (z IS NOT NULL AND (d)-[:LOCATED_IN_ZONE]->(z)) OR (z IS NULL AND (d)-[:IN_BUILDING|LOCATED_IN_BUILDING]->(b))
+        RETURN b.name AS building,
+               f.name AS floor,
+               coalesce(z.roomId, z.name) AS zone,
+               collect(DISTINCT coalesce(d.id, d.cloud_id, d.deviceId, d.name)) AS devices
+      `;
+      const { records } = await g.runQuery(cy, { tenant });
+      const byB = new Map();
+      const bfKey = (b,f)=>`${b}||${f||''}`;
+      const byBF = new Map();
+      for (const r of (records || [])) {
+        const b = r.get('building') || 'Unknown';
+        const f = r.get('floor') || null;
+        const z = r.get('zone') || null;
+        const ds = (r.get('devices') || []).filter(Boolean);
+        if (!byB.has(b)) byB.set(b, { name: b, floors: [], unzonedDevices: [] });
+        const B = byB.get(b);
+        if (!f && !z) { ds.forEach(id => { if (!B.unzonedDevices.includes(id)) B.unzonedDevices.push(id); }); continue; }
+        const key = bfKey(b,f);
+        let F = byBF.get(key); if (!F) { F = { name: f, zones: [] }; byBF.set(key,F); B.floors.push(F); }
+        if (z) { let Z = F.zones.find(x=>x.name===z); if (!Z) { Z={ name:z, devices:[]}; F.zones.push(Z); } ds.forEach(id=>{ if(!Z.devices.includes(id)) Z.devices.push(id); }); }
+      }
+      const out = Array.from(byB.values()).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+      out.forEach(B => { B.floors.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))); B.floors.forEach(F=>F.zones.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')))); });
+      return sendJson(res, 200, { tenant, buildings: out });
+    } catch (e) { return sendJson(res, 500, { error: 'topology_failed', detail: String(e) }); }
+  }
+
+  // Metrics available in a scope (tenant/building/floor/zone)
+  if (pathname === '/api/scope/metrics' && req.method === 'GET') {
+    try {
+      const tenant = String(query.tenant || '').trim() || null;
+      const building = String(query.building || '').trim() || null;
+      const floor = String(query.floor || '').trim() || null;
+      const zone = String(query.zone || '').trim() || null;
+      const g = createGraphFromEnv(process.env);
+      if (!g || !g.devicesByScope) return sendJson(res, 500, { error: 'graph_not_configured' });
+      const { devices = [] } = await g.devicesByScope({ tenant, building, floor, zone, type: null });
+      const deviceIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
+      const byDevice = {};
+      const union = new Map();
+      // Include per-building weather metrics (prefixed) in union if building given
+      const weatherFields = [];
+      try {
+        if (building) {
+          const w = loadWeather(building) || [];
+          if (w.length) {
+            const keys = Object.keys(w[0] || {}).filter(k => k !== 'ts');
+            for (const k of keys) weatherFields.push(`weather.${k}`);
+          }
+        }
+      } catch {}
+      // 1) Prefer graph TelemetryKeys per device (batched, with normalized ID matching)
+      const graphKeys = new Map();
+      try {
+        const cy = `
+          UNWIND $ids AS raw
+          WITH raw, toLower(replace(replace(raw,'-',''),'_','')) AS idNorm
+          MATCH (d:Device)
+          WITH raw, idNorm, d,
+            [toString(d.id), toString(d.cloud_id), toString(d.deviceId), toString(d.name)] AS cands
+          WITH raw, d, [x IN cands WHERE x IS NOT NULL | toLower(replace(replace(x,'-',''),'_',''))] AS norms
+          WHERE idNorm IN norms
+          OPTIONAL MATCH (d)-[:HAS_TELEMETRY_KEY]->(k:TelemetryKey)
+          RETURN raw AS id, collect(DISTINCT k.name) AS keys
+        `;
+        const { records } = await g.runQuery(cy, { ids: deviceIds });
+        for (const r of (records || [])) graphKeys.set(String(r.get('id')), (r.get('keys') || []).filter(Boolean));
+      } catch {}
+      // 2) Fallback to S3 headers when no graph keys present
+      const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+      for (const id of deviceIds) {
+        let fields = graphKeys.get(id) || [];
+        if (!fields || fields.length === 0) {
+          try {
+            const p = path.join(dir, `${id}.csv`);
+            if (fs.existsSync(p)) {
+              const text = fs.readFileSync(p, 'utf8');
+              const first = String(text).split(/\r?\n/).find(l => l.trim().length) || '';
+              const headers = first.split(',').map(h => h.trim()).filter(Boolean);
+              fields = headers.filter(h => h !== 'ts');
+            }
+          } catch {}
+        }
+        const uniq = Array.from(new Set((fields || []).filter(Boolean))).sort();
+        byDevice[id] = uniq;
+        for (const f of uniq) union.set(f, (union.get(f) || 0) + 1);
+      }
+      // Add weather.* fields to union (count as 1 for scope)
+      for (const wf of weatherFields) union.set(wf, (union.get(wf) || 0) + 1);
+      const metrics = Array.from(new Set([...union.keys()])).sort();
+      const counts = Object.fromEntries(metrics.map(k => [k, union.get(k)]));
+      return sendJson(res, 200, { scope: { tenant, building, floor, zone }, devices: deviceIds, metrics, counts, byDevice, weather: weatherFields });
+    } catch (e) { return sendJson(res, 500, { error: 'scope_metrics_failed', detail: String(e) }); }
+  }
   return serveStatic(req, res);
 });
 
@@ -1101,6 +1365,14 @@ const agent = createAgent({
 
 ensureDatastores()
   .then(() => {
+    // Warm up LLM for lower-latency first response
+    if (USE_LLM) {
+      try {
+        callGemini('Warmup: respond with OK', { schema: {}, sample: {} })
+          .then(r => console.log('[startup][llm] Warmup ok:', (typeof r === 'string' ? r.slice(0,80) : JSON.stringify(r).slice(0,80))))
+          .catch(e => console.warn('[startup][llm] Warmup failed:', String(e)));
+      } catch (e) { console.warn('[startup][llm] Warmup failed:', String(e)); }
+    }
     server.listen(PORT, () => {
       console.log(`Server listening on http://localhost:${PORT}`);
     });

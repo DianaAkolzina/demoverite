@@ -7,9 +7,7 @@
     "start": "node server/index.js",
     "check:neo4j": "node scripts/check_neo4j.js",
     "populate:neo4j": "node scripts/populate_neo4j.js",
-    "import:csv": "node scripts/import_csv.js",
-    "import:weather": "node scripts/openweather_import.js",
-    "enrich:csv": "node scripts/enrich_csvs.js",
+    "sync:s3": "node scripts/s3_sync_telemetry.js",
     "docker:up": "docker build -t avmsolutions-analytics . && docker run -d --name avmsolutions-analytics -p 3000:3000 --env-file .env avmsolutions-analytics",
     "docker:down": "docker stop avmsolutions-analytics && docker rm avmsolutions-analytics",
     "docker:logs": "docker logs -f avmsolutions-analytics",
@@ -17,6 +15,7 @@
   },
   "dependencies": {
     "node-fetch": "^3.3.2",
-    "neo4j-driver": "^5.22.0"
+    "neo4j-driver": "^5.22.0",
+    "@aws-sdk/client-s3": "^3.645.0"
   }
 }

@@ -46,6 +46,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       { name: 'weather_fetch', args: { fields: 'string[]', start: 'number?', end: 'number?', limit: 'number?' }, desc: 'Fetch weather rows' },
       { name: 'latest_value', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Latest ts and value for a field in a table within range' },
       { name: 'latest_per_room', args: { table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Latest value per room for a field' },
+      { name: 'scope_multiline', args: { tenant: 'string?', building: 'string?', floor: 'string?', zone: 'string?', metric: 'string', start: 'number?', end: 'number?', limit_per_series: 'number?' }, desc: 'Multi-line plotting: for a scope (tenant/building/floor/zone), returns a series per device for the given metric. Uses S3 telemetry and graph mapping.' },
       { name: 'current_occupied_rooms', args: { threshold: 'number?' }, desc: 'Rooms currently occupied based on latest people_count > threshold (default 0)' },
       { name: 'occupancy_current_total', args: {}, desc: 'Sum of latest people_count across all rooms' },
       { name: 'rooms_unused_since', args: { duration_ms: 'number' }, desc: 'Rooms with no people_count > 0 in the last duration_ms' },
@@ -578,8 +579,17 @@ function parseFieldsFromQuestion(question, availableSets) {
   }
 
   const tools = {
-    list_rooms() { 
-      return listRooms(); 
+    list_rooms() {
+      // Prefer zones (rooms) from graph snapshot so that "rooms" align with Zones, not device IDs
+      try {
+        const snap = loadGraphSnapshot();
+        if (snap && Array.isArray(snap.nodes)) {
+          const rooms = snap.nodes.filter(n => (n.nodeType||n.label)==='Zone').map(n => n.roomId || n.name).filter(Boolean);
+          return Array.from(new Set(rooms)).sort();
+        }
+      } catch {}
+      // Fallback to device IDs in S3-only mode
+      return listRooms();
     },
     
     list_tables({ room }) {
@@ -591,6 +601,32 @@ function parseFieldsFromQuestion(question, availableSets) {
       const t = loadRoomTables(room);
       const first = (t[table] || [])[0] || {};
       return Object.keys(first);
+    },
+
+    // Multi-line plotting across a scope (tenant/building/floor/zone)
+    // Returns { series: [ { name, zone, building, deviceId, data:[[ts,value],...] } ], meta: { devices, metric } }
+    scope_multiline({ tenant = null, building = null, floor = null, zone = null, metric, start = null, end = null, limit_per_series = 500 }) {
+      if (!metric) return { series: [], meta: { error: 'metric required' } };
+      const out = [];
+      try {
+        const devResp = (graph && graph.devicesByScope) ? graph.devicesByScope({ tenant, building, floor, zone, type: null }) : { devices: [] };
+        const devList = devResp.devices || [];
+        for (const d of devList) {
+          const devId = String(d.id);
+          const tables = loadRoomTables(devId) || {};
+          const arr = Array.isArray(tables.telemetry) ? tables.telemetry : [];
+          if (!arr.length || !(metric in (arr[0] || {}))) continue;
+          let data = [];
+          for (const r of arr) {
+            if (!withinRange(r.ts, start, end)) continue;
+            const v = Number(r[metric]);
+            if (Number.isFinite(v)) data.push([r.ts, v]);
+          }
+          if (limit_per_series && data.length > limit_per_series) data = sampleArray(data, limit_per_series);
+          out.push({ name: d.name || devId, deviceId: devId, zone: d.zone || null, building: d.building || null, data });
+        }
+      } catch (e) { log('scope_multiline error:', String(e)); }
+      return { series: out, meta: { devices: out.length, metric } };
     },
     
     compute_ratio({ room, table1, field1, table2, field2, start = null, end = null, time_window_ms = 30 * 60 * 1000, zero_if_denominator_zero = true }) {
@@ -2127,6 +2163,8 @@ Selected time window:
 MANDATORY: Always use this time window for all analysis and answers. Do NOT invent or assume any other period. If the user asks "what time period are you analysing", repeat this exact window.
 
 FREEDOM TO ANALYZE: You are encouraged to analyze the data, derive insights, compare across rooms within scope, and synthesize conclusions. Use tools as needed; if tools are insufficient, explain and proceed with reasoned analysis using available data.
+
+DOMAIN NOTE: "Zone" and "Room" are synonyms in this system. When the user mentions a zone, treat it exactly as a room, and vice versa. Use graph relationships (Building → Floor → Zone) to understand placement.
 
 === KNOWLEDGE PACK ENRICHMENT (REPHRASE ONLY) ===
 ${knowledgeSnippets || 'No extra knowledge found for this query.'}

@@ -29,10 +29,7 @@ RUN if [ "$STRIP_COMMENTS" = "1" ]; then python3 scripts/strip_comments.py; fi &
     chmod +x scripts/entrypoint.sh
 
 ENV PORT=3000 \
-    NODE_ENV=production \
-    CSV_DIR=CSVex \
-    CSV_SOURCE_DIR=CSVex \
-    CSV_TARGET_DIR=${CSV_DIR}
+    NODE_ENV=production
 
 # Optional: prefetch sentence-transformers model (can be overridden at runtime)
 # Default to a public, science-oriented, commercially usable model

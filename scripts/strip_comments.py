@@ -2,7 +2,7 @@
 import os,re,sys
 
 ROOT=os.getcwd()
-EXCLUDE_DIRS={'node_modules','.git','CSVex','csvex_enriched','data','public/assets'}
+EXCLUDE_DIRS={'node_modules','.git','CSVex','csvex_enriched','CSVex_s3','data','public/assets'}
 EXTS_JS={'.js','.ts'}
 EXTS_PY={'.py'}
 EXTS_SH={'.sh'}

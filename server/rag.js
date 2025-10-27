@@ -148,24 +148,7 @@ export function buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir
     }
   }
   
-  // Weather schema and data info (from CSV in CSV_DIR)
-  const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-  const csvDir = process.env.CSV_DIR ? path.resolve(root, process.env.CSV_DIR) : path.join(root, 'CSVex_enriched');
-  const csvWeather1 = path.join(csvDir, 'weather', 'weather.csv');
-  const csvWeather2 = path.join(csvDir, 'weather.csv');
-  const csvPath = fs.existsSync(csvWeather1) ? csvWeather1 : (fs.existsSync(csvWeather2) ? csvWeather2 : null);
-  if (csvPath && fs.existsSync(csvPath)) {
-    try {
-      const lines = fs.readFileSync(csvPath, 'utf8').trim().split(/\r?\n/);
-      if (lines.length > 1) {
-        const headers = lines[0].split(',');
-        const firstRow = (lines[1] || '').split(',');
-        const keys = headers.filter(h => h && h !== 'ts');
-        const text = `Weather CSV available with fields: ${keys.join(', ')}. Use weather_fetch tool to retrieve weather data (temp, humidity, pressure, wind_speed, wind_deg, clouds, weather_main, weather_desc).`;
-        docs.push({ id: `w_${id++}`, text, meta: { type: 'weather' } });
-      }
-    } catch {}
-  }
+  // Weather is fetched and cached per building at runtime; no static CSV inspection required.
   
   return docs;
 }

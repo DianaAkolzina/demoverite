@@ -1,6 +1,6 @@
 # Weather Data
 
-The system contains stored weather data collected from external sources. This is historical data that has been saved to files.
+Weather is fetched per building from OpenWeather based on coordinates stored in Neo4j and cached locally under the S3 mirror directory.
 
 ## Available Fields
 - temp: Temperature in Celsius
@@ -17,7 +17,7 @@ The system contains stored weather data collected from external sources. This is
 Weather data is available to a current date which is october 2025
 
 ## How to Access
-Use the weather_fetch tool with appropriate start and end timestamps to retrieve weather data for specific dates.
+Use the weather_fetch tool with appropriate start and end timestamps to retrieve weather data for specific dates. Data is resolved per selected building when available.
 
 Example: To get weather for October 2, 2025:
 - Convert "October 2, 2025" to Unix timestamps (start and end of day)

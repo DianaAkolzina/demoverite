@@ -7,8 +7,7 @@ set -euo pipefail
 # Usage:
 #   scripts/dev_controls.sh build
 #   scripts/dev_controls.sh ensure-chroma
-#   scripts/dev_controls.sh seed
-#   scripts/dev_controls.sh ingest
+#   scripts/dev_controls.sh sync-s3
 #   scripts/dev_controls.sh populate-neo
 #   scripts/dev_controls.sh index-chroma
 #   scripts/dev_controls.sh start        # starts app container
@@ -35,11 +34,26 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-mkdir -p "$ROOT_DIR/CSVex" "$ROOT_DIR/csvex_enriched" "$ROOT_DIR/knowledge" "$ROOT_DIR/chroma"
+mkdir -p "$ROOT_DIR/CSVex_s3" "$ROOT_DIR/knowledge" "$ROOT_DIR/chroma"
 
 is_linux() { [[ "$(uname -s)" == "Linux" ]]; }
 ADD_HOST_OPT=""
 if is_linux; then ADD_HOST_OPT="--add-host=host.docker.internal:host-gateway"; fi
+
+# Optional DNS overrides for containers (helps resolve cloud hosts like Aura)
+# Set DEV_DNS1/DEV_DNS2 in your environment or .env to force specific resolvers.
+DEV_DNS1="${DEV_DNS1:-}"
+DEV_DNS2="${DEV_DNS2:-}"
+if [[ -z "$DEV_DNS1" ]]; then
+  # Auto-detect from /etc/resolv.conf (take up to two nameservers)
+  # shellcheck disable=SC2207
+  ns=( $(awk '/^nameserver/{print $2}' /etc/resolv.conf | head -n2) ) || ns=()
+  DEV_DNS1="${ns[0]:-}"
+  DEV_DNS2="${ns[1]:-}"
+fi
+DNS_OPTS=""
+[[ -n "$DEV_DNS1" ]] && DNS_OPTS+=" --dns $DEV_DNS1"
+[[ -n "$DEV_DNS2" ]] && DNS_OPTS+=" --dns $DEV_DNS2"
 
 wait_for_http() {
   local url="$1"; local tries=${2:-30};
@@ -58,6 +72,7 @@ ensure_chroma() {
   else
     echo "[dev] Launching new $CHROMA_CONTAINER"
     docker run -d --name "$CHROMA_CONTAINER" -p ${CHROMA_PORT}:8000 \
+      ${DNS_OPTS} \
       -e IS_PERSISTENT=TRUE -e ALLOW_RESET=TRUE \
       -v "$ROOT_DIR/chroma:/chroma" ghcr.io/chroma-core/chroma:latest >/dev/null
   fi
@@ -65,16 +80,13 @@ ensure_chroma() {
   wait_for_http "http://localhost:${CHROMA_PORT}/api/v2/heartbeat" 40 || wait_for_http "http://localhost:${CHROMA_PORT}/api/v1/heartbeat" 10 || { echo "[dev] ERROR: Chroma not reachable" >&2; exit 1; }
 }
 
-seed() {
-  echo "[dev] Generating mock CSVs (2x3x2) for the last 120 days"
-  docker run --rm -v "$ROOT_DIR/CSVex:/data/CSVex" -v "$ROOT_DIR/csvex_enriched:/data/CSVex_enriched" \
-    --env-file "$ROOT_DIR/.env" -e DAYS=120 "$IMAGE_NAME" python3 scripts/prepare_mock_data.py
-}
-
-ingest() {
-  echo "[dev] Ingesting CSVs"
-  docker run --rm -v "$ROOT_DIR/CSVex:/data/CSVex" -v "$ROOT_DIR/csvex_enriched:/data/CSVex_enriched" \
-    --env-file "$ROOT_DIR/.env" "$IMAGE_NAME" python3 scripts/ingest_csvex.py
+sync_s3() {
+  if grep -q '^AWS_S3_BUCKET=' "$ROOT_DIR/.env"; then
+    echo "[dev] Syncing telemetry from S3 to ./CSVex_s3"
+    docker run --rm --env-file "$ROOT_DIR/.env" -v "$ROOT_DIR/CSVex_s3:/app/CSVex_s3" "$IMAGE_NAME" node scripts/s3_sync_telemetry.js || true
+  else
+    echo "[dev] Skipping S3 sync (AWS_S3_BUCKET not set)"
+  fi
 }
 
 populate_neo() {
@@ -95,17 +107,17 @@ start_app() {
   echo "[dev] Starting app on :$APP_PORT"
   if docker ps -a --format '{{.Names}}' | grep -q "^${APP_CONTAINER}$"; then docker rm -f "$APP_CONTAINER" >/dev/null || true; fi
   docker run -d --name "$APP_CONTAINER" -p ${APP_PORT}:3000 \
-    -v "$ROOT_DIR/CSVex:/data/CSVex" \
-    -v "$ROOT_DIR/csvex_enriched:/data/CSVex_enriched" \
+    ${DNS_OPTS} \
+    -v "$ROOT_DIR/CSVex_s3:/app/CSVex_s3" \
     -v "$ROOT_DIR/knowledge:/app/knowledge:ro" \
     $ADD_HOST_OPT --env-file "$ROOT_DIR/.env" \
     -e CHROMA_URL=http://host.docker.internal:${CHROMA_PORT} \
-    -e CHROMA_SKIP_INDEX=1 -e NEO4J_SKIP_POPULATE=1 -e SKIP_INGEST=1 \
+    -e CHROMA_SKIP_INDEX=1 -e NEO4J_SKIP_POPULATE=1 -e AWS_S3_ENABLED=1 \
     "$IMAGE_NAME" >/dev/null
 }
 
 restart() {
-  build; ensure_chroma; seed; ingest; populate_neo; index_chroma; start_app
+  build; ensure_chroma; sync_s3; populate_neo; index_chroma; start_app
   echo "[dev] Status:"; curl -fsS "http://localhost:${APP_PORT}/api/status" || true
 }
 
@@ -117,12 +129,41 @@ rooms() { curl -fsS "http://localhost:${APP_PORT}/api/rooms" | sed -e 's/{/\n{/'
 stop() { docker rm -f "$APP_CONTAINER" >/dev/null || true; }
 clean() { docker rm -f "$APP_CONTAINER" "$CHROMA_CONTAINER" >/dev/null || true; }
 
+# Stop app + infra, bring compose down (if present), and wait for ports to free
+cleanup_all() {
+  echo "[dev] Stopping named containers (avmsolutions, chroma, neo4j)"
+  docker rm -f "$APP_CONTAINER" "$CHROMA_CONTAINER" neo4j >/dev/null 2>&1 || true
+  if [ -f "$ROOT_DIR/docker-compose.yml" ]; then
+    echo "[dev] docker compose down -v --remove-orphans"
+    if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+      docker compose down -v --remove-orphans >/dev/null 2>&1 || true
+    elif command -v docker-compose >/dev/null 2>&1; then
+      docker-compose down -v --remove-orphans >/dev/null 2>&1 || true
+    fi
+  fi
+  # Wait for ports to be idle
+  ports=(3000 8000 7474 7687)
+  for p in "${ports[@]}"; do
+    echo "[dev] Waiting for port :$p to be free..."
+    for _ in $(seq 1 20); do
+      if command -v ss >/dev/null 2>&1; then
+        ss -lnt | grep -q ":$p\b" || { echo "[dev] Port :$p is free"; break; }
+      elif command -v lsof >/dev/null 2>&1; then
+        lsof -nP -i :"$p" | grep -q . && sleep 1 || { echo "[dev] Port :$p is free"; break; }
+      else
+        break
+      fi
+      sleep 1
+    done
+  done
+  echo "[dev] Cleanup complete"
+}
+
 cmd=${1:-help}
 case "$cmd" in
   build) build ;;
   ensure-chroma) ensure_chroma ;;
-  seed) seed ;;
-  ingest) ingest ;;
+  sync-s3) sync_s3 ;;
   populate-neo) populate_neo ;;
   index-chroma) index_chroma ;;
   start) start_app ;;
@@ -134,14 +175,14 @@ case "$cmd" in
   rooms) rooms ;;
   stop) stop ;;
   clean) clean ;;
+  cleanup-all) cleanup_all ;;
   *)
     cat <<USAGE
 Usage: $0 <command>
 Commands:
   build            Build the Docker image
   ensure-chroma    Start Chroma or reuse running one and wait for heartbeat
-  seed             Generate mock CSVs (2x3x2)
-  ingest           Ingest CSVs into csvex_enriched
+  sync-s3          Mirror telemetry from S3 into ./CSVex_s3
   populate-neo     Populate Neo4j Aura with mock graph
   index-chroma     Index knowledge + profiles into Chroma
   start            Ensure Chroma, index knowledge, then start the app container
@@ -153,6 +194,7 @@ Commands:
   rooms            List rooms from /api/rooms
   stop             Stop the app container
   clean            Remove app and chroma containers
+  cleanup-all      Stop all related containers, compose down, wait for ports
 USAGE
     ;;
 esac

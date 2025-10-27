@@ -9,8 +9,7 @@ services:
       - 1.1.1.1
     # All environment variables are sourced from .env via env_file above.
     volumes:
-      - ./CSVex:/data/CSVex
-      - ./csvex_enriched:/data/CSVex_enriched
+      - ./CSVex_s3:/app/CSVex_s3
       - ./knowledge:/app/knowledge:ro
     ports:
       - "3000:3000"
