@@ -7,14 +7,72 @@ Populate Chroma with:
 Env:
 - CHROMA_URL (default http://localhost:8000)
 """
-import os, glob, time
+import glob
+import hashlib
+import os
+import re
+import time
+
 import chromadb
+import numpy as np
 from chromadb.config import Settings
-from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 
 CHROMA_URL = os.environ.get('CHROMA_URL', 'http://localhost:8000')
 EMB_MODEL = os.environ.get('CHROMA_EMB_MODEL', 'sentence-transformers/all-MiniLM-L6-v2')
-EF = SentenceTransformerEmbeddingFunction(model_name=EMB_MODEL)
+
+
+class HashEmbeddingFunction:
+    """Lightweight embedding that hashes tokens into a fixed-length vector.
+    Provides deterministic embeddings without heavyweight ML dependencies.
+    """
+
+    def __init__(self, dim: int = 384):
+        self.dim = dim
+        self._token_re = re.compile(r"\w+")
+
+    def name(self) -> str:
+        """Identifier so Chroma can detect embedding-function compatibility."""
+        return f"hash-embedding-{self.dim}"
+
+    def __call__(self, input):
+        texts = input
+        embeddings = []
+        for text in texts:
+            vec = np.zeros(self.dim, dtype=np.float32)
+            if not text:
+                embeddings.append(vec.tolist())
+                continue
+            tokens = self._token_re.findall(text.lower())
+            if not tokens:
+                embeddings.append(vec.tolist())
+                continue
+            for tok in tokens:
+                # Blake2b digest keeps runtime low and deterministic
+                digest = hashlib.blake2b(tok.encode("utf-8"), digest_size=4).digest()
+                idx = int.from_bytes(digest, "big") % self.dim
+                vec[idx] += 1.0
+            norm = np.linalg.norm(vec)
+            if norm > 0:
+                vec /= norm
+            embeddings.append(vec.tolist())
+        return embeddings
+
+
+def create_embedding_function():
+    prefer_transformer = os.environ.get("CHROMA_USE_SENTENCE_TRANSFORMER", "").lower() in ("1", "true", "yes")
+    hash_dim = int(os.environ.get("CHROMA_HASH_DIM", "384"))
+    if prefer_transformer:
+        try:
+            from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+
+            print(f"[index] Using sentence-transformer model: {EMB_MODEL}")
+            return SentenceTransformerEmbeddingFunction(model_name=EMB_MODEL)
+        except Exception as exc:
+            print(f"[index] sentence-transformers unavailable ({exc}); falling back to hash embeddings")
+    return HashEmbeddingFunction(dim=hash_dim)
+
+
+EF = create_embedding_function()
 
 def get_client():
     """HTTP client to the running Chroma server.

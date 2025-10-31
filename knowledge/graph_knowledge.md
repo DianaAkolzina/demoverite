@@ -1,111 +1,72 @@
-Entities (Nodes):
+# Graph Generation and Attributes (Fast Scope Awareness)
 
-Device
+This knowledge pack documents how the building graph is generated, what attributes each node carries, and the shortest-path strategies to resolve scope fast (UI and agent).
 
-Tenant
+## Node Types
+- Building:
+  - Attributes: `id`, `name`, `tenantID`, `lat`, `long`, `is_active`, `floor_count`
+  - Example headers: `buildings id,name,tenantID,lat,long,is_active,floor_count`
+- Floor:
+  - Attributes: `id`, `name`, `buildingID`, `tenantID`, `is_active`, `zone_count`
+  - Example headers: `floors id,name,buildingID,tenantID,is_active,zone_count`
+- Zone (aka Room):
+  - Attributes: `id`, `name`, `floorID`, `buildingID`, `tenantID`, `is_active`, `device_count`
+  - Example headers: `zones id,name,floorID,buildingID,tenantID,is_active,device_count`
+- Device:
+  - Attributes: `id`, `name`, `type`/`deviceType`, `cloudId`, `tenantID`, `buildingID`, `floorID`, `zoneID`, `deviceProfileID`, `is_active`, `licence_status`
+  - Example headers: `device profiles id,name,label,cloud_id,tenantID,buildingID,floorID,zoneID,deviceProfileID,is_active,licence_status`
+- TelemetryKey:
+  - Attributes: `name`
+  - Example headers: `telemetry keys id,cloud_id,keys`
+- Tenant:
+  - Attributes: `id`, `name`, `domain_name`, `is_active`, `reseller_id`
+  - Example headers: `tenants id,name,domain_name,is_active,reseller_id`
 
-Building
+## Relationships
+- `LOCATED_IN_BUILDING` (Floor → Building, Zone → Building)
+- `BELONGS_TO_FLOOR` (Zone → Floor)
+- `IN_BUILDING` (Device → Building)
+- `LOCATED_ON_FLOOR` (Device → Floor)
+- `LOCATED_IN_ZONE` (Device → Zone)
+- `BELONGS_TO_TENANT` (Building/Floor/Zone/Device → Tenant)
+- `HAS_TELEMETRY_KEY` or `MEASURES` (Device ↔ TelemetryKey)
 
-Floor
+## Shortest Paths for Scope Resolution
+- Always resolve UI selections with the following order for best latency:
+  1) Local snapshot JSON under `/data/graph_snapshot.<tenant>.json` (or `/data/graph_snapshot.json`) → parse nodes/links in-memory.
+  2) Cached server endpoints `/api/scope/metrics` → 12s TTL.
+  3) Cached `/api/topology` → 15s TTL.
+  4) Cached `/api/graph/full` → 20s TTL (serves snapshot file if present).
+- Floors for a building:
+  - From snapshot: Floors with `LOCATED_IN_BUILDING` to the selected building AND at least one device reachable via Zone (`BELONGS_TO_FLOOR` → Zone and `LOCATED_IN_ZONE` → Device).
+- Zones for a floor:
+  - From snapshot: Zones with `BELONGS_TO_FLOOR` to the selected floor AND at least one device via `LOCATED_IN_ZONE`.
+- Devices for a zone/floor/building:
+  - Prefer devices reachable via:
+    - Zone: `LOCATED_IN_ZONE`.
+    - Floor: `LOCATED_ON_FLOOR` plus devices via Zones under that floor.
+    - Building: `IN_BUILDING` plus devices via Floors/Zones.
+  - Filter to devices with local S3 data: CSV exists in `CSVex_s3/<cloud_id>.csv`.
 
-Zone
+## Metrics (Telemetry Keys)
+- Preferred source: Graph `HAS_TELEMETRY_KEY`/`MEASURES` to gather TelemetryKey names for each device.
+- Fallback: CSV headers (first row) from `CSVex_s3/<cloud_id>.csv` excluding `ts`.
+- Typical IAQ keys: `temperature`, `humidity`, `co2`, `pm25`, `pm10`, `lux`, `airexchangerate`.
+- People counters: `people_count`, `line_total_data`, `line_periodic_data`, `raw`.
 
-User
+## Agent Guidance
+- For scope questions (“what scope is selected”, “what scope do you see”):
+  - Use the snapshot-first path to enumerate devices and metrics quickly.
+  - Return a nested list: Building → Floor → Zone → Device: metrics (keys).
+- For analysis:
+  - First query data (tools like `fetch_timeseries`, `stats`, `hour_of_day_stats`).
+  - Then consult knowledge. Choose charts with `dataRef`. Avoid embedding arrays.
 
-Role
+## Example Devices (from provided headers)
+- Buildings: 74 Pall Mall (floors=4), 54 Cornerblock (floors=4), 29 Booths Park 1 (floors=1), 71 Mclaren Building (floors=2), 68 Landmark House (floors=1), 4 Centurion House (floors=2), 34 Cotton House - Manchester (floors=1)
+- Device Profiles: Digispace Gateway, People Counter, Occupancy Sensors, Control Devices, Energy Clamps, Air Quality Sensors, Leak Detector, Water Management
+- Telemetry Keys example for People Counter: `['line_total_data','line_periodic_data','raw']`
 
-DeviceProfile
-
-TelemetryKey
-
-Relationships:
-From Device
-
-Device → Tenant: BELONGS_TO_TENANT
-Each device is associated with a specific tenant.
-
-Device → Floor: LOCATED_ON_FLOOR
-The device is physically located on a particular floor.
-
-Device → Zone: LOCATED_IN_ZONE
-The device is located in a particular zone within a building.
-
-Device → Building: IN_BUILDING
-The device resides inside a specific building.
-
-Device → DeviceProfile: HAS_DEVICE_PROFILE
-The device has a corresponding profile that defines its configuration or type.
-
-Device → TelemetryKey: HAS_TELEMETRY_KEY
-The device produces telemetry data associated with specific telemetry keys.
-
-From Tenant
-
-Tenant → Device: BELONGS_TO_TENANT
-Devices are linked back to their tenant.
-
-Tenant → Building: BELONGS_TO_TENANT
-Each building belongs to a tenant.
-
-Tenant → Zone: BELONGS_TO_TENANT
-Each zone belongs to a tenant.
-
-Tenant → Floor: BELONGS_TO_TENANT
-Each floor belongs to a tenant.
-
-Tenant → User: BELONGS_TO_TENANT
-Users are associated with a tenant.
-
-Tenant → Role: HAS_ROLE
-A tenant defines or possesses specific user roles.
-
-From User
-
-User → Role: HAS_ROLE
-A user is assigned one or more roles under the tenant.
-
-User → Building: ASSOCIATED_WITH_BUILDING
-A user has an association with one or more buildings, likely representing access or management permissions.
-
-User → Tenant: BELONGS_TO_TENANT
-The user belongs to a particular tenant.
-
-From Zone
-
-Zone → Building: LOCATED_IN_BUILDING
-Each zone is contained within a specific building.
-
-Zone → Tenant: BELONGS_TO_TENANT
-Each zone belongs to a tenant.
-
-From Floor
-
-Floor → Building: LOCATED_IN_BUILDING
-Each floor is part of a specific building.
-
-Floor → Tenant: BELONGS_TO_TENANT
-Each floor belongs to a tenant.
-
-From Building
-
-Building → Tenant: BELONGS_TO_TENANT
-Each building is managed or owned by a tenant.
-
-Summary View
-Source	Relationship Type	Target	Meaning
-Device	BELONGS_TO_TENANT	Tenant	Device is owned by a tenant
-Device	LOCATED_ON_FLOOR	Floor	Device is located on a specific floor
-Device	LOCATED_IN_ZONE	Zone	Device is in a particular zone
-Device	IN_BUILDING	Building	Device is physically inside a building
-Device	HAS_DEVICE_PROFILE	DeviceProfile	Device has a defined device profile
-Device	HAS_TELEMETRY_KEY	TelemetryKey	Device emits telemetry data with specific telemetry keys
-Tenant	BELONGS_TO_TENANT	Building, Zone, Floor, User, Device	Tenant owns or manages these entities
-Tenant	HAS_ROLE	Role	Tenant defines user roles
-User	HAS_ROLE	Role	User is assigned a role
-User	ASSOCIATED_WITH_BUILDING	Building	User has access or responsibility for a building
-User	BELONGS_TO_TENANT	Tenant	User belongs to a specific tenant
-Zone	LOCATED_IN_BUILDING	Building	Zone is part of a building
-Zone	BELONGS_TO_TENANT	Tenant	Zone belongs to a tenant
-Floor	LOCATED_IN_BUILDING	Building	Floor is part of a building
-Floor	BELONGS_TO_TENANT	Tenant	Floor belongs to a tenant
-Building	BELONGS_TO_TENANT	Tenant	Building belongs to a tenant
+## Notes
+- When building/floor/zone names are ambiguous, prefer link-based disambiguation: resolve zone under floor, then floor under building via the declared relationships.
+- If the tenant is set in UI, always restrict scope resolution to that tenant’s subgraph.

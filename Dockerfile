@@ -1,42 +1,55 @@
 FROM node:18-bookworm-slim
 
+LABEL com.avmsolutions.autoclean="true"
+
 WORKDIR /app
 
-# System packages for Python runtime
+# System packages for Python deps (chromadb, optional embedding extras, etc.)
+ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-       python3 python3-pip python3-venv ca-certificates sqlite3 libsqlite3-0 \
-    && rm -rf /var/lib/apt/lists/*
+ && apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-venv python3-dev \
+    build-essential git curl ca-certificates \
+    sqlite3 libsqlite3-0 libgomp1 \
+ && rm -rf /var/lib/apt/lists/*
 
-# Copy manifests first for better layer caching
+# Copy manifests first for better caching
 COPY package*.json ./
 COPY requirements.txt ./
 
-# Create isolated Python environment (PEP 668 safe) and install deps
+# Python venv + deps
 RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --no-cache-dir -r requirements.txt
+ENV PATH="/opt/venv/bin:$PATH" PIP_NO_CACHE_DIR=1
 
-# Install Node.js deps (production only)
-# Use npm install with dev dependencies omitted to avoid lockfile sync issues with npm ci
-RUN npm install --omit=dev
+# Install Python requirements
+RUN pip install --upgrade pip \
+ && pip install -r requirements.txt
 
 # Copy the rest of the app
 COPY . .
 
-ARG STRIP_COMMENTS=1
-RUN if [ "$STRIP_COMMENTS" = "1" ]; then python3 scripts/strip_comments.py; fi && \
-    chmod +x scripts/entrypoint.sh
+# Run optional scripts only if present
+RUN test -f scripts/strip_comments.py && python3 scripts/strip_comments.py || true
+RUN test -f scripts/entrypoint.sh && chmod +x scripts/entrypoint.sh || true
 
-ENV PORT=3000 \
-    NODE_ENV=production
+ENV NODE_ENV=production
 
-# Optional: prefetch sentence-transformers model (can be overridden at runtime)
-# Default to a public, science-oriented, commercially usable model
-# (AllenAI SPECTER via Sentence-Transformers wrapper)
+# Install Node deps after sources; ignore lifecycle scripts during install
+RUN npm install --omit=dev --no-audit --no-fund --ignore-scripts
+
+# If you actually need a build step, run it explicitly (uncomment if applicable)
+# RUN npm run build
+
+# Optional: prefetch model (disabled by default to avoid long builds)
+ARG PREFETCH_EMB=0
 ARG CHROMA_EMB_MODEL=sentence-transformers/allenai-specter
 ENV CHROMA_EMB_MODEL=${CHROMA_EMB_MODEL}
-RUN python3 -c "import os; from sentence_transformers import SentenceTransformer; m=os.environ.get('CHROMA_EMB_MODEL','sentence-transformers/allenai-specter'); print('[build] Prefetch embedding model:', m); SentenceTransformer(m)" || true
+RUN if [ "$PREFETCH_EMB" = "1" ]; then \
+      python3 -c "import os; from sentence_transformers import SentenceTransformer; \
+      m=os.environ.get('CHROMA_EMB_MODEL','sentence-transformers/allenai-specter'); \
+      print('[build] Prefetch embedding model:', m); \
+      SentenceTransformer(m)" || true; \
+    fi
 
 EXPOSE 3000
 

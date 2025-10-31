@@ -12,6 +12,7 @@ function isoToLocalInput(iso) {
 
 let msgId = 0;
 function nextId() { return 'm' + (++msgId); }
+let chartCounter = 0;
 
 function escapeHtml(str) {
   return String(str || '')
@@ -22,29 +23,45 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-// Very small, safe-ish Markdown renderer for basic formatting
+// Very small Markdown renderer with nested list support
 function markdownToHtml(md) {
   let s = escapeHtml(md || '');
   // code blocks ```
   s = s.replace(/```([\s\S]*?)```/g, (m, code) => `<pre><code>${code.replace(/\n/g,'<br>')}</code></pre>`);
+  // headings #, ## (limit to start of line)
+  s = s.replace(/^###\s+(.*)$/gm, '<h3>$1</h3>')
+       .replace(/^##\s+(.*)$/gm, '<h2>$1</h2>')
+       .replace(/^#\s+(.*)$/gm, '<h1>$1</h1>');
+  // nested unordered lists via indentation (2 spaces per level)
+  s = (function convertNestedLists(text) {
+    const lines = text.split('\n');
+    const out = [];
+    let level = 0;
+    const open = (n) => { for (let i=0;i<n;i++){ out.push('<ul>'); level++; } };
+    const close = (n) => { for (let i=0;i<n;i++){ out.push('</ul>'); level--; } };
+    for (const raw of lines) {
+      const m = raw.match(/^(\s*)([-*])\s+(.*)$/);
+      if (m) {
+        const indent = m[1] || '';
+        const content = m[3] || '';
+        const newLevel = Math.floor(indent.replace(/\t/g,'  ').length / 2);
+        if (newLevel > level) open(newLevel - level);
+        else if (newLevel < level) close(level - newLevel);
+        out.push(`<li>${content}</li>`);
+      } else {
+        if (level > 0) close(level);
+        out.push(raw);
+      }
+    }
+    if (level > 0) close(level);
+    return out.join('\n');
+  })(s);
   // inline code `code`
   s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
   // bold **text**
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   // italics *text*
   s = s.replace(/(^|\s)\*([^*]+)\*/g, '$1<em>$2</em>');
-  // headings #, ## (limit to start of line)
-  s = s.replace(/^###\s+(.*)$/gm, '<h3>$1</h3>')
-       .replace(/^##\s+(.*)$/gm, '<h2>$1</h2>')
-       .replace(/^#\s+(.*)$/gm, '<h1>$1</h1>');
-  // unordered lists - or * at line start
-  // Convert blocks of list items to <ul>
-  s = s.replace(/(?:^|\n)([-*] .*(?:\n[-*] .*)*)/g, (m, block) => {
-    if (!/^[-*] /.test(block)) return m;
-    const items = block.split(/\n/).map(l => l.replace(/^[-*]\s+/, '').trim()).filter(Boolean);
-    if (!items.length) return m;
-    return '\n<ul>' + items.map(it => `<li>${it}</li>`).join('') + '</ul>';
-  });
   // line breaks
   s = s.replace(/\n/g, '<br>');
   return s;
@@ -52,9 +69,7 @@ function markdownToHtml(md) {
 
 function appendMessage(container, role, text, chartOptions) {
   const wrap = document.createElement('div');
-  // Align with CSS in index.html which styles .message.bot and .message.user
   wrap.className = 'message ' + (role === 'user' ? 'user' : 'bot');
-  // Render markdown to HTML for prettier assistant messages
   if (role === 'assistant' || role === 'bot') {
     wrap.innerHTML = markdownToHtml(text || '');
   } else {
@@ -62,16 +77,77 @@ function appendMessage(container, role, text, chartOptions) {
   }
   container.appendChild(wrap);
   if (chartOptions) {
-    const chartWrap = document.createElement('div');
-    const id = nextId();
-    chartWrap.id = 'chart-' + id;
-    chartWrap.className = 'chart-msg';
-    container.appendChild(chartWrap);
-    setTimeout(() => {
-      try { Highcharts.chart(chartWrap.id, chartOptions); } catch {}
-    }, 0);
+    try {
+      renderChartSidebar(chartOptions, { title: null });
+    } catch (e) {
+      console.error('sidebar chart failed', e);
+    }
   }
   container.scrollTop = container.scrollHeight;
+  return wrap;
+}
+
+// new helper renders charts in the right sidebar
+function renderChartSidebar(chartOptions, opts = {}) {
+  try {
+    const chartsSidebar = document.getElementById('chart-sidebar');
+    if (!chartsSidebar) return;
+    chartsSidebar.classList.remove('hidden');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'chart-container agent-chart';
+    const holder = document.createElement('div');
+    const chartId = `agent-chart-${++chartCounter}`;
+    holder.id = chartId;
+    holder.style.width = '100%';
+    holder.style.height = opts.height || '100%';
+    wrap.appendChild(holder);
+    chartsSidebar.appendChild(wrap);
+
+    const maxCharts = opts.maxCharts || 6;
+    const charts = chartsSidebar.querySelectorAll('.chart-container.agent-chart');
+    if (charts.length > maxCharts) {
+      const excess = charts.length - maxCharts;
+      for (let i = 0; i < excess; i++) {
+        charts[i].remove();
+      }
+    }
+
+    requestAnimationFrame(() => {
+      try {
+        const cfg = {
+          // nice defaults; backend-provided options still win
+          credits: { enabled: false },
+          accessibility: { enabled: false, ...(chartOptions.accessibility || {}) },
+          chart: {
+            backgroundColor: 'transparent',
+            height: (chartOptions.chart && chartOptions.chart.height) || holder.clientHeight || 320,
+            ...(chartOptions.chart || {})
+          },
+          ...chartOptions
+        };
+        Highcharts.chart(chartId, cfg);
+      } catch (err) {
+        console.error('Highcharts render failed', err, chartOptions);
+      }
+    });
+
+    chartsSidebar.scrollTop = chartsSidebar.scrollHeight;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function clearAgentCharts() {
+  try {
+    const chartsSidebar = document.getElementById('chart-sidebar');
+    if (!chartsSidebar) return;
+    chartsSidebar.querySelectorAll('.chart-container.agent-chart').forEach((node) => node.remove());
+    chartsSidebar.classList.add('hidden');
+    chartCounter = 0;
+  } catch (err) {
+    console.error('clearAgentCharts failed', err);
+  }
 }
 
 async function init() {
@@ -85,31 +161,447 @@ async function init() {
   const sidebar = document.querySelector('.sidebar');
   const statusEl = document.getElementById('status-card');
   const queryLevelEl = document.getElementById('query-level');
-  const toggleGraphBtn = document.getElementById('toggle-graph');
-  const toggleChartsBtn = document.getElementById('toggle-charts');
+  // Toggle buttons removed
   // graphSummaryEl removed (no sidebar graph summary)
   const graphViewTitle = document.getElementById('graph-view-title');
   const graphViewChartId = 'graph-view-chart';
+  const buildingSelect = document.getElementById('building-select');
+  const floorSelect = document.getElementById('floor-select');
+  const zoneSelect = document.getElementById('zone-select');
+  const deviceSelect = document.getElementById('device-select');
   const scopePillEl = document.getElementById('scope-pill');
   const confirmBtn = document.getElementById('confirm-scope');
   const clearBtn = document.getElementById('clear-scope');
-  const selection = { tenant: null, building: null, floor: null, room: null };
+  const selection = {
+    tenant: null,
+    building: null,
+    floor: null,
+    room: null,
+    roomLabel: null,
+    devices: [],
+    zonesList: [],
+    floorsList: [],
+    deviceZoneMap: {}
+  };
   window.selection = selection;
   let selectionConfirmed = false;
   let graphLevel = 'buildings';
+  let showTelemetryKeys = false;
+  let lastGraphNodes = [];
+  let sending = false;
+  let currentScopeDevices = [];
+  let currentScopeZones = [];
+  let currentScopeFloors = [];
+
+  function ensureSelectOption(select, value, label) {
+    if (!select || value == null || value === '') return;
+    const exists = Array.from(select.options).some(opt => opt.value === value);
+    if (!exists) {
+      const opt = new Option(label ?? value, value);
+      select.appendChild(opt);
+    }
+  }
+
+  function syncDropdownsFromSelection() {
+    if (buildingSelect) {
+      if (selection.building) ensureSelectOption(buildingSelect, selection.building, selection.building);
+      buildingSelect.value = selection.building || '';
+    }
+    if (floorSelect) {
+      if (selection.floor) ensureSelectOption(floorSelect, selection.floor, selection.floor);
+      floorSelect.value = selection.floor || '';
+    }
+    if (zoneSelect) {
+      if (selection.room) ensureSelectOption(zoneSelect, selection.room, selection.roomLabel || selection.room);
+      zoneSelect.value = selection.room || '';
+    }
+  }
+
+  function hasScopeSelection() {
+    return !!(selection.building || selection.floor || selection.room);
+  }
+
+  function updateScopeControls() {
+    const hasSelection = hasScopeSelection();
+    if (confirmBtn) confirmBtn.disabled = !hasSelection;
+    if (clearBtn) clearBtn.disabled = !hasSelection;
+  }
+
+  function updateSendButtonState() {
+    if (!sendBtn) return;
+    const hasText = (inputEl.value || '').trim().length > 0;
+    sendBtn.disabled = sending || !hasText;
+  }
+
+  function readInputTs(input) {
+    if (!input || !input.value) return null;
+    const parsed = Date.parse(input.value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  function normalizeTimestamp(ts) {
+    return Number.isFinite(ts) ? ts : null;
+  }
+
+  renderScopePill();
+  updateSendButtonState();
 
   // Toggle handlers for visibility
   const graphView = document.getElementById('graph-view');
   const chartsSidebar = document.getElementById('chart-sidebar');
-  if (toggleGraphBtn) toggleGraphBtn.addEventListener('click', () => {
-    if (!graphView) return;
-    const shown = graphView.style.display !== 'none';
-    graphView.style.display = shown ? 'none' : 'flex';
-    if (!shown) refreshGraphView();
+  try {
+    if (deviceSelect) deviceSelect.style.display = 'none';
+  } catch {}
+  // Lightweight cache + abort controllers for snappy dropdowns
+  const _reqCache = new Map();
+  const _snapshotStatus = new Map();
+  function _cacheKey(url) { return url; }
+  async function cachedFetchJSON(url, { ttlMs = 15000, controller = null } = {}) {
+    const k = _cacheKey(url);
+    const now = Date.now();
+    const ent = _reqCache.get(k);
+    if (ent && (now - ent.t) < ttlMs) return ent.v;
+    const opts = controller ? { signal: controller.signal } : undefined;
+    const v = await fetchJSON(url, opts);
+    _reqCache.set(k, { t: now, v });
+    return v;
+  }
+  let abortBuildings = null, abortFloors = null, abortZones = null, abortDevices = null;
+  async function fetchSnapshot(tenantName) {
+    const slug = (s) => String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+    const path1 = tenantName ? `/data/graph_snapshot.${slug(tenantName)}.json` : '/data/graph_snapshot.json';
+    const key = tenantName || '__default__';
+    if (_snapshotStatus.get(key) === 'missing') return null;
+    try {
+      const data = await cachedFetchJSON(path1, { ttlMs: 20000 });
+      _snapshotStatus.set(key, 'ok');
+      return data;
+    } catch {
+      _snapshotStatus.set(key, 'missing');
+    }
+    try {
+      const data = await cachedFetchJSON('/data/graph_snapshot.json', { ttlMs: 20000 });
+      _snapshotStatus.set(key, 'ok');
+      return data;
+    } catch {
+      _snapshotStatus.set(key, 'missing');
+    }
+    return null;
+  }
+  function invalidateScopeCache() {
+    try { _reqCache.clear(); } catch {}
+    try { if (abortBuildings) abortBuildings.abort(); } catch {}
+    try { if (abortFloors) abortFloors.abort(); } catch {}
+    try { if (abortZones) abortZones.abort(); } catch {}
+    try { if (abortDevices) abortDevices.abort(); } catch {}
+    abortBuildings = abortFloors = abortZones = abortDevices = null;
+  }
+  // No toggles; charts sidebar always visible
+  // Populate cascading dropdowns
+  async function populateBuildings() {
+    try {
+      // Prefer snapshot to compute buildings with devices
+      let arr = [];
+      try {
+        // Prefer local snapshot file for instant results; fallback to API
+        let nodes = [], links = [];
+        const snap = await fetchSnapshot(selection.tenant);
+        if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
+          nodes = snap.nodes; links = snap.links;
+        } else {
+          if (abortBuildings) { try { abortBuildings.abort(); } catch {} }
+          abortBuildings = new AbortController();
+          const g = await cachedFetchJSON(`/api/graph/full${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`, { ttlMs: 20000, controller: abortBuildings });
+          nodes = g.nodes || []; links = g.links || [];
+        }
+        const buildings = nodes.filter(n => (n.nodeType||n.label)==='Building');
+        const zoneToBuilding = new Map();
+        for (const l of links) if (l.rel==='LOCATED_IN_BUILDING') zoneToBuilding.set(l.source, l.target);
+        const buildingHasDevice = new Set();
+        for (const l of links) {
+          if (l.rel==='IN_BUILDING') { buildingHasDevice.add(l.target); }
+          if (l.rel==='LOCATED_IN_ZONE') {
+            const zB = zoneToBuilding.get(l.target);
+            if (zB) buildingHasDevice.add(zB);
+          }
+        }
+        const names = buildings.filter(b => buildingHasDevice.has(b.id)).map(b => b.name).filter(Boolean);
+        arr = Array.from(new Set(names));
+      } catch {}
+      // Fallback to scope/metrics groups
+      if (!arr.length) {
+        if (selection.tenant) {
+          try {
+            if (abortBuildings) { try { abortBuildings.abort(); } catch {} }
+            abortBuildings = new AbortController();
+            const sm = await cachedFetchJSON(`/api/scope/metrics?tenant=${encodeURIComponent(selection.tenant)}`, { ttlMs: 10000, controller: abortBuildings });
+            const groups = Array.isArray(sm.groups) ? sm.groups : [];
+            const builds = groups.map(g => {
+              const total = (g.floors||[]).reduce((acc,F)=> acc + (F.zones||[]).reduce((a,z)=> a + ((z.devices||[]).length||0), 0), 0);
+              return { name: g.building, devices: total };
+            }).filter(b => b.name && b.devices > 0);
+            arr = Array.from(new Set(builds.map(b => b.name)));
+          } catch {}
+          if (!arr.length) {
+            const res = await cachedFetchJSON(`/api/buildings?tenant=${encodeURIComponent(selection.tenant)}`, { ttlMs: 30000 });
+            arr = (res.buildings || []).filter(b => (b.devices||0) > 0).map(b => b.name).filter(Boolean);
+          }
+        } else {
+          const res = await cachedFetchJSON(`/api/buildings`, { ttlMs: 30000 });
+          arr = (res.buildings || []).filter(b => (b.devices||0) > 0).map(b => b.name).filter(Boolean);
+        }
+      }
+      buildingSelect.innerHTML = '<option value="">Select building…</option>' + arr.map(n => `<option value="${n}">${n}</option>`).join('');
+      if (selection.building) { buildingSelect.value = selection.building; }
+    } catch { buildingSelect.innerHTML = '<option value="">Select building…</option>'; }
+  }
+  async function populateFloors(building) {
+    floorSelect.innerHTML = '<option value="">Select floor…</option>';
+    zoneSelect.innerHTML = '<option value="">Select zone…</option>';
+    deviceSelect.innerHTML = '<option value="">Select device…</option>';
+    if (!building) return;
+    try {
+      // Prefer /api/scope/metrics to collect floors with devices
+      let floors = [];
+      try {
+        // 0) Snapshot path
+        const snap = await fetchSnapshot(selection.tenant);
+        if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
+          const nodes = snap.nodes, links = snap.links;
+          const b = nodes.find(n => (n.nodeType||n.label)==='Building' && n.name===building);
+          if (b) {
+            const floorNodes = nodes.filter(n => (n.nodeType||n.label)==='Floor' && links.some(l => l.source===n.id && l.rel==='LOCATED_IN_BUILDING' && l.target===b.id));
+            const floorIds = new Set(floorNodes.map(n=>n.id));
+            const zoneNodes = nodes.filter(n => (n.nodeType||n.label)==='Zone' && links.some(l => l.source===n.id && l.rel==='BELONGS_TO_FLOOR' && floorIds.has(l.target)));
+            const zoneIds = new Set(zoneNodes.map(n=>n.id));
+            const hasDeviceFloorIds = new Set(links.filter(l => l.rel==='LOCATED_IN_ZONE' && zoneIds.has(l.target)).map(l => {
+              const zId = l.target;
+              const zToF = links.find(x => x.source===zId && x.rel==='BELONGS_TO_FLOOR');
+              return zToF ? zToF.target : null;
+            }).filter(Boolean));
+            floors = floorNodes.filter(n => hasDeviceFloorIds.has(n.id)).map(n => n.name).filter(Boolean);
+          }
+        }
+        // 1) Scope metrics
+        if (!floors.length) {
+          if (abortFloors) { try { abortFloors.abort(); } catch {} }
+          abortFloors = new AbortController();
+          const qp = [`building=${encodeURIComponent(building)}`];
+          if (selection.tenant) qp.push(`tenant=${encodeURIComponent(selection.tenant)}`);
+          const sm = await cachedFetchJSON(`/api/scope/metrics?${qp.join('&')}`, { ttlMs: 15000, controller: abortFloors });
+          const groups = Array.isArray(sm.groups) ? sm.groups : [];
+          const g = groups.find(x => x.building === building);
+          if (g) {
+            floors = (g.floors||[]).filter(F => (F.zones||[]).some(z => (z.devices||[]).length > 0)).map(F => F.floor).filter(Boolean);
+          }
+        }
+      } catch {}
+      // Fallback to topology and snapshot if still empty
+      if (!floors.length) {
+        try {
+          const topo = await cachedFetchJSON(`/api/topology${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`, { ttlMs: 20000, controller: abortFloors });
+          const b = (topo.buildings||[]).find(B => B.name===building);
+          if (b) floors = (b.floors||[]).filter(F => (F.zones||[]).some(z => (z.devices||[]).length>0)).map(F => F.name).filter(Boolean);
+        } catch {}
+      }
+      if (!floors.length) {
+        try {
+          const g = await cachedFetchJSON(`/api/graph/full${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`, { ttlMs: 20000, controller: abortFloors });
+          const nodes = g.nodes || []; const links = g.links || [];
+          const b = nodes.find(n => (n.nodeType||n.label)==='Building' && n.name===building);
+          if (b) {
+            const floorNodes = nodes.filter(n => (n.nodeType||n.label)==='Floor' && links.some(l => l.source===n.id && l.rel==='LOCATED_IN_BUILDING' && l.target===b.id));
+            // Keep only floors with at least one device under any zone for this floor
+            const floorIds = new Set(floorNodes.map(n=>n.id));
+            const zones = nodes.filter(n => (n.nodeType||n.label)==='Zone' && links.some(l => l.source===n.id && l.rel==='BELONGS_TO_FLOOR' && floorIds.has(l.target)));
+            const zoneIds = new Set(zones.map(n=>n.id));
+            const hasDeviceFloorIds = new Set(links.filter(l => l.rel==='LOCATED_IN_ZONE' && zoneIds.has(l.target)).map(l => {
+              const zId = l.target;
+              const zToF = links.find(x => x.source===zId && x.rel==='BELONGS_TO_FLOOR');
+              return zToF ? zToF.target : null;
+            }).filter(Boolean));
+            floors = floorNodes.filter(n => hasDeviceFloorIds.has(n.id)).map(n => n.name || String(n.id||'').split(':')[1] || '').filter(Boolean);
+          }
+        } catch {}
+      }
+      floors = Array.from(new Set(floors));
+      floorSelect.innerHTML = '<option value="">Select floor…</option>' + floors.map(n=>`<option value="${n}">${n}</option>`).join('');
+      if (selection.floor) floorSelect.value = selection.floor;
+    } catch {}
+  }
+  async function populateZones(building, floor) {
+    zoneSelect.innerHTML = '<option value="">Select zone…</option>';
+    deviceSelect.innerHTML = '<option value="">Select device…</option>';
+    if (!building || !floor) return;
+    try {
+      // Prefer /api/scope/metrics to collect zones with devices
+      let zones = [];
+      try {
+        // 0) Snapshot path
+        const snap = await fetchSnapshot(selection.tenant);
+        if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
+          const nodes = snap.nodes, links = snap.links;
+          const b = nodes.find(n => (n.nodeType||n.label)==='Building' && n.name===building);
+          const f = b ? nodes.find(n => (n.nodeType||n.label)==='Floor' && n.name===floor && links.some(l => l.source===n.id && l.rel==='LOCATED_IN_BUILDING' && l.target===b.id)) : null;
+          if (b && f) {
+            const zoneNodes = nodes.filter(n => (n.nodeType||n.label)==='Zone' && links.some(l => l.source===n.id && l.rel==='BELONGS_TO_FLOOR' && l.target===f.id));
+            const zIds = new Set(zoneNodes.map(n=>n.id));
+            const devZoneIds = new Set(links.filter(l => l.rel==='LOCATED_IN_ZONE' && zIds.has(l.target)).map(l => l.target));
+            zones = zoneNodes.filter(n => devZoneIds.has(n.id)).map(n => n.name).filter(Boolean);
+          }
+        }
+        // 1) Scope metrics
+        if (!zones.length) {
+          if (abortZones) { try { abortZones.abort(); } catch {} }
+          abortZones = new AbortController();
+          const qp = [`building=${encodeURIComponent(building)}`, `floor=${encodeURIComponent(floor)}`];
+          if (selection.tenant) qp.push(`tenant=${encodeURIComponent(selection.tenant)}`);
+          const sm = await cachedFetchJSON(`/api/scope/metrics?${qp.join('&')}`, { ttlMs: 15000, controller: abortZones });
+          const groups = Array.isArray(sm.groups) ? sm.groups : [];
+          const g = groups.find(x => x.building === building);
+          if (g) {
+            const F = (g.floors||[]).find(ff => ff.floor === floor);
+            if (F) zones = (F.zones||[]).filter(z => (z.devices||[]).length>0).map(z => z.zone).filter(Boolean);
+          }
+        }
+      } catch {}
+      // Fallback to topology filtered by devices if still empty
+      if (!zones.length) {
+        try {
+          const topo = await cachedFetchJSON(`/api/topology${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`, { ttlMs: 20000, controller: abortZones });
+          for (const B of (topo.buildings||[])) if (B.name===building) {
+            const F = (B.floors||[]).find(ff => ff.name===floor);
+            if (F) zones.push(...(F.zones||[]).filter(z => (z.devices||[]).length>0).map(z => z.name));
+          }
+        } catch {}
+      }
+      // Fallback to snapshot zones under floor with devices
+      if (!zones.length) {
+        try {
+          const g = await cachedFetchJSON(`/api/graph/full${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`, { ttlMs: 20000, controller: abortZones });
+          const nodes = g.nodes || []; const links = g.links || [];
+          const b = nodes.find(n => (n.nodeType||n.label)==='Building' && n.name===building);
+          if (b) {
+            const floors = nodes.filter(n => (n.nodeType||n.label)==='Floor' && (n.name===floor) && links.some(l => l.source===n.id && l.rel==='LOCATED_IN_BUILDING' && l.target===b.id));
+            const floorIds = new Set(floors.map(n=>n.id));
+            const zoneNodes = nodes.filter(n => (n.nodeType||n.label)==='Zone' && links.some(l => l.source===n.id && l.rel==='BELONGS_TO_FLOOR' && floorIds.has(l.target)));
+            const zoneIds = new Set(zoneNodes.map(n=>n.id));
+            const devZoneIds = new Set(links.filter(l => l.rel==='LOCATED_IN_ZONE' && zoneIds.has(l.target)).map(l => l.target));
+            zones = zoneNodes.filter(n => devZoneIds.has(n.id)).map(n => n.name).filter(Boolean);
+          }
+        } catch {}
+      }
+      const uniq = Array.from(new Set(zones)).filter(Boolean);
+      zoneSelect.innerHTML = '<option value="">Select zone…</option>' + uniq.map(n=>`<option value="${n}">${n}</option>`).join('');
+      if (selection.room) zoneSelect.value = selection.room;
+    } catch {}
+  }
+  async function populateDevices(building, floor, zone) {
+    deviceSelect.innerHTML = '<option value="">Select device…</option>';
+    if (!building) return;
+    try {
+      const prm = [];
+      const qp = [`building=${encodeURIComponent(building)}`];
+      if (selection.tenant) qp.push(`tenant=${encodeURIComponent(selection.tenant)}`);
+      if (floor) qp.push(`floor=${encodeURIComponent(floor)}`);
+      if (zone) qp.push(`zone=${encodeURIComponent(zone)}`);
+      if (abortDevices) { try { abortDevices.abort(); } catch {} }
+      abortDevices = new AbortController();
+      const sm = await cachedFetchJSON(`/api/scope/metrics?${qp.join('&')}`, { ttlMs: 15000, controller: abortDevices });
+      let devs = Array.isArray(sm.deviceIndex) ? sm.deviceIndex : [];
+      // Fallback: derive devices under the selected zone from snapshot when deviceIndex empty
+      if ((!devs || !devs.length) && zone) {
+        try {
+          const g = await cachedFetchJSON(`/api/graph/full${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`, { ttlMs: 20000 });
+          const nodes = g.nodes || []; const links = g.links || [];
+          const byId = new Map(nodes.map(n => [n.id, n]));
+          const bNode = nodes.find(n => (n.nodeType||n.label)==='Building' && n.name===building);
+          // Try floor match; if none, ignore floor filter
+          const fNodes = floor && bNode ? nodes.filter(n => (n.nodeType||n.label)==='Floor' && n.name===floor && links.some(l => l.source===n.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)) : [];
+          const zNodes = nodes.filter(n => (n.nodeType||n.label)==='Zone' && n.name===zone && ( (!floor && bNode && links.some(l => l.source===n.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)) || (fNodes.length && links.some(l => l.source===n.id && l.rel==='BELONGS_TO_FLOOR' && fNodes.some(f=>f.id===l.target))) ));
+          const zIds = new Set(zNodes.map(z => z.id));
+          const devIds = links.filter(l => l.rel==='LOCATED_IN_ZONE' && zIds.has(l.target)).map(l => l.source);
+          const uniqDevIds = Array.from(new Set(devIds));
+          devs = uniqDevIds.map(id => {
+            const d = byId.get(id);
+            const keys = links.filter(x => (x.rel==='HAS_TELEMETRY_KEY' || x.rel==='MEASURES') && x.target===id).map(x => byId.get(x.source)?.name).filter(Boolean);
+            return { id, name: d?.name || id, type: d?.deviceType || d?.type || 'Device', metrics: Array.from(new Set(keys)) };
+          });
+        } catch {}
+      }
+      // Group devices by profile/type; include telemetry keys in label
+      const byType = new Map();
+      for (const d of devs) {
+        const t = d.type || 'Device';
+        if (!byType.has(t)) byType.set(t, []);
+        byType.get(t).push(d);
+      }
+      const parts = ['<option value="">Select device…</option>'];
+      for (const [t, arr] of byType.entries()) {
+        parts.push(`<optgroup label="${escapeHtml(t)}">`);
+        arr.sort((a,b)=> String(a.name||a.id).localeCompare(String(b.name||b.id)));
+        for (const d of arr) {
+          const keys = Array.isArray(d.metrics) ? d.metrics.slice(0,6).join(', ') : '';
+          const label = `${escapeHtml(d.name || d.id)}${keys ? ' — '+escapeHtml(keys) : ''}`;
+          parts.push(`<option value="${d.id}">${label}</option>`);
+        }
+        parts.push('</optgroup>');
+      }
+      deviceSelect.innerHTML = parts.join('');
+      // Show the device dropdown only if there are devices to pick from
+      deviceSelect.style.display = devs.length ? '' : 'none';
+    } catch {}
+  }
+
+  buildingSelect?.addEventListener('change', async () => {
+    selection.building = buildingSelect.value || null;
+    selection.floor = null; selection.room = null; selection.roomLabel = null; selectionConfirmed = false; graphLevel='floors';
+    selection.devices = [];
+    selection.zonesList = [];
+    selection.floorsList = [];
+    selection.deviceZoneMap = {};
+    currentScopeDevices = [];
+    currentScopeZones = [];
+    currentScopeFloors = [];
+    syncDropdownsFromSelection();
+    renderScopePill();
+    await populateFloors(selection.building);
+    syncDropdownsFromSelection();
+    refreshMetrics();
+    await refreshGraphView();
   });
-  if (toggleChartsBtn) toggleChartsBtn.addEventListener('click', () => {
-    if (!chartsSidebar) return;
-    chartsSidebar.classList.toggle('hidden');
+  floorSelect?.addEventListener('change', async () => {
+    selection.floor = floorSelect.value || null;
+    selection.room = null; selection.roomLabel = null; selectionConfirmed = false; graphLevel='rooms';
+    selection.devices = [];
+    selection.zonesList = [];
+    currentScopeDevices = [];
+    currentScopeZones = [];
+    selection.deviceZoneMap = {};
+    syncDropdownsFromSelection();
+    renderScopePill();
+    await populateZones(selection.building, selection.floor);
+    syncDropdownsFromSelection();
+    refreshMetrics();
+    await refreshGraphView();
+  });
+  zoneSelect?.addEventListener('change', async () => {
+    selection.room = zoneSelect.value || null;
+    selection.roomLabel = zoneSelect.selectedIndex >= 0 ? zoneSelect.options[zoneSelect.selectedIndex]?.text || selection.room : selection.room;
+    selectionConfirmed = false; graphLevel='devices';
+    selection.devices = [];
+    selection.deviceZoneMap = {};
+    currentScopeDevices = [];
+    syncDropdownsFromSelection();
+    renderScopePill();
+    await populateDevices(selection.building, selection.floor, selection.room);
+    syncDropdownsFromSelection();
+    refreshMetrics();
+    await refreshGraphView();
+  });
+  deviceSelect?.addEventListener('change', async () => {
+    // device selection does not alter selectionRooms (handled server-side); leave as extra context
+    refreshMetrics();
   });
 
   // Inject tenant selector at top of sidebar
@@ -128,15 +620,27 @@ async function init() {
     const tenants = (t.tenants || []).sort();
     tenantSelect.innerHTML = '<option value="">All tenants…</option>' + tenants.map(name => `<option value="${name}">${name}</option>`).join('');
   } catch {}
-  tenantSelect.addEventListener('change', () => {
+  tenantSelect.addEventListener('change', async () => {
     selection.tenant = tenantSelect.value || null;
     // Reset deeper scope when tenant changes
-    selection.building = null; selection.floor = null; selection.room = null; graphLevel = 'buildings'; selectionConfirmed = false;
-    renderScopePill(); refreshGraphView(); refreshMetrics();
+    selection.building = null; selection.floor = null; selection.room = null; selection.roomLabel = null; graphLevel = 'buildings'; selectionConfirmed = false;
+    if (buildingSelect) buildingSelect.innerHTML = '<option value="">Select building…</option>';
+    if (floorSelect) floorSelect.innerHTML = '<option value="">Select floor…</option>';
+    if (zoneSelect) zoneSelect.innerHTML = '<option value="">Select zone…</option>';
+    if (deviceSelect) deviceSelect.innerHTML = '<option value="">Select device…</option>';
+    selection.devices = [];
+    selection.zonesList = [];
+    selection.floorsList = [];
+    selection.deviceZoneMap = {};
+    currentScopeDevices = [];
+    currentScopeZones = [];
+    currentScopeFloors = [];
+    invalidateScopeCache();
+    renderScopePill();
+    await populateBuildings();
+    refreshMetrics();
+    await refreshGraphView();
   });
-
-  // Cache last set of nodes to help label scope pill by zone name
-  let lastGraphNodes = [];
 
   function renderScopePill() {
     const parts = [];
@@ -149,9 +653,13 @@ async function init() {
         const z = lastGraphNodes.find(n => n.nodeType==='Zone' && (String(n.roomId)===String(selection.room) || String(n.name)===String(selection.room)));
         if (z && z.name) rlabel = z.name;
       } catch {}
+      selection.roomLabel = rlabel;
       parts.push(`Room: ${rlabel}`);
+    } else {
+      selection.roomLabel = null;
     }
     if (scopePillEl) scopePillEl.textContent = parts.length ? (selectionConfirmed ? '✔ ' : '') + parts.join(' · ') : 'No scope selected';
+    updateScopeControls();
   }
 
   function ensureMetricsDropdown() {
@@ -170,24 +678,36 @@ async function init() {
         metricsEl.style.display = '';
         const room = selection.room || '';
         const isScope = (room === 'ALL') || !!selection.building || !!selection.floor || (!!selection.room && !room);
-        const start = startEl.value ? new Date(startEl.value).getTime() : '';
-        const end = endEl.value ? new Date(endEl.value).getTime() : '';
+        const startTs = readInputTs(startEl);
+        const endTs = readInputTs(endEl);
+        const startParam = normalizeTimestamp(startTs);
+        const endParam = normalizeTimestamp(endTs);
         try {
           if (!room || room === 'ALL' || selection.building || selection.floor || selection.tenant) {
-            // Scope selection: advise user to use chat or compare view; avoid misleading single-room series
+            // Scope selection: fetch an extract table for this metric with ts
             const params = [
               selection.tenant ? `tenant=${encodeURIComponent(selection.tenant)}` : '',
               selection.building ? `building=${encodeURIComponent(selection.building)}` : '',
               selection.floor ? `floor=${encodeURIComponent(selection.floor)}` : '',
               selection.room && room !== 'ALL' ? `zone=${encodeURIComponent(selection.room)}` : '',
-              `start=${encodeURIComponent(start)}`,
-              `end=${encodeURIComponent(end)}`
+              `field=${encodeURIComponent(v)}`,
+              startParam != null ? `start=${encodeURIComponent(startParam)}` : '',
+              endParam != null ? `end=${encodeURIComponent(endParam)}` : '',
+              `limit=1000`
             ].filter(Boolean).join('&');
-            const scopeMeta = await fetchJSON(`/api/scope/metrics?${params}`);
-            const devicesCount = Array.isArray(scopeMeta.devices) ? scopeMeta.devices.length : (scopeMeta.count || '');
-            metricsEl.innerHTML = `<div class=\"series-container\"><div class=\"series-header\"><strong>${escapeHtml(v)}</strong> in scope</div><div style=\"color:#94a3b8\">Devices in scope: ${devicesCount}. Use chat to plot across devices.</div></div>`;
+            const resp = await fetchJSON(`/api/scope/series?${params}`);
+            const rows = Array.isArray(resp.rows) ? resp.rows : [];
+            const header = `<div class=\"series-header\"><strong>${escapeHtml(v)}</strong> in scope ${resp.scope && resp.scope.building ? `(Building ${escapeHtml(resp.scope.building)})` : ''} (${rows.length} rows)</div>`;
+            const table = ['<table class=\"series-table\">','<thead><tr><th>ts</th><th>device</th><th>',escapeHtml(v),'</th></tr></thead><tbody>',rows.map(r => `<tr><td>${new Date(r.ts).toLocaleString()}</td><td>${escapeHtml(r.device||'')}</td><td>${r.value}</td></tr>`).join(''),'</tbody></table>'].join('');
+            metricsEl.innerHTML = `<div class=\"series-container\">${header}${table}</div>`;
           } else {
-            const res = await fetchJSON(`/api/series?room=${encodeURIComponent(room)}&field=${encodeURIComponent(v)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+            const qs = [
+              `room=${encodeURIComponent(room)}`,
+              `field=${encodeURIComponent(v)}`,
+              startParam != null ? `start=${encodeURIComponent(startParam)}` : '',
+              endParam != null ? `end=${encodeURIComponent(endParam)}` : ''
+            ].filter(Boolean).join('&');
+            const res = await fetchJSON(`/api/series?${qs}`);
             const rows = res.data || [];
             const maxRows = 2000;
             const shown = rows.slice(-maxRows);
@@ -204,12 +724,12 @@ async function init() {
   // No room dropdown to populate
 
   const now = new Date();
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  startEl.value = isoToLocalInput(start.toISOString());
+  const startInit = new Date(now);
+  startInit.setHours(0, 0, 0, 0);
+  startEl.value = isoToLocalInput(startInit.toISOString());
   endEl.value = isoToLocalInput(now.toISOString());
 
-  const messages = [];
+ 
 
   function fmtDate(ts) {
     if (ts == null) return '—';
@@ -225,29 +745,73 @@ async function init() {
     const room = selection.room || 'ALL';
     if (!room) { metricsEl.textContent = 'Select a room'; return; }
     try {
-      const s = startEl.value ? new Date(startEl.value).getTime() : '';
-      const e = endEl.value ? new Date(endEl.value).getTime() : '';
-      let meta;
-      if (selection.building || selection.floor || selection.room || room === 'ALL') {
-        // Query scope-aware metrics across the selected building/floor/zone
-        const params = [
-          selection.tenant ? `tenant=${encodeURIComponent(selection.tenant)}` : '',
-          selection.building ? `building=${encodeURIComponent(selection.building)}` : '',
-          selection.floor ? `floor=${encodeURIComponent(selection.floor)}` : '',
-          selection.room && room !== 'ALL' ? `zone=${encodeURIComponent(selection.room)}` : '',
-          `start=${encodeURIComponent(s)}`,
-          `end=${encodeURIComponent(e)}`
-        ].filter(Boolean).join('&');
-        meta = await fetchJSON(`/api/scope/metrics?${params}`);
-      } else {
-        meta = await fetchJSON(`/api/meta?room=${encodeURIComponent(room)}&start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}${selection.building ? '&building='+encodeURIComponent(selection.building) : ''}${selection.floor ? '&floor='+encodeURIComponent(selection.floor) : ''}`);
+      const startMs = readInputTs(startEl);
+      const endMs = readInputTs(endEl);
+      const s = normalizeTimestamp(startMs);
+      const e = normalizeTimestamp(endMs);
+      let meta = null;
+      const scopeParams = [
+        selection.tenant ? `tenant=${encodeURIComponent(selection.tenant)}` : '',
+        selection.building ? `building=${encodeURIComponent(selection.building)}` : '',
+        selection.floor ? `floor=${encodeURIComponent(selection.floor)}` : '',
+        selection.room && room !== 'ALL' ? `zone=${encodeURIComponent(selection.room)}` : '',
+        s != null ? `start=${encodeURIComponent(s)}` : '',
+        e != null ? `end=${encodeURIComponent(e)}` : ''
+      ].filter(Boolean);
+      const hasScopeFilters = scopeParams.some((p) => /^tenant=|^building=|^floor=|^zone=/.test(p));
+      if (hasScopeFilters) {
+        try {
+          meta = await fetchJSON(`/api/scope/metrics?${scopeParams.join('&')}`);
+        } catch (err) {
+          console.warn('[metrics] scope fetch failed, falling back to room meta', err);
+        }
       }
-      metricsEl.innerHTML = ''
+      if (!meta) {
+        const queryParts = [
+          `room=${encodeURIComponent(room)}`,
+          s != null ? `start=${encodeURIComponent(s)}` : '',
+          e != null ? `end=${encodeURIComponent(e)}` : '',
+          selection.building ? 'building='+encodeURIComponent(selection.building) : '',
+          selection.floor ? 'floor='+encodeURIComponent(selection.floor) : ''
+        ].filter(Boolean);
+        meta = await fetchJSON(`/api/meta?${queryParts.join('&')}`);
+      }
+      metricsEl.innerHTML = '';
 
 
       const dd = ensureMetricsDropdown();
-      const fieldSet = new Set();
-      const cov = meta && meta.coverage ? meta.coverage : {};
+  const fieldSet = new Set();
+  const cov = meta && meta.coverage ? meta.coverage : {};
+      currentScopeDevices = [];
+      currentScopeZones = [];
+      currentScopeFloors = [];
+      const deviceSet = new Set();
+      const deviceDisplay = new Map();
+      const deviceZoneMapObj = {};
+      const zoneSet = new Set();
+      const floorSet = new Set();
+
+      const captureDevice = (d, zoneName = null) => {
+        if (!d) return;
+        const id = typeof d === 'string' ? d : (d.id || d.deviceId || d.name);
+        if (!id) return;
+        const key = String(id);
+        deviceSet.add(key);
+        if (typeof d === 'string') {
+          deviceDisplay.set(key, d);
+        } else {
+          const label = d.name || d.displayName || key;
+          deviceDisplay.set(key, label);
+        }
+        if (zoneName && !deviceZoneMapObj[key]) {
+          deviceZoneMapObj[key] = String(zoneName);
+        } else if (!deviceZoneMapObj[key]) {
+          deviceZoneMapObj[key] = null;
+        }
+      };
+
+      if (Array.isArray(meta?.deviceIndex)) meta.deviceIndex.forEach(captureDevice);
+      else if (Array.isArray(meta?.devices)) meta.devices.forEach(captureDevice);
       if (Array.isArray(meta?.metrics) && meta.metrics.length) {
         meta.metrics.forEach(f => { if (f !== 'ts') fieldSet.add(f); });
       }
@@ -270,94 +834,200 @@ async function init() {
         const label = (z||f) ? `${v} (${z} zones, ${f} floors)` : v;
         return `<option value="${v}">${label}</option>`;
       }).join('');
+      // On first load, ensure the dropdown visibly has metrics (no auto-fetch)
+      if (!window._metricsInit) {
+        window._metricsInit = true;
+        // Do not trigger change to avoid spamming; just ensure it's visible
+        dd.style.display = '';
+      }
+
+      // Render scope extract as nested list: Building -> Floor -> Zone -> Device (metrics)
+      try {
+        const groups = Array.isArray(meta?.groups) ? meta.groups : [];
+        const title = document.createElement('div');
+        const count = Array.isArray(meta?.devices) ? meta.devices.length : (meta?.deviceIndex?.length || 0);
+        title.className = 'series-header';
+        title.innerHTML = `<strong>Scope extract</strong> ${count ? `(${count} devices)` : ''}`;
+        metricsEl.appendChild(title);
+        if (groups.length) {
+          const wrap = document.createElement('div');
+          wrap.className = 'series-container';
+          const ulB = document.createElement('ul');
+          ulB.style.margin = '0'; ulB.style.paddingLeft = '16px';
+          for (const g of groups) {
+            const liB = document.createElement('li');
+            liB.textContent = String(g.building || '(Unknown Building)');
+            const ulF = document.createElement('ul'); ulF.style.paddingLeft = '16px';
+            for (const f of (g.floors || [])) {
+              const liF = document.createElement('li');
+              liF.textContent = String(f.floor || '(Unknown Floor)');
+              if (f.floor) floorSet.add(String(f.floor));
+              const ulZ = document.createElement('ul'); ulZ.style.paddingLeft = '16px';
+              for (const z of (f.zones || [])) {
+                const zoneLabel = String(z.zone || '(Unknown Zone)');
+                const liZ = document.createElement('li');
+                liZ.textContent = zoneLabel;
+                if (z.zone) zoneSet.add(zoneLabel);
+                const ulD = document.createElement('ul'); ulD.style.paddingLeft = '16px';
+                for (const d of (z.devices || [])) {
+                  const liD = document.createElement('li');
+                  const devName = d.name || d.id || '';
+                  const type = d.type ? ` (${d.type})` : '';
+                  const metrics = Array.isArray(d.metrics) && d.metrics.length ? ` — metrics: ${d.metrics.slice(0, 20).join(', ')}` : '';
+                  liD.textContent = `${devName}${type}${metrics}`;
+                  captureDevice(d, zoneLabel);
+                  ulD.appendChild(liD);
+                }
+                if (ulD.childElementCount) liZ.appendChild(ulD);
+                ulZ.appendChild(liZ);
+              }
+              if (ulZ.childElementCount) liF.appendChild(ulZ);
+              ulF.appendChild(liF);
+            }
+            if (ulF.childElementCount) liB.appendChild(ulF);
+            ulB.appendChild(liB);
+          }
+          wrap.appendChild(ulB);
+          metricsEl.appendChild(wrap);
+        } else {
+          if (deviceSet.size) {
+            const wrap = document.createElement('div');
+            wrap.className = 'series-container';
+            const ul = document.createElement('ul');
+            ul.style.margin = '0'; ul.style.paddingLeft = '16px';
+            Array.from(deviceSet).slice(0, 50).forEach((d) => {
+              const li = document.createElement('li');
+              const label = deviceDisplay.get(d) || d;
+              li.textContent = label;
+              ul.appendChild(li);
+            });
+            wrap.appendChild(ul);
+            metricsEl.appendChild(wrap);
+          } else {
+            const note = document.createElement('div');
+            note.style.color = '#94a3b8';
+            note.textContent = 'No scope grouping available';
+            metricsEl.appendChild(note);
+          }
+        }
+      } catch (e) { console.error('render scope extract failed', e); }
+
+      currentScopeDevices = Array.from(deviceSet);
+      currentScopeZones = Array.from(zoneSet);
+      currentScopeFloors = Array.from(floorSet);
+      selection.devices = currentScopeDevices.slice();
+      selection.zonesList = currentScopeZones.slice();
+      selection.floorsList = currentScopeFloors.slice();
+      if (!selection.zonesList.length && selection.roomLabel) selection.zonesList = [selection.roomLabel];
+      if (!selection.floorsList.length && selection.floor) selection.floorsList = [selection.floor];
+      selection.deviceZoneMap = deviceZoneMapObj;
+      syncDropdownsFromSelection();
     } catch {
       metricsEl.textContent = 'Failed to load metrics';
+      currentScopeDevices = [];
+      currentScopeZones = [];
+      currentScopeFloors = [];
+      selection.devices = [];
+      selection.zonesList = [];
+      selection.floorsList = [];
+      selection.deviceZoneMap = {};
+      syncDropdownsFromSelection();
     }
   }
 
   async function send() {
+    if (sending) return;
+    const content = (inputEl.value || '').trim();
+    if (!content) {
+      updateSendButtonState();
+      return;
+    }
+
     const room = selection.room || '';
-    const start = startEl.value ? new Date(startEl.value).getTime() : null;
-    const end = endEl.value ? new Date(endEl.value).getTime() : null;
-    const content = inputEl.value.trim();
-    if (!content) return;
+    const startMs = readInputTs(startEl);
+    const endMs = readInputTs(endEl);
+
+    sending = true;
     inputEl.value = '';
+    updateSendButtonState();
+
     messages.push({ role: 'user', content });
     appendMessage(chatEl, 'user', content);
 
-    appendMessage(chatEl, 'assistant', 'Thinking…');
+    const thinkingEl = appendMessage(chatEl, 'assistant', 'Thinking…');
 
-    const payload = { messages, room, range: { start, end } };
-    if (selection.building || selection.floor || selection.room) payload.selection = selection;
-    const res = await fetchJSON('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).catch(e => ({ error: String(e) }));
+    const payload = { messages, room, range: { start: startMs ?? null, end: endMs ?? null } };
+    if (selection.tenant || selection.building || selection.floor || selection.room) {
+      const scopeSelection = {
+        tenant: selection.tenant || null,
+        building: selection.building || null,
+        floor: selection.floor || null,
+        room: selection.room || null,
+        device: (typeof deviceSelect !== 'undefined' && deviceSelect) ? (deviceSelect.value || null) : null,
+        devices: selection.devices.slice(),
+        zones: selection.zonesList.slice(),
+        floors: selection.floorsList.slice(),
+        deviceZones: selection.deviceZoneMap,
+        labels: {
+          tenant: selection.tenant || null,
+          building: selection.building || null,
+          floor: selection.floor || null,
+          room: selection.roomLabel || selection.room || null
+        }
+      };
+      payload.selection = scopeSelection;
+      payload.scope = scopeSelection;
+    }
 
-    // Remove the placeholder last assistant message
-    chatEl.removeChild(chatEl.lastChild);
+    let res;
+    try {
+      res = await fetchJSON('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      res = { error: err?.message || String(err) };
+    } finally {
+      if (thinkingEl && thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
+    }
 
     if (!res || res.error) {
-      messages.push({ role: 'assistant', content: 'Error: ' + (res?.error || 'unknown') });
-      appendMessage(chatEl, 'assistant', 'Error: ' + (res?.error || 'unknown'));
+      const errorMsg = 'Error: ' + (res?.error || 'unknown');
+      messages.push({ role: 'assistant', content: errorMsg });
+      appendMessage(chatEl, 'assistant', errorMsg);
+      sending = false;
+      updateSendButtonState();
       return;
     }
+
     messages.push(res.message);
-    if (res.message && res.message.content) {
-      // Filter out system prompt/hint text if present
-      const answer = res.message.content;
-      if (
-        !answer.startsWith('MANDATORY:') &&
-        !answer.startsWith('CRITICAL ERROR:') &&
-        !answer.startsWith('ERROR:') &&
-        !answer.includes('You MUST respond') &&
-        !answer.includes('Respond ONLY with a valid JSON object')
-      ) {
-        appendMessage(chatEl, 'assistant', answer, null); // Don't pass chart here
+
+    const answer = res.message?.content || '';
+    const chart = res.chart || null; // already resolved from dataRef by backend
+    appendMessage(chatEl, 'assistant', answer, chart);
+
+    // extras (background tool outputs)
+    if (Array.isArray(res.extras)) {
+      for (const ex of res.extras) {
+        const exMsg = ex?.message?.content || null;
+        const exChart = ex?.chart || null;
+        if (exMsg || exChart) appendMessage(chatEl, 'assistant', exMsg, exChart);
       }
     }
 
-    // Update query level indicator from extras if present
     if (Array.isArray(res.extras) && queryLevelEl) {
       const lvl = extractQueryLevel(res.extras);
       setQueryLevel(lvl);
     }
 
-    // Render chart in sidebar instead of chat
-    const { chart } = res;
-    if (chart) {
-      const chartSidebar = document.getElementById('chart-sidebar');
-      const chartWrap = document.createElement('div');
-      const id = nextId();
-      chartWrap.id = 'chart-' + id;
-      chartWrap.className = 'chart-msg';
-      chartSidebar.appendChild(chartWrap);
-      setTimeout(() => {
-        try { Highcharts.chart(chartWrap.id, chart); } catch (e) { console.error(e); }
-      }, 0);
-      chartSidebar.scrollTop = chartSidebar.scrollHeight;
-    }
-
-    // Render any extras (background tool fetches)
-    if (Array.isArray(res.extras)) {
-      for (const ex of res.extras) {
-        if (ex && ex.message && ex.message.content) {
-          appendMessage(chatEl, 'assistant', ex.message.content, null);
-        }
-        if (ex && ex.chart) {
-          const chartSidebar = document.getElementById('chart-sidebar');
-          const chartWrap = document.createElement('div');
-          const id = nextId();
-          chartWrap.id = 'chart-' + id;
-          chartWrap.className = 'chart-msg';
-          chartSidebar.appendChild(chartWrap);
-          setTimeout(() => { try { Highcharts.chart(chartWrap.id, ex.chart); } catch (e) { console.error(e); } }, 0);
-          chartSidebar.scrollTop = chartSidebar.scrollHeight;
-        }
-      }
-    }
+    sending = false;
+    updateSendButtonState();
   }
+
+  // No room dropdown to populate
+
+  const messages = [];
 
   function extractQueryLevel(extras) {
     try {
@@ -387,10 +1057,19 @@ async function init() {
     try {
       const st = await fetchJSON('/api/status');
       const neo = st.neo4j || {}; const vec = st.chroma || {};
+      const neoOk = !!neo.connected;
+      const chromaOk = !!vec.configured;
+      const neoColor = neoOk ? '#22c55e' : '#ef4444';
+      const chromaColor = chromaOk ? '#22c55e' : '#ef4444';
       statusEl.innerHTML = `
-        <div><b>Neo4j:</b> ${neo.connected ? 'Connected' : 'Not connected'}</div>
-        <div style="font-size: 12px; color: ${neo.connected ? '#9ca3af' : '#ef4444'};">nodes: ${neo.nodes ?? '—'}, rels: ${neo.relationships ?? '—'}, tenants: ${neo.tenants ?? '—'}, zones: ${neo.zones ?? '—'}, devices: ${neo.devices ?? '—'}</div>
-        <div style="margin-top:6px;"><b>Chroma:</b> ${vec.configured ? 'Configured' : 'Not configured'}</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span><span style="color:${neoColor}; font-weight:600;">${neoOk ? '✔' : '✘'}</span> Neo4j</span>
+          <span style="font-size: 12px; color: #94a3b8;">nodes: ${neo.nodes ?? '—'} · rels: ${neo.relationships ?? '—'} · tenants: ${neo.tenants ?? '—'} · zones: ${neo.zones ?? '—'} · devices: ${neo.devices ?? '—'}</span>
+        </div>
+        <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
+          <span><span style="color:${chromaColor}; font-weight:600;">${chromaOk ? '✔' : '✘'}</span> Chroma</span>
+          <span style="font-size: 12px; color: #94a3b8;">${vec.collections ?? '—'} collections</span>
+        </div>
       `;
     } catch (e) {
       statusEl.textContent = 'Status unavailable';
@@ -402,136 +1081,296 @@ async function init() {
   // roomToZoneType removed (no longer needed in UI)
 
   async function refreshGraphView() {
-    // Title stays static with buttons; use fixed layout (no physics)
+    const target = document.getElementById(graphViewChartId);
+    if (!target) {
+      console.warn('[graph] container missing');
+      return;
+    }
+
     try {
       const g = await fetchJSON(`/api/graph/full${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`);
       const allLinks = (g.links || []).map(e => [e.source, e.target, e.rel]);
-      const colorMap = { Building: '#3b82f6', Floor: '#f59e0b', Zone: '#22c55e', Device: '#8b5cf6', MetricType: '#14b8a6' };
-      const allNodes = (g.nodes || []).map(n => ({ id: n.id, name: n.name, roomId: n.roomId || null, nodeType: n.nodeType || n.label, x: n.x, y: n.y, color: colorMap[n.nodeType || n.label], cloudId: n.cloudId || null, hasData: !!n.hasData, dataDevices: n.dataDevices||0 }));
+      const colorMap = { Building: '#3b82f6', Floor: '#f59e0b', Zone: '#22c55e', Device: '#8b5cf6', TelemetryKey: '#14b8a6', MetricType: '#14b8a6' };
+      const allNodes = (g.nodes || []).map(n => ({
+        id: n.id,
+        name: n.name,
+        roomId: n.roomId || null,
+        nodeType: n.nodeType || n.label,
+        x: n.x,
+        y: n.y,
+        color: colorMap[n.nodeType || n.label],
+        cloudId: n.cloudId || null,
+        hasData: !!n.hasData,
+        dataDevices: n.dataDevices || 0
+      }));
+      const nodeByIdAll = new Map(allNodes.map(n => [n.id, n]));
 
       function filterView() {
         const nodes = [];
         const links = [];
-        const addNode = (id) => { if (!nodes.find(n => n.id===id)) { const nn = allNodes.find(n=>n.id===id); if (nn) nodes.push({ ...nn }); } };
-        const addLink = (a,b,rel) => { if (a && b) links.push([a,b,rel]); };
-        const buildings = allNodes.filter(n=>n.nodeType==='Building');
-        const floors = allNodes.filter(n=>n.nodeType==='Floor');
-        const zones = allNodes.filter(n=>n.nodeType==='Zone');
-        if (graphLevel==='buildings') {
-          buildings.forEach(n=>addNode(n.id));
-        } else if (graphLevel==='floors' && selection.building) {
-          const b = buildings.find(n=>n.name===selection.building);
+        const addNode = (id) => { if (!nodes.find(n => n.id === id)) { const nn = allNodes.find(n => n.id === id); if (nn) nodes.push({ ...nn }); } };
+        const addLink = (a, b, rel) => { if (a && b) links.push([a, b, rel]); };
+        const buildings = allNodes.filter(n => n.nodeType === 'Building');
+        const floors = allNodes.filter(n => n.nodeType === 'Floor');
+        const zones = allNodes.filter(n => n.nodeType === 'Zone');
+        if (graphLevel === 'buildings') {
+          buildings.forEach(n => addNode(n.id));
+        } else if (graphLevel === 'floors' && selection.building) {
+          const b = buildings.find(n => n.name === selection.building);
           if (b) addNode(b.id);
-          allLinks.filter(l=>l[2]==='LOCATED_IN_BUILDING').forEach(([from,to,rel])=>{
-            if (!(b && to===b.id)) return;
-            const fromNode = allNodes.find(n=>n.id===from);
-            if (fromNode && fromNode.nodeType==='Floor') { addNode(from); addLink(from,to,rel); }
+          allLinks.filter(l => l[2] === 'LOCATED_IN_BUILDING').forEach(([from, to, rel]) => {
+            if (!(b && to === b.id)) return;
+            const fromNode = allNodes.find(n => n.id === from);
+            if (fromNode && fromNode.nodeType === 'Floor') { addNode(from); addLink(from, to, rel); }
           });
-        } else if (graphLevel==='rooms' && selection.building && selection.floor) {
-          const b = buildings.find(n=>n.name===selection.building);
-          const f = floors.find(n=>n.name===selection.floor);
+        } else if (graphLevel === 'rooms' && selection.building && selection.floor) {
+          const b = buildings.find(n => n.name === selection.building);
+          const f = floors.find(n => n.name === selection.floor);
           if (b) addNode(b.id);
-          if (f) { addNode(f.id); addLink(f.id, b?b.id:null,'LOCATED_IN_BUILDING'); }
-          allLinks.filter(l=>l[2]==='BELONGS_TO_FLOOR').forEach(([from,to,rel])=>{ if (f && to===f.id) { addNode(from); addLink(from,to,rel);} });
-        } else if (graphLevel==='devices' && selection.room) {
-          const z = zones.find(n=>n.roomId===selection.room || n.name===selection.room);
-          if (z) addNode(z.id);
-          allLinks.filter(l=>l[2]==='LOCATED_IN_ZONE').forEach(([from,to,rel])=>{ if (z && to===z.id) { addNode(from); addLink(from,to,rel);} });
-          // also add floor and building chain
-          const floorId = nodes.find(n=>n.nodeType==='Floor')?.id;
-          if (floorId) allLinks.filter(l=>l[2]==='LOCATED_IN_BUILDING').forEach(([from,to,rel])=>{ if (from===floorId) { addNode(to); addLink(from,to,rel);} });
+          if (f) { addNode(f.id); addLink(f.id, b ? b.id : null, 'LOCATED_IN_BUILDING'); }
+          allLinks.filter(l => l[2] === 'BELONGS_TO_FLOOR').forEach(([from, to, rel]) => { if (f && to === f.id) { addNode(from); addLink(from, to, rel); } });
+        } else if (graphLevel === 'devices' && selection.room) {
+          let z = zones.find(n => String(n.roomId || '') === String(selection.room));
+          if (!z) {
+            const candidateZones = zones.filter(n => String(n.name || '') === String(selection.room));
+            if (candidateZones.length === 1) z = candidateZones[0];
+            else if (candidateZones.length > 1 && selection.floor) {
+              const floorNode = floors.find(fn => String(fn.name || '') === String(selection.floor));
+              if (floorNode) {
+                const fId = floorNode.id;
+                z = candidateZones.find(zn => allLinks.some(l => l[0] === zn.id && l[1] === fId && l[2] === 'BELONGS_TO_FLOOR')) || candidateZones[0];
+              } else {
+                z = candidateZones[0];
+              }
+            }
+          }
+          if (z) {
+            addNode(z.id);
+            const zToFloor = allLinks.find(l => l[0] === z.id && l[2] === 'BELONGS_TO_FLOOR');
+            if (zToFloor) { addNode(zToFloor[1]); addLink(zToFloor[0], zToFloor[1], zToFloor[2]); }
+            const floorId = zToFloor ? zToFloor[1] : null;
+            if (floorId) {
+              const fToB = allLinks.find(l => l[0] === floorId && l[2] === 'LOCATED_IN_BUILDING');
+              if (fToB) { addNode(fToB[1]); addLink(fToB[0], fToB[1], fToB[2]); }
+            } else {
+              const zToB = allLinks.find(l => l[0] === z.id && l[2] === 'LOCATED_IN_BUILDING');
+              if (zToB) { addNode(zToB[1]); addLink(zToB[0], zToB[1], zToB[2]); }
+            }
+            allLinks.filter(l => l[2] === 'LOCATED_IN_ZONE').forEach(([from, to, rel]) => { if (to === z.id) { addNode(from); addLink(from, to, rel); } });
+          }
         } else {
-          // Only include devices that are S3-matched (server now filters, but keep defensive)
-          allNodes.forEach(n=>{ if (n.nodeType!=='Device' || (n.cloudId && n.cloudId.length)) addNode(n.id); });
-          allLinks.forEach(([a,b,rel])=>addLink(a,b,rel));
+          allNodes.forEach(n => { if (n.nodeType !== 'Device' || (n.cloudId && n.cloudId.length)) addNode(n.id); });
+          allLinks.forEach(([a, b, rel]) => addLink(a, b, rel));
         }
-        return { nodes, links };
+        let outNodes = nodes;
+        let outLinks = links;
+        if (!showTelemetryKeys) {
+          const hidden = new Set(nodes.filter(n => n.nodeType === 'TelemetryKey').map(n => n.id));
+          outNodes = nodes.filter(n => !hidden.has(n.id));
+          outLinks = links.filter(([a, b]) => !hidden.has(a) && !hidden.has(b));
+        }
+        return { nodes: outNodes, links: outLinks };
       }
 
-      const view = filterView();
-      const nodes = view.nodes;
-      const links = view.links;
+      const { nodes, links } = filterView();
       lastGraphNodes = nodes.slice();
 
-      // Center selected building if available
-      const buildingNode = selection.building ? nodes.find(n => n.nodeType==='Building' && n.name===selection.building) : nodes.find(n => n.nodeType==='Building');
+      const buildingNode = selection.building ? nodes.find(n => n.nodeType === 'Building' && n.name === selection.building) : nodes.find(n => n.nodeType === 'Building');
       const dx = buildingNode && typeof buildingNode.x === 'number' ? -buildingNode.x : 0;
       const dy = buildingNode && typeof buildingNode.y === 'number' ? -buildingNode.y : 0;
-      const positioned = nodes.map(n => ({...n, x: (typeof n.x==='number'?n.x:0)+dx, y: (typeof n.y==='number'?n.y:0)+dy }));
+      const positioned = nodes.map(n => ({ ...n, x: (typeof n.x === 'number' ? n.x : 0) + dx, y: (typeof n.y === 'number' ? n.y : 0) + dy }));
 
-      // Prepare series data
       const nodePoints = positioned.map(n => ({
-        x: n.x || 0, y: n.y || 0, id: n.id, name: n.name, nodeType: n.nodeType, roomId: n.roomId, color: n.color,
-        marker: n.nodeType==='Building' ? (n.hasData ? { radius: 11, lineWidth: 3, lineColor: '#22c55e' } : { radius: 10 }) : (n.nodeType==='Zone' ? { radius: 7 } : { radius: 5 })
+        x: n.x || 0,
+        y: n.y || 0,
+        id: n.id,
+        name: n.name,
+        nodeType: n.nodeType,
+        roomId: n.roomId,
+        color: n.color,
+        marker: n.nodeType === 'Building'
+          ? (n.hasData ? { radius: 11, lineWidth: 3, lineColor: '#22c55e' } : { radius: 10 })
+          : (n.nodeType === 'Zone' ? { radius: 7 } : { radius: 5 })
       }));
       const nodeById = new Map(nodePoints.map(p => [p.id, p]));
       const linkSeg = [];
-      for (const [a,b] of links) {
-        const A = nodeById.get(a), B = nodeById.get(b);
+      for (const [a, b] of links) {
+        const A = nodeById.get(a); const B = nodeById.get(b);
         if (!A || !B) continue;
         linkSeg.push([A.x, A.y]);
         linkSeg.push([B.x, B.y]);
-        linkSeg.push([null, null]); // break between segments
+        linkSeg.push([null, null]);
       }
 
-      // Compute axes range
-      const xs = nodePoints.map(p=>p.x).filter(Number.isFinite);
-      const ys = nodePoints.map(p=>p.y).filter(Number.isFinite);
-      const minX = Math.min(...xs, -100), maxX = Math.max(...xs, 100);
-      const minY = Math.min(...ys, -100), maxY = Math.max(...ys, 100);
+      const xs = nodePoints.map(p => p.x).filter(Number.isFinite);
+      const ys = nodePoints.map(p => p.y).filter(Number.isFinite);
+      const minX = Math.min(...xs, -100);
+      const maxX = Math.max(...xs, 100);
+      const minY = Math.min(...ys, -100);
+      const maxY = Math.max(...ys, 100);
 
-      Highcharts.chart(graphViewChartId, {
+      const handleGraphPointClick = async (point) => {
+        try {
+          if (point.nodeType === 'Building') {
+            selection.building = String(point.name || '');
+            selection.floor = null;
+            selection.room = null;
+            selection.roomLabel = null;
+            selectionConfirmed = false;
+            selection.deviceZoneMap = {};
+            graphLevel = 'floors';
+            syncDropdownsFromSelection();
+            await populateFloors(selection.building);
+            syncDropdownsFromSelection();
+          } else if (point.nodeType === 'Floor') {
+            const floorName = String(point.name || '');
+            if (!selection.building) {
+              const link = allLinks.find(l => l[0] === point.id && l[2] === 'LOCATED_IN_BUILDING');
+              if (link) {
+                const buildingNode = nodeByIdAll.get(link[1]);
+                if (buildingNode?.name) selection.building = buildingNode.name;
+              }
+            }
+            selection.floor = floorName;
+            selection.room = null;
+            selection.roomLabel = null;
+            selectionConfirmed = false;
+            selection.deviceZoneMap = {};
+            graphLevel = 'rooms';
+            syncDropdownsFromSelection();
+            if (selection.building) {
+              await populateFloors(selection.building);
+              syncDropdownsFromSelection();
+            }
+            await populateZones(selection.building, selection.floor);
+            syncDropdownsFromSelection();
+          } else if (point.nodeType === 'Zone') {
+            const zoneName = String(point.roomId || point.name || '');
+            const floorLink = allLinks.find(l => l[0] === point.id && l[2] === 'BELONGS_TO_FLOOR');
+            if (floorLink) {
+              const floorNode = nodeByIdAll.get(floorLink[1]);
+              if (floorNode?.name) selection.floor = floorNode.name;
+              const buildingLink = allLinks.find(l => l[0] === floorLink[1] && l[2] === 'LOCATED_IN_BUILDING');
+              if (buildingLink) {
+                const buildingNode = nodeByIdAll.get(buildingLink[1]);
+                if (buildingNode?.name) selection.building = buildingNode.name;
+              }
+            }
+            selection.room = zoneName;
+            selection.roomLabel = zoneName;
+            selectionConfirmed = false;
+            graphLevel = 'devices';
+            syncDropdownsFromSelection();
+            if (selection.building) {
+              await populateFloors(selection.building);
+              syncDropdownsFromSelection();
+            }
+            if (selection.floor) {
+              await populateZones(selection.building, selection.floor);
+              syncDropdownsFromSelection();
+            }
+            await populateDevices(selection.building, selection.floor, selection.room);
+            syncDropdownsFromSelection();
+          } else if (point.nodeType === 'Device') {
+            const rel = allLinks.find(l => l[0] === point.id && l[2] === 'LOCATED_IN_ZONE');
+            const zoneNode = rel ? nodeByIdAll.get(rel[1]) : null;
+            if (zoneNode) {
+              await handleGraphPointClick({ ...zoneNode, nodeType: zoneNode.nodeType, roomId: zoneNode.roomId });
+              return;
+            }
+          }
+
+          syncDropdownsFromSelection();
+          renderScopePill();
+          updateSelectedRangeDisplay();
+          await refreshMetrics();
+          setTimeout(() => { refreshGraphView(); }, 0);
+        } catch (err) {
+          console.error('[graph] selection sync failed', err);
+        }
+      };
+
+      target.innerHTML = '';
+      Highcharts.chart(target, {
         chart: { backgroundColor: 'transparent', animation: false },
         title: { text: null },
         xAxis: { min: minX - 60, max: maxX + 60, visible: false },
         yAxis: { min: minY - 60, max: maxY + 60, visible: false },
+        accessibility: { enabled: false },
         tooltip: { formatter() { return this.point && this.point.nodeType ? `${this.point.nodeType}: ${this.point.name}` : null; } },
         series: [
           { type: 'line', data: linkSeg, color: '#64748b', enableMouseTracking: false, lineWidth: 1, marker: { enabled: false } },
-          { type: 'scatter', data: nodePoints, dataLabels: { enabled: true, style: { color: '#cbd5e1', textOutline: 'none' } },
+          {
+            type: 'scatter',
+            data: nodePoints,
+            dataLabels: { enabled: true, style: { color: '#cbd5e1', textOutline: 'none' } },
             cursor: 'pointer',
-            point: { events: { click: function () {
-              const p = this;
-              if (p.nodeType === 'Building') {
-                selection.building = String(p.name || ''); selection.floor = null; selection.room = null; selectionConfirmed = false; graphLevel='floors';
-              } else if (p.nodeType === 'Floor') {
-                selection.floor = String(p.name || ''); selectionConfirmed = false; graphLevel='rooms';
-              } else if (p.nodeType === 'Zone') {
-                selection.room = String(p.roomId || p.name || ''); selectionConfirmed = false; graphLevel='devices';
-              } else if (p.nodeType === 'Device') {
-                // Find nearest linked zone in local links
-                const rel = links.find(l => l[0]===p.id || l[1]===p.id);
-                const other = rel ? (rel[0]===p.id ? rel[1] : rel[0]) : null;
-                const zone = nodes.find(n => n.id === other && n.nodeType==='Zone');
-                if (zone) { selection.room = String(zone.roomId || zone.name || ''); selectionConfirmed = false; }
+            point: {
+              events: {
+                click: function () {
+                  Promise.resolve(handleGraphPointClick(this)).catch(err => console.error('[graph] click handler error', err));
+                }
               }
-              renderScopePill(); updateSelectedRangeDisplay(); refreshMetrics(); refreshGraphView();
-            } } }
+            }
           }
         ],
         credits: { enabled: false }
       });
     } catch (e) {
-      document.getElementById(graphViewChartId).innerHTML = '<div style="color:#94a3b8">Graph view unavailable</div>';
+      console.error('[graph] render failed', e);
+      target.innerHTML = '<div style="color:#94a3b8">Graph view unavailable</div>';
+      lastGraphNodes = [];
     }
   }
 
-  sendBtn.addEventListener('click', send);
-  inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+  if (sendBtn) sendBtn.addEventListener('click', send);
+  inputEl.addEventListener('input', updateSendButtonState);
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      send();
+    }
+  });
   // No room dropdown; graph interactions drive selection
   startEl.addEventListener('change', () => { updateSelectedRangeDisplay(); refreshMetrics(); });
   endEl.addEventListener('change', () => { updateSelectedRangeDisplay(); refreshMetrics(); });
 
   // initial metrics load
   updateSelectedRangeDisplay();
+  await populateBuildings();
+  syncDropdownsFromSelection();
+  await refreshGraphView();
   refreshMetrics();
   refreshStatus();
-  // Removed graph summary
-  refreshGraphView();
   setInterval(refreshStatus, 30000);
   // Confirm/Clear scope controls
-  if (confirmBtn) confirmBtn.addEventListener('click', () => { selectionConfirmed = !!(selection.building || selection.floor || selection.room); renderScopePill(); });
-  if (clearBtn) clearBtn.addEventListener('click', () => { selection.building=null; selection.floor=null; selection.room=null; selectionConfirmed=false; graphLevel='buildings'; renderScopePill(); refreshGraphView(); });
+  if (confirmBtn) confirmBtn.addEventListener('click', () => {
+    selectionConfirmed = !!(selection.building || selection.floor || selection.room);
+    renderScopePill();
+    refreshMetrics();
+  });
+  if (clearBtn) clearBtn.addEventListener('click', async () => {
+    selection.building=null; selection.floor=null; selection.room=null; selectionConfirmed=false; graphLevel='buildings';
+    if (buildingSelect) buildingSelect.value = '';
+    if (floorSelect) floorSelect.innerHTML = '<option value="">Select floor…</option>';
+    if (zoneSelect) zoneSelect.innerHTML = '<option value="">Select zone…</option>';
+    if (deviceSelect) deviceSelect.innerHTML = '<option value="">Select device…</option>';
+    invalidateScopeCache();
+    selection.devices = [];
+    selection.zonesList = [];
+    selection.floorsList = [];
+    selection.roomLabel = null;
+    selection.deviceZoneMap = {};
+    currentScopeDevices = [];
+    currentScopeZones = [];
+    currentScopeFloors = [];
+    clearAgentCharts();
+    syncDropdownsFromSelection();
+    renderScopePill();
+    await populateBuildings();
+    refreshMetrics();
+    await refreshGraphView();
+  });
 }
 
 function formatDateLocal(ts) {
@@ -548,8 +1387,8 @@ function updateSelectedRangeDisplay() {
   const startEl = document.getElementById('start');
   const endEl = document.getElementById('end');
   const rangeDiv = document.getElementById('selected-range');
-  const start = startEl.value ? new Date(startEl.value).getTime() : null;
-  const end = endEl.value ? new Date(endEl.value).getTime() : null;
+  const start = readInputTs(startEl);
+  const end = readInputTs(endEl);
   const sel = (window && window.selection) ? window.selection : { building: null, floor: null, room: null };
   rangeDiv.innerHTML = `
     <b>Scope:</b> ${sel.building ? 'Building '+sel.building : '—'} ${sel.floor ? ' · Floor '+sel.floor : ''} ${sel.room ? ' · Room '+sel.room : ''}<br>
@@ -590,3 +1429,9 @@ async function loadRoomMetrics(room) {
 
 
 init();
+      if (!zoneSet.size && meta && meta.byZone) {
+        Object.keys(meta.byZone).forEach((k) => { if (k) zoneSet.add(String(k)); });
+      }
+      if (!floorSet.size && meta && meta.byFloor) {
+        Object.keys(meta.byFloor).forEach((k) => { if (k) floorSet.add(String(k)); });
+      }

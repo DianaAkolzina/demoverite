@@ -8,7 +8,6 @@ import path from 'path';
 export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, callGeminiChat, graph = null, vector = null }) {
   const DEBUG = process.env.RAG_DEBUG === '1' || process.env.LOG_LEVEL === 'debug';
   const log = (...a) => { if (DEBUG) console.log('[Agent]', ...a); };
-  let activeTenant = null;
   
   // Build RAG index once at startup
   const docs = buildDocsFromData({
@@ -24,12 +23,898 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
   function loadGraphSnapshot() {
     try {
       const rootDir = path.join(path.dirname(dataDir));
-      const slug = (s) => String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
-      const file = activeTenant ? `graph_snapshot.${slug(activeTenant)}.json` : 'graph_snapshot.json';
-      const p = path.join(rootDir, 'data', file);
+      const p = path.join(rootDir, 'data', 'graph_snapshot.json');
       const raw = fs.readFileSync(p, 'utf8');
       return JSON.parse(raw);
     } catch { return null; }
+  }
+
+  const graphHierarchy = loadGraphFormHierarchy();
+
+  function loadFriendlyToCloudMap() {
+    const map = new Map();
+    try {
+      const rootDir = path.join(path.dirname(dataDir));
+      const csvPath = path.join(rootDir, 'data', 'graph_form', 'devices.csv');
+      if (!fs.existsSync(csvPath)) return map;
+      const text = fs.readFileSync(csvPath, 'utf8');
+      const lines = text.split(/\r?\n/).filter((line) => line.trim().length);
+      if (!lines.length) return map;
+      const headers = lines[0].split(',').map((h) => h.trim());
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(',');
+        const row = {};
+        headers.forEach((h, idx) => {
+          row[h] = (parts[idx] || '').trim();
+        });
+        if (row.name && row.cloud_id) {
+          map.set(row.name, row.cloud_id);
+        }
+      }
+    } catch (err) {
+      if (DEBUG) log('failed to build friendly→cloud map:', String(err));
+    }
+    return map;
+  }
+
+  const CORNWALL_FRIENDLY_TO_CLOUD = loadFriendlyToCloudMap();
+
+  const CORNWALL_SCOPE = {
+    building: 'Cornwall Building',
+    floors: {
+      'Fourth Floor': {
+        zones: {
+          Comms: [
+            {
+              id: 'Water Meter_AmRUN3AzIrJd',
+              metrics: ['battery', 'cubic_value', 'humidity', 'raw_data', 'temperature', 'water_total'],
+              type: 'water'
+            }
+          ]
+        }
+      },
+      'Ground Floor': {
+        zones: {
+          'Room 2': [
+            {
+              id: 'IAQ_y2mcNuuXcDTr',
+              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
+              type: 'iaq'
+            }
+          ],
+          'Room 5': [
+            {
+              id: 'IAQ_jb6WMm7pPFHV',
+              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
+              type: 'iaq'
+            }
+          ],
+          'Room 8': [
+            {
+              id: 'IAQ_BbanNjLRjJEK',
+              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
+              type: 'iaq'
+            }
+          ],
+          'Room 4': [
+            {
+              id: 'IAQ_wUXUUolFJYK9',
+              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'occupants', 'pm1', 'pm10', 'pm25', 'pressure', 'rssi', 'sla', 'temperature', 'time', 'virusRisk', 'voc'],
+              type: 'iaq'
+            }
+          ],
+          Coworking: [
+            {
+              id: 'IAQ_snIQf0ZRGHAv',
+              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'occupants', 'pm1', 'pm10', 'pm25', 'pressure', 'rssi', 'sla', 'temperature', 'time', 'virusRisk', 'voc'],
+              type: 'iaq'
+            }
+          ],
+          Gem: [
+            {
+              id: 'IAQ_h9zKxsIn3YYV',
+              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'occupants', 'pm1', 'pm10', 'pm25', 'pressure', 'rssi', 'sla', 'temperature', 'time', 'virusRisk', 'voc'],
+              type: 'iaq'
+            }
+          ],
+          'Room 6': [
+            {
+              id: 'IAQ_2Mx02nIKVGL4',
+              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
+              type: 'iaq'
+            }
+          ],
+          'Room 1': [
+            {
+              id: 'IAQ_LANa7c0nlzIi',
+              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
+              type: 'iaq'
+            }
+          ],
+          'Room 3': [
+            {
+              id: 'IAQ_KcWGBiSXBgiH',
+              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
+              type: 'iaq'
+            }
+          ],
+          'Room 7': [
+            {
+              id: 'IAQ_tkhi6FivR9TG',
+              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
+              type: 'iaq'
+            }
+          ],
+          'Cafe + Lounge': [
+            {
+              id: 'Mechanical_6GLhDh3LhfoA',
+              metrics: ['powerFailure', 'raw_data', 'total_kwh', 'unit', 'value'],
+              type: 'energy'
+            },
+            {
+              id: 'Lighting_AZ8sHHCcBlzW',
+              metrics: ['powerFailure', 'raw_data', 'total_kwh', 'unit', 'value'],
+              type: 'energy'
+            },
+            {
+              id: 'SmallPower_cOApV9qH6UMo',
+              metrics: ['powerFailure', 'raw_data', 'total_kwh', 'unit', 'value'],
+              type: 'energy'
+            }
+          ],
+          Lounge: [
+            {
+              id: 'IAQ_QhyE1TAlqL4E',
+              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'occupants', 'pm1', 'pm10', 'pm25', 'pressure', 'rssi', 'sla', 'temperature', 'time', 'virusRisk', 'voc'],
+              type: 'iaq'
+            }
+          ],
+          'Comms Room': [
+            {
+              id: 'People Flow_waTDvSKxFbK4',
+              metrics: ['flow', 'raw_data'],
+              type: 'people_flow'
+            },
+            {
+              id: 'People Counter_eTcrozehAwoZ',
+              metrics: ['people_count', 'raw_data'],
+              type: 'people'
+            }
+          ]
+        }
+      },
+      'First Floor': {
+        zones: {
+          Comms: [
+            {
+              id: 'Energy_BGi4Bzh1KWkJ',
+              metrics: ['powerFailure', 'raw_data', 'total_kwh', 'unit', 'value'],
+              type: 'energy'
+            }
+          ],
+          Cafe: [
+            {
+              id: 'People Counter_xNrPaURS4r6p',
+              metrics: ['dwell', 'heatmap', 'line_periodic_data', 'line_total_data', 'raw'],
+              type: 'people'
+            }
+          ],
+          Toilet: [
+            {
+              id: 'Odor _hjtgm3AUNSdO',
+              metrics: ['battery', 'h2s', 'humidity', 'nh3', 'raw_data', 'temperature'],
+              type: 'odor'
+            },
+            {
+              id: 'Water Leak_MdGf5j3Ae9Zs',
+              metrics: ['battery', 'leakage_status', 'raw_data'],
+              type: 'leak'
+            }
+          ],
+          Brainstorm: [
+            {
+              id: 'Temperature_AvYwOcSkqEZb',
+              metrics: ['humidity', 'raw_data', 'temperature', 'units'],
+              type: 'temperature'
+            }
+          ],
+          'Cafe + Lounge': [
+            {
+              id: 'Occupancy_lzDbZpSWkLkT',
+              metrics: ['is_used', 'occupancy', 'raw_data', 'supplyVoltage', 'units', 'value'],
+              type: 'occupancy'
+            }
+          ]
+        }
+      }
+    }
+  };
+
+  function deriveCornwallDeviceMeta() {
+    const byCloudId = {};
+    const byFriendly = {};
+    for (const [floorName, floor] of Object.entries(CORNWALL_SCOPE.floors)) {
+      for (const [zoneName, devices] of Object.entries(floor.zones)) {
+        devices.forEach((device) => {
+          const friendly = device.id;
+          const cloudId = CORNWALL_FRIENDLY_TO_CLOUD.get(friendly) || friendly;
+          const entry = {
+            cloudId,
+            friendlyName: friendly,
+            zone: zoneName,
+            floor: floorName,
+            building: CORNWALL_SCOPE.building,
+            metrics: device.metrics,
+            type: device.type
+          };
+          byCloudId[cloudId] = entry;
+          byFriendly[friendly] = entry;
+        });
+      }
+    }
+    return { byCloudId, byFriendly };
+  }
+
+  const { byCloudId: CORNWALL_DEVICE_META, byFriendly: CORNWALL_DEVICE_FRIENDLY } = deriveCornwallDeviceMeta();
+  const CORNWALL_ZONE_META = (() => {
+    const map = new Map();
+    for (const [floorName, floor] of Object.entries(CORNWALL_SCOPE.floors)) {
+      for (const zoneName of Object.keys(floor.zones)) {
+        map.set(zoneName, { zone: zoneName, floor: floorName, building: CORNWALL_SCOPE.building });
+      }
+    }
+    return map;
+  })();
+  const CORNWALL_DEVICE_IDS = new Set(Object.keys(CORNWALL_DEVICE_META));
+  const CORNWALL_FRIENDLY_NAMES = new Set(Object.keys(CORNWALL_DEVICE_FRIENDLY));
+
+  
+  const normalizeDeviceKey = (value, removePunctuation = false) => {
+    const key = String(value ?? '').trim().toLowerCase();
+    return removePunctuation ? key.replace(/[^a-z0-9]/g, '') : key;
+  };
+
+  function lookupDeviceHierarchy(deviceId) {
+    if (!deviceId) return null;
+    let cloudId = deviceId;
+    let friendlyName = null;
+    if (CORNWALL_DEVICE_META[deviceId]) {
+      cloudId = deviceId;
+      friendlyName = CORNWALL_DEVICE_META[deviceId].friendlyName;
+    } else if (CORNWALL_DEVICE_FRIENDLY[deviceId]) {
+      cloudId = CORNWALL_DEVICE_FRIENDLY[deviceId].cloudId;
+      friendlyName = deviceId;
+    } else if (CORNWALL_FRIENDLY_TO_CLOUD.has(deviceId)) {
+      cloudId = CORNWALL_FRIENDLY_TO_CLOUD.get(deviceId);
+      friendlyName = deviceId;
+    }
+    if (CORNWALL_DEVICE_META[cloudId]) {
+      const meta = CORNWALL_DEVICE_META[cloudId];
+      return {
+        primaryId: cloudId,
+        cloudId,
+        deviceId: cloudId,
+        numericId: cloudId,
+        name: friendlyName || meta.friendlyName || cloudId,
+        type: meta.type,
+        zoneName: meta.zone,
+        floorName: meta.floor,
+        buildingName: meta.building,
+        zoneId: meta.zone,
+        floorId: meta.floor,
+        buildingId: meta.building
+      };
+    }
+    if (!graphHierarchy) return null;
+    const keyA = normalizeDeviceKey(deviceId, false);
+    const keyB = normalizeDeviceKey(deviceId, true);
+    return graphHierarchy.deviceByKey.get(keyA) || graphHierarchy.deviceByKey.get(keyB) || null;
+  }
+
+  function deviceFriendlyName(deviceId) {
+    const entry = lookupDeviceHierarchy(deviceId);
+    if (!entry) return String(deviceId || 'unknown device');
+    const name = entry.name || entry.cloudId || entry.deviceId || entry.numericId || deviceId;
+    if (entry.zoneName && entry.buildingName) {
+      return `${entry.zoneName} — ${name}`;
+    }
+    if (entry.zoneName) return `${entry.zoneName} — ${name}`;
+    if (entry.buildingName) return `${entry.buildingName} — ${name}`;
+    return name;
+  }
+
+  function resolveZoneEntry(label, { building, floor } = {}) {
+    if (!label) return null;
+    const raw = String(label).trim();
+    if (!raw) return null;
+    if (CORNWALL_ZONE_META.has(raw)) {
+      const meta = CORNWALL_ZONE_META.get(raw);
+      return {
+        id: meta.zone,
+        name: meta.zone,
+        zone: meta.zone,
+        floorId: meta.floor,
+        floorName: meta.floor,
+        buildingId: meta.building,
+        buildingName: meta.building
+      };
+    }
+    if (!graphHierarchy) return null;
+    const byId = graphHierarchy.zoneById.get(raw);
+    if (byId) return byId;
+    const keyExact = `${building ?? ''}::${floor ?? ''}::${raw.toLowerCase()}`;
+    if (graphHierarchy.zoneNameIndex.has(keyExact)) {
+      const arr = graphHierarchy.zoneNameIndex.get(keyExact);
+      if (arr && arr.length) return arr[0];
+    }
+    const lowercase = raw.toLowerCase();
+    let candidates = [];
+    if (graphHierarchy.zoneNameIndex) {
+      // Iterate over indices to find matches ignoring building/floor when necessary
+      for (const [, list] of graphHierarchy.zoneNameIndex.entries()) {
+        for (const entry of list) {
+          if (!entry || !entry.name) continue;
+          if (entry.name.toLowerCase() === lowercase) candidates.push(entry);
+        }
+      }
+    }
+    if (!candidates.length) {
+      for (const entry of graphHierarchy.zoneById.values()) {
+        if (!entry || !entry.name) continue;
+        if (entry.name.toLowerCase() === lowercase) candidates.push(entry);
+      }
+    }
+    if (building) {
+      const buildingKey = String(building).toLowerCase();
+      const filtered = candidates.filter((entry) => String(entry.buildingId || '').toLowerCase() === buildingKey);
+      if (filtered.length) candidates = filtered;
+    }
+    if (floor) {
+      const floorKey = String(floor).toLowerCase();
+      const filtered = candidates.filter((entry) => String(entry.floorId || '').toLowerCase() === floorKey);
+      if (filtered.length) candidates = filtered;
+    }
+    return candidates[0] || null;
+  }
+
+  function collectDevicesForZone(zoneLabel, context = {}) {
+    if (CORNWALL_ZONE_META.has(zoneLabel)) {
+      const zoneDevices = [];
+      for (const meta of Object.values(CORNWALL_DEVICE_META)) {
+        if (meta.zone === zoneLabel) zoneDevices.push({
+          id: meta.cloudId,
+          name: meta.friendlyName,
+          zone: meta.zone,
+          floor: meta.floor,
+          building: meta.building,
+          type: meta.type
+        });
+      }
+      return zoneDevices;
+    }
+    if (!graphHierarchy) return [];
+    const zoneEntry = resolveZoneEntry(zoneLabel, context);
+    if (!zoneEntry) return [];
+    const list = graphHierarchy.zoneDevices.get(zoneEntry.id);
+    return Array.isArray(list) ? list : [];
+  }
+
+  function collectDevicesForFloor(floorLabel, context = {}) {
+    if (floorLabel && CORNWALL_SCOPE.floors[floorLabel]) {
+      const devices = [];
+      const floor = CORNWALL_SCOPE.floors[floorLabel];
+      for (const [zoneName, zoneDevices] of Object.entries(floor.zones)) {
+        zoneDevices.forEach((device) => {
+          const meta = CORNWALL_DEVICE_FRIENDLY[device.id];
+          devices.push({
+            id: meta?.cloudId || device.id,
+            name: device.id,
+            zone: zoneName,
+            floor: floorLabel,
+            building: CORNWALL_SCOPE.building,
+            type: device.type
+          });
+        });
+      }
+      return devices;
+    }
+    if (!graphHierarchy) return [];
+    if (!floorLabel) return [];
+    const floorId = graphHierarchy.floorById.get(floorLabel)
+      ? floorLabel
+      : (() => {
+          const key = `${String(context.building || '').toLowerCase()}::${String(floorLabel).trim().toLowerCase()}`;
+          const matches = graphHierarchy.floorNameIndex.get(key);
+          if (matches && matches.length) return matches[0].id;
+          for (const entry of graphHierarchy.floorById.values()) {
+            if (entry.name && entry.name.toLowerCase() === String(floorLabel).trim().toLowerCase()) {
+              if (!context.building || String(entry.buildingId || '').toLowerCase() === String(context.building || '').toLowerCase()) {
+                return entry.id;
+              }
+            }
+          }
+          return null;
+        })();
+    if (!floorId) return [];
+    const devices = [];
+    for (const [zoneId, entries] of graphHierarchy.zoneDevices.entries()) {
+      const zone = graphHierarchy.zoneById.get(zoneId);
+      if (!zone) continue;
+      if (String(zone.floorId || '').toLowerCase() === String(floorId).toLowerCase()) {
+        devices.push(...entries);
+      }
+    }
+    return devices;
+  }
+
+  function collectDevicesForBuilding(buildingLabel) {
+    if (buildingLabel === CORNWALL_SCOPE.building) {
+      return Object.values(CORNWALL_DEVICE_META).map((meta) => ({
+        id: meta.cloudId,
+        name: meta.friendlyName,
+        zone: meta.zone,
+        floor: meta.floor,
+        building: meta.building,
+        type: meta.type
+      }));
+    }
+    if (!graphHierarchy) return [];
+    if (!buildingLabel) return [];
+    const buildingId = graphHierarchy.buildingById.get(buildingLabel)
+      ? buildingLabel
+      : (() => {
+          const target = String(buildingLabel).trim().toLowerCase();
+          for (const [id, entry] of graphHierarchy.buildingById.entries()) {
+            if (entry.name && entry.name.toLowerCase() === target) return id;
+          }
+          return null;
+        })();
+    if (!buildingId) return [];
+    const devices = [];
+    for (const [zoneId, entries] of graphHierarchy.zoneDevices.entries()) {
+      const zone = graphHierarchy.zoneById.get(zoneId);
+      if (!zone) continue;
+      if (String(zone.buildingId || '').toLowerCase() === String(buildingId).toLowerCase()) {
+        devices.push(...entries);
+      }
+    }
+    return devices;
+  }
+
+  function formatLocal(ts) {
+    if (!Number.isFinite(ts)) return 'n/a';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return 'n/a';
+    return d.toLocaleString();
+  }
+
+  function formatUtc(ts) {
+    if (!Number.isFinite(ts)) return 'n/a';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return 'n/a';
+    return d.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
+  }
+
+  function summarizeDeviceMetrics(deviceId) {
+    const metaEntry = CORNWALL_DEVICE_META[deviceId] || CORNWALL_DEVICE_FRIENDLY[deviceId];
+    try {
+      const tables = loadRoomTables(metaEntry?.cloudId || deviceId) || {};
+      const fields = new Set();
+      for (const rows of Object.values(tables)) {
+        if (!Array.isArray(rows) || !rows.length) continue;
+        const first = rows[0] || {};
+        for (const key of Object.keys(first)) {
+          if (key && key !== 'ts') fields.add(key);
+        }
+      }
+      if (!fields.size && CORNWALL_DEVICE_META[deviceId]) {
+        return CORNWALL_DEVICE_META[deviceId].metrics || [];
+      }
+      return Array.from(fields).sort();
+    } catch {
+      return CORNWALL_DEVICE_META[deviceId]?.metrics || [];
+    }
+  }
+
+  function buildCornwallScopeSummary(range, { selectionRooms = [], selectionZones = [], selectionFloors = [] } = {}) {
+    const rr = range || {};
+    const selectedRoomSet = new Set(selectionRooms);
+    const selectedFriendlySet = new Set(selectionRooms.map((id) => {
+      if (CORNWALL_DEVICE_META[id]) return CORNWALL_DEVICE_META[id].friendlyName;
+      if (CORNWALL_DEVICE_FRIENDLY[id]) return id;
+      return null;
+    }).filter(Boolean));
+    const selectedZoneSet = selectionZones.length ? new Set(selectionZones) : null;
+    const selectedFloorSet = selectionFloors.length ? new Set(selectionFloors) : null;
+
+    const lines = [];
+    lines.push('Scope and time window:');
+    lines.push(`Building: ${CORNWALL_SCOPE.building}`);
+
+    for (const [floorName, floor] of Object.entries(CORNWALL_SCOPE.floors)) {
+      if (selectedFloorSet && !selectedFloorSet.has(floorName)) continue;
+      lines.push(`- ${floorName}`);
+      for (const [zoneName, devices] of Object.entries(floor.zones)) {
+        if (selectedZoneSet && !selectedZoneSet.has(zoneName)) continue;
+        const zoneDeviceEntries = devices
+          .map((device) => CORNWALL_DEVICE_FRIENDLY[device.id])
+          .filter(Boolean);
+        const filteredDevices = zoneDeviceEntries.filter((meta) => {
+          if (!selectedRoomSet.size) return true;
+          return selectedRoomSet.has(meta.cloudId) || selectedFriendlySet.has(meta.friendlyName);
+        });
+        if (!filteredDevices.length) continue;
+        lines.push(`  - ${zoneName}`);
+        filteredDevices.slice(0, 8).forEach((meta) => {
+          const metrics = summarizeDeviceMetrics(meta.cloudId);
+          const metricsText = metrics.length ? metrics.slice(0, 10).join(', ') : (meta.metrics || []).join(', ');
+          lines.push(`    - ${meta.friendlyName} (${meta.cloudId}) — metrics: ${metricsText}`);
+        });
+        if (filteredDevices.length > 8) {
+          lines.push(`    - … ${filteredDevices.length - 8} more device(s)`);
+        }
+      }
+    }
+
+    if (lines.length === 2) {
+      lines.push('- (No devices matched the current selection)');
+    }
+
+    lines.push('');
+    lines.push('Time window:');
+    if (rr.start != null && rr.end != null) {
+      lines.push(`- Local: ${formatLocal(rr.start)} → ${formatLocal(rr.end)}`);
+      lines.push(`- UTC: ${formatUtc(rr.start)} → ${formatUtc(rr.end)}`);
+    } else if (rr.start != null) {
+      lines.push(`- Local start: ${formatLocal(rr.start)}`);
+      lines.push(`- UTC start: ${formatUtc(rr.start)}`);
+    } else if (rr.end != null) {
+      lines.push(`- Local end: ${formatLocal(rr.end)}`);
+      lines.push(`- UTC end: ${formatUtc(rr.end)}`);
+    } else {
+      lines.push('- Local: not set');
+    }
+    lines.push(`- Epoch (ms): start=${rr.start ?? 'none'}, end=${rr.end ?? 'none'}`);
+
+    return lines.join('\n');
+  }
+
+  function buildScopeSummary({
+    selectionRooms = [],
+    selectionZones = [],
+    selectionFloors = [],
+    scopeDeviceZones = {},
+    selectionLabels = {},
+    range = {},
+    maxDevices = 60
+  }) {
+    const rr = range || {};
+    const tenantLabel = selectionLabels?.tenant || null;
+    const buildingLabel = selectionLabels?.building || null;
+    const floorLabel = selectionLabels?.floor || null;
+    const zoneLabel = selectionLabels?.room || null;
+
+    const restrictingToCornwall =
+      building === CORNWALL_SCOPE.building ||
+      buildingLabel === CORNWALL_SCOPE.building ||
+      (selectionLabels?.building === CORNWALL_SCOPE.building) ||
+      selectionZones.some((z) => CORNWALL_ZONE_META.has(z)) ||
+      selectionRooms.some((id) => CORNWALL_DEVICE_IDS.has(id) || CORNWALL_FRIENDLY_NAMES.has(id));
+
+    if (restrictingToCornwall) {
+      const summary = buildCornwallScopeSummary(range, {
+        selectionRooms,
+        selectionZones,
+        selectionFloors
+      });
+      return summary;
+    }
+
+    const deviceMap = new Map();
+    const addDeviceEntry = (deviceId) => {
+      if (!deviceId || deviceMap.size >= maxDevices) return;
+      const info = lookupDeviceHierarchy(deviceId);
+      const primaryId = (info && info.cloudId) || String(deviceId);
+      const key = normalizeDeviceKey(primaryId, true);
+      if (!key || deviceMap.has(key)) return;
+
+      const buildingName =
+        info?.buildingName ||
+        buildingLabel ||
+        (info?.zoneId && graphHierarchy && graphHierarchy.zoneById.get(info.zoneId)?.buildingId && graphHierarchy.buildingById.get(graphHierarchy.zoneById.get(info.zoneId).buildingId)?.name) ||
+        '—';
+      const floorName =
+        info?.floorName ||
+        floorLabel ||
+        (info?.zoneId && graphHierarchy && graphHierarchy.zoneById.get(info.zoneId)?.floorId && graphHierarchy.floorById.get(graphHierarchy.zoneById.get(info.zoneId).floorId)?.name) ||
+        '—';
+      const derivedZoneName =
+        scopeDeviceZones?.[primaryId] ||
+        scopeDeviceZones?.[deviceId] ||
+        info?.zoneName ||
+        zoneLabel ||
+        '—';
+      const metrics = summarizeDeviceMetrics(primaryId).slice(0, 12);
+      const shortId = primaryId && primaryId.length > 12 ? `${primaryId.slice(0, 12)}…` : primaryId;
+      deviceMap.set(key, {
+        id: primaryId,
+        shortId,
+        name: info?.name || primaryId,
+        friendlyName: deviceFriendlyName(primaryId),
+        type: info?.type || null,
+        buildingName,
+        floorName,
+        zoneName: derivedZoneName,
+        metrics
+      });
+    };
+
+    selectionRooms.forEach((id) => addDeviceEntry(id));
+
+    if (deviceMap.size === 0 && selectionZones.length) {
+      for (const zone of selectionZones) {
+        const devices = collectDevicesForZone(zone, { building: selectionLabels?.building, floor: selectionLabels?.floor });
+        for (const entry of devices) addDeviceEntry(entry.cloudId || entry.primaryId);
+      }
+    }
+
+    if (deviceMap.size === 0 && selectionFloors.length) {
+      for (const floor of selectionFloors) {
+        const devices = collectDevicesForFloor(floor, { building: selectionLabels?.building });
+        for (const entry of devices) addDeviceEntry(entry.cloudId || entry.primaryId);
+      }
+    }
+
+    if (deviceMap.size === 0 && selectionLabels?.building) {
+      const devices = collectDevicesForBuilding(selectionLabels.building);
+      for (const entry of devices) addDeviceEntry(entry.cloudId || entry.primaryId);
+    }
+
+    if (deviceMap.size === 0 && graphHierarchy) {
+      // As a final fallback, include the first N devices we know about
+      let count = 0;
+      for (const entry of graphHierarchy.deviceByKey.values()) {
+        if (entry && entry.cloudId) {
+          addDeviceEntry(entry.cloudId);
+          count += 1;
+          if (count >= maxDevices) break;
+        }
+      }
+    }
+
+    const grouped = new Map();
+    for (const info of deviceMap.values()) {
+      const buildingName = info.buildingName || '—';
+      if (!grouped.has(buildingName)) grouped.set(buildingName, new Map());
+      const floorMap = grouped.get(buildingName);
+      const floorName = info.floorName || '—';
+      if (!floorMap.has(floorName)) floorMap.set(floorName, new Map());
+      const zoneMap = floorMap.get(floorName);
+      const zoneName = info.zoneName || '—';
+      if (!zoneMap.has(zoneName)) zoneMap.set(zoneName, []);
+      zoneMap.get(zoneName).push(info);
+    }
+
+    const sortByName = (arr) => arr.sort((a, b) => String(a).localeCompare(String(b)));
+
+    const buildingNames = sortByName(Array.from(grouped.keys()));
+    const lines = [];
+    lines.push('Scope and time window:');
+    if (tenantLabel) lines.push(`Tenant: ${tenantLabel}`);
+    if (buildingLabel && !buildingNames.includes(buildingLabel)) lines.push(`Building (selected): ${buildingLabel}`);
+    if (floorLabel) lines.push(`Floor (selected): ${floorLabel}`);
+    if (zoneLabel) lines.push(`Zone (selected): ${zoneLabel}`);
+
+    for (const buildingName of buildingNames) {
+      lines.push(`- ${buildingName}`);
+      const floorMap = grouped.get(buildingName);
+      const floorNames = sortByName(Array.from(floorMap.keys()));
+      for (const floorName of floorNames) {
+        lines.push(`  - ${floorName}`);
+        const zoneMap = floorMap.get(floorName);
+        const zoneNames = sortByName(Array.from(zoneMap.keys()));
+        for (const zoneName of zoneNames) {
+          lines.push(`    - ${zoneName}`);
+          const devices = zoneMap.get(zoneName).slice(0, 8);
+          for (const device of devices) {
+            const typeSuffix = device.type ? ` [${device.type}]` : '';
+            const metricsText = device.metrics.length ? ` metrics: ${device.metrics.slice(0, 8).join(', ')}` : '';
+            lines.push(`      - ${device.name}${typeSuffix} (${device.shortId})${metricsText}`);
+          }
+          if (zoneMap.get(zoneName).length > devices.length) {
+            lines.push(`      - … ${zoneMap.get(zoneName).length - devices.length} more devices`);
+          }
+        }
+      }
+    }
+
+    if (!deviceMap.size) {
+      lines.push('- No devices resolved for the current scope (CSV data missing or mapping incomplete).');
+    }
+
+    lines.push('');
+    lines.push('Time window:');
+    if (rr.start != null && rr.end != null) {
+      lines.push(`- Local: ${formatLocal(rr.start)} → ${formatLocal(rr.end)}`);
+      lines.push(`- UTC: ${formatUtc(rr.start)} → ${formatUtc(rr.end)}`);
+    } else if (rr.start != null) {
+      lines.push(`- Local start: ${formatLocal(rr.start)}`);
+      lines.push(`- UTC start: ${formatUtc(rr.start)}`);
+    } else if (rr.end != null) {
+      lines.push(`- Local end: ${formatLocal(rr.end)}`);
+      lines.push(`- UTC end: ${formatUtc(rr.end)}`);
+    } else {
+      lines.push('- Local: not set');
+    }
+    lines.push(`- Epoch (ms): start=${rr.start ?? 'none'}, end=${rr.end ?? 'none'}`);
+
+    return lines.join('\n');
+  }
+
+  function loadGraphFormHierarchy() {
+    try {
+      const rootDir = path.join(path.dirname(dataDir));
+      const baseDir = path.join(rootDir, 'data', 'graph_form');
+      if (!fs.existsSync(baseDir)) return null;
+
+      const readCsv = (file) => {
+        const full = path.join(baseDir, file);
+        if (!fs.existsSync(full)) return [];
+        const text = fs.readFileSync(full, 'utf8');
+        const lines = text.split(/\r?\n/).filter((line) => line.trim().length);
+        if (!lines.length) return [];
+        const headers = lines[0].split(',').map((h) => h.trim());
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+          const rawLine = lines[i];
+          if (!rawLine) continue;
+          const parts = rawLine.split(',');
+          const rec = {};
+          headers.forEach((h, idx) => {
+            const val = parts[idx] != null ? parts[idx].trim() : '';
+            rec[h] = val;
+          });
+          rows.push(rec);
+        }
+        return rows;
+      };
+
+      const normId = (val) => String(val ?? '').trim();
+      const normKey = (val) => normId(val).toLowerCase();
+      const canon = (val) => normKey(val).replace(/[^a-z0-9]/g, '');
+      const normName = (val) => String(val ?? '').trim().toLowerCase();
+
+      const buildingRows = readCsv('buildings.csv');
+      const floorRows = readCsv('floors.csv');
+      const zoneRows = readCsv('zones.csv');
+      const deviceRows = readCsv('devices.csv');
+
+      const buildingById = new Map();
+      for (const b of buildingRows) {
+        const id = normId(b.id || b.ID || b.buildingID);
+        if (!id) continue;
+        buildingById.set(id, {
+          id,
+          name: b.name || `Building ${id}`,
+          tenantId: normId(b.tenantID),
+          raw: b
+        });
+      }
+
+      const floorById = new Map();
+      const floorNameIndex = new Map();
+      for (const f of floorRows) {
+        const id = normId(f.id || f.ID || f.floorID);
+        if (!id) continue;
+        const buildingId = normId(f.buildingID);
+        const entry = {
+          id,
+          name: f.name || `Floor ${id}`,
+          buildingId,
+          tenantId: normId(f.tenantID),
+          raw: f
+        };
+        floorById.set(id, entry);
+        const key = `${buildingId}::${normName(entry.name)}`;
+        if (!floorNameIndex.has(key)) floorNameIndex.set(key, []);
+        floorNameIndex.get(key).push(entry);
+      }
+
+      const zoneById = new Map();
+      const zoneNameIndex = new Map();
+      for (const z of zoneRows) {
+        const id = normId(z.id || z.ID || z.zoneID);
+        if (!id) continue;
+        const floorId = normId(z.floorID);
+        const buildingId = normId(z.buildingID);
+        const entry = {
+          id,
+          name: z.name || `Zone ${id}`,
+          floorId,
+          buildingId,
+          tenantId: normId(z.tenantID),
+          raw: z
+        };
+        zoneById.set(id, entry);
+        const key = `${buildingId}::${floorId}::${normName(entry.name)}`;
+        if (!zoneNameIndex.has(key)) zoneNameIndex.set(key, []);
+        zoneNameIndex.get(key).push(entry);
+      }
+
+      const deviceByKey = new Map();
+      const zoneDevices = new Map();
+
+      const addDeviceKey = (key, entry) => {
+        if (!key) return;
+        deviceByKey.set(canon(key), entry);
+        deviceByKey.set(normKey(key), entry);
+      };
+
+      for (const d of deviceRows) {
+        const cloudId = normId(d.cloud_id || d.cloudId || d.cloudID);
+        if (!cloudId) continue;
+        const deviceId = normId(d.deviceId || d.deviceID);
+        const numericId = normId(d.id || d.ID);
+        let zoneId = normId(d.zoneID || d.zoneId);
+        let floorId = normId(d.floorID || d.floorId);
+        let buildingId = normId(d.buildingID || d.buildingId);
+
+        if (!zoneId && zoneById.size === 1) {
+          // fallback if only one zone (unlikely)
+          zoneId = Array.from(zoneById.keys())[0];
+        }
+        if (!floorId && zoneId && zoneById.get(zoneId)) {
+          floorId = zoneById.get(zoneId).floorId || floorId;
+        }
+        if (!buildingId) {
+          if (floorId && floorById.get(floorId)) buildingId = floorById.get(floorId).buildingId || buildingId;
+          if (!buildingId && zoneId && zoneById.get(zoneId)) buildingId = zoneById.get(zoneId).buildingId || buildingId;
+        }
+
+        const building = buildingId ? buildingById.get(buildingId) : null;
+        const floor = floorId ? floorById.get(floorId) : null;
+        const zone = zoneId ? zoneById.get(zoneId) : null;
+
+        const entry = {
+          primaryId: cloudId || deviceId || numericId,
+          cloudId: cloudId || null,
+          deviceId: deviceId || null,
+          numericId: numericId || null,
+          name: d.name || d.label || d.deviceName || d.cloud_id || cloudId || deviceId || numericId,
+          type: d.type || d.deviceType || d.label || null,
+          zoneId: zoneId || (zone ? zone.id : null),
+          floorId: floorId || (zone ? zone.floorId : null) || (floor ? floor.id : null),
+          buildingId: buildingId || (floor ? floor.buildingId : null) || (zone ? zone.buildingId : null),
+          zoneName: zone ? zone.name : null,
+          floorName: floor ? floor.name : null,
+          buildingName: building ? building.name : null,
+          raw: d
+        };
+
+        addDeviceKey(entry.primaryId, entry);
+        addDeviceKey(entry.cloudId, entry);
+        addDeviceKey(entry.deviceId, entry);
+        addDeviceKey(entry.numericId, entry);
+
+        if (entry.zoneId) {
+          if (!zoneDevices.has(entry.zoneId)) zoneDevices.set(entry.zoneId, []);
+          zoneDevices.get(entry.zoneId).push(entry);
+        }
+      }
+
+      return {
+        buildingById,
+        floorById,
+        zoneById,
+        zoneNameIndex,
+        floorNameIndex,
+        deviceByKey,
+        zoneDevices
+      };
+    } catch (err) {
+      if (DEBUG) log('graph_form hierarchy load failed:', String(err));
+      return null;
+    }
   }
 
   function toolDefs() {
@@ -49,11 +934,6 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       { name: 'weather_fetch', args: { fields: 'string[]', start: 'number?', end: 'number?', limit: 'number?' }, desc: 'Fetch weather rows' },
       { name: 'latest_value', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Latest ts and value for a field in a table within range' },
       { name: 'latest_per_room', args: { table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Latest value per room for a field' },
-      { name: 'rooms_unused_today', args: {}, desc: 'Rooms with no occupancy since local midnight' },
-      { name: 'lowest_occupancy_hours', args: { rooms: 'string[]?', start: 'number?', end: 'number?', top_n: 'number?' }, desc: 'Hours with lowest average occupancy across rooms' },
-      { name: 'energy_per_occupant_scope', args: { rooms: 'string[]?', start: 'number?', end: 'number?' }, desc: 'Energy per occupant across rooms (delta_kwh / total people_count)' },
-      { name: 'demand_response_energy', args: { rooms: 'string[]?', windows: '[{start:number,end:number}]' }, desc: 'Energy used during demand-response windows across rooms' },
-      { name: 'aggregate_timeseries_scope', args: { rooms: 'string[]?', table: 'string', field: 'string', agg: 'string?', bucket: 'string?', start: 'number?', end: 'number?' }, desc: 'Aggregate a metric across rooms over time. agg=sum|avg, bucket=hour|day. Returns [{ts,y}]' },
       { name: 'scope_multiline', args: { tenant: 'string?', building: 'string?', floor: 'string?', zone: 'string?', metric: 'string', start: 'number?', end: 'number?', limit_per_series: 'number?' }, desc: 'Multi-line plotting: for a scope (tenant/building/floor/zone), returns a series per device for the given metric. Uses S3 telemetry and graph mapping.' },
       { name: 'current_occupied_rooms', args: { threshold: 'number?' }, desc: 'Rooms currently occupied based on latest people_count > threshold (default 0)' },
       { name: 'occupancy_current_total', args: {}, desc: 'Sum of latest people_count across all rooms' },
@@ -898,74 +1778,6 @@ function parseFieldsFromQuestion(question, availableSets) {
       }
       const corr = pearson(pairs.map(p => p[0]), pairs.map(p => p[1]));
       return { n: pairs.length, corr, field1, field2 };
-    },
-
-    rooms_unused_today() {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      const end = now.getTime();
-      return this.rooms_unused_in_window({ start, end });
-    },
-
-    lowest_occupancy_hours({ rooms = null, start = null, end = null, top_n = 3 }) {
-      const R = Array.isArray(rooms) && rooms.length ? rooms : listRooms();
-      const byHour = Array.from({ length: 24 }, () => ({ sum:0, n:0 }));
-      for (const r of R) {
-        const people = (loadRoomTables(r).people || [])
-          .filter(x => withinRange(x.ts, start, end) && Number.isFinite(Number(x.people_count)));
-        for (const p of people) { const h = new Date(p.ts).getHours(); byHour[h].sum += Number(p.people_count)||0; byHour[h].n++; }
-      }
-      const stats = byHour.map((b,h)=>({ h, avg: b.n? b.sum/b.n : null, n: b.n }));
-      const ranked = stats.filter(s=>s.avg!=null).sort((a,b)=>a.avg-b.avg).slice(0, top_n);
-      return { hours: ranked, stats };
-    },
-
-    energy_per_occupant_scope({ rooms = null, start = null, end = null }) {
-      const R = Array.isArray(rooms) && rooms.length ? rooms : listRooms();
-      let totalEnergy = 0, totalPeople = 0; const perRoom = [];
-      for (const r of R) {
-        const e = this.energy_delta_kwh({ room: r, start, end });
-        const p = this.people_total({ room: r, start, end });
-        if (Number.isFinite(e.delta_kwh)) totalEnergy += e.delta_kwh;
-        if (Number.isFinite(p.sum)) totalPeople += p.sum;
-        perRoom.push({ room: r, delta_kwh: e.delta_kwh ?? null, people_sum: p.sum ?? null, kwh_per_person: (e.delta_kwh && p.sum) ? e.delta_kwh / p.sum : null });
-      }
-      const overall = totalPeople ? totalEnergy / totalPeople : null;
-      return { overall_kwh_per_person: overall, total_kwh: totalEnergy, total_people: totalPeople, perRoom };
-    },
-
-    demand_response_energy({ rooms = null, windows = [] }) {
-      const R = Array.isArray(rooms) && rooms.length ? rooms : listRooms();
-      const out = [];
-      for (const w of (Array.isArray(windows)? windows: [])) {
-        let delta = 0;
-        for (const r of R) { const e = this.energy_delta_kwh({ room: r, start: w.start, end: w.end }); if (Number.isFinite(e.delta_kwh)) delta += e.delta_kwh; }
-        out.push({ start: w.start, end: w.end, delta_kwh: delta });
-      }
-      return out;
-    },
-
-    aggregate_timeseries_scope({ rooms = null, table, field, agg = 'sum', bucket = 'hour', start = null, end = null }) {
-      const R = Array.isArray(rooms) && rooms.length ? rooms : listRooms();
-      const byBucket = new Map(); // tsBucket -> { sum, n }
-      function floorDay(ts) { const d=new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
-      const bucketFn = bucket === 'day' ? floorDay : floorHour;
-      for (const r of R) {
-        const t = loadRoomTables(r);
-        const tab = resolveTable(r, table);
-        const arr = (t[tab] || []).filter(x => withinRange(x.ts, start, end));
-        for (const row of arr) {
-          const v = Number(row[field]);
-          if (!Number.isFinite(v)) continue;
-          const k = bucketFn(row.ts);
-          const cur = byBucket.get(k) || { sum: 0, n: 0 };
-          cur.sum += v; cur.n += 1; byBucket.set(k, cur);
-        }
-      }
-      const out = Array.from(byBucket.entries())
-        .sort((a,b)=>a[0]-b[0])
-        .map(([ts, s]) => ({ ts, y: agg === 'avg' ? (s.n ? s.sum / s.n : 0) : s.sum }));
-      return out;
     },
     
     unoccupied_over_temp({ room, temp = 21, start = null, end = null }) {
@@ -2199,8 +3011,19 @@ function parseFieldsFromQuestion(question, availableSets) {
     return { retrieved: head, schema, meta, range, room, selectionRooms, _retrievedDocs: retrieved };
   }
 
-  async function run(messages, { room, range, selectionRooms = [], selectionZones = [], tenant = null }) {
-    activeTenant = tenant || null;
+  async function run(messages, {
+    room,
+    range,
+    selectionRooms = [],
+    selectionZones = [],
+    tenant = null,
+    building = null,
+    floor = null,
+    zone = null,
+    scopeLabels = null,
+    scopeFloors = [],
+    scopeDeviceZones = {}
+  }) {
     const question = messages[messages.length - 1]?.content || '';
 
     // --- ROUTING & HYBRID RETRIEVAL ---
@@ -2229,25 +3052,10 @@ function parseFieldsFromQuestion(question, availableSets) {
 const startFmt = startDate ? `${startDate.toLocaleString()} (UTC: ${startDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
 const endFmt = endDate ? `${endDate.toLocaleString()} (UTC: ${endDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
 
-    // Resolve zone labels from snapshot when possible
-    let zoneLabels = selectionZones;
-    try {
-      const snap = loadGraphSnapshot();
-      if (snap && Array.isArray(snap.nodes) && Array.isArray(selectionZones)) {
-        const zNodes = snap.nodes.filter(n => (n.nodeType||n.label)==='Zone');
-        const byId = new Map(zNodes.map(n => [String(n.roomId ?? n.name ?? ''), n]));
-        zoneLabels = selectionZones.map(z => {
-          const key = String(z);
-          const n = byId.get(key) || zNodes.find(nn => String(nn.name)===key);
-          return n && n.name ? n.name : key;
-        });
-      }
-    } catch {}
-
 const sys = `You are a senior data analyst agent for building operations.
 Selected room: ${room || '(none)'}.
-Rooms in scope: ${Array.isArray(zoneLabels) && zoneLabels.length ? zoneLabels.join(', ') : (Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room || '(none)'))}
-${room === 'ALL' && (selectionZones?.length || selectionRooms?.length) ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these rooms. Do NOT invent other rooms.` : ''}
+Rooms in scope: ${Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room || '(none)')}
+${room === 'ALL' && selectionRooms && selectionRooms.length ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these rooms. Do NOT invent other rooms.` : ''}
 Selected time window: 
 - Local: ${startFmt} to ${endFmt}
 - Epoch ms: start=${rr.start ?? 'none'} end=${rr.end ?? 'none'}
@@ -2262,8 +3070,6 @@ DOMAIN NOTE: "Zone" and "Room" are synonyms in this system. When the user mentio
 ${knowledgeSnippets || 'No extra knowledge found for this query.'}
 
 RULE: Do NOT dump or quote long passages from knowledge. If you use it, REPHRASE concisely in your own words and keep it brief.
-
-When you reference a telemetry key (e.g. co2, total_kwh, people_count), briefly define it using the Telemetry Keys Glossary from the knowledge pack when helpful to user understanding.
 
 === CRITICAL CHART RULES ===
 NEVER embed data arrays directly in chart JSON. This will ALWAYS cause truncation and failure.
@@ -2398,33 +3204,30 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       ...messages
     ];
 
-    // Deterministic handling: if user asks about the current analysis time window, return it explicitly.
-    const ql_time = (question || '').toLowerCase();
-    if (/what\s+(time|period|window)\s+are\s+you\s+analys/i.test(ql_time)
-      || /what\s+time\s+period/i.test(ql_time)
-      || /current\s+(range|window)/i.test(ql_time)
-      || /what\s+scope\s+and\s+time/i.test(ql_time)
-      || /what\s+scope\s+do\s+you\s+see/i.test(ql_time)
-      || /selection\s+and\s+time\s*(frame|period|window)?/i.test(ql_time)
-      || /what\s+selection\s+and\s+time/i.test(ql_time)
-      || /what\s+selection\s+do\s+you\s+see/i.test(ql_time)) {
-      const st = rr.start != null ? `${startDate?.toLocaleString()} (UTC: ${startDate?.toISOString().replace('T',' ').slice(0,16)})` : 'none';
-      const en = rr.end != null ? `${endDate?.toLocaleString()} (UTC: ${endDate?.toISOString().replace('T',' ').slice(0,16)})` : 'none';
-      const scopeRooms = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room && room!=='ALL' ? room : '(none)');
-      const txt = `Scope rooms: ${scopeRooms}\nTime window:\n- Local: ${st} → ${en}\n- Epoch (ms): start=${rr.start ?? 'none'}, end=${rr.end ?? 'none'}`;
-      const extras = [{ message: { role: 'assistant', content: `Query ${routing.level}` }, chart: null }];
-      return { message: { role: 'assistant', content: txt }, chart: null, trace: [], extras };
-    }
-
-    // Selection only (no time) direct answer
-    if (/what\s+selection\s+do\s+you\s+see/i.test(ql_time) || /what\s+scope\s+do\s+you\s+see/i.test(ql_time)) {
-      const scopeRooms = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room && room!=='ALL' ? room : '(none)');
-      return { message: { role: 'assistant', content: `Scope rooms: ${scopeRooms}` }, chart: null, trace: [] };
+    const qlLower = (question || '').toLowerCase();
+    const intent = classifyIntent(question);
+    const wantsScopeSummary =
+      intent.selectionTime ||
+      /what\s+scope\s+do\s+you\s+see/.test(qlLower) ||
+      /what\s+selection\s+do\s+you\s+see/.test(qlLower) ||
+      /selection\s+and\s+time/.test(qlLower) ||
+      /current\s+(range|window)/.test(qlLower) ||
+      /what\s+(time|period|window)\s+are\s+you\s+analys/.test(qlLower) ||
+      /what\s+time\s+period/.test(qlLower);
+    if (wantsScopeSummary) {
+      const summary = buildScopeSummary({
+        selectionRooms,
+        selectionZones,
+        selectionFloors: scopeFloors || [],
+        scopeDeviceZones: scopeDeviceZones || {},
+        selectionLabels: scopeLabels || { tenant, building, floor, room: zone },
+        range: rr
+      });
+      return { message: { role: 'assistant', content: summary }, chart: null, trace: [] };
     }
 
     // EARLY PLOTTING: floor/building scope cross-room plots
     const ql = (question || '').toLowerCase();
-    const intent = classifyIntent(question);
     const floorAll = isAllRooms(room) && Array.isArray(selectionRooms) && selectionRooms.length;
     const multiScope = Array.isArray(selectionRooms) && selectionRooms.length >= 2;
     const wantsAcrossRooms = /across\s+all\s+rooms|on\s+this\s+floor|on\s+this\s+building/.test(ql);
@@ -2516,7 +3319,8 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
             const first = (rows||[])[0] || {};
             for (const k of Object.keys(first)) if (k !== 'ts') fields.add(k);
           }
-          lines.push(`- ${r}: detectors=[${detectors.join(', ')||'—'}], metrics=[${Array.from(fields).sort().join(', ')||'—'}]`);
+          const label = deviceFriendlyName(r);
+          lines.push(`- ${label}: detectors=[${detectors.join(', ')||'—'}], metrics=[${Array.from(fields).sort().join(', ')||'—'}]`);
         }
         const msg = `Metrics by room in current scope:\n${lines.join('\n')}`;
         const extras = [{ message: { role: 'assistant', content: `Query ${routing.level}` }, chart: null }];
@@ -2569,7 +3373,8 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
           const tables = loadRoomTables(r);
           const fieldSet = new Set();
           for (const rows of Object.values(tables)) { const first=(rows||[])[0]||{}; for (const k of Object.keys(first)) if (k!=='ts') fieldSet.add(k); }
-          const msg = `${r}: detectors=[${(Array.isArray(dets)?dets:[]).join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`;
+          const label = deviceFriendlyName(r);
+          const msg = `${label}: detectors=[${(Array.isArray(dets)?dets:[]).join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`;
           const extras = [{ message: { role: 'assistant', content: `Query ${routing.level}` }, chart: null }];
           return { message: { role: 'assistant', content: msg }, chart: null, trace: [], extras };
         } catch (e) { log('early devices summary failed:', String(e)); }
@@ -2692,7 +3497,7 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
     let repeatCount = 0;
     let totalToolCalls = 0;
     
-    for (let step = 0; step < 10; step++) {
+    STEP_LOOP: for (let step = 0; step < 10; step++) {
       const t0 = Date.now();
     // Enforce chart_query for plotting intents
     const qlc = String(question||'').toLowerCase();
@@ -2794,27 +3599,9 @@ OR if no chart is needed:
           }
           
           convo.push({ role: 'model', content: hint });
-          continue; // Force another iteration with this guidance
+          continue STEP_LOOP; // Force another iteration with this guidance
         }
       }
-      }
-      
-      // After step 2, if reply is not valid JSON with "action", force a JSON answer
-      if (step >= 2 && (!obj || !obj.action)) {
-        convo.push({
-          role: 'model',
-          content: `MANDATORY: Respond ONLY with a valid JSON object. 
-Repeat the selected time window exactly as shown below in your answer.
-Time window: Local: ${startFmt} to ${endFmt} (Epoch ms: start=${rr.start ?? 'none'} end=${rr.end ?? 'none'})
-Example:
-{
-  "action": "final",
-  "answer": "The peak humidity in the cafe for this time period (${startFmt} to ${endFmt}) was XX%, which occurred at YYYY-MM-DD HH:mm.",
-  "chart": null
-}
-If you provide a chart, you MUST use dataRef, never embed data arrays.`
-        });
-        continue;
       }
       
       // Try to parse JSON response
@@ -2921,7 +3708,7 @@ The backend automatically extracts data from tool results using dataRef.
 You ONLY provide the reference, NEVER the actual data arrays.
 Respond again with dataRef, NOT data arrays.`
           });
-          continue;
+          continue STEP_LOOP;
         }
         
         // Check if the reply contains embedded data arrays (another detection method)
@@ -2959,7 +3746,7 @@ CORRECT format (ALWAYS use this):
 The backend resolves dataRef automatically. You provide ONLY the reference.
 Respond again with dataRef, NOT embedded data.`
           });
-          continue;
+          continue STEP_LOOP;
         }
         
         // CRITICAL: Reject plain text responses - force JSON format
@@ -2989,7 +3776,25 @@ You MUST respond with a valid JSON object using this EXACT format:
 
 Copy the above format and fill in your complete answer. Use proper JSON syntax.`
           });
-          continue;
+          continue STEP_LOOP;
+        }
+        
+        // After step 2, if reply is not valid JSON with "action", force a JSON answer
+        if (step >= 2 && (!obj || !obj.action)) {
+          convo.push({
+            role: 'model',
+            content: `MANDATORY: Respond ONLY with a valid JSON object. 
+Repeat the selected time window exactly as shown below in your answer.
+Time window: Local: ${startFmt} to ${endFmt} (Epoch ms: start=${rr.start ?? 'none'} end=${rr.end ?? 'none'})
+Example:
+{
+  "action": "final",
+  "answer": "The peak humidity in the cafe for this time period (${startFmt} to ${endFmt}) was XX%, which occurred at YYYY-MM-DD HH:mm.",
+  "chart": null
+}
+If you provide a chart, you MUST use dataRef, never embed data arrays.`
+          });
+          continue STEP_LOOP;
         }
         
         const results = [];
@@ -3024,7 +3829,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
           role: 'model', 
           content: `{"tool_results": ${JSON.stringify(results).slice(0, 15000)} }` 
         });
-        continue;
+        continue STEP_LOOP;
       }
       
       // Handle single tool call
@@ -3063,7 +3868,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
           totalToolCalls += 1;
         }
         convo.push({ role: 'model', content: `{"tool_results": ${JSON.stringify(results).slice(0, 15000)} }` });
-        continue;
+        continue STEP_LOOP;
       }
 
       if (obj.action === 'tool_call') {
@@ -3195,7 +4000,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
                     role: 'model', 
                     content: `{"tool_result_adapted": { "tool": ${JSON.stringify(tool)}, "args": ${JSON.stringify(adaptedArgs)}, "result": ${JSON.stringify(result).slice(0, 10000)}, "note": "Query adapted to use actual data range since selected window had no data. Data available from ${new Date(meta.tsMin).toISOString()} to ${new Date(meta.tsMax).toISOString()}" }}` 
                   });
-                  continue;
+                  continue STEP_LOOP;
                 }
               } catch {}
             }
@@ -3236,7 +4041,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
             };
           }
         }
-        continue;
+        continue STEP_LOOP;
         
       } else if (obj.action === 'final') {
         log('Finalizing answer. Chart provided?', !!obj.chart);
@@ -3615,7 +4420,8 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
               const tables = loadRoomTables(r);
               const fieldSet = new Set();
               for (const rows of Object.values(tables)) { const first=(rows||[])[0]||{}; for (const k of Object.keys(first)) if (k!=='ts') fieldSet.add(k); }
-              lines.push(`- ${r}: detectors=[${dets.join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`);
+              const label = deviceFriendlyName(r);
+              lines.push(`- ${label}: detectors=[${dets.join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`);
             }
             if (lines.length) {
               return { message: { role: 'assistant', content: `Metrics by room in current scope:\n${lines.join('\n')}` }, chart: null, trace };
@@ -3729,7 +4535,8 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
               const tables = loadRoomTables(r);
               const fieldSet = new Set();
               for (const rows of Object.values(tables)) { const first = (rows||[])[0]||{}; for (const k of Object.keys(first)) if (k!=='ts') fieldSet.add(k); }
-              lines.push(`- ${r}: detectors=[${dets.join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`);
+              const label = deviceFriendlyName(r);
+              lines.push(`- ${label}: detectors=[${dets.join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`);
             }
             const msg = `Metrics by room in current scope:\n${lines.join('\n')}`;
             return { message: { role: 'assistant', content: msg }, chart: autoChart, trace };

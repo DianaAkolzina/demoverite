@@ -67,6 +67,8 @@ Graph / Vector:
     - Local host: `CHROMA_URL=http://localhost:8000`
     - Docker Compose (uses the `chroma` service name): `CHROMA_URL=http://chroma:8000`
   - On startup, the server checks Chroma heartbeat and, if reachable, indexes knowledge/profiles via `scripts/index_chroma_http.py` (falls back to client indexer). To skip indexing, set `CHROMA_SKIP_INDEX=1`.
+  - Dev controls now default to a lightweight hashed embedding function to avoid long installs during `docker build`. If you prefer high-quality `sentence-transformers` embeddings, set `CHROMA_USE_SENTENCE_TRANSFORMER=1` and ensure the runtime image includes the dependency.
+  - Running `scripts/dev_controls.sh stop|clean` now records port snapshots under `data/dev_ports.log` and force-closes listeners on `3000`, `8000`, `7474`, and `7687` so repeated builds don’t leak Docker proxies.
 
 Notes:
 - The app now REQUIRES Neo4j. Startup fails fast if Neo4j env is missing or the database is unreachable.

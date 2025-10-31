@@ -26,6 +26,9 @@ APP_CONTAINER="avmsolutions"
 CHROMA_CONTAINER="chroma"
 CHROMA_PORT=8000
 APP_PORT=3000
+PORTS_TO_MONITOR=(3000 8000 7474 7687)
+DEV_PORT_LOG="$ROOT_DIR/data/dev_ports.log"
+REMOVE_CHROMA_ON_STOP="${DEV_REMOVE_CHROMA_ON_STOP:-1}"
 
 cd "$ROOT_DIR"
 
@@ -61,8 +64,74 @@ wait_for_http() {
   return 1
 }
 
+record_port_snapshot() {
+  local tag="${1:-snapshot}"
+  if ! command -v ss >/dev/null 2>&1; then return 0; fi
+  mkdir -p "$(dirname "$DEV_PORT_LOG")"
+  local regex=""
+  for p in "${PORTS_TO_MONITOR[@]}"; do
+    regex+=":${p}\\b|"
+  done
+  regex="${regex%|}"
+  {
+    echo "[$(date -Iseconds)] ${tag}"
+    ss -lnt | awk -v re="$regex" 'NR==1 || $4 ~ re' || true
+  } >> "$DEV_PORT_LOG" 2>/dev/null || true
+}
+
+ensure_ports_closed() {
+  local ports=("$@")
+  if [[ ${#ports[@]} -eq 0 ]]; then
+    ports=("${PORTS_TO_MONITOR[@]}")
+  fi
+  for p in "${ports[@]}"; do
+    echo "[dev] Ensuring port :$p is closed..."
+    if command -v lsof >/dev/null 2>&1; then
+      local pids
+      pids=$(lsof -t -iTCP:"$p" -sTCP:LISTEN 2>/dev/null | tr '\n' ' ' || true)
+      if [[ -n "${pids// /}" ]]; then
+        echo "[dev] Found listeners on :$p (PIDs: $pids). Sending TERM..."
+        kill -TERM $pids 2>/dev/null || true
+        for _ in $(seq 1 5); do
+          sleep 1
+          lsof -t -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1 || break
+        done
+        if lsof -t -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1; then
+          echo "[dev] Listeners still present on :$p. Sending KILL..."
+          kill -KILL $pids 2>/dev/null || true
+        fi
+      fi
+    elif command -v fuser >/dev/null 2>&1; then
+      fuser -k -n tcp "$p" 2>/dev/null || true
+    fi
+    echo "[dev] Waiting for port :$p to be free..."
+    for _ in $(seq 1 20); do
+      if command -v ss >/dev/null 2>&1; then
+        if ss -lnt | grep -q ":$p\b"; then
+          sleep 1
+        else
+          echo "[dev] Port :$p is free"
+          break
+        fi
+      elif command -v lsof >/dev/null 2>&1; then
+        if lsof -nP -i :"$p" | grep -q .; then
+          sleep 1
+        else
+          echo "[dev] Port :$p is free"
+          break
+        fi
+      else
+        break
+      fi
+    done
+  done
+  record_port_snapshot "ports-cleared"
+}
+
 build() {
   echo "[dev] Building $IMAGE_NAME"; docker build -t "$IMAGE_NAME" .
+  echo "[dev] Pruning dangling avmsolutions image layers"
+  docker image prune -f --filter label=com.avmsolutions.autoclean="true" >/dev/null 2>&1 || true
 }
 
 ensure_chroma() {
@@ -127,8 +196,19 @@ chroma_logs() { docker logs -f "$CHROMA_CONTAINER"; }
 status() { curl -fsS "http://localhost:${APP_PORT}/api/status" | sed -e 's/{/\n{/' || true; }
 graph_counts() { curl -fsS "http://localhost:${APP_PORT}/api/graph/full" | jq '{nodes: (.nodes|length), links: (.links|length)}' || true; }
 rooms() { curl -fsS "http://localhost:${APP_PORT}/api/rooms" | sed -e 's/{/\n{/' || true; }
-stop() { docker rm -f "$APP_CONTAINER" >/dev/null || true; }
-clean() { docker rm -f "$APP_CONTAINER" "$CHROMA_CONTAINER" >/dev/null || true; }
+stop() {
+  record_port_snapshot "stop-pre"
+  docker rm -f "$APP_CONTAINER" >/dev/null 2>&1 || true
+  if [[ "$REMOVE_CHROMA_ON_STOP" == "1" ]]; then
+    docker rm -f "$CHROMA_CONTAINER" >/dev/null 2>&1 || true
+  fi
+  ensure_ports_closed
+}
+clean() {
+  record_port_snapshot "clean-pre"
+  docker rm -f "$APP_CONTAINER" "$CHROMA_CONTAINER" >/dev/null 2>&1 || true
+  ensure_ports_closed
+}
 
 # Stop app + infra, bring compose down (if present), and wait for ports to free
 cleanup_all() {
@@ -142,21 +222,23 @@ cleanup_all() {
       docker-compose down -v --remove-orphans >/dev/null 2>&1 || true
     fi
   fi
-  # Wait for ports to be idle
-  ports=(3000 8000 7474 7687)
-  for p in "${ports[@]}"; do
-    echo "[dev] Waiting for port :$p to be free..."
-    for _ in $(seq 1 20); do
-      if command -v ss >/dev/null 2>&1; then
-        ss -lnt | grep -q ":$p\b" || { echo "[dev] Port :$p is free"; break; }
-      elif command -v lsof >/dev/null 2>&1; then
-        lsof -nP -i :"$p" | grep -q . && sleep 1 || { echo "[dev] Port :$p is free"; break; }
-      else
-        break
-      fi
-      sleep 1
-    done
-  done
+  echo "[dev] Pruning unused Docker images, builders and volumes (may take a while)"
+  if command -v docker >/dev/null 2>&1; then
+    docker system prune -af >/dev/null 2>&1 || true
+    docker builder prune -af >/dev/null 2>&1 || true
+    docker volume prune -f >/dev/null 2>&1 || true
+  fi
+  echo "[dev] Cleaning workspace artifacts (traces, tests, chroma cache)"
+  rm -rf "$ROOT_DIR/data/traces" "$ROOT_DIR/data/tests" 2>/dev/null || true
+  mkdir -p "$ROOT_DIR/data/traces" "$ROOT_DIR/data/tests" 2>/dev/null || true
+  # Clear Chroma persistent store (it can grow between runs)
+  if [ -d "$ROOT_DIR/chroma" ]; then
+    rm -rf "$ROOT_DIR/chroma"/* 2>/dev/null || true
+  fi
+  # Optional: clear cached per-building weather (uncomment if you want to reclaim space aggressively)
+  # rm -rf "$ROOT_DIR/data/weather_buildings" 2>/dev/null || true
+  echo "[dev] Workspace cleanup complete"
+  ensure_ports_closed "${PORTS_TO_MONITOR[@]}"
   echo "[dev] Cleanup complete"
 }
 

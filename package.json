@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.js",
-    "test:scopes": "node scripts/run_scope_tests.js",
+    "test:scenarios": "node scripts/test_scope_runs.js",
     "check:neo4j": "node scripts/check_neo4j.js",
     "populate:neo4j": "node scripts/populate_neo4j.js",
     "sync:s3": "node scripts/s3_sync_telemetry.js",
@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "node-fetch": "^3.3.2",
-    "neo4j-driver": "^5.22.0",
-    "@aws-sdk/client-s3": "^3.645.0"
+    "neo4j-driver": "^5.22.0"
   }
 }

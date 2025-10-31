@@ -235,39 +235,28 @@ export function createGraphClient({ uri, username, password, database }) {
          OR (zf IS NOT NULL AND (toString(zf.buildingID) = toString(fb.id) OR toString(zf.buildingID) = toString(fb.buildingID)))
       // Derive floor from zone.floorID when device lacks LOCATED_ON_FLOOR
       OPTIONAL MATCH (zf:Floor)
-      WHERE z IS NOT NULL AND (
-        (toString(z.floorID) = toString(zf.id) OR toString(z.floorID) = toString(zf.floorID))
-        AND (
-          toString(z.buildingID) = toString(zf.buildingID) OR zf.buildingID IS NULL OR z.buildingID IS NULL
-        )
-        AND (
-          toString(z.tenantID) = toString(zf.tenantID) OR zf.tenantID IS NULL OR z.tenantID IS NULL
-        )
-      )
+      WHERE z IS NOT NULL AND (toString(z.floorID) = toString(zf.id) OR toString(z.floorID) = toString(zf.floorID))
       // Derive building via device.buildingID when present
       OPTIONAL MATCH (db:Building)
       WHERE (toString(db.id) = toString(d.buildingID) OR toString(db.buildingID) = toString(d.buildingID))
-        AND (toString(db.tenantID) = toString(d.tenantID) OR db.tenantID IS NULL OR d.tenantID IS NULL)
       // Derive floor via device.floorID when present
       OPTIONAL MATCH (df:Floor)
       WHERE (toString(df.id) = toString(d.floorID) OR toString(df.floorID) = toString(d.floorID))
         AND (toString(df.buildingID) = toString(d.buildingID) OR df.buildingID IS NULL OR d.buildingID IS NULL)
-        AND (toString(df.tenantID) = toString(d.tenantID) OR df.tenantID IS NULL OR d.tenantID IS NULL)
       // Derive zone via device.zoneID when present
       OPTIONAL MATCH (dz:Zone)
       WHERE (toString(dz.id) = toString(d.zoneID) OR toString(dz.zoneID) = toString(d.zoneID))
         AND (toString(dz.buildingID) = toString(d.buildingID) OR dz.buildingID IS NULL OR d.buildingID IS NULL)
-        AND (toString(dz.tenantID) = toString(d.tenantID) OR dz.tenantID IS NULL OR d.tenantID IS NULL)
       WITH d, coalesce(dz, z) AS z, coalesce(df, f, zf) AS f, coalesce(db, b, bz, bf, zb, fb) AS b,
            coalesce(td, tz, tf, tb) AS t
       ${tenant ? 'WHERE (t.name = $tenant OR toString(t.id) = $tenant)' : ''}
       ${type ? (tenant ? 'AND d.type = $type' : 'WHERE d.type = $type') : ''}
       WITH d, z, f, b, t
-      ${floor ? 'WHERE (f.name = $floor OR toString(f.id) = $floor OR toString(f.floorID) = $floor)' : ''}
+      ${floor ? 'WHERE (toLower(f.name) = toLower($floor) OR toString(f.id) = $floor OR toString(f.floorID) = $floor)' : ''}
       WITH d, z, f, b, t
-      ${zone ? 'WHERE (z.name = $zone OR toString(z.id) = $zone OR toString(z.roomId) = $zone)' : ''}
+      ${zone ? 'WHERE (toLower(z.name) = toLower($zone) OR toString(z.id) = $zone OR toString(z.roomId) = $zone)' : ''}
       WITH d, z, f, b, t
-      ${building ? 'WHERE (b.name = $building OR toString(b.id) = $building OR toString(b.buildingID) = $building)' : ''}
+      ${building ? 'WHERE (toLower(b.name) = toLower($building) OR toString(b.id) = $building OR toString(b.buildingID) = $building)' : ''}
       RETURN DISTINCT
              coalesce(d.cloud_id, d.id, d.deviceId, d.name) AS id,
              d.name AS name,
@@ -343,25 +332,24 @@ export function createGraphClient({ uri, username, password, database }) {
           AND (toString(z.buildingID)=toString(zf.buildingID) OR zf.buildingID IS NULL OR z.buildingID IS NULL)
           AND (toString(z.tenantID)=toString(zf.tenantID) OR zf.tenantID IS NULL OR z.tenantID IS NULL)
         )
-        WITH b, f, z, zf
-        OPTIONAL MATCH (d:Device)
-        WHERE (d)-[:IN_BUILDING]->(b)
-           OR (z IS NOT NULL AND (d)-[:LOCATED_IN_ZONE]->(z))
-           OR (f IS NOT NULL AND (d)-[:LOCATED_ON_FLOOR]->(f)
-        )
-        RETURN b, f, z, zf, d
+        RETURN b, f, z, zf
       `;
       const { records, error } = await runQuery(q, tenant ? { tenant } : {});
       if (error) return { nodes: [], links: [], error };
       const logged = new Set();
+      const includedDevices = new Set();
       for (const r of records) {
-        const b = r.get('b'); const f = r.get('f'); const z = r.get('z'); const zf = r.get('zf'); const d = r.get('d');
+        const b = r.get('b'); const f = r.get('f'); const z = r.get('z'); const zf = r.get('zf');
         const bid = b ? `Building:${b.properties?.name}` : null;
-        const fid = f ? `Floor:${f.properties?.name}:${b?.properties?.name || ''}` : (zf ? `Floor:${zf.properties?.name}:${b?.properties?.name || ''}` : null);
+        // Use stable IDs for floor node identity: floorID/id + buildingID/id
+        const bKeyId = b ? (b.properties?.id ?? b.properties?.buildingID ?? b.properties?.name ?? '') : '';
+        const fKeyRaw = f ? (f.properties?.id ?? f.properties?.floorID ?? f.properties?.name ?? '') : (zf ? (zf.properties?.id ?? zf.properties?.floorID ?? zf.properties?.name ?? '') : '');
+        const fid = (f || zf) ? `Floor:${String(fKeyRaw)}:${String(bKeyId)}` : null;
         const zid = z ? `Zone:${z.properties?.name}:${b?.properties?.name || ''}` : null;
-        const cloudId = d?.properties?.cloud_id || null;
-        const did = d ? `Device:${d.properties?.id || d.properties?.name}` : null;
-        if (b) addNode(bid, { label: 'Building', name: b.properties?.name, nodeType: 'Building', hasData: false, dataDevices: 0 });
+        if (b) {
+          const bName = b.properties?.name || String(b.properties?.buildingID || b.properties?.id || 'Building');
+          addNode(bid, { label: 'Building', name: bName, nodeType: 'Building', hasData: false, dataDevices: 0 });
+        }
         if (f) addNode(fid, { label: 'Floor', name: f.properties?.name, nodeType: 'Floor' });
         else if (zf) addNode(fid, { label: 'Floor', name: zf.properties?.name, nodeType: 'Floor' });
         if (z) {
@@ -369,30 +357,102 @@ export function createGraphClient({ uri, username, password, database }) {
           const roomId = rawRid != null ? String(rawRid) : null;
           addNode(zid, { label: 'Zone', name: z.properties?.name, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null });
         }
-        const includeDevice = d ? (cloudId ? s3Ids.has(String(cloudId)) : false) : false;
-        if (d && includeDevice) addNode(did, { label: 'Device', name: d.properties?.name, nodeType: 'Device', deviceType: d.properties?.type || null, cloudId });
         if (f && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
-        // Prefer placing zone under its floor if properties indicate match; otherwise keep under building
         if (z && b) {
           const zFloorId = (z.properties?.floorID != null) ? String(z.properties.floorID) : null;
           const fId = (f && (f.properties?.id != null ? String(f.properties.id) : (f.properties?.floorID != null ? String(f.properties.floorID) : null))) || (zf && (zf.properties?.id != null ? String(zf.properties.id) : (zf.properties?.floorID != null ? String(zf.properties.floorID) : null))) || null;
-          if (zFloorId && fId && zFloorId === fId && fid) {
-            addLink(zid, fid, 'BELONGS_TO_FLOOR');
-          } else {
-            addLink(zid, bid, 'LOCATED_IN_BUILDING');
-          }
-        }
-        if (d && includeDevice && z) addLink(did, zid, 'LOCATED_IN_ZONE');
-        if (d && includeDevice && f) addLink(did, fid, 'LOCATED_ON_FLOOR');
-        if (d && includeDevice && b) {
-          addLink(did, bid, 'IN_BUILDING'); bumpBuildingCount(bid);
-          const bName = b?.properties?.name || null;
-          const fName = (f?.properties?.name) || (zf?.properties?.name) || null;
-          const zName = z?.properties?.name || null;
-          const key = `${cloudId}|${bName}|${fName}|${zName}`;
-          if (cloudId && !logged.has(key)) { console.log('[s3-match][snapshot]', cloudId, 'building=', bName||'n/a', 'floor=', fName||'n/a', 'zone=', zName||'n/a'); logged.add(key); }
+          if (zFloorId && fId && zFloorId === fId && fid) addLink(zid, fid, 'BELONGS_TO_FLOOR');
+          else addLink(zid, bid, 'LOCATED_IN_BUILDING');
         }
       }
+
+      // Second pass: include all devices present in S3, deriving building/floor/zone via rels OR properties
+      const qDevices = `
+        MATCH (d:Device)
+        OPTIONAL MATCH (d)-[:LOCATED_IN_ZONE]->(z1:Zone)
+        OPTIONAL MATCH (d)-[:LOCATED_ON_FLOOR]->(f1:Floor)
+        OPTIONAL MATCH (d)-[:IN_BUILDING]->(b1:Building)
+        // Derive by properties when rels are missing (relax tenant constraints)
+        OPTIONAL MATCH (dz:Zone)
+        WHERE (toString(dz.id) = toString(d.zoneID) OR toString(dz.zoneID) = toString(d.zoneID))
+        OPTIONAL MATCH (df:Floor)
+        WHERE (toString(df.id) = toString(d.floorID) OR toString(df.floorID) = toString(d.floorID))
+        OPTIONAL MATCH (db:Building)
+        WHERE (toString(db.id) = toString(d.buildingID) OR toString(db.buildingID) = toString(d.buildingID))
+        WITH d, coalesce(z1, dz) AS z, coalesce(f1, df) AS f, coalesce(b1, db) AS b
+        // If building still null, derive via z->b or f->b
+        OPTIONAL MATCH (z)-[:LOCATED_IN_BUILDING]->(bz2:Building)
+        OPTIONAL MATCH (f)-[:LOCATED_IN_BUILDING]->(bf2:Building)
+        WITH d, z, f, coalesce(b, bz2, bf2) AS b
+        ${tenant ? 'WITH d, z, f, b OPTIONAL MATCH (bt:Tenant)<-[:BELONGS_TO_TENANT]-(b) WITH d, z, f, b, bt WHERE bt.name=$tenant OR $tenant IS NULL' : ''}
+        RETURN d, z, f, b
+      `;
+      const { records: devRows, error: devErr } = await runQuery(qDevices, tenant ? { tenant } : {});
+      if (devErr) return { nodes: Array.from(outNodes.values()), links: outLinks, error: devErr };
+      for (const r of devRows) {
+        const d = r.get('d'); const z = r.get('z'); const f = r.get('f'); const b = r.get('b');
+        const cloudId = d?.properties?.cloud_id || null;
+        const includeDevice = d ? (cloudId ? s3Ids.has(String(cloudId)) : false) : false;
+        if (!includeDevice) continue;
+        const did = `Device:${d.properties?.id || d.properties?.name}`;
+        const bid = b ? `Building:${b.properties?.name}` : null;
+        const bKeyId = b ? (b.properties?.id ?? b.properties?.buildingID ?? b.properties?.name ?? '') : '';
+        const fKeyRaw = f ? (f.properties?.id ?? f.properties?.floorID ?? f.properties?.name ?? '') : '';
+        const fid = f ? `Floor:${String(fKeyRaw)}:${String(bKeyId)}` : null;
+        const zid = z ? `Zone:${z.properties?.name}:${b?.properties?.name || ''}` : null;
+        if (b) {
+          const bName = b.properties?.name || String(b.properties?.buildingID || b.properties?.id || 'Building');
+          addNode(bid, { label: 'Building', name: bName, nodeType: 'Building', hasData: false, dataDevices: 0 });
+        }
+        if (f) addNode(fid, { label: 'Floor', name: f.properties?.name, nodeType: 'Floor' });
+        if (z) {
+          const rawRid = (z.properties?.roomId != null ? z.properties.roomId : (z.properties?.id != null ? z.properties.id : null));
+          const roomId = rawRid != null ? String(rawRid) : null;
+          addNode(zid, { label: 'Zone', name: z.properties?.name, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null });
+        }
+        addNode(did, { label: 'Device', name: d.properties?.name, nodeType: 'Device', deviceType: d.properties?.type || null, cloudId });
+        includedDevices.add(did);
+        if (f && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
+        if (z && b) {
+          const zFloorId = (z.properties?.floorID != null) ? String(z.properties.floorID) : null;
+          const fId = (f && (f.properties?.id != null ? String(f.properties.id) : (f.properties?.floorID != null ? String(f.properties.floorID) : null))) || null;
+          if (zFloorId && fId && zFloorId === fId && fid) addLink(zid, fid, 'BELONGS_TO_FLOOR');
+          else addLink(zid, bid, 'LOCATED_IN_BUILDING');
+        }
+        if (z) addLink(did, zid, 'LOCATED_IN_ZONE');
+        if (f) addLink(did, fid, 'LOCATED_ON_FLOOR');
+        if (b) { addLink(did, bid, 'IN_BUILDING'); bumpBuildingCount(bid); }
+        const bName = (b?.properties?.name) || String(b?.properties?.buildingID || b?.properties?.id || '') || null;
+        const fName = f?.properties?.name || null;
+        const zName = z?.properties?.name || null;
+        const key = `${cloudId}|${bName}|${fName}|${zName}`;
+        if (cloudId && !logged.has(key)) { console.log('[s3-match][snapshot]', cloudId, 'building=', bName||'n/a', 'floor=', fName||'n/a', 'zone=', zName||'n/a'); logged.add(key); }
+      }
+
+      // Attach TelemetryKey nodes for included devices; add both HAS_TELEMETRY_KEY and MEASURES links
+      try {
+        if (includedDevices.size) {
+          const { records: keyRows } = await runQuery(`
+            MATCH (d:Device)-[:HAS_TELEMETRY_KEY]->(k:TelemetryKey)
+            RETURN d, collect(DISTINCT k) AS ks
+          `);
+          for (const rec of (keyRows || [])) {
+            const d = rec.get('d');
+            const ks = rec.get('ks') || [];
+            const did = `Device:${d.properties?.id || d.properties?.name}`;
+            if (!includedDevices.has(did)) continue;
+            for (const k of ks) {
+              if (!k) continue;
+              const kname = k.properties?.name || k.properties?.key || k.properties?.id || null;
+              if (!kname) continue;
+              const kid = `TelemetryKey:${kname}`;
+              addNode(kid, { label: 'TelemetryKey', name: kname, nodeType: 'TelemetryKey' });
+              addLink(did, kid, 'HAS_TELEMETRY_KEY');
+              addLink(kid, did, 'MEASURES');
+            }
+          }
+        }
+      } catch {}
       // Position nodes: buildings in rows, floors below buildings, zones below floors, devices below zones
       try {
         const nodes = Array.from(outNodes.values());

@@ -38,6 +38,25 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || 'models/gemini-2.5-flash';
 
 
 const dataDir = path.join(root, 'data');
+
+// Simple in-memory cache (best-effort, short TTLs)
+const __cache = {
+  scopeMetrics: new Map(), // key -> { t, v }
+  topology: new Map(),
+  graphFull: new Map(),
+};
+function cacheKey(obj) { return JSON.stringify(obj); }
+function cacheGet(map, key, ttlMs) {
+  try {
+    const ent = map.get(key);
+    if (!ent) return null;
+    if (Date.now() - ent.t > ttlMs) { map.delete(key); return null; }
+    return ent.v;
+  } catch { return null; }
+}
+function cacheSet(map, key, v) {
+  try { map.set(key, { t: Date.now(), v }); } catch {}
+}
 const publicDir = path.join(root, 'public');
 
 function sendJson(res, status, obj) {
@@ -338,9 +357,16 @@ function loadWeather(building = null) {
     // Per-building weather cached under S3 local mirror
     if (building) {
       const bslug = buildingSlug(building);
-      const csvb = path.join(s3LocalDir, 'weather_buildings', `${bslug}.csv`);
-      if (fs.existsSync(csvb)) return parseCSV(csvb).map(r => ({ ts: Number(r.ts), temp: Number(r.temp), humidity: Number(r.humidity), pressure: Number(r.pressure), wind_speed: Number(r.wind_speed), wind_deg: Number(r.wind_deg), clouds: Number(r.clouds), weather_main: r.weather_main, weather_desc: r.weather_desc }));
+      const csvS3 = path.join(s3LocalDir, 'weather_buildings', `${bslug}.csv`);
+      const csvData = path.join(root, 'data', 'weather_buildings', `${bslug}.csv`);
+      const file = fs.existsSync(csvS3) ? csvS3 : (fs.existsSync(csvData) ? csvData : null);
+      if (file) return parseCSV(file).map(r => ({ ts: Number(r.ts), temp: Number(r.temp), humidity: Number(r.humidity), pressure: Number(r.pressure), wind_speed: Number(r.wind_speed), wind_deg: Number(r.wind_deg), clouds: Number(r.clouds), weather_main: r.weather_main, weather_desc: r.weather_desc }));
     }
+    // Generic fallback
+    const csvGeneric = path.join(s3LocalDir, 'weather.csv');
+    const csvGenericData = path.join(root, 'data', 'weather.csv');
+    const f = fs.existsSync(csvGeneric) ? csvGeneric : (fs.existsSync(csvGenericData) ? csvGenericData : null);
+    if (f) return parseCSV(f).map(r => ({ ts: Number(r.ts), temp: Number(r.temp), humidity: Number(r.humidity), pressure: Number(r.pressure), wind_speed: Number(r.wind_speed), wind_deg: Number(r.wind_deg), clouds: Number(r.clouds), weather_main: r.weather_main, weather_desc: r.weather_desc }));
     return [];
   } catch { return []; }
 }
@@ -926,14 +952,206 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // Testing: find building with most telemetry keys (only devices with S3 records)
+  if (pathname === '/api/test/keys-top-building' && req.method === 'GET') {
+    try {
+      const tenant = String(query.tenant || '').trim() || null;
+      const g = createGraphFromEnv(process.env);
+      if (!g || !g.devicesByScope) return sendJson(res, 500, { error: 'graph_not_configured' });
+
+      // S3 device set and quick file info
+      const s3Dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+      const s3Set = new Set();
+      const s3Files = new Map(); // id -> { path, hasRows, headers }
+      try {
+        if (fs.existsSync(s3Dir)) {
+          for (const f of fs.readdirSync(s3Dir)) {
+            if (!/\.csv$/i.test(f)) continue;
+            const id = f.replace(/\.csv$/i, '');
+            const p = path.join(s3Dir, f);
+            let headers = [];
+            let hasRows = false;
+            try {
+              const text = fs.readFileSync(p, 'utf8');
+              const lines = text.split(/\r?\n/).filter(Boolean);
+              headers = (lines[0] || '').split(',').map(h => h.trim()).filter(Boolean);
+              hasRows = lines.length > 1; // any data rows
+            } catch {}
+            s3Set.add(id);
+            s3Files.set(id, { path: p, hasRows, headers });
+          }
+        }
+      } catch {}
+
+      // Get all devices with meta (filtered to S3-present via devicesByScope)
+      let devices = [];
+      let devScopeErr = null;
+      try {
+        const resp = await g.devicesByScope({ tenant, building: null, floor: null, zone: null, type: null });
+        devices = Array.isArray(resp?.devices) ? resp.devices : [];
+        if (resp?.error) devScopeErr = resp.error;
+      } catch (e) { devScopeErr = String(e); }
+      const ids = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
+
+      // Prefer graph TelemetryKeys; fallback to CSV headers (sans ts)
+      const graphKeys = new Map(); // id -> keys[]
+      try {
+        const cy = `
+          UNWIND $ids AS raw
+          WITH raw, toLower(replace(replace(raw,'-',''),'_','')) AS idNorm
+          MATCH (d:Device)
+          WITH raw, idNorm, d,
+            [toString(d.id), toString(d.cloud_id), toString(d.deviceId), toString(d.name)] AS cands
+          WITH raw, d, [x IN cands WHERE x IS NOT NULL | toLower(replace(replace(x,'-',''),'_',''))] AS norms
+          WHERE idNorm IN norms
+          OPTIONAL MATCH (d)-[:HAS_TELEMETRY_KEY]->(k:TelemetryKey)
+          RETURN raw AS id, collect(DISTINCT k.name) AS keys
+        `;
+        const { records } = await g.runQuery(cy, { ids });
+        for (const r of (records || [])) graphKeys.set(String(r.get('id')), (r.get('keys') || []).filter(Boolean));
+      } catch {}
+
+      // Fallback path: if graph devices are empty or errored, infer from snapshot
+      if ((!devices.length && s3Set.size) || devScopeErr) {
+        try {
+          const rootDir = path.join(root, 'data');
+          const slug = s => String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+          const file = tenant ? path.join(rootDir, `graph_snapshot.${slug(tenant)}.json`) : path.join(rootDir, 'graph_snapshot.json');
+          const snap = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const nodes = Array.isArray(snap.nodes) ? snap.nodes : [];
+          const links = Array.isArray(snap.links) ? snap.links : [];
+          const nodesById = new Map(nodes.map(n => [n.id, n]));
+          const devNodes = nodes.filter(n => (n.nodeType||n.label)==='Device' && n.cloudId);
+          devices = [];
+          for (const dn of devNodes) {
+            const id = String(dn.cloudId);
+            const s3 = s3Files.get(id);
+            if (!s3 || !s3.hasRows) continue;
+            // find zone
+            const zLink = links.find(l => l.source===dn.id && l.rel==='LOCATED_IN_ZONE');
+            const fLink = links.find(l => l.source===dn.id && l.rel==='LOCATED_ON_FLOOR');
+            const bLink = links.find(l => l.source===dn.id && l.rel==='IN_BUILDING');
+            const zNode = zLink ? nodesById.get(zLink.target) : null;
+            const fNode = fLink ? nodesById.get(fLink.target) : null;
+            let bNode = bLink ? nodesById.get(bLink.target) : null;
+            if (!bNode && fNode) {
+              const fToB = links.find(l => l.source===fNode.id && l.rel==='LOCATED_IN_BUILDING');
+              bNode = fToB ? nodesById.get(fToB.target) : bNode;
+            }
+            if (!bNode && zNode) {
+              const zToB = links.find(l => l.source===zNode.id && l.rel==='LOCATED_IN_BUILDING');
+              bNode = zToB ? nodesById.get(zToB.target) : bNode;
+            }
+            devices.push({ id, name: dn.name || id, type: dn.deviceType || null, zone: zNode?.name || null, floor: fNode?.name || null, building: bNode?.name || null });
+          }
+          // derive keys via links if present
+          graphKeys.clear();
+          const devIdByNode = new Map(devNodes.map(dn => [dn.id, String(dn.cloudId)]));
+          for (const l of links) {
+            if (l.rel === 'HAS_TELEMETRY_KEY' || l.rel === 'MEASURES') {
+              const a = nodesById.get(l.source); const b = nodesById.get(l.target);
+              let kid=null, did=null;
+              if ((a?.nodeType||a?.label)==='Device' && (b?.nodeType||b?.label)==='TelemetryKey') { did = devIdByNode.get(a.id); kid = b?.name; }
+              else if ((a?.nodeType||a?.label)==='TelemetryKey' && (b?.nodeType||b?.label)==='Device') { did = devIdByNode.get(b.id); kid = a?.name; }
+              if (did && kid) {
+                if (!graphKeys.has(did)) graphKeys.set(did, []);
+                if (!graphKeys.get(did).includes(kid)) graphKeys.get(did).push(kid);
+              }
+            }
+          }
+        } catch {}
+      }
+
+      // Aggregate per building/floor/zone
+      const byBuilding = new Map();
+      function bump(map, k, delta=1) { map.set(k, (map.get(k)||0) + delta); }
+
+      for (const d of devices) {
+        const id = String(d.id);
+        const meta = { building: d.building || '(Unknown Building)', floor: d.floor || '(Unknown Floor)', zone: d.zone || '(Unknown Zone)', type: d.type || (d.name || '').split(' ')[0] || 'Device' };
+        // Only include devices that have at least one data row in S3
+        const s3 = s3Files.get(id);
+        if (!s3 || !s3.hasRows) continue;
+        let keys = graphKeys.get(id) || [];
+        if (!keys.length) {
+          const hdrs = (s3.headers || []).filter(h => h !== 'ts');
+          keys = Array.from(new Set(hdrs));
+        }
+        const keyCount = keys.length;
+        const bName = meta.building; const fName = meta.floor; const zName = meta.zone;
+        if (!byBuilding.has(bName)) byBuilding.set(bName, { totalKeys: 0, devices: 0, deviceTypes: new Map(), floors: new Map() });
+        const B = byBuilding.get(bName);
+        B.totalKeys += keyCount; B.devices += 1; bump(B.deviceTypes, meta.type, 1);
+        if (!B.floors.has(fName)) B.floors.set(fName, { totalKeys: 0, devices: 0, deviceTypes: new Map(), zones: new Map() });
+        const F = B.floors.get(fName);
+        F.totalKeys += keyCount; F.devices += 1; bump(F.deviceTypes, meta.type, 1);
+        if (!F.zones.has(zName)) F.zones.set(zName, { totalKeys: 0, devices: 0, deviceTypes: new Map() });
+        const Z = F.zones.get(zName);
+        Z.totalKeys += keyCount; Z.devices += 1; bump(Z.deviceTypes, meta.type, 1);
+      }
+
+      // Pick top building by totalKeys
+      const ranking = Array.from(byBuilding.entries()).map(([name, B]) => ({ name, totalKeys: B.totalKeys, devices: B.devices }));
+      ranking.sort((a,b)=> b.totalKeys - a.totalKeys);
+      const top = ranking[0] || null;
+      if (!top) return sendJson(res, 200, { tenant, building: null, totals: { keys:0, devices:0 }, floors: [], deviceTypes: {}, compared: [] });
+
+      const B = byBuilding.get(top.name);
+      const deviceTypes = Object.fromEntries(Array.from(B.deviceTypes.entries()).sort((a,b)=>b[1]-a[1]));
+      const floors = Array.from(B.floors.entries()).map(([floor, F]) => ({
+        floor,
+        keys: F.totalKeys,
+        devices: F.devices,
+        deviceTypes: Object.fromEntries(Array.from(F.deviceTypes.entries()).sort((a,b)=>b[1]-a[1])),
+        zones: Array.from(F.zones.entries()).map(([zone, Z]) => ({
+          zone,
+          keys: Z.totalKeys,
+          devices: Z.devices,
+          deviceTypes: Object.fromEntries(Array.from(Z.deviceTypes.entries()).sort((a,b)=>b[1]-a[1]))
+        })).sort((a,b)=> b.keys - a.keys)
+      })).sort((a,b)=> b.keys - a.keys);
+
+      return sendJson(res, 200, {
+        tenant,
+        building: top.name,
+        totals: { keys: B.totalKeys, devices: B.devices },
+        deviceTypes,
+        floors,
+        compared: ranking.slice(0, 10)
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'keys_top_failed', detail: String(e) });
+    }
+  }
+
   if (pathname === '/api/graph/full' && req.method === 'GET') {
     try {
+      const tenant = String(query.tenant || '').trim() || null;
+      // 1) Try snapshot file for instant response
+      try {
+        const slug = (s) => String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+        const file = tenant ? path.join(dataDir, `graph_snapshot.${slug(tenant)}.json`) : path.join(dataDir, 'graph_snapshot.json');
+        if (fs.existsSync(file)) {
+          const raw = fs.readFileSync(file, 'utf8');
+          const snap = JSON.parse(raw);
+          if (Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
+            if (DEBUG_HTTP) console.log('[HTTP] /api/graph/full -> served from snapshot file');
+            return sendJson(res, 200, { nodes: snap.nodes, links: snap.links, tenant: snap.tenant || tenant || null });
+          }
+        }
+      } catch {}
+      // 2) Try in-memory cache
+      const key = cacheKey({ kind: 'graphFull', tenant });
+      const cached = cacheGet(__cache.graphFull, key, 20000);
+      if (cached) return sendJson(res, 200, cached);
+      // 3) Fallback to live graph
       const g = createGraphFromEnv(process.env);
       if (!g || !g.fullHierarchy) return sendJson(res, 500, { error: 'graph_not_configured' });
-      const tenant = String(query.tenant || '').trim() || null;
       const out = await g.fullHierarchy(tenant);
-      if (DEBUG_HTTP) console.log('[HTTP] /api/graph/full -> nodes', out.nodes?.length || 0, 'links', out.links?.length || 0);
-      return sendJson(res, 200, out);
+      const payload = { nodes: out.nodes || [], links: out.links || [], tenant };
+      cacheSet(__cache.graphFull, key, payload);
+      if (DEBUG_HTTP) console.log('[HTTP] /api/graph/full -> recomputed nodes', payload.nodes.length, 'links', payload.links.length);
+      return sendJson(res, 200, payload);
     } catch (e) {
       return sendJson(res, 500, { error: 'graph_failed', detail: String(e) });
     }
@@ -954,6 +1172,8 @@ const server = http.createServer(async (req, res) => {
       const fileName = tenant ? `graph_snapshot.${slug(tenant)}.json` : 'graph_snapshot.json';
       const snapPath = path.join(outDir, fileName);
       fs.writeFileSync(snapPath, JSON.stringify({ generatedAt: Date.now(), tenant: tenant || null, ...snap }, null, 2));
+      // Hot-reload in-memory index for this tenant
+      updateIndexForTenant(tenant || null);
       return sendJson(res, 200, { ok: true, nodes: (snap.nodes||[]).length, links: (snap.links||[]).length, file: `data/${fileName}` });
     } catch (e) {
       return sendJson(res, 500, { error: 'snapshot_failed', detail: String(e) });
@@ -1054,8 +1274,8 @@ const server = http.createServer(async (req, res) => {
       info.tsMax = isFinite(maxTs) ? maxTs : null;
       meta[tname] = info;
     }
-    // Weather meta
-    const weatherArr = loadWeather();
+    // Weather meta (respect building param)
+    const weatherArr = loadWeather(building || null);
     let wMeta = null;
     if (weatherArr.length) {
       const wInfo = { count: weatherArr.length, tsMin: null, tsMax: null, fieldSpans: {}, types: {}, inRangeCount: 0 };
@@ -1110,6 +1330,125 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Series extract across a scope (tenant/building/floor/zone) for a given metric
+  if (pathname === '/api/scope/series' && req.method === 'GET') {
+    try {
+      const tenant = String(query.tenant || '').trim() || null;
+      const building = String(query.building || '').trim() || null;
+      const floor = String(query.floor || '').trim() || null;
+      const zone = String(query.zone || '').trim() || null;
+      const field = String(query.field || '').trim();
+      const start = query.start ? Number(query.start) : null;
+      const end = query.end ? Number(query.end) : null;
+      const limit = Math.max(1, Math.min(5000, Number(query.limit) || 1000));
+      if (!field) return sendJson(res, 400, { error: 'field required' });
+
+      // Weather support: if building provided and field prefixed with weather.
+      if (building && field.startsWith('weather.')) {
+        const weatherKey = field.split('.').slice(1).join('.') || '';
+        const arr = loadWeather(building) || [];
+        const rows = [];
+        for (const r of arr) {
+          const ts = Number(r.ts);
+          if (!Number.isFinite(ts)) continue;
+          if (!withinRange(ts, start, end)) continue;
+          const v = r[weatherKey];
+          const y = Number(v);
+          if (!Number.isFinite(y)) continue;
+          rows.push({ ts, value: y, device: '(weather)' });
+          if (rows.length >= limit) break;
+        }
+        rows.sort((a,b)=>a.ts-b.ts);
+        return sendJson(res, 200, { scope: { tenant, building, floor, zone }, field, count: rows.length, rows });
+      }
+
+      // Determine device IDs in scope (favor snapshot, fallback to graph)
+      const deviceIds = [];
+      const devMeta = new Map();
+      try {
+        const slug = (s) => String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+        const snapFile = tenant ? path.join(root, 'data', `graph_snapshot.${slug(tenant)}.json`) : path.join(root, 'data', 'graph_snapshot.json');
+        if (fs.existsSync(snapFile)) {
+          const snap = JSON.parse(fs.readFileSync(snapFile, 'utf8'));
+          const nodes = snap.nodes || []; const links = snap.links || [];
+          const byId = new Map(nodes.map(n => [n.id, n]));
+          const typeOf = (n) => (n?.nodeType || n?.label);
+          const buildings = nodes.filter(n => typeOf(n)==='Building');
+          const floors = nodes.filter(n => typeOf(n)==='Floor');
+          const zones = nodes.filter(n => typeOf(n)==='Zone');
+          const bNode = building ? buildings.find(b => String(b.name) === String(building)) : null;
+          const fNode = floor && bNode ? floors.find(f => String(f.name) === String(floor) && links.some(l => l.source===f.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)) : null;
+          const zNode = zone && ((fNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && l.rel==='BELONGS_TO_FLOOR' && l.target===fNode.id)))
+                                  || (!fNode && bNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)))
+                                  || zones.find(z => String(z.name)===String(zone))) || null;
+          const pushDev = (devId) => {
+            const d = byId.get(devId); if (!d) return;
+            const id = String(d.cloudId || d.id || d.deviceId || d.name || '').trim(); if (!id) return;
+            if (!deviceIds.includes(id)) deviceIds.push(id);
+          };
+          if (zNode) {
+            for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && l.target===zNode.id) pushDev(l.source);
+          } else if (fNode) {
+            const zIds = new Set(links.filter(l => l.rel==='BELONGS_TO_FLOOR' && l.target===fNode.id).map(l => l.source));
+            for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && zIds.has(l.target)) pushDev(l.source);
+            for (const l of links) if (l.rel==='LOCATED_ON_FLOOR' && l.target===fNode.id) pushDev(l.source);
+          } else if (bNode) {
+            const fIds = new Set(links.filter(l => l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id).map(l => l.source));
+            const zIds = new Set(links.filter(l => l.rel==='BELONGS_TO_FLOOR' && fIds.has(l.target)).map(l => l.source));
+            for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && zIds.has(l.target)) pushDev(l.source);
+            for (const l of links) if (l.rel==='LOCATED_ON_FLOOR' && fIds.has(l.target)) pushDev(l.source);
+            for (const l of links) if (l.rel==='IN_BUILDING' && l.target===bNode.id) pushDev(l.source);
+          }
+        }
+      } catch {}
+      if (!deviceIds.length) {
+        try {
+          const g = createGraphFromEnv(process.env);
+          if (g && g.devicesByScope) {
+            const { devices = [] } = await g.devicesByScope({ tenant, building, floor, zone, type: null });
+            for (const d of devices) { const id = String(d.id || '').trim(); if (id && !deviceIds.includes(id)) deviceIds.push(id); }
+          }
+        } catch {}
+      }
+      // Filter to S3-present devices only
+      let ids = deviceIds.slice();
+      try {
+        const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+        if (fs.existsSync(dir)) {
+          const s3set = new Set(fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.csv')).map(f => f.replace(/\.csv$/i, '')));
+          ids = ids.filter(id => s3set.has(String(id)));
+        }
+      } catch {}
+
+      // Collect rows across devices
+      const rows = [];
+      const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+      for (const id of ids) {
+        try {
+          const file = path.join(dir, `${id}.csv`);
+          if (!fs.existsSync(file)) continue;
+          const text = fs.readFileSync(file, 'utf8');
+          const lines = text.split(/\r?\n/).filter(Boolean);
+          if (lines.length < 2) continue;
+          const headers = lines[0].split(',');
+          const colIndex = headers.indexOf(field);
+          if (colIndex === -1) continue;
+          for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split(',');
+            const ts = Number(parts[0]); if (!Number.isFinite(ts)) continue;
+            if (!withinRange(ts, start, end)) continue;
+            const y = Number(parts[colIndex]); if (!Number.isFinite(y)) continue;
+            rows.push({ ts, value: y, device: id });
+            if (rows.length >= limit) break;
+          }
+          if (rows.length >= limit) break;
+        } catch {}
+      }
+      rows.sort((a,b)=>a.ts-b.ts);
+      return sendJson(res, 200, { scope: { tenant, building, floor, zone }, field, count: rows.length, rows });
+    } catch (e) { return sendJson(res, 500, { error: 'scope_series_failed', detail: String(e) }); }
+  }
+
   if (pathname === '/api/chat' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -1123,6 +1462,7 @@ const server = http.createServer(async (req, res) => {
         let scopeNote = '';
         let selectionRooms = [];
         let selectionZones = [];
+        let selectionFloors = [];
         try {
           if (selection && (selection.building || selection.floor || selection.room)) {
             const g = createGraphFromEnv(process.env);
@@ -1130,45 +1470,108 @@ const server = http.createServer(async (req, res) => {
             if (selection.room && g && g.devicesByScope) {
               const { devices = [] } = await g.devicesByScope({ tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null, zone: selection.room || null, type: null });
               const devIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
-              if (devIds.length) {
-                effRoom = 'ALL';
-                selectionRooms = devIds;
-                // Include zones list for scope; omit devices from note
-                let roomsList = [];
-                try {
-                  if (g && g.roomsByScope) {
-                    const r = await g.roomsByScope({ building: selection.building || null, floor: selection.floor || null });
-                    const raw = (r && r.rooms) ? r.rooms : [];
-                    try {
-                      const cy = 'UNWIND $ids AS k MATCH (z:Zone) WHERE coalesce(toString(z.roomId),toString(z.id),z.name)=k RETURN DISTINCT z.name AS name';
-                      const rr = await g.runQuery(cy, { ids: raw });
-                      roomsList = (rr.records || []).map(rec => rec.get('name')).filter(Boolean);
-                    } catch {
-                      roomsList = raw;
-                    }
-                    selectionZones = roomsList;
-                  }
+              effRoom = 'ALL';
+              selectionRooms = devIds;
+              // Include zones list for scope; omit devices from note
+              let roomsList = [];
+              try {
+                  // Always resolve zone names under the current selection
+                  try {
+                    const cyZ = `
+                      OPTIONAL MATCH (t:Tenant)
+                      WHERE $tenant IS NULL OR t.name=$tenant OR toString(t.id)=$tenant
+                      MATCH (b:Building)
+                      WHERE ($tenant IS NULL OR (b)-[:BELONGS_TO_TENANT]->(t)) AND ($building IS NULL OR b.name=$building OR toString(b.id)=$building OR toString(b.buildingID)=$building)
+                      OPTIONAL MATCH (f:Floor)
+                      WHERE ($floor IS NULL OR f.name=$floor OR toString(f.id)=$floor OR toString(f.floorID)=$floor)
+                        AND ( ($building IS NULL) OR ( (f)-[:LOCATED_IN_BUILDING]->(b) ) )
+                      MATCH (z:Zone)
+                      WHERE ( ($building IS NULL) OR ((z)-[:LOCATED_IN_BUILDING]->(b)) )
+                        AND ( ($floor IS NULL) OR EXISTS { MATCH (z)-[:BELONGS_TO_FLOOR]->(f) } )
+                      RETURN DISTINCT z.name AS name
+                    `;
+                    const { records: zrecs } = await g.runQuery(cyZ, { tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null });
+                    roomsList = (zrecs || []).map(r => r.get('name')).filter(Boolean);
+                    // Force the explicitly selected zone to be first and unique
+                    const selZ = selection.room ? [String(selection.room)] : [];
+                    selectionZones = Array.from(new Set([...selZ, ...roomsList]));
+                  } catch {}
                 } catch {}
-                scopeNote = `Scope: ${selection.tenant ? 'tenant='+selection.tenant+' ' : ''}building=${selection.building||''} floor=${selection.floor||''} zones=[${roomsList.slice(0,30).map(z=>`"${z}"`).join(', ')}${roomsList.length>30?' …':''}]`;
-              }
-            } else if (g && g.devicesByScope && (selection.building || selection.floor)) {
-              // Building/floor scope: gather all devices under this scope
-              const { devices = [] } = await g.devicesByScope({ tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null, zone: null, type: null });
-              const devIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
-              if (devIds.length) {
-                effRoom = 'ALL';
-                selectionRooms = devIds;
-                // Include zones list for scope; omit devices from note
-                let roomsList = [];
-                try {
-                  if (g && g.roomsByScope) {
-                    const r = await g.roomsByScope({ building: selection.building || null, floor: selection.floor || null });
-                    roomsList = (r && r.rooms) ? r.rooms : [];
-                    selectionZones = roomsList;
-                  }
-                } catch {}
-                scopeNote = `Scope: ${selection.tenant ? 'tenant='+selection.tenant+' ' : ''}${selection.building ? 'building='+selection.building+' ' : ''}${selection.floor ? 'floor='+selection.floor+' ' : ''}zones=[${roomsList.slice(0,30).map(z=>`"${z}"`).join(', ')}${roomsList.length>30?' …':''}]`;
-              }
+              // Also include floors list for this building scope
+              let floorsList = [];
+              try {
+                const cyF = `
+                  MATCH (b:Building)
+                  WHERE toLower(b.name)=toLower($building) OR toString(b.id)=$building OR toString(b.buildingID)=$building
+                  OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
+                  RETURN DISTINCT f.name AS name
+                `;
+                const rrF = await g.runQuery(cyF, { building: selection.building });
+                floorsList = (rrF.records || []).map(rec => rec.get('name')).filter(Boolean);
+              } catch {}
+              const floorsOut = floorsList.length ? floorsList : (selection.floor ? [selection.floor] : []);
+              selectionFloors = floorsOut.slice();
+              scopeNote = `Scope: ${selection.tenant ? 'tenant='+selection.tenant+' ' : ''}building=${selection.building||''} floor=${selection.floor||''} floors=[${floorsOut.slice(0,30).map(x=>`"${x}"`).join(', ')}${floorsOut.length>30?' …':''}] zones=[${roomsList.slice(0,30).map(z=>`"${z}"`).join(', ')}${roomsList.length>30?' …':''}]`;
+            } else if (g && (selection.building || selection.floor)) {
+              // Building/floor scope: list zones by name and gather devices
+              let roomsList = [];
+              try {
+                const cyZ = `
+                  OPTIONAL MATCH (t:Tenant)
+                  WHERE $tenant IS NULL OR t.name=$tenant OR toString(t.id)=$tenant
+                  MATCH (b:Building)
+                  WHERE ($tenant IS NULL OR (b)-[:BELONGS_TO_TENANT]->(t)) AND ($building IS NULL OR b.name=$building OR toString(b.id)=$building OR toString(b.buildingID)=$building)
+                  OPTIONAL MATCH (f:Floor)
+                  WHERE ($floor IS NULL OR f.name=$floor OR toString(f.id)=$floor OR toString(f.floorID)=$floor)
+                    AND ( ($building IS NULL) OR ( (f)-[:LOCATED_IN_BUILDING]->(b) ) )
+                  MATCH (z:Zone)
+                  WHERE ( ($building IS NULL) OR ((z)-[:LOCATED_IN_BUILDING]->(b)) )
+                    AND ( ($floor IS NULL) OR EXISTS { MATCH (z)-[:BELONGS_TO_FLOOR]->(f) } )
+                  RETURN DISTINCT z.name AS name
+                `;
+                const { records: zrecs } = await g.runQuery(cyZ, { tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null });
+                roomsList = (zrecs || []).map(r => r.get('name')).filter(Boolean);
+                // Fallback: ignore floor filter if no zones matched (floor name mismatch like "Default")
+                if (!roomsList.length) {
+                  const cyZ2 = `
+                    OPTIONAL MATCH (t:Tenant)
+                    WHERE $tenant IS NULL OR t.name=$tenant OR toString(t.id)=$tenant
+                    MATCH (b:Building)
+                    WHERE ($tenant IS NULL OR (b)-[:BELONGS_TO_TENANT]->(t)) AND ($building IS NULL OR b.name=$building OR toString(b.id)=$building OR toString(b.buildingID)=$building)
+                    MATCH (z:Zone)-[:LOCATED_IN_BUILDING]->(b)
+                    RETURN DISTINCT z.name AS name
+                  `;
+                  const { records: zrecs2 } = await g.runQuery(cyZ2, { tenant: selection.tenant || null, building: selection.building || null });
+                  roomsList = (zrecs2 || []).map(r => r.get('name')).filter(Boolean);
+                }
+                selectionZones = roomsList;
+              } catch {}
+              // Gather devices
+              let devIds = [];
+              try {
+                if (g.devicesByScope) {
+                  const { devices = [] } = await g.devicesByScope({ tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null, zone: null, type: null });
+                  devIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
+                }
+              } catch {}
+              effRoom = 'ALL';
+              selectionRooms = devIds;
+              let floorsList2 = [];
+              try {
+                if (selection.building) {
+                  const cyF = `
+                    MATCH (b:Building)
+                  WHERE toLower(b.name)=toLower($building) OR toString(b.id)=$building OR toString(b.buildingID)=$building
+                  OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
+                  RETURN DISTINCT f.name AS name
+                  `;
+                  const rrF = await g.runQuery(cyF, { building: selection.building });
+                  floorsList2 = (rrF.records || []).map(rec => rec.get('name')).filter(Boolean);
+                }
+              } catch {}
+              const floorsOut2 = (floorsList2.length ? floorsList2 : (selection.floor ? [selection.floor] : []));
+              selectionFloors = floorsOut2.slice();
+              scopeNote = `Scope: ${selection.tenant ? 'tenant='+selection.tenant+' ' : ''}${selection.building ? 'building='+selection.building+' ' : ''}${selection.floor ? 'floor='+selection.floor+' ' : ''}${floorsOut2.length ? ('floors=['+floorsOut2.slice(0,30).map(x=>`"${x}"`).join(', ')+(floorsOut2.length>30?' …':'')+'] ') : ''}zones=[${roomsList.slice(0,30).map(z=>`"${z}"`).join(', ')}${roomsList.length>30?' …':''}]`;
             }
           }
         } catch (e) { if (DEBUG_HTTP) console.warn('[API/chat] selection resolution failed:', String(e)); }
@@ -1177,24 +1580,43 @@ const server = http.createServer(async (req, res) => {
           effRoom = 'ALL';
           try {
             const g = createGraphFromEnv(process.env);
+            let buildingsList = [];
+            let floorsListAll = [];
             if (g && g.roomsByScope) {
               const r = await g.roomsByScope({});
               selectionZones = (r && Array.isArray(r.rooms)) ? r.rooms : [];
             }
-            // devices list kept internal; scope note shows only zones
+            try {
+              const br = await g.runQuery('MATCH (b:Building) RETURN DISTINCT b.name AS name ORDER BY name');
+              buildingsList = (br.records || []).map(rec => rec.get('name')).filter(Boolean);
+            } catch {}
+            try {
+              const fr = await g.runQuery('MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(:Building) RETURN DISTINCT f.name AS name ORDER BY name');
+              floorsListAll = (fr.records || []).map(rec => rec.get('name')).filter(Boolean);
+            } catch {}
             const zList = selectionZones || [];
-            scopeNote = `Scope: zones=[${zList.slice(0,30).map(z=>`"${z}"`).join(', ')}${zList.length>30?' …':''}]`;
+            selectionFloors = floorsListAll.slice();
+            scopeNote = `Scope: buildings=[${buildingsList.slice(0,30).map(x=>`"${x}"`).join(', ')}${buildingsList.length>30?' …':''}] floors=[${floorsListAll.slice(0,30).map(x=>`"${x}"`).join(', ')}${floorsListAll.length>30?' …':''}] zones=[${zList.slice(0,30).map(z=>`"${z}"`).join(', ')}${zList.length>30?' …':''}]`;
           } catch {}
         }
-        if (DEBUG_HTTP) console.log('[API/chat] effective room=', effRoom, 'note=', scopeNote);
-
-        // --- LOGGING ADDED HERE ---
-        console.log('[API/chat] Received range:', range);
-        if (range) {
-          console.log('[API/chat] Start:', range.start, new Date(range.start).toISOString());
-          console.log('[API/chat] End:', range.end, new Date(range.end).toISOString());
+        if ((!selectionRooms || !selectionRooms.length) && selection && Array.isArray(selection.devices)) {
+          selectionRooms = selection.devices.map((d) => String(d)).filter(Boolean);
         }
-        // --------------------------
+        if ((!selectionZones || !selectionZones.length) && selection && Array.isArray(selection.zones)) {
+          selectionZones = selection.zones.map((z) => String(z)).filter(Boolean);
+        }
+        if (selection && Array.isArray(selection.floors)) {
+          selectionFloors = selection.floors.map((f) => String(f)).filter(Boolean);
+        }
+        const selectionDeviceZones = selection && selection.deviceZones && typeof selection.deviceZones === 'object' ? selection.deviceZones : {};
+        if (!selectionZones.length && selection && selection.labels && selection.labels.room) {
+          selectionZones = [String(selection.labels.room)];
+        }
+        if (!scopeNote && (selectionRooms.length || selectionZones.length || selectionFloors.length)) {
+          scopeNote = `Scope: ${selection && selection.labels && selection.labels.tenant ? 'tenant='+selection.labels.tenant+' ' : ''}${selection && selection.labels && selection.labels.building ? 'building='+selection.labels.building+' ' : ''}${selection && selection.labels && selection.labels.floor ? 'floor='+selection.labels.floor+' ' : ''}floors=[${selectionFloors.slice(0,30).map(x=>`"${x}"`).join(', ')}${selectionFloors.length>30?' …':''}] zones=[${selectionZones.slice(0,30).map(z=>`"${z}"`).join(', ')}${selectionZones.length>30?' …':''}] devices=[${selectionRooms.slice(0,20).map(d=>`"${d}"`).join(', ')}${selectionRooms.length>20?' …':''}]`;
+        }
+
+        if (DEBUG_HTTP) console.log('[API/chat] effective room=', effRoom, 'note=', scopeNote);
 
         const userLast = [...messages].reverse().find(m => m.role === 'user' || m.role === 'User' || m.role === 'human');
         const question = userLast?.content || '';
@@ -1210,14 +1632,67 @@ const server = http.createServer(async (req, res) => {
 
         // Use the tool-enabled agent (RAG + tools). If it can't complete, fall back to heuristics.
         const effMessages = scopeNote ? [{ role: 'user', content: scopeNote }, ...messages, { role: 'user', content: question }] : messages.concat({ role: 'user', content: question });
-        const { message, chart, trace, extras } = await agent.run(effMessages, { room: effRoom, range, selectionRooms, selectionZones, tenant: (selection && selection.tenant) ? String(selection.tenant) : null });
+    const { message, chart, trace, extras } = await agent.run(effMessages, {
+      room: effRoom,
+      range,
+      selectionRooms,
+      selectionZones,
+      tenant: (selection && selection.tenant) ? String(selection.tenant) : null,
+      building: (selection && selection.building) ? String(selection.building) : null,
+      floor: (selection && selection.floor) ? String(selection.floor) : null,
+      zone: (selection && selection.room) ? String(selection.room) : null,
+      scopeLabels: selection && selection.labels ? selection.labels : null,
+      scopeFloors: selectionFloors,
+      scopeDeviceZones: selectionDeviceZones
+    });
+    try {
+      if (Array.isArray(trace)) {
+        console.log(`[Agent][trace] ${trace.length} entries`);
+        for (const t of trace) {
+          if (t && t.tool) console.log('[Agent][tool]', t.tool, 'args=', JSON.stringify(t.args||{}).slice(0,200));
+        }
+      }
+    } catch {}
+
+    // Optional: persist full trace for audit if TRACE_DIR is configured (defaults to ./data/traces)
+    try {
+      const TRACE_DIR = process.env.TRACE_DIR || path.join(root, 'data', 'traces');
+      if (TRACE_DIR) {
+        fs.mkdirSync(TRACE_DIR, { recursive: true });
+        const ts = new Date();
+        const pad = (n)=>String(n).padStart(2,'0');
+        const stamp = `${ts.getFullYear()}-${pad(ts.getMonth()+1)}-${pad(ts.getDate())}_${pad(ts.getHours())}-${pad(ts.getMinutes())}-${pad(ts.getSeconds())}`;
+        // Build a concise file name with scope
+        const parts = [];
+        if (selection && selection.building) parts.push(`b-${String(selection.building).replace(/[^a-z0-9]+/gi,'_').slice(0,40)}`);
+        if (selection && selection.floor) parts.push(`f-${String(selection.floor).replace(/[^a-z0-9]+/gi,'_').slice(0,40)}`);
+        if (selection && selection.room) parts.push(`z-${String(selection.room).replace(/[^a-z0-9]+/gi,'_').slice(0,40)}`);
+        const fname = `trace_${stamp}${parts.length?('_'+parts.join('_')):''}.json`;
+        const record = {
+          timestamp: ts.toISOString(),
+          selection: selection || null,
+          effective: { room: effRoom, range },
+          selectionRooms,
+          selectionZones,
+          question: (messages && messages.length) ? (messages[messages.length-1]?.content || '') : '',
+          answer: message?.content || '',
+          hasChart: !!chart,
+          chart: chart || null,
+          extras: extras || [],
+          trace: Array.isArray(trace) ? trace : []
+        };
+        fs.writeFileSync(path.join(TRACE_DIR, fname), JSON.stringify(record, null, 2));
+        console.log('[Agent][trace] saved to', path.join(TRACE_DIR, fname));
+      }
+    } catch (e) { console.warn('[Agent][trace] save failed:', String(e)); }
         if (!message || !message.content || /^Unable to complete tool-based reasoning/i.test(message.content)) {
           const fb = answerWithFallback(question, room, range || {});
           return sendJson(res, 200, { message: { role: 'assistant', content: fb.answer }, chart: fb.chart, mode: 'fallback', trace: [] });
         }
         return sendJson(res, 200, { message, chart, extras: extras || ((agent && agent.extras) ? agent.extras : undefined), trace, mode: 'agent' });
       } catch (e) {
-        return sendJson(res, 500, { error: 'bad_request', detail: String(e) });
+        try { console.error('[API/chat] FAILED:', e?.stack || String(e)); } catch {}
+        return sendJson(res, 500, { error: 'bad_request', detail: String(e?.message || e || 'unknown') });
       }
     });
     return;
@@ -1233,10 +1708,14 @@ const server = http.createServer(async (req, res) => {
 
         // --- LOGGING ADDED HERE ---
         console.log('[API/query] Received range:', range);
-        if (range) {
-          console.log('[API/query] Start:', range.start, new Date(range.start).toISOString());
-          console.log('[API/query] End:', range.end, new Date(range.end).toISOString());
-        }
+        try {
+          if (range && (range.start != null || range.end != null)) {
+            const sOk = (typeof range.start === 'number' && Number.isFinite(range.start));
+            const eOk = (typeof range.end === 'number' && Number.isFinite(range.end));
+            console.log('[API/query] Start:', range.start, sOk ? new Date(range.start).toISOString() : '(none)');
+            console.log('[API/query] End:', range.end, eOk ? new Date(range.end).toISOString() : '(none)');
+          }
+        } catch {}
         // --------------------------
 
         const start = range?.start ?? null;
@@ -1274,6 +1753,32 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/api/health') {
     return sendJson(res, 200, { ok: true, useLLM: USE_LLM, provider: LLM_PROVIDER });
+  }
+
+  // Lightweight diagnostics
+  if (pathname === '/api/diag' && req.method === 'GET') {
+    try {
+      const snapPath = path.join(root, 'data', 'graph_snapshot.json');
+      const haveSnap = fs.existsSync(snapPath);
+      const s3Weather = path.join(s3LocalDir, 'weather_buildings');
+      const dataWeather = path.join(root, 'data', 'weather_buildings');
+      const out = {
+        env: {
+          LOG_LEVEL: process.env.LOG_LEVEL || '',
+          HTTP_DEBUG: process.env.HTTP_DEBUG || '',
+          USE_LLM, LLM_PROVIDER, GEMINI_MODEL
+        },
+        paths: { s3LocalDir, dataDir, publicDir },
+        snapshot: { haveSnap, file: haveSnap ? 'data/graph_snapshot.json' : null },
+        weather: {
+          s3Exists: fs.existsSync(s3Weather),
+          dataExists: fs.existsSync(dataWeather),
+          s3Files: fs.existsSync(s3Weather) ? fs.readdirSync(s3Weather).filter(f=>f.endsWith('.csv')).slice(0,20) : [],
+          dataFiles: fs.existsSync(dataWeather) ? fs.readdirSync(dataWeather).filter(f=>f.endsWith('.csv')).slice(0,20) : []
+        }
+      };
+      return sendJson(res, 200, out);
+    } catch (e) { return sendJson(res, 500, { error: 'diag_failed', detail: String(e) }); }
   }
 
   // Weather endpoint (supports building param)
@@ -1330,6 +1835,9 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/topology' && req.method === 'GET') {
     try {
       const tenant = String(query.tenant || '').trim() || null;
+      const key = cacheKey({ kind: 'topology', tenant });
+      const cached = cacheGet(__cache.topology, key, 15000);
+      if (cached) return sendJson(res, 200, cached);
       const g = createGraphFromEnv(process.env);
       if (!g || !g.runQuery) return sendJson(res, 500, { error: 'graph_not_configured' });
       const cy = `
@@ -1367,7 +1875,9 @@ const server = http.createServer(async (req, res) => {
       }
       const out = Array.from(byB.values()).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
       out.forEach(B => { B.floors.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))); B.floors.forEach(F=>F.zones.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')))); });
-      return sendJson(res, 200, { tenant, buildings: out });
+      const payload = { tenant, buildings: out };
+      cacheSet(__cache.topology, key, payload);
+      return sendJson(res, 200, payload);
     } catch (e) { return sendJson(res, 500, { error: 'topology_failed', detail: String(e) }); }
   }
 
@@ -1378,18 +1888,99 @@ const server = http.createServer(async (req, res) => {
       const building = String(query.building || '').trim() || null;
       const floor = String(query.floor || '').trim() || null;
       const zone = String(query.zone || '').trim() || null;
-      const g = createGraphFromEnv(process.env);
-      if (!g || !g.devicesByScope) return sendJson(res, 500, { error: 'graph_not_configured' });
-      const { devices = [] } = await g.devicesByScope({ tenant, building, floor, zone, type: null });
-      // Preserve zone/floor meta per device
+      const key = cacheKey({ kind: 'scopeMetrics', tenant, building, floor, zone });
+      const cached = cacheGet(__cache.scopeMetrics, key, 12000);
+      if (cached) return sendJson(res, 200, cached);
       const devMeta = new Map();
-      for (const d of devices) {
-        const id = String(d.id || '').trim();
-        if (!id) continue;
-        devMeta.set(id, { zone: d.zone || null, floor: d.floor || null, building: d.building || null });
+      let deviceIds = [];
+      // FAST PATH: derive devices by scope from graph snapshot + S3 presence
+      try {
+        const slug = (s) => String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+        const snapFile = tenant ? path.join(root, 'data', `graph_snapshot.${slug(tenant)}.json`) : path.join(root, 'data', 'graph_snapshot.json');
+        if (fs.existsSync(snapFile)) {
+          const snap = JSON.parse(fs.readFileSync(snapFile, 'utf8'));
+          const nodes = snap.nodes || []; const links = snap.links || [];
+          const byId = new Map(nodes.map(n => [n.id, n]));
+          const typeOf = (n) => (n?.nodeType || n?.label);
+          const buildings = nodes.filter(n => typeOf(n)==='Building');
+          const floors = nodes.filter(n => typeOf(n)==='Floor');
+          const zones = nodes.filter(n => typeOf(n)==='Zone');
+          const devices = nodes.filter(n => typeOf(n)==='Device');
+          const bNode = building ? buildings.find(b => String(b.name) === String(building)) : null;
+          const fNode = floor && bNode ? floors.find(f => String(f.name) === String(floor) && links.some(l => l.source===f.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)) : null;
+          const zNode = zone && ((fNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && l.rel==='BELONGS_TO_FLOOR' && l.target===fNode.id)))
+                                  || (!fNode && bNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)))
+                                  || zones.find(z => String(z.name)===String(zone))) || null;
+          const s3Dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+          const s3set = fs.existsSync(s3Dir) ? new Set(fs.readdirSync(s3Dir).filter(f=>/\.csv$/i.test(f)).map(f=>f.replace(/\.csv$/i,''))) : new Set();
+          const pushDev = (devId) => {
+            const d = byId.get(devId);
+            if (!d) return;
+            const id = String(d.cloudId || d.id || d.deviceId || d.name || '').trim();
+            if (!id || !s3set.has(id)) return; // must have S3 data
+            const meta = { name: d.name || id, type: d.deviceType || d.type || null, zone: null, floor: null, building: null };
+            // derive labels via links
+            const rels = links.filter(l => l.source===devId || l.target===devId);
+            for (const l of rels) {
+              const other = (l.source===devId) ? l.target : l.source;
+              const nn = byId.get(other);
+              const t = typeOf(nn);
+              if (t==='Zone') meta.zone = nn.name || meta.zone;
+              if (t==='Floor') meta.floor = nn.name || meta.floor;
+              if (t==='Building') meta.building = nn.name || meta.building;
+            }
+            // also propagate from zone/floor if missing
+            if (!meta.floor && meta.zone) {
+              const zn = zones.find(z => z.name===meta.zone);
+              const fl = links.find(l => l.source===zn?.id && l.rel==='BELONGS_TO_FLOOR');
+              const fn = byId.get(fl?.target); if (typeOf(fn)==='Floor') meta.floor = fn.name || meta.floor;
+            }
+            if (!meta.building && meta.floor) {
+              const fn = floors.find(f => f.name===meta.floor);
+              const bl = links.find(l => l.source===fn?.id && l.rel==='LOCATED_IN_BUILDING');
+              const bn = byId.get(bl?.target); if (typeOf(bn)==='Building') meta.building = bn.name || meta.building;
+            }
+            devMeta.set(id, meta);
+            if (!deviceIds.includes(id)) deviceIds.push(id);
+          };
+          if (zNode) {
+            for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && l.target===zNode.id) pushDev(l.source);
+          } else if (fNode) {
+            const zIds = new Set(links.filter(l => l.rel==='BELONGS_TO_FLOOR' && l.target===fNode.id).map(l => l.source));
+            for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && zIds.has(l.target)) pushDev(l.source);
+            for (const l of links) if (l.rel==='LOCATED_ON_FLOOR' && l.target===fNode.id) pushDev(l.source);
+          } else if (bNode) {
+            // include any device in building via zone/floor/building edges
+            const fIds = new Set(links.filter(l => l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id).map(l => l.source));
+            const zIds = new Set(links.filter(l => l.rel==='BELONGS_TO_FLOOR' && fIds.has(l.target)).map(l => l.source));
+            for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && zIds.has(l.target)) pushDev(l.source);
+            for (const l of links) if (l.rel==='LOCATED_ON_FLOOR' && fIds.has(l.target)) pushDev(l.source);
+            for (const l of links) if (l.rel==='IN_BUILDING' && l.target===bNode.id) pushDev(l.source);
+          }
+          // Strict filter by explicit scope if provided
+          const filt = (arr) => arr.filter(id => {
+            const meta = devMeta.get(id);
+            if (!meta) return true;
+            if (zone && String(meta.zone||'').toLowerCase() !== String(zone).toLowerCase()) return false;
+            if (floor && String(meta.floor||'').toLowerCase() !== String(floor).toLowerCase()) return false;
+            if (building && String(meta.building||'').toLowerCase() !== String(building).toLowerCase()) return false;
+            return true;
+          });
+          deviceIds = filt(deviceIds);
+        }
+      } catch {}
+      // If snapshot produced nothing, fallback to graph adapter
+      if (!deviceIds.length) {
+        const g = createGraphFromEnv(process.env);
+        if (!g || !g.devicesByScope) return sendJson(res, 500, { error: 'graph_not_configured' });
+        const { devices = [] } = await g.devicesByScope({ tenant, building, floor, zone, type: null });
+        for (const d of devices) {
+          const id = String(d.id || '').trim(); if (!id) continue;
+          devMeta.set(id, { name: d.name || id, type: d.type || null, zone: d.zone || null, floor: d.floor || null, building: d.building || null });
+          if (!deviceIds.includes(id)) deviceIds.push(id);
+        }
       }
-      const allDevIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
-      let deviceIds = allDevIds.slice();
+      const allDevIds = deviceIds.slice();
       // Filter to S3-present devices (cloud_id-based filenames)
       try {
         const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
@@ -1430,7 +2021,8 @@ const server = http.createServer(async (req, res) => {
           OPTIONAL MATCH (d)-[:HAS_TELEMETRY_KEY]->(k:TelemetryKey)
           RETURN raw AS id, collect(DISTINCT k.name) AS keys
         `;
-        const { records } = await g.runQuery(cy, { ids: allDevIds });
+        const g = createGraphFromEnv(process.env);
+        const { records } = g ? await g.runQuery(cy, { ids: allDevIds }) : { records: [] };
         for (const r of (records || [])) graphKeys.set(String(r.get('id')), (r.get('keys') || []).filter(Boolean));
       } catch {}
       // 2) Fallback to S3 headers when no graph keys present
@@ -1489,7 +2081,41 @@ const server = http.createServer(async (req, res) => {
         zones: Array.from((coverage.get(m)?.zones || new Set()).values()).sort(),
         floors: Array.from((coverage.get(m)?.floors || new Set()).values()).sort()
       }]));
-      return sendJson(res, 200, { scope: { tenant, building, floor, zone }, devices: deviceIds, metrics, counts, byDevice, zones, floors: floorsArr, byZone, byFloor, coverage: perMetricCoverage, weather: weatherFields });
+      // Build device index and hierarchical groups for UI rendering
+      const deviceIndex = deviceIds.map(id => {
+        const meta = devMeta.get(id) || {};
+        return {
+          id,
+          name: meta.name || id,
+          type: meta.type || null,
+          building: meta.building || null,
+          floor: meta.floor || null,
+          zone: meta.zone || null,
+          metrics: byDevice[id] || []
+        };
+      });
+      const byB = new Map();
+      for (const d of deviceIndex) {
+        const b = d.building || '(Unknown Building)';
+        const f = d.floor || '(Unknown Floor)';
+        const z = d.zone || '(Unknown Zone)';
+        if (!byB.has(b)) byB.set(b, new Map());
+        const byF = byB.get(b);
+        if (!byF.has(f)) byF.set(f, new Map());
+        const byZ = byF.get(f);
+        if (!byZ.has(z)) byZ.set(z, []);
+        byZ.get(z).push({ id: d.id, name: d.name, type: d.type, metrics: d.metrics });
+      }
+      const groups = Array.from(byB.entries()).map(([b, byF]) => ({
+        building: b,
+        floors: Array.from(byF.entries()).map(([f, byZ]) => ({
+          floor: f,
+          zones: Array.from(byZ.entries()).map(([z, devs]) => ({ zone: z, devices: devs }))
+        }))
+      }));
+      const payload = { scope: { tenant, building, floor, zone }, devices: deviceIds, metrics, counts, byDevice, zones, floors: floorsArr, byZone, byFloor, coverage: perMetricCoverage, weather: weatherFields, deviceIndex, groups };
+      cacheSet(__cache.scopeMetrics, key, payload);
+      return sendJson(res, 200, payload);
     } catch (e) { return sendJson(res, 500, { error: 'scope_metrics_failed', detail: String(e) }); }
   }
   return serveStatic(req, res);
@@ -1526,6 +2152,96 @@ const PORT = process.env.PORT || 3000;
 const graph = createGraphFromEnv(process.env);
 const vector = createVectorClient({ chromaUrl: process.env.CHROMA_URL || '' });
 
+// -------- Persistent In-Memory Index (Snapshot-first O(1) resolution) --------
+const __indexStore = {
+  tenants: new Map(), // tenantKey -> { floorsByBuilding, zonesByBF, deviceIdsByScope, devicesMeta, keysByDevice, buildings }
+};
+
+function buildTenantIndexFromSnapshot(snap, tenant = null) {
+  try {
+    const nodes = Array.isArray(snap?.nodes) ? snap.nodes : [];
+    const links = Array.isArray(snap?.links) ? snap.links : [];
+    const byId = new Map(nodes.map(n => [n.id, n]));
+    const typeOf = (n) => (n?.nodeType || n?.label);
+    const s = {
+      floorsByBuilding: new Map(),
+      zonesByBF: new Map(),
+      deviceIdsByScope: new Map(),
+      devicesMeta: new Map(),
+      keysByDevice: new Map(),
+      buildings: new Set(),
+    };
+    // Telemetry keys mapping
+    for (const l of links) {
+      if (l.rel === 'HAS_TELEMETRY_KEY' || l.rel === 'MEASURES') {
+        const a = byId.get(l.source), b = byId.get(l.target);
+        const dev = typeOf(a)==='Device' ? a : (typeOf(b)==='Device' ? b : null);
+        const key = typeOf(a)==='TelemetryKey' ? a : (typeOf(b)==='TelemetryKey' ? b : null);
+        if (dev && key && key.name) {
+          const id = String(dev.cloudId || dev.id || dev.deviceId || dev.name || '').trim();
+          if (id) { const set = s.keysByDevice.get(id) || new Set(); set.add(String(key.name)); s.keysByDevice.set(id, set); }
+        }
+      }
+    }
+    function pushDevice(devId, metaB, metaF, metaZ) {
+      const dn = byId.get(devId); if (!dn) return;
+      const id = String(dn.cloudId || dn.id || dn.deviceId || dn.name || '').trim();
+      if (!id) return;
+      s.devicesMeta.set(id, { name: dn.name || id, type: dn.deviceType || dn.type || null, building: metaB || null, floor: metaF || null, zone: metaZ || null });
+      if (metaB) s.buildings.add(String(metaB));
+      const keyB = `${metaB||''}||`;
+      const keyBF = `${metaB||''}||${metaF||''}||`;
+      const keyBFZ = `${metaB||''}||${metaF||''}||${metaZ||''}`;
+      for (const k of [keyB, keyBF, keyBFZ]) { if (!s.deviceIdsByScope.has(k)) s.deviceIdsByScope.set(k, new Set()); s.deviceIdsByScope.get(k).add(id); }
+      if (metaB && metaF) { const fb = s.floorsByBuilding.get(metaB) || new Set(); fb.add(metaF); s.floorsByBuilding.set(metaB, fb); }
+      if (metaB && metaF) { const k = `${metaB}||${metaF}`; const zs = s.zonesByBF.get(k) || new Set(); if (metaZ) zs.add(metaZ); s.zonesByBF.set(k, zs); }
+    }
+    for (const n of nodes) {
+      if (typeOf(n) !== 'Device') continue;
+      let metaB = null, metaF = null, metaZ = null;
+      for (const l of links) {
+        if (l.source === n.id || l.target === n.id) {
+          const other = l.source === n.id ? l.target : l.source;
+          const on = byId.get(other);
+          const t = typeOf(on);
+          if (t === 'Building' && !metaB) metaB = on.name || metaB;
+          if (t === 'Floor' && !metaF) metaF = on.name || metaF;
+          if (t === 'Zone' && !metaZ) metaZ = on.name || metaZ;
+        }
+      }
+      pushDevice(n.id, metaB, metaF, metaZ);
+    }
+    return s;
+  } catch { return null; }
+}
+function prefetchSnapshotsAtStartup() {
+  try {
+    const dir = path.join(root, 'data');
+    if (!fs.existsSync(dir)) return;
+    for (const f of fs.readdirSync(dir)) {
+      if (!/^graph_snapshot(\.|$)/.test(f) || !/\.json$/i.test(f)) continue;
+      const full = path.join(dir, f);
+      try {
+        const snap = JSON.parse(fs.readFileSync(full, 'utf8'));
+        const tenant = snap.tenant || null;
+        const idx = buildTenantIndexFromSnapshot(snap, tenant);
+        if (idx) __indexStore.tenants.set(tenant || '__default__', idx);
+      } catch {}
+    }
+  } catch {}
+}
+function updateIndexForTenant(tenant) {
+  try {
+    const slug = (s) => String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+    const file = tenant ? path.join(root, 'data', `graph_snapshot.${slug(tenant)}.json`) : path.join(root, 'data', 'graph_snapshot.json');
+    if (fs.existsSync(file)) {
+      const snap = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const idx = buildTenantIndexFromSnapshot(snap, tenant);
+      if (idx) __indexStore.tenants.set(tenant || '__default__', idx);
+    }
+  } catch {}
+}
+
 const agent = createAgent({
   dataDir,
   listRooms,
@@ -1538,6 +2254,8 @@ const agent = createAgent({
 
 ensureDatastores()
   .then(() => {
+    // Prefetch snapshot indexes for fast scope resolution
+    prefetchSnapshotsAtStartup();
     // Warm up LLM for lower-latency first response
     if (USE_LLM) {
       try {

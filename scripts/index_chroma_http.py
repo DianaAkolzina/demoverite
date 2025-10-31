@@ -15,9 +15,11 @@ import sys
 import glob
 import json
 import time
-import math
+import hashlib
+import re
+
+import numpy as np
 import requests
-from sentence_transformers import SentenceTransformer
 
 CHROMA_URL = os.environ.get('CHROMA_URL', 'http://localhost:8000').rstrip('/')
 EMB_MODEL = os.environ.get('CHROMA_EMB_MODEL', 'sentence-transformers/all-MiniLM-L6-v2')
@@ -110,6 +112,46 @@ def chunked(iterable, n):
     it = list(iterable)
     for i in range(0, len(it), n):
         yield it[i:i+n]
+
+
+class HashEncoder:
+    """Deterministic, lightweight encoder that hashes tokens into vectors."""
+
+    def __init__(self, dim: int = 384):
+        self.dim = dim
+        self._token_re = re.compile(r"\w+")
+
+    def encode(self, texts, convert_to_numpy=False):
+        vectors = []
+        for text in texts:
+            vec = np.zeros(self.dim, dtype=np.float32)
+            if text:
+                tokens = self._token_re.findall(text.lower())
+                for tok in tokens:
+                    digest = hashlib.blake2b(tok.encode("utf-8"), digest_size=4).digest()
+                    idx = int.from_bytes(digest, "big") % self.dim
+                    vec[idx] += 1.0
+            norm = np.linalg.norm(vec)
+            if norm > 0:
+                vec /= norm
+            vectors.append(vec)
+        arr = np.stack(vectors) if vectors else np.zeros((0, self.dim), dtype=np.float32)
+        return arr if convert_to_numpy else arr.tolist()
+
+
+def create_encoder():
+    prefer_transformer = os.environ.get('CHROMA_USE_SENTENCE_TRANSFORMER', '').lower() in ('1', 'true', 'yes')
+    hash_dim = int(os.environ.get('CHROMA_HASH_DIM', '384'))
+    if prefer_transformer:
+        try:
+            from sentence_transformers import SentenceTransformer
+
+            print(f"[index] Using sentence-transformer model: {EMB_MODEL}")
+            return SentenceTransformer(EMB_MODEL)
+        except Exception as exc:
+            print(f"[index] sentence-transformers unavailable ({exc}); falling back to hash encoder")
+    return HashEncoder(dim=hash_dim)
+
 
 def index_knowledge(model):
     files = [f for f in glob.glob('knowledge/**/*.*', recursive=True) if f.lower().endswith(('.md', '.txt'))]
@@ -204,7 +246,7 @@ def main():
     if not ok:
         print('Chroma not reachable at', CHROMA_URL, file=sys.stderr)
         sys.exit(1)
-    model = SentenceTransformer(EMB_MODEL)
+    model = create_encoder()
     n1 = index_knowledge(model)
     n2 = index_profiles(model)
     print(f'Indexed {n1} knowledge docs and {n2} profiles')
