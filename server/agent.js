@@ -5,7 +5,7 @@ import { evaluateQA } from './eval.js';
 import fs from 'fs';
 import path from 'path';
 
-export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, callGeminiChat, graph = null, vector = null }) {
+export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTablesRaw, loadWeather, callGeminiChat, graph = null, vector = null }) {
   const DEBUG = process.env.RAG_DEBUG === '1' || process.env.LOG_LEVEL === 'debug';
   const log = (...a) => { if (DEBUG) console.log('[Agent]', ...a); };
   
@@ -19,6 +19,9 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
   log(`Initialized RAG with ${docs.length} docs`);
   const rag = buildRagIndex(docs, { debug: DEBUG });
 
+  const repoRoot = path.dirname(dataDir);
+  const s3LocalDir = path.join(repoRoot, 'CSVex_s3');
+
   // Graph snapshot loader for sync graph-aware tools
   function loadGraphSnapshot() {
     try {
@@ -29,13 +32,118 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     } catch { return null; }
   }
 
+  function findSnapshotZone(label, { building, floor } = {}) {
+    if (!snapshotIndex) return null;
+    const raw = String(label || '').trim();
+    if (!raw) return null;
+    const key = raw.toLowerCase();
+    const nameMatches = snapshotIndex.zoneByName?.get(key) || [];
+    const roomMatches = snapshotIndex.zoneByRoomId?.get(key) || [];
+    const combined = [...nameMatches, ...roomMatches];
+    if (!combined.length && snapshotIndex.zoneById?.has(raw)) {
+      combined.push(snapshotIndex.zoneById.get(raw));
+    }
+    if (!combined.length) return null;
+    if (!building && !floor) return combined[0];
+    const buildingKey = building ? String(building).trim().toLowerCase() : null;
+    const floorKey = floor ? String(floor).trim().toLowerCase() : null;
+    for (const info of combined) {
+      if (!info) continue;
+      const matchesBuilding = !buildingKey || (info.buildingName && info.buildingName.toLowerCase() === buildingKey);
+      const matchesFloor = !floorKey || (info.floorName && info.floorName.toLowerCase() === floorKey);
+      if (matchesBuilding && matchesFloor) return info;
+    }
+    return combined[0];
+  }
+
+  function findSnapshotFloor(label, { building } = {}) {
+    if (!snapshotIndex || !label) return null;
+    const key = String(label).trim().toLowerCase();
+    if (!key) return null;
+    const matches = snapshotIndex.floorByName?.get(key) || [];
+    if (!matches.length && snapshotIndex.floorById?.has(label)) {
+      matches.push(snapshotIndex.floorById.get(label));
+    }
+    if (!matches.length) return null;
+    if (!building) return matches[0];
+    const buildingKey = String(building).trim().toLowerCase();
+    for (const info of matches) {
+      if (!info) continue;
+      if (info.buildingName && info.buildingName.toLowerCase() === buildingKey) return info;
+    }
+    return matches[0];
+  }
+
+  function findSnapshotBuilding(label) {
+    if (!snapshotIndex || !label) return null;
+    const key = String(label).trim().toLowerCase();
+    if (!key) return null;
+    const matches = snapshotIndex.buildingByName?.get(key) || [];
+    if (!matches.length && snapshotIndex.buildingById?.has(label)) {
+      matches.push(snapshotIndex.buildingById.get(label));
+    }
+    return matches.length ? matches[0] : null;
+  }
+
+  function findSnapshotDevice(deviceId) {
+    if (!snapshotIndex || !deviceId) return null;
+    const raw = String(deviceId).trim();
+    if (!raw) return null;
+    const direct = snapshotIndex.deviceMeta?.get(raw);
+    if (direct) return direct;
+    const canon = snapshotIndex.deviceMetaCanonical?.get(raw.toLowerCase());
+    if (canon) return canon;
+    return null;
+  }
+
+  function buildDeviceEntriesFromSnapshotZone(zoneInfo) {
+    if (!zoneInfo || !snapshotIndex) return [];
+    const out = [];
+    const devices = Array.isArray(zoneInfo.devices) ? zoneInfo.devices : [];
+    for (const cloudId of devices) {
+      const meta = findSnapshotDevice(cloudId);
+      if (!meta) continue;
+      out.push({
+        primaryId: meta.cloudId,
+        cloudId: meta.cloudId,
+        deviceId: meta.cloudId,
+        numericId: meta.cloudId,
+        name: meta.name || meta.cloudId,
+        type: meta.type || null,
+        zoneId: meta.zoneId || null,
+        zoneName: meta.zoneName || zoneInfo.name || null,
+        floorId: meta.floorId || null,
+        floorName: meta.floorName || zoneInfo.floorName || null,
+        buildingId: meta.buildingId || null,
+        buildingName: meta.buildingName || zoneInfo.buildingName || null,
+        raw: meta.node || {}
+      });
+    }
+    return out;
+  }
+
   const graphHierarchy = loadGraphFormHierarchy();
+  const snapshotIndex = buildSnapshotIndex();
+  let currentScopeContext = {
+    selectionRooms: [],
+    selectionZones: [],
+    scopeDeviceZones: {},
+    scopeLabels: {}
+  };
+
+  function setScopeContext(ctx = {}) {
+    currentScopeContext = {
+      selectionRooms: Array.isArray(ctx.selectionRooms) ? [...ctx.selectionRooms] : [],
+      selectionZones: Array.isArray(ctx.selectionZones) ? [...ctx.selectionZones] : [],
+      scopeDeviceZones: ctx.scopeDeviceZones && typeof ctx.scopeDeviceZones === 'object' ? { ...ctx.scopeDeviceZones } : {},
+      scopeLabels: ctx.scopeLabels && typeof ctx.scopeLabels === 'object' ? { ...ctx.scopeLabels } : {}
+    };
+  }
 
   function loadFriendlyToCloudMap() {
     const map = new Map();
     try {
-      const rootDir = path.join(path.dirname(dataDir));
-      const csvPath = path.join(rootDir, 'data', 'graph_form', 'devices.csv');
+      const csvPath = path.join(repoRoot, 'data', 'graph_form', 'devices.csv');
       if (!fs.existsSync(csvPath)) return map;
       const text = fs.readFileSync(csvPath, 'utf8');
       const lines = text.split(/\r?\n/).filter((line) => line.trim().length);
@@ -57,218 +165,43 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     return map;
   }
 
-  const CORNWALL_FRIENDLY_TO_CLOUD = loadFriendlyToCloudMap();
-
-  const CORNWALL_SCOPE = {
-    building: 'Cornwall Building',
-    floors: {
-      'Fourth Floor': {
-        zones: {
-          Comms: [
-            {
-              id: 'Water Meter_AmRUN3AzIrJd',
-              metrics: ['battery', 'cubic_value', 'humidity', 'raw_data', 'temperature', 'water_total'],
-              type: 'water'
-            }
-          ]
+  function buildCsvMetadata() {
+    const stats = new Map();
+    const metrics = new Map();
+    try {
+      if (!fs.existsSync(s3LocalDir)) return { stats, metrics };
+      const files = fs.readdirSync(s3LocalDir).filter((f) => f.toLowerCase().endsWith('.csv'));
+      for (const file of files) {
+        const deviceId = file.replace(/\.csv$/i, '');
+        const full = path.join(s3LocalDir, file);
+        let headerLine = '';
+        try {
+          const fd = fs.openSync(full, 'r');
+          const buf = Buffer.alloc(4096);
+          const len = fs.readSync(fd, buf, 0, buf.length, 0);
+          fs.closeSync(fd);
+          headerLine = buf.toString('utf8', 0, len).split(/\r?\n/)[0] || '';
+        } catch {
+          headerLine = '';
         }
-      },
-      'Ground Floor': {
-        zones: {
-          'Room 2': [
-            {
-              id: 'IAQ_y2mcNuuXcDTr',
-              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
-              type: 'iaq'
-            }
-          ],
-          'Room 5': [
-            {
-              id: 'IAQ_jb6WMm7pPFHV',
-              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
-              type: 'iaq'
-            }
-          ],
-          'Room 8': [
-            {
-              id: 'IAQ_BbanNjLRjJEK',
-              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
-              type: 'iaq'
-            }
-          ],
-          'Room 4': [
-            {
-              id: 'IAQ_wUXUUolFJYK9',
-              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'occupants', 'pm1', 'pm10', 'pm25', 'pressure', 'rssi', 'sla', 'temperature', 'time', 'virusRisk', 'voc'],
-              type: 'iaq'
-            }
-          ],
-          Coworking: [
-            {
-              id: 'IAQ_snIQf0ZRGHAv',
-              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'occupants', 'pm1', 'pm10', 'pm25', 'pressure', 'rssi', 'sla', 'temperature', 'time', 'virusRisk', 'voc'],
-              type: 'iaq'
-            }
-          ],
-          Gem: [
-            {
-              id: 'IAQ_h9zKxsIn3YYV',
-              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'occupants', 'pm1', 'pm10', 'pm25', 'pressure', 'rssi', 'sla', 'temperature', 'time', 'virusRisk', 'voc'],
-              type: 'iaq'
-            }
-          ],
-          'Room 6': [
-            {
-              id: 'IAQ_2Mx02nIKVGL4',
-              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
-              type: 'iaq'
-            }
-          ],
-          'Room 1': [
-            {
-              id: 'IAQ_LANa7c0nlzIi',
-              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
-              type: 'iaq'
-            }
-          ],
-          'Room 3': [
-            {
-              id: 'IAQ_KcWGBiSXBgiH',
-              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
-              type: 'iaq'
-            }
-          ],
-          'Room 7': [
-            {
-              id: 'IAQ_tkhi6FivR9TG',
-              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'mold', 'occupants', 'occupantsLower', 'occupantsUpper', 'pressure', 'radonShortTermAvg', 'rssi', 'temperature', 'time', 'virusRisk', 'voc'],
-              type: 'iaq'
-            }
-          ],
-          'Cafe + Lounge': [
-            {
-              id: 'Mechanical_6GLhDh3LhfoA',
-              metrics: ['powerFailure', 'raw_data', 'total_kwh', 'unit', 'value'],
-              type: 'energy'
-            },
-            {
-              id: 'Lighting_AZ8sHHCcBlzW',
-              metrics: ['powerFailure', 'raw_data', 'total_kwh', 'unit', 'value'],
-              type: 'energy'
-            },
-            {
-              id: 'SmallPower_cOApV9qH6UMo',
-              metrics: ['powerFailure', 'raw_data', 'total_kwh', 'unit', 'value'],
-              type: 'energy'
-            }
-          ],
-          Lounge: [
-            {
-              id: 'IAQ_QhyE1TAlqL4E',
-              metrics: ['airExchangeRate', 'battery', 'co2', 'humidity', 'lux', 'occupants', 'pm1', 'pm10', 'pm25', 'pressure', 'rssi', 'sla', 'temperature', 'time', 'virusRisk', 'voc'],
-              type: 'iaq'
-            }
-          ],
-          'Comms Room': [
-            {
-              id: 'People Flow_waTDvSKxFbK4',
-              metrics: ['flow', 'raw_data'],
-              type: 'people_flow'
-            },
-            {
-              id: 'People Counter_eTcrozehAwoZ',
-              metrics: ['people_count', 'raw_data'],
-              type: 'people'
-            }
-          ]
+        if (headerLine) {
+          const cols = headerLine.split(',').map((c) => c.trim()).filter((c) => c && c !== 'ts');
+          metrics.set(deviceId, cols);
+        } else {
+          metrics.set(deviceId, []);
         }
-      },
-      'First Floor': {
-        zones: {
-          Comms: [
-            {
-              id: 'Energy_BGi4Bzh1KWkJ',
-              metrics: ['powerFailure', 'raw_data', 'total_kwh', 'unit', 'value'],
-              type: 'energy'
-            }
-          ],
-          Cafe: [
-            {
-              id: 'People Counter_xNrPaURS4r6p',
-              metrics: ['dwell', 'heatmap', 'line_periodic_data', 'line_total_data', 'raw'],
-              type: 'people'
-            }
-          ],
-          Toilet: [
-            {
-              id: 'Odor _hjtgm3AUNSdO',
-              metrics: ['battery', 'h2s', 'humidity', 'nh3', 'raw_data', 'temperature'],
-              type: 'odor'
-            },
-            {
-              id: 'Water Leak_MdGf5j3Ae9Zs',
-              metrics: ['battery', 'leakage_status', 'raw_data'],
-              type: 'leak'
-            }
-          ],
-          Brainstorm: [
-            {
-              id: 'Temperature_AvYwOcSkqEZb',
-              metrics: ['humidity', 'raw_data', 'temperature', 'units'],
-              type: 'temperature'
-            }
-          ],
-          'Cafe + Lounge': [
-            {
-              id: 'Occupancy_lzDbZpSWkLkT',
-              metrics: ['is_used', 'occupancy', 'raw_data', 'supplyVoltage', 'units', 'value'],
-              type: 'occupancy'
-            }
-          ]
-        }
+        if (!stats.has(deviceId)) stats.set(deviceId, null);
       }
+    } catch (err) {
+      if (DEBUG) log('buildCsvMetadata failed', String(err));
     }
-  };
-
-  function deriveCornwallDeviceMeta() {
-    const byCloudId = {};
-    const byFriendly = {};
-    for (const [floorName, floor] of Object.entries(CORNWALL_SCOPE.floors)) {
-      for (const [zoneName, devices] of Object.entries(floor.zones)) {
-        devices.forEach((device) => {
-          const friendly = device.id;
-          const cloudId = CORNWALL_FRIENDLY_TO_CLOUD.get(friendly) || friendly;
-          const entry = {
-            cloudId,
-            friendlyName: friendly,
-            zone: zoneName,
-            floor: floorName,
-            building: CORNWALL_SCOPE.building,
-            metrics: device.metrics,
-            type: device.type
-          };
-          byCloudId[cloudId] = entry;
-          byFriendly[friendly] = entry;
-        });
-      }
-    }
-    return { byCloudId, byFriendly };
+    return { stats, metrics };
   }
 
-  const { byCloudId: CORNWALL_DEVICE_META, byFriendly: CORNWALL_DEVICE_FRIENDLY } = deriveCornwallDeviceMeta();
-  const CORNWALL_ZONE_META = (() => {
-    const map = new Map();
-    for (const [floorName, floor] of Object.entries(CORNWALL_SCOPE.floors)) {
-      for (const zoneName of Object.keys(floor.zones)) {
-        map.set(zoneName, { zone: zoneName, floor: floorName, building: CORNWALL_SCOPE.building });
-      }
-    }
-    return map;
-  })();
-  const CORNWALL_DEVICE_IDS = new Set(Object.keys(CORNWALL_DEVICE_META));
-  const CORNWALL_FRIENDLY_NAMES = new Set(Object.keys(CORNWALL_DEVICE_FRIENDLY));
+  const FRIENDLY_TO_CLOUD = loadFriendlyToCloudMap();
+  const { stats: CSV_DEVICE_STATS, metrics: CSV_DEVICE_METRICS } = buildCsvMetadata();
+  const CSV_STATS_CACHE = CSV_DEVICE_STATS;
 
-  
   const normalizeDeviceKey = (value, removePunctuation = false) => {
     const key = String(value ?? '').trim().toLowerCase();
     return removePunctuation ? key.replace(/[^a-z0-9]/g, '') : key;
@@ -276,39 +209,131 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
 
   function lookupDeviceHierarchy(deviceId) {
     if (!deviceId) return null;
-    let cloudId = deviceId;
-    let friendlyName = null;
-    if (CORNWALL_DEVICE_META[deviceId]) {
-      cloudId = deviceId;
-      friendlyName = CORNWALL_DEVICE_META[deviceId].friendlyName;
-    } else if (CORNWALL_DEVICE_FRIENDLY[deviceId]) {
-      cloudId = CORNWALL_DEVICE_FRIENDLY[deviceId].cloudId;
-      friendlyName = deviceId;
-    } else if (CORNWALL_FRIENDLY_TO_CLOUD.has(deviceId)) {
-      cloudId = CORNWALL_FRIENDLY_TO_CLOUD.get(deviceId);
-      friendlyName = deviceId;
+    const raw = String(deviceId).trim();
+    if (!raw) return null;
+
+    const candidateIds = [];
+    const seen = new Set();
+    const pushCandidate = (val) => {
+      if (!val) return;
+      const str = String(val).trim();
+      if (!str || seen.has(str)) return;
+      seen.add(str);
+      candidateIds.push(str);
+    };
+
+    pushCandidate(raw);
+    const direct = FRIENDLY_TO_CLOUD.get(raw);
+    if (direct) pushCandidate(direct);
+    const lower = raw.toLowerCase();
+    if (!direct) {
+      for (const [friendly, cloudId] of FRIENDLY_TO_CLOUD.entries()) {
+        if (friendly.toLowerCase() === lower) {
+          pushCandidate(cloudId);
+          break;
+        }
+      }
     }
-    if (CORNWALL_DEVICE_META[cloudId]) {
-      const meta = CORNWALL_DEVICE_META[cloudId];
-      return {
-        primaryId: cloudId,
-        cloudId,
-        deviceId: cloudId,
-        numericId: cloudId,
-        name: friendlyName || meta.friendlyName || cloudId,
-        type: meta.type,
-        zoneName: meta.zone,
-        floorName: meta.floor,
-        buildingName: meta.building,
-        zoneId: meta.zone,
-        floorId: meta.floor,
-        buildingId: meta.building
+    if (snapshotIndex) {
+      const snapDirect = findSnapshotDevice(raw);
+      if (snapDirect) {
+        pushCandidate(snapDirect.cloudId);
+      } else if (snapshotIndex.deviceMeta) {
+        for (const meta of snapshotIndex.deviceMeta.values()) {
+          if (!meta || !meta.name) continue;
+          if (meta.name.toLowerCase() === lower) {
+            pushCandidate(meta.cloudId);
+            break;
+          }
+        }
+      }
+    }
+
+    let info = null;
+    if (graphHierarchy) {
+      for (const id of candidateIds) {
+        const keyA = normalizeDeviceKey(id, false);
+        const keyB = normalizeDeviceKey(id, true);
+        const match = graphHierarchy.deviceByKey.get(keyA) || graphHierarchy.deviceByKey.get(keyB);
+        if (match) {
+          info = { ...match };
+          if (!info.name && match.raw?.name) info.name = match.raw.name;
+          if (snapshotIndex) {
+            const snapMeta = findSnapshotDevice(match.cloudId || match.primaryId || id);
+            if (snapMeta) {
+              info.zoneName = snapMeta.zoneName || info.zoneName || null;
+              info.floorName = snapMeta.floorName || info.floorName || null;
+              info.buildingName = snapMeta.buildingName || info.buildingName || null;
+              info.zoneId = snapMeta.zoneId || info.zoneId || null;
+              info.floorId = snapMeta.floorId || info.floorId || null;
+              info.buildingId = snapMeta.buildingId || info.buildingId || null;
+              if (!info.primaryId) info.primaryId = snapMeta.cloudId;
+              if (!info.cloudId) info.cloudId = snapMeta.cloudId;
+              if (!info.deviceId) info.deviceId = snapMeta.cloudId;
+              if (!info.numericId) info.numericId = snapMeta.cloudId;
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    if (!info && snapshotIndex) {
+      for (const id of candidateIds) {
+        const meta = findSnapshotDevice(id);
+        if (meta) {
+          info = {
+            primaryId: meta.cloudId,
+            cloudId: meta.cloudId,
+            deviceId: meta.cloudId,
+            numericId: meta.cloudId,
+            name: meta.name || meta.cloudId,
+            type: meta.type || null,
+            zoneName: meta.zoneName || null,
+            floorName: meta.floorName || null,
+            buildingName: meta.buildingName || null,
+            zoneId: meta.zoneId || null,
+            floorId: meta.floorId || null,
+            buildingId: meta.buildingId || null,
+            raw: meta.node || null
+          };
+          break;
+        }
+      }
+    }
+
+    if (!info) {
+      const fallbackCloud = candidateIds.find((id) => CSV_DEVICE_STATS.has(id)) || candidateIds[1] || candidateIds[0];
+      if (!fallbackCloud) return null;
+      info = {
+        primaryId: fallbackCloud,
+        cloudId: fallbackCloud,
+        deviceId: fallbackCloud,
+        numericId: fallbackCloud,
+        name: candidateIds[0] || fallbackCloud,
+        type: null,
+        zoneName: null,
+        floorName: null,
+        buildingName: null,
+        zoneId: null,
+        floorId: null,
+        buildingId: null
       };
+    } else {
+      const fallbackCloud = info.cloudId
+        || candidateIds.find((id) => CSV_DEVICE_STATS.has(id))
+        || candidateIds.find((id) => id !== raw)
+        || candidateIds[0];
+      if (fallbackCloud) {
+        info.primaryId = info.primaryId || fallbackCloud;
+        info.cloudId = info.cloudId || fallbackCloud;
+        info.deviceId = info.deviceId || fallbackCloud;
+        info.numericId = info.numericId || fallbackCloud;
+      }
+      if (!info.name) info.name = candidateIds[0] || info.cloudId;
     }
-    if (!graphHierarchy) return null;
-    const keyA = normalizeDeviceKey(deviceId, false);
-    const keyB = normalizeDeviceKey(deviceId, true);
-    return graphHierarchy.deviceByKey.get(keyA) || graphHierarchy.deviceByKey.get(keyB) || null;
+
+    return info;
   }
 
   function deviceFriendlyName(deviceId) {
@@ -327,158 +352,315 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     if (!label) return null;
     const raw = String(label).trim();
     if (!raw) return null;
-    if (CORNWALL_ZONE_META.has(raw)) {
-      const meta = CORNWALL_ZONE_META.get(raw);
-      return {
-        id: meta.zone,
-        name: meta.zone,
-        zone: meta.zone,
-        floorId: meta.floor,
-        floorName: meta.floor,
-        buildingId: meta.building,
-        buildingName: meta.building
-      };
-    }
-    if (!graphHierarchy) return null;
-    const byId = graphHierarchy.zoneById.get(raw);
-    if (byId) return byId;
-    const keyExact = `${building ?? ''}::${floor ?? ''}::${raw.toLowerCase()}`;
-    if (graphHierarchy.zoneNameIndex.has(keyExact)) {
-      const arr = graphHierarchy.zoneNameIndex.get(keyExact);
-      if (arr && arr.length) return arr[0];
-    }
-    const lowercase = raw.toLowerCase();
-    let candidates = [];
-    if (graphHierarchy.zoneNameIndex) {
-      // Iterate over indices to find matches ignoring building/floor when necessary
-      for (const [, list] of graphHierarchy.zoneNameIndex.entries()) {
-        for (const entry of list) {
-          if (!entry || !entry.name) continue;
-          if (entry.name.toLowerCase() === lowercase) candidates.push(entry);
+    let entry = null;
+    if (graphHierarchy) {
+      const byId = graphHierarchy.zoneById.get(raw);
+      if (byId) entry = byId;
+      if (!entry) {
+        const keyExact = `${building ?? ''}::${floor ?? ''}::${raw.toLowerCase()}`;
+        if (graphHierarchy.zoneNameIndex.has(keyExact)) {
+          const arr = graphHierarchy.zoneNameIndex.get(keyExact);
+          if (arr && arr.length) entry = arr[0];
         }
       }
-    }
-    if (!candidates.length) {
-      for (const entry of graphHierarchy.zoneById.values()) {
-        if (!entry || !entry.name) continue;
-        if (entry.name.toLowerCase() === lowercase) candidates.push(entry);
+      if (!entry) {
+        const lowercase = raw.toLowerCase();
+        const candidates = [];
+        if (graphHierarchy.zoneNameIndex) {
+          for (const [, list] of graphHierarchy.zoneNameIndex.entries()) {
+            for (const candidate of list) {
+              if (!candidate || !candidate.name) continue;
+              if (candidate.name.toLowerCase() === lowercase) candidates.push(candidate);
+            }
+          }
+        }
+        if (!candidates.length) {
+          for (const candidate of graphHierarchy.zoneById.values()) {
+            if (!candidate || !candidate.name) continue;
+            if (candidate.name.toLowerCase() === lowercase) candidates.push(candidate);
+          }
+        }
+        if (candidates.length) {
+          let filtered = candidates;
+          if (building) {
+            const buildingKey = String(building).toLowerCase();
+            const byBuilding = filtered.filter((candidate) => String(candidate.buildingId || '').toLowerCase() === buildingKey || String(candidate.buildingName || '').toLowerCase() === buildingKey);
+            if (byBuilding.length) filtered = byBuilding;
+          }
+          if (floor) {
+            const floorKey = String(floor).toLowerCase();
+            const byFloor = filtered.filter((candidate) => String(candidate.floorId || '').toLowerCase() === floorKey || String(candidate.floorName || '').toLowerCase() === floorKey);
+            if (byFloor.length) filtered = byFloor;
+          }
+          entry = filtered[0] || null;
+        }
+      }
+      if (entry) {
+        entry.__source = 'graph';
+        if (snapshotIndex) {
+          const snapZone = findSnapshotZone(entry.name || raw, { building, floor });
+          if (snapZone) entry.__snapshot = snapZone;
+        }
+        return entry;
       }
     }
-    if (building) {
-      const buildingKey = String(building).toLowerCase();
-      const filtered = candidates.filter((entry) => String(entry.buildingId || '').toLowerCase() === buildingKey);
-      if (filtered.length) candidates = filtered;
+    if (snapshotIndex) {
+      const snapZone = findSnapshotZone(raw, { building, floor });
+      if (snapZone) {
+        return {
+          id: snapZone.id,
+          name: snapZone.name || raw,
+          zone: snapZone.name || raw,
+          floorId: snapZone.floorId || null,
+          floorName: snapZone.floorName || null,
+          buildingId: snapZone.buildingId || null,
+          buildingName: snapZone.buildingName || null,
+          __source: 'snapshot',
+          __snapshot: snapZone
+        };
+      }
     }
-    if (floor) {
-      const floorKey = String(floor).toLowerCase();
-      const filtered = candidates.filter((entry) => String(entry.floorId || '').toLowerCase() === floorKey);
-      if (filtered.length) candidates = filtered;
-    }
-    return candidates[0] || null;
+    return null;
   }
 
   function collectDevicesForZone(zoneLabel, context = {}) {
-    if (CORNWALL_ZONE_META.has(zoneLabel)) {
-      const zoneDevices = [];
-      for (const meta of Object.values(CORNWALL_DEVICE_META)) {
-        if (meta.zone === zoneLabel) zoneDevices.push({
-          id: meta.cloudId,
-          name: meta.friendlyName,
-          zone: meta.zone,
-          floor: meta.floor,
-          building: meta.building,
-          type: meta.type
-        });
-      }
-      return zoneDevices;
-    }
-    if (!graphHierarchy) return [];
     const zoneEntry = resolveZoneEntry(zoneLabel, context);
     if (!zoneEntry) return [];
-    const list = graphHierarchy.zoneDevices.get(zoneEntry.id);
-    return Array.isArray(list) ? list : [];
+    const results = [];
+    const seen = new Set();
+    const addDevice = (entry) => {
+      if (!entry) return;
+      const cloudId = entry.cloudId || entry.primaryId || entry.id;
+      if (!cloudId || seen.has(cloudId)) return;
+      if (!deviceTablesAvailable(cloudId)) return;
+      seen.add(cloudId);
+      results.push({
+        id: cloudId,
+        cloudId,
+        primaryId: cloudId,
+        name: entry.name || entry.friendlyName || entry.id || cloudId,
+        zone: entry.zoneName || entry.zone || zoneEntry.name || zoneLabel || null,
+        floor: entry.floorName || entry.floor || zoneEntry.floorName || null,
+        building: entry.buildingName || entry.building || zoneEntry.buildingName || null,
+        type: entry.type || entry.deviceType || null
+      });
+    };
+
+    if (graphHierarchy && zoneEntry.id) {
+      const list = graphHierarchy.zoneDevices.get(zoneEntry.id);
+      if (Array.isArray(list)) list.forEach(addDevice);
+    }
+
+    const includeSnapshotDevices = (snapZone) => {
+      const snapDevices = buildDeviceEntriesFromSnapshotZone(snapZone);
+      snapDevices.forEach(addDevice);
+    };
+    if (zoneEntry.__snapshot) includeSnapshotDevices(zoneEntry.__snapshot);
+    else if (snapshotIndex) {
+      const snapZone = findSnapshotZone(zoneEntry.name || zoneLabel, context);
+      if (snapZone) includeSnapshotDevices(snapZone);
+    }
+
+    return results;
   }
 
   function collectDevicesForFloor(floorLabel, context = {}) {
-    if (floorLabel && CORNWALL_SCOPE.floors[floorLabel]) {
-      const devices = [];
-      const floor = CORNWALL_SCOPE.floors[floorLabel];
-      for (const [zoneName, zoneDevices] of Object.entries(floor.zones)) {
-        zoneDevices.forEach((device) => {
-          const meta = CORNWALL_DEVICE_FRIENDLY[device.id];
-          devices.push({
-            id: meta?.cloudId || device.id,
-            name: device.id,
-            zone: zoneName,
-            floor: floorLabel,
-            building: CORNWALL_SCOPE.building,
-            type: device.type
-          });
-        });
-      }
-      return devices;
-    }
-    if (!graphHierarchy) return [];
     if (!floorLabel) return [];
-    const floorId = graphHierarchy.floorById.get(floorLabel)
-      ? floorLabel
-      : (() => {
-          const key = `${String(context.building || '').toLowerCase()}::${String(floorLabel).trim().toLowerCase()}`;
-          const matches = graphHierarchy.floorNameIndex.get(key);
-          if (matches && matches.length) return matches[0].id;
-          for (const entry of graphHierarchy.floorById.values()) {
-            if (entry.name && entry.name.toLowerCase() === String(floorLabel).trim().toLowerCase()) {
-              if (!context.building || String(entry.buildingId || '').toLowerCase() === String(context.building || '').toLowerCase()) {
-                return entry.id;
-              }
-            }
+    const floorName = String(floorLabel).trim();
+    const buildingName = context?.building ? String(context.building).trim() : null;
+    const floorIds = new Set();
+    const zoneNames = new Set();
+
+    if (graphHierarchy) {
+      if (graphHierarchy.floorById.has(floorLabel)) {
+        floorIds.add(floorLabel);
+      }
+      const normalizedFloor = floorName.toLowerCase();
+      for (const entry of graphHierarchy.floorById.values()) {
+        if (!entry || !entry.name) continue;
+        if (entry.name.toLowerCase() !== normalizedFloor) continue;
+        if (buildingName) {
+          const entryBuilding = String(entry.buildingId || entry.buildingName || '').toLowerCase();
+          if (entryBuilding && entryBuilding !== buildingName.toLowerCase()) continue;
+        }
+        floorIds.add(entry.id);
+      }
+      for (const zone of graphHierarchy.zoneById.values()) {
+        if (!zone || !zone.name) continue;
+        const zoneFloor = String(zone.floorId || '').toLowerCase();
+        for (const fid of floorIds) {
+          if (zoneFloor === String(fid).toLowerCase()) {
+            zoneNames.add(zone.name);
+            break;
           }
-          return null;
-        })();
-    if (!floorId) return [];
-    const devices = [];
-    for (const [zoneId, entries] of graphHierarchy.zoneDevices.entries()) {
-      const zone = graphHierarchy.zoneById.get(zoneId);
-      if (!zone) continue;
-      if (String(zone.floorId || '').toLowerCase() === String(floorId).toLowerCase()) {
-        devices.push(...entries);
+        }
       }
     }
-    return devices;
+
+    if (snapshotIndex) {
+      const snapFloor = findSnapshotFloor(floorName, { building: buildingName });
+      if (snapFloor) {
+        const zoneIds = snapFloor.zoneIds || [];
+        for (const zoneId of zoneIds) {
+          const zoneInfo = snapshotIndex.zoneById?.get(zoneId);
+          if (zoneInfo?.name) zoneNames.add(zoneInfo.name);
+        }
+        if ((snapFloor.id || snapFloor.floorId) && !floorIds.size) {
+          floorIds.add(snapFloor.id || snapFloor.floorId);
+        }
+      }
+    }
+
+    const results = [];
+    const seen = new Set();
+    const addDevice = (entry) => {
+      if (!entry) return;
+      const cloudId = entry.cloudId || entry.primaryId || entry.id;
+      if (!cloudId || seen.has(cloudId)) return;
+      if (!deviceTablesAvailable(cloudId)) return;
+      seen.add(cloudId);
+      results.push({
+        id: cloudId,
+        cloudId,
+        primaryId: cloudId,
+        name: entry.name || entry.friendlyName || entry.id || cloudId,
+        zone: entry.zoneName || entry.zone || null,
+        floor: entry.floorName || entry.floor || floorName,
+        building: entry.buildingName || entry.building || buildingName,
+        type: entry.type || entry.deviceType || null
+      });
+    };
+
+    for (const zoneName of zoneNames) {
+      const entries = collectDevicesForZone(zoneName, { building: buildingName, floor: floorName });
+      entries.forEach(addDevice);
+    }
+
+    if (!results.length && graphHierarchy && floorIds.size) {
+      for (const [zoneId, entries] of graphHierarchy.zoneDevices.entries()) {
+        const zone = graphHierarchy.zoneById.get(zoneId);
+        if (!zone) continue;
+        const zoneFloor = String(zone.floorId || '').toLowerCase();
+        for (const fid of floorIds) {
+          if (zoneFloor === String(fid).toLowerCase()) {
+            entries.forEach(addDevice);
+            break;
+          }
+        }
+      }
+    }
+
+    if (!results.length && snapshotIndex) {
+      const snapFloor = findSnapshotFloor(floorName, { building: buildingName });
+      const deviceIds = snapFloor?.deviceIds || [];
+      for (const deviceNodeId of deviceIds) {
+        const meta = findSnapshotDevice(deviceNodeId) || findSnapshotDevice(String(deviceNodeId));
+        if (meta) addDevice(meta);
+      }
+    }
+
+    return results;
   }
 
   function collectDevicesForBuilding(buildingLabel) {
-    if (buildingLabel === CORNWALL_SCOPE.building) {
-      return Object.values(CORNWALL_DEVICE_META).map((meta) => ({
-        id: meta.cloudId,
-        name: meta.friendlyName,
-        zone: meta.zone,
-        floor: meta.floor,
-        building: meta.building,
-        type: meta.type
-      }));
-    }
-    if (!graphHierarchy) return [];
     if (!buildingLabel) return [];
-    const buildingId = graphHierarchy.buildingById.get(buildingLabel)
-      ? buildingLabel
-      : (() => {
-          const target = String(buildingLabel).trim().toLowerCase();
-          for (const [id, entry] of graphHierarchy.buildingById.entries()) {
-            if (entry.name && entry.name.toLowerCase() === target) return id;
+    const buildingName = String(buildingLabel).trim();
+    const floorNames = new Set();
+    const zoneNames = new Set();
+
+    if (graphHierarchy) {
+      const normalized = buildingName.toLowerCase();
+      const buildingIds = [];
+      if (graphHierarchy.buildingById.has(buildingLabel)) {
+        buildingIds.push(buildingLabel);
+      }
+      for (const [id, entry] of graphHierarchy.buildingById.entries()) {
+        if (!entry || !entry.name) continue;
+        if (entry.name.toLowerCase() === normalized) buildingIds.push(id);
+      }
+      for (const entry of graphHierarchy.floorById.values()) {
+        if (!entry || !entry.name) continue;
+        const entryBuilding = String(entry.buildingId || entry.buildingName || '').toLowerCase();
+        for (const bid of buildingIds) {
+          if (entryBuilding === String(bid).toLowerCase() || entryBuilding === normalized) {
+            floorNames.add(entry.name);
+            break;
           }
-          return null;
-        })();
-    if (!buildingId) return [];
-    const devices = [];
-    for (const [zoneId, entries] of graphHierarchy.zoneDevices.entries()) {
-      const zone = graphHierarchy.zoneById.get(zoneId);
-      if (!zone) continue;
-      if (String(zone.buildingId || '').toLowerCase() === String(buildingId).toLowerCase()) {
-        devices.push(...entries);
+        }
+      }
+      for (const zone of graphHierarchy.zoneById.values()) {
+        if (!zone || !zone.name) continue;
+        const zoneBuilding = String(zone.buildingId || zone.buildingName || '').toLowerCase();
+        const zoneFloor = graphHierarchy.floorById.get(zone.floorId || '');
+        for (const bid of buildingIds) {
+          if (zoneBuilding === String(bid).toLowerCase() || zoneBuilding === normalized) {
+            zoneNames.add(zone.name);
+            break;
+          }
+          if (zoneFloor && zoneFloor.buildingId && String(zoneFloor.buildingId).toLowerCase() === String(bid).toLowerCase()) {
+            zoneNames.add(zone.name);
+            break;
+          }
+        }
       }
     }
-    return devices;
+
+    if (snapshotIndex) {
+      const snapBuilding = findSnapshotBuilding(buildingName);
+      if (snapBuilding) {
+        const floorIds = snapBuilding.floorIds || [];
+        for (const floorId of floorIds) {
+          const floorInfo = snapshotIndex.floorById?.get(floorId);
+          if (floorInfo?.name) floorNames.add(floorInfo.name);
+        }
+        const zoneIds = snapBuilding.zoneIds || [];
+        for (const zoneId of zoneIds) {
+          const zoneInfo = snapshotIndex.zoneById?.get(zoneId);
+          if (zoneInfo?.name) zoneNames.add(zoneInfo.name);
+        }
+      }
+    }
+
+    const results = [];
+    const seen = new Set();
+    const addDevice = (entry) => {
+      if (!entry) return;
+      const cloudId = entry.cloudId || entry.primaryId || entry.id;
+      if (!cloudId || seen.has(cloudId)) return;
+      if (!deviceTablesAvailable(cloudId)) return;
+      seen.add(cloudId);
+      results.push({
+        id: cloudId,
+        cloudId,
+        primaryId: cloudId,
+        name: entry.name || entry.friendlyName || entry.id || cloudId,
+        zone: entry.zoneName || entry.zone || null,
+        floor: entry.floorName || entry.floor || null,
+        building: entry.buildingName || entry.building || buildingName,
+        type: entry.type || entry.deviceType || null
+      });
+    };
+
+    for (const floorName of floorNames) {
+      const entries = collectDevicesForFloor(floorName, { building: buildingName });
+      entries.forEach(addDevice);
+    }
+
+    for (const zoneName of zoneNames) {
+      const entries = collectDevicesForZone(zoneName, { building: buildingName });
+      entries.forEach(addDevice);
+    }
+
+    if (!results.length && snapshotIndex) {
+      const snapBuilding = findSnapshotBuilding(buildingName);
+      const deviceIds = snapBuilding?.deviceIds || [];
+      for (const nodeId of deviceIds) {
+        const meta = findSnapshotDevice(nodeId) || findSnapshotDevice(String(nodeId));
+        if (meta) addDevice(meta);
+      }
+    }
+
+    return results;
   }
 
   function formatLocal(ts) {
@@ -495,88 +677,150 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     return d.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   }
 
-  function summarizeDeviceMetrics(deviceId) {
-    const metaEntry = CORNWALL_DEVICE_META[deviceId] || CORNWALL_DEVICE_FRIENDLY[deviceId];
-    try {
-      const tables = loadRoomTables(metaEntry?.cloudId || deviceId) || {};
-      const fields = new Set();
-      for (const rows of Object.values(tables)) {
-        if (!Array.isArray(rows) || !rows.length) continue;
-        const first = rows[0] || {};
-        for (const key of Object.keys(first)) {
-          if (key && key !== 'ts') fields.add(key);
-        }
-      }
-      if (!fields.size && CORNWALL_DEVICE_META[deviceId]) {
-        return CORNWALL_DEVICE_META[deviceId].metrics || [];
-      }
-      return Array.from(fields).sort();
-    } catch {
-      return CORNWALL_DEVICE_META[deviceId]?.metrics || [];
-    }
+  function normalizeText(str) {
+    return String(str || '').replace(/\s+/g, ' ').trim().toLowerCase();
   }
 
-  function buildCornwallScopeSummary(range, { selectionRooms = [], selectionZones = [], selectionFloors = [] } = {}) {
-    const rr = range || {};
-    const selectedRoomSet = new Set(selectionRooms);
-    const selectedFriendlySet = new Set(selectionRooms.map((id) => {
-      if (CORNWALL_DEVICE_META[id]) return CORNWALL_DEVICE_META[id].friendlyName;
-      if (CORNWALL_DEVICE_FRIENDLY[id]) return id;
-      return null;
-    }).filter(Boolean));
-    const selectedZoneSet = selectionZones.length ? new Set(selectionZones) : null;
-    const selectedFloorSet = selectionFloors.length ? new Set(selectionFloors) : null;
+  function summarizeChart(chart) {
+    if (!chart || !Array.isArray(chart.series) || !chart.series.length) return '';
+    const type = (chart.chart && chart.chart.type) ? chart.chart.type : 'line';
+    const title = chart.title && typeof chart.title.text === 'string' && chart.title.text.trim()
+      ? chart.title.text.trim()
+      : null;
+    const seriesNames = chart.series
+      .map((s) => (s && s.name) ? String(s.name).trim() : '')
+      .filter(Boolean);
+    if (title) return `Plotted ${title} using a ${type} chart.`;
+    if (seriesNames.length === 1) return `Plotted ${seriesNames[0]} using a ${type} chart.`;
+    if (seriesNames.length > 1) {
+      const listed = seriesNames.slice(0, 2).join(', ');
+      const suffix = seriesNames.length > 2 ? ' and others' : '';
+      return `Plotted ${listed}${suffix} using a ${type} chart.`;
+    }
+    return `Plotted the requested data using a ${type} chart.`;
+  }
 
-    const lines = [];
-    lines.push('Scope and time window:');
-    lines.push(`Building: ${CORNWALL_SCOPE.building}`);
-
-    for (const [floorName, floor] of Object.entries(CORNWALL_SCOPE.floors)) {
-      if (selectedFloorSet && !selectedFloorSet.has(floorName)) continue;
-      lines.push(`- ${floorName}`);
-      for (const [zoneName, devices] of Object.entries(floor.zones)) {
-        if (selectedZoneSet && !selectedZoneSet.has(zoneName)) continue;
-        const zoneDeviceEntries = devices
-          .map((device) => CORNWALL_DEVICE_FRIENDLY[device.id])
-          .filter(Boolean);
-        const filteredDevices = zoneDeviceEntries.filter((meta) => {
-          if (!selectedRoomSet.size) return true;
-          return selectedRoomSet.has(meta.cloudId) || selectedFriendlySet.has(meta.friendlyName);
-        });
-        if (!filteredDevices.length) continue;
-        lines.push(`  - ${zoneName}`);
-        filteredDevices.slice(0, 8).forEach((meta) => {
-          const metrics = summarizeDeviceMetrics(meta.cloudId);
-          const metricsText = metrics.length ? metrics.slice(0, 10).join(', ') : (meta.metrics || []).join(', ');
-          lines.push(`    - ${meta.friendlyName} (${meta.cloudId}) — metrics: ${metricsText}`);
-        });
-        if (filteredDevices.length > 8) {
-          lines.push(`    - … ${filteredDevices.length - 8} more device(s)`);
+  function traceInsight(trace) {
+    if (!Array.isArray(trace)) return '';
+    for (let i = trace.length - 1; i >= 0; i--) {
+      const t = trace[i];
+      if (!t || !t.tool) continue;
+      if (t.tool === 'correlate' || t.tool === 'correlate_weather_room' || t.tool === 'correlate_cross_room') {
+        const corr = t.result?.corr;
+        const n = t.result?.n || 0;
+        if (Number.isFinite(corr)) {
+          const strength = Math.abs(corr) > 0.7 ? 'strong' : Math.abs(corr) > 0.4 ? 'moderate' : 'weak';
+          const direction = corr > 0 ? 'positive' : 'negative';
+          return `Correlation is ${corr.toFixed(3)}, indicating a ${strength} ${direction} relationship (n=${n}).`;
+        }
+      } else if (t.tool === 'stats') {
+        const stats = t.result;
+        if (stats && Number.isFinite(stats.avg)) {
+          const min = Number.isFinite(stats.min) ? stats.min.toFixed(2) : 'n/a';
+          const max = Number.isFinite(stats.max) ? stats.max.toFixed(2) : 'n/a';
+          return `Average value ${stats.avg.toFixed(2)} with range ${min}–${max} across ${stats.count || 0} samples.`;
+        }
+      } else if (t.tool === 'detect_spikes') {
+        const field = t.args?.field || 'the selected metric';
+        if (Array.isArray(t.result)) {
+          if (!t.result.length) return `No anomalies detected in ${field} within the available data.`;
+          return `Detected ${t.result.length} anomaly${t.result.length === 1 ? '' : 'ies'} in ${field}.`;
+        }
+      } else if (t.tool === 'hour_of_day_stats') {
+        const best = t.result?.best_hour;
+        if (Number.isFinite(best)) {
+          return `Peak hour appears to be ${best}:00 based on hour-of-day analysis.`;
         }
       }
     }
+    return '';
+  }
 
-    if (lines.length === 2) {
-      lines.push('- (No devices matched the current selection)');
+  function buildDefaultAnswer({
+    question,
+    chart,
+    trace,
+    fallbackText = '',
+    knowledgeSnippets = '',
+    includeKnowledge = false,
+    notes = []
+  }) {
+    const parts = [];
+    const qNorm = normalizeText(question);
+    let base = typeof fallbackText === 'string' ? fallbackText.trim() : '';
+    if (base && (base.startsWith('{') || base.startsWith('['))) base = '';
+    if (base && normalizeText(base) === qNorm) base = '';
+    if (base && !/^Reminder:/i.test(base) && !/^MANDATORY:/i.test(base)) parts.push(base);
+    const hasToolFailure = Array.isArray(trace) && trace.some((t) => {
+      if (!t || !t.result) return false;
+      if (t.result.error) return true;
+      if (typeof t.result.n === 'number' && t.result.n === 0 && String(t.tool || '').startsWith('correlate')) return true;
+      return false;
+    });
+    const chartSummary = hasToolFailure ? '' : summarizeChart(chart);
+    if (chartSummary && !parts.some((p) => p.includes(chartSummary))) parts.push(chartSummary);
+    const insight = traceInsight(trace);
+    if (insight && !parts.some((p) => p.includes(insight))) parts.push(insight);
+    if (Array.isArray(notes) && notes.length) {
+      const noteText = notes.filter(Boolean).join(' ');
+      if (noteText) parts.push(noteText);
+    }
+    if (!parts.length) {
+      parts.push('I analyzed the available data for the selected scope and time window.');
+    }
+    let answer = parts.join(' ');
+    if (includeKnowledge && knowledgeSnippets && knowledgeSnippets.trim()) {
+      answer += '\n\nBased on best practices and available knowledge:\n' + knowledgeSnippets.trim();
+    }
+    return answer;
+  }
+
+  function summarizeDeviceMetrics(deviceId) {
+    const info = lookupDeviceHierarchy(deviceId);
+    const candidates = [];
+    const primaryId = info?.cloudId || info?.deviceId || info?.numericId || String(deviceId).trim();
+    const addCandidate = (value) => {
+      if (!value) return;
+      const key = String(value).trim();
+      if (!key) return;
+      if (!candidates.includes(key)) candidates.push(key);
+    };
+    addCandidate(deviceId);
+    if (info?.cloudId) addCandidate(info.cloudId);
+    if (info?.deviceId) addCandidate(info.deviceId);
+    if (info?.numericId) addCandidate(info.numericId);
+    if (info?.name && FRIENDLY_TO_CLOUD.has(info.name)) addCandidate(FRIENDLY_TO_CLOUD.get(info.name));
+
+    for (const id of candidates) {
+      const metrics = CSV_DEVICE_METRICS.get(id);
+      if (metrics && metrics.length) {
+        const arr = Array.from(new Set(metrics)).sort();
+        if (id !== primaryId && arr.length) CSV_DEVICE_METRICS.set(primaryId, arr);
+        return arr;
+      }
     }
 
-    lines.push('');
-    lines.push('Time window:');
-    if (rr.start != null && rr.end != null) {
-      lines.push(`- Local: ${formatLocal(rr.start)} → ${formatLocal(rr.end)}`);
-      lines.push(`- UTC: ${formatUtc(rr.start)} → ${formatUtc(rr.end)}`);
-    } else if (rr.start != null) {
-      lines.push(`- Local start: ${formatLocal(rr.start)}`);
-      lines.push(`- UTC start: ${formatUtc(rr.start)}`);
-    } else if (rr.end != null) {
-      lines.push(`- Local end: ${formatLocal(rr.end)}`);
-      lines.push(`- UTC end: ${formatUtc(rr.end)}`);
-    } else {
-      lines.push('- Local: not set');
+    for (const id of candidates) {
+      try {
+        const tables = loadRoomTablesRaw(id);
+        const fields = new Set();
+        for (const rows of Object.values(tables || {})) {
+          if (!Array.isArray(rows) || !rows.length) continue;
+          const first = rows[0] || {};
+          for (const key of Object.keys(first)) {
+            if (key && key !== 'ts') fields.add(key);
+          }
+        }
+        if (fields.size) {
+          const arr = Array.from(fields).sort();
+          CSV_DEVICE_METRICS.set(id, arr);
+          if (id !== primaryId) CSV_DEVICE_METRICS.set(primaryId, arr);
+          return arr;
+        }
+      } catch {}
     }
-    lines.push(`- Epoch (ms): start=${rr.start ?? 'none'}, end=${rr.end ?? 'none'}`);
 
-    return lines.join('\n');
+    return [];
   }
 
   function buildScopeSummary({
@@ -594,44 +838,43 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     const floorLabel = selectionLabels?.floor || null;
     const zoneLabel = selectionLabels?.room || null;
 
-    const restrictingToCornwall =
-      building === CORNWALL_SCOPE.building ||
-      buildingLabel === CORNWALL_SCOPE.building ||
-      (selectionLabels?.building === CORNWALL_SCOPE.building) ||
-      selectionZones.some((z) => CORNWALL_ZONE_META.has(z)) ||
-      selectionRooms.some((id) => CORNWALL_DEVICE_IDS.has(id) || CORNWALL_FRIENDLY_NAMES.has(id));
-
-    if (restrictingToCornwall) {
-      const summary = buildCornwallScopeSummary(range, {
-        selectionRooms,
-        selectionZones,
-        selectionFloors
-      });
-      return summary;
-    }
-
     const deviceMap = new Map();
     const addDeviceEntry = (deviceId) => {
       if (!deviceId || deviceMap.size >= maxDevices) return;
-      const info = lookupDeviceHierarchy(deviceId);
-      const primaryId = (info && info.cloudId) || String(deviceId);
+      if (String(deviceId).trim().toLowerCase() === 'all') return;
+      const info = lookupDeviceHierarchy(deviceId) || {};
+      const primaryId = info.cloudId || String(deviceId).trim();
       const key = normalizeDeviceKey(primaryId, true);
       if (!key || deviceMap.has(key)) return;
 
+      const snapMeta = (!info.zoneName || !info.buildingName || !info.floorName)
+        ? (findSnapshotDevice(primaryId) || findSnapshotDevice(deviceId))
+        : null;
+      const zoneEntry = (info.zoneId && graphHierarchy) ? graphHierarchy.zoneById.get(info.zoneId) : null;
+      const floorEntry = ((zoneEntry?.floorId || info.floorId) && graphHierarchy)
+        ? graphHierarchy.floorById.get(zoneEntry?.floorId || info.floorId)
+        : null;
+      const buildingEntry = ((zoneEntry?.buildingId || info.buildingId) && graphHierarchy)
+        ? graphHierarchy.buildingById.get(zoneEntry?.buildingId || info.buildingId)
+        : null;
+
       const buildingName =
-        info?.buildingName ||
+        info.buildingName ||
+        buildingEntry?.name ||
+        snapMeta?.buildingName ||
         buildingLabel ||
-        (info?.zoneId && graphHierarchy && graphHierarchy.zoneById.get(info.zoneId)?.buildingId && graphHierarchy.buildingById.get(graphHierarchy.zoneById.get(info.zoneId).buildingId)?.name) ||
         '—';
       const floorName =
-        info?.floorName ||
+        info.floorName ||
+        floorEntry?.name ||
+        snapMeta?.floorName ||
         floorLabel ||
-        (info?.zoneId && graphHierarchy && graphHierarchy.zoneById.get(info.zoneId)?.floorId && graphHierarchy.floorById.get(graphHierarchy.zoneById.get(info.zoneId).floorId)?.name) ||
         '—';
       const derivedZoneName =
         scopeDeviceZones?.[primaryId] ||
         scopeDeviceZones?.[deviceId] ||
-        info?.zoneName ||
+        info.zoneName ||
+        snapMeta?.zoneName ||
         zoneLabel ||
         '—';
       const metrics = summarizeDeviceMetrics(primaryId).slice(0, 12);
@@ -639,9 +882,9 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       deviceMap.set(key, {
         id: primaryId,
         shortId,
-        name: info?.name || primaryId,
+        name: info.name || snapMeta?.name || primaryId,
         friendlyName: deviceFriendlyName(primaryId),
-        type: info?.type || null,
+        type: info.type || snapMeta?.type || null,
         buildingName,
         floorName,
         zoneName: derivedZoneName,
@@ -749,6 +992,117 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     lines.push(`- Epoch (ms): start=${rr.start ?? 'none'}, end=${rr.end ?? 'none'}`);
 
     return lines.join('\n');
+  }
+
+  function getCsvStats(deviceId) {
+    const id = String(deviceId || '').trim();
+    if (!id) return { tsMin: null, tsMax: null, count: 0 };
+    const cached = CSV_STATS_CACHE.get(id);
+    if (cached && cached !== null) return cached;
+    const filePath = path.join(s3LocalDir, `${id}.csv`);
+    let stats = { tsMin: null, tsMax: null, count: 0 };
+    if (fs.existsSync(filePath)) {
+      try {
+        const text = fs.readFileSync(filePath, 'utf8');
+        const lines = text.split(/\r?\n/);
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const [tsRaw] = line.split(',');
+          const ts = Number(tsRaw);
+          if (!Number.isFinite(ts)) continue;
+          stats.count += 1;
+          if (stats.tsMin == null || ts < stats.tsMin) stats.tsMin = ts;
+          if (stats.tsMax == null || ts > stats.tsMax) stats.tsMax = ts;
+        }
+      } catch (err) {
+        if (DEBUG) log('getCsvStats failed', id, String(err));
+        stats = { tsMin: null, tsMax: null, count: 0 };
+      }
+    }
+    CSV_STATS_CACHE.set(id, stats);
+    return stats;
+  }
+
+  function deviceTablesAvailable(deviceId) {
+    if (!deviceId) return false;
+    const candidates = new Set();
+    candidates.add(String(deviceId).trim());
+    const mapped = FRIENDLY_TO_CLOUD.get(String(deviceId).trim());
+    if (mapped) candidates.add(mapped);
+    const hier = lookupDeviceHierarchy(deviceId);
+    if (hier?.cloudId) candidates.add(String(hier.cloudId).trim());
+    if (hier?.deviceId) candidates.add(String(hier.deviceId).trim());
+    if (hier?.numericId) candidates.add(String(hier.numericId).trim());
+    for (const val of candidates) {
+      if (!val) continue;
+      const stats = getCsvStats(val);
+      if (stats.count > 0) return true;
+    }
+    return false;
+  }
+
+  function resolveDeviceIdForRoom(room) {
+    const raw = String(room ?? '').trim();
+    if (!raw) return null;
+    const candidates = [];
+    const lower = raw.toLowerCase();
+    const cleaned = raw.replace(/\s*\(.*?\)\s*$/, '').trim();
+    const pushCandidate = (id) => {
+      if (!id) return;
+      const val = String(id).trim();
+      if (!val) return;
+      if (!candidates.includes(val)) candidates.push(val);
+    };
+    pushCandidate(raw);
+    if (cleaned && cleaned !== raw) pushCandidate(cleaned);
+    const hier = lookupDeviceHierarchy(raw);
+    if (hier?.cloudId) pushCandidate(hier.cloudId);
+    if (hier?.deviceId && hier.deviceId !== hier.cloudId) pushCandidate(hier.deviceId);
+    const scopeMap = currentScopeContext.scopeDeviceZones || {};
+    for (const [deviceId, zoneName] of Object.entries(scopeMap)) {
+      if (zoneName && String(zoneName).toLowerCase() === lower) pushCandidate(deviceId);
+    }
+    try {
+      const match = raw.match(/^\s*([^(]+?)\s*(?:\(([^,]+),\s*([^)]+)\))?\s*$/);
+      if (match) {
+        const zoneLabel = match[1]?.trim();
+        const floorLabel = match[2]?.trim();
+        const buildingLabel = match[3]?.trim();
+        if (zoneLabel) {
+          const zoneDevices = collectDevicesForZone(zoneLabel, { building: buildingLabel, floor: floorLabel });
+          zoneDevices.forEach((entry) => pushCandidate(entry.cloudId || entry.id));
+        }
+      }
+    } catch {}
+    const scopeRooms = currentScopeContext.selectionRooms || [];
+    for (const deviceId of scopeRooms) pushCandidate(deviceId);
+    const zoneDevices = collectDevicesForZone(raw, currentScopeContext.scopeLabels || {});
+    zoneDevices.forEach((entry) => pushCandidate(entry.cloudId || entry.primaryId || entry.id));
+    if (snapshotIndex) {
+      const snapZone = findSnapshotZone(raw, currentScopeContext.scopeLabels || {});
+      if (snapZone) {
+        const snapEntries = buildDeviceEntriesFromSnapshotZone(snapZone);
+        snapEntries.forEach((entry) => pushCandidate(entry.cloudId || entry.primaryId || entry.id));
+      }
+    }
+    for (const candidate of candidates) {
+      if (deviceTablesAvailable(candidate)) return candidate;
+      const meta = lookupDeviceHierarchy(candidate);
+      if (meta?.cloudId && deviceTablesAvailable(meta.cloudId)) return meta.cloudId;
+    }
+    return candidates.find((c) => deviceTablesAvailable(c)) || candidates.find((c) => c !== raw) || raw;
+  }
+
+  function loadRoomTables(room) {
+    const tables = loadRoomTablesRaw(room);
+    if (tables && Object.keys(tables).length) return tables;
+    const resolved = resolveDeviceIdForRoom(room);
+    if (resolved && resolved !== room) {
+      const fallback = loadRoomTablesRaw(resolved);
+      if (fallback && Object.keys(fallback).length) return fallback;
+    }
+    return tables;
   }
 
   function loadGraphFormHierarchy() {
@@ -913,6 +1267,269 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
       };
     } catch (err) {
       if (DEBUG) log('graph_form hierarchy load failed:', String(err));
+      return null;
+    }
+  }
+
+  function buildSnapshotIndex() {
+    try {
+      const snap = loadGraphSnapshot();
+      if (!snap || !Array.isArray(snap.nodes) || !Array.isArray(snap.links)) return null;
+      const nodesById = new Map();
+      for (const node of snap.nodes) {
+        if (!node || !node.id) continue;
+        nodesById.set(node.id, node);
+      }
+      const typeOf = (node) => (node?.nodeType || node?.label || null);
+      const zoneInfos = new Map();
+      const floorInfos = new Map();
+      const buildingInfos = new Map();
+      const deviceInfos = new Map();
+      for (const node of snap.nodes) {
+        const type = typeOf(node);
+        if (type === 'Zone') {
+          zoneInfos.set(node.id, {
+            id: node.id,
+            name: node.name || null,
+            roomId: node.roomId != null ? String(node.roomId) : null,
+            node,
+            floorIds: new Set(),
+            buildingIds: new Set(),
+            deviceIds: new Set()
+          });
+        } else if (type === 'Floor') {
+          floorInfos.set(node.id, {
+            id: node.id,
+            name: node.name || null,
+            node,
+            buildingIds: new Set(),
+            zoneIds: new Set(),
+            deviceIds: new Set()
+          });
+        } else if (type === 'Building') {
+          buildingInfos.set(node.id, {
+            id: node.id,
+            name: node.name || null,
+            node,
+            floorIds: new Set(),
+            zoneIds: new Set(),
+            deviceIds: new Set()
+          });
+        } else if (type === 'Device') {
+          const cloudId = node.cloudId || node.name || node.id || null;
+          deviceInfos.set(node.id, {
+            id: node.id,
+            name: node.name || null,
+            cloudId: cloudId ? String(cloudId) : null,
+            type: node.deviceType || node.type || null,
+            node,
+            zoneIds: new Set(),
+            floorIds: new Set(),
+            buildingIds: new Set()
+          });
+        }
+      }
+      for (const link of snap.links) {
+        if (!link) continue;
+        const { source, target, rel } = link;
+        if (!source || !target || !rel) continue;
+        if (rel === 'LOCATED_IN_ZONE') {
+          const zone = zoneInfos.get(target);
+          const device = deviceInfos.get(source);
+          if (zone && device && device.cloudId) {
+            zone.deviceIds.add(device.cloudId);
+            device.zoneIds.add(zone.id);
+          }
+        } else if (rel === 'BELONGS_TO_FLOOR') {
+          const zone = zoneInfos.get(source);
+          const floor = floorInfos.get(target);
+          if (zone && floor) {
+            zone.floorIds.add(floor.id);
+            floor.zoneIds.add(zone.id);
+          }
+        } else if (rel === 'LOCATED_ON_FLOOR') {
+          const device = deviceInfos.get(source);
+          const floor = floorInfos.get(target);
+          if (device && floor) {
+            device.floorIds.add(floor.id);
+            floor.deviceIds.add(device.id);
+          }
+        } else if (rel === 'LOCATED_IN_BUILDING') {
+          const building = buildingInfos.get(target);
+          if (!building) continue;
+          const srcType = typeOf(nodesById.get(source));
+          if (srcType === 'Zone') {
+            const zone = zoneInfos.get(source);
+            if (zone) {
+              zone.buildingIds.add(building.id);
+              building.zoneIds.add(zone.id);
+            }
+          } else if (srcType === 'Floor') {
+            const floor = floorInfos.get(source);
+            if (floor) {
+              floor.buildingIds.add(building.id);
+              building.floorIds.add(floor.id);
+            }
+          } else if (srcType === 'Device') {
+            const device = deviceInfos.get(source);
+            if (device) {
+              device.buildingIds.add(building.id);
+              building.deviceIds.add(device.id);
+            }
+          }
+        } else if (rel === 'IN_BUILDING') {
+          const device = deviceInfos.get(source);
+          const building = buildingInfos.get(target);
+          if (device && building) {
+            device.buildingIds.add(building.id);
+            building.deviceIds.add(device.id);
+          }
+        }
+      }
+      buildingInfos.forEach((building, id) => {
+        if (!building.floorIds.size) {
+          for (const [floorId, floor] of floorInfos.entries()) {
+            if (floor.buildingIds.has(id)) building.floorIds.add(floorId);
+          }
+        }
+        if (!building.zoneIds.size) {
+          for (const [zoneId, zone] of zoneInfos.entries()) {
+            if (zone.buildingIds.has(id)) building.zoneIds.add(zoneId);
+          }
+        }
+      });
+      floorInfos.forEach((floor, id) => {
+        if (!floor.buildingIds.size) {
+          for (const [buildingId, building] of buildingInfos.entries()) {
+            if (building.floorIds.has(id)) floor.buildingIds.add(buildingId);
+          }
+        }
+      });
+      zoneInfos.forEach((zone) => {
+        if (!zone.buildingIds.size) {
+          zone.floorIds.forEach((floorId) => {
+            const floor = floorInfos.get(floorId);
+            if (floor) {
+              floor.buildingIds.forEach((buildingId) => zone.buildingIds.add(buildingId));
+            }
+          });
+        }
+      });
+      const zoneRecords = new Map();
+      const zoneByName = new Map();
+      const zoneByRoomId = new Map();
+      const addToMapList = (map, key, value) => {
+        if (!key) return;
+        const list = map.get(key) || [];
+        list.push(value);
+        map.set(key, list);
+      };
+      zoneInfos.forEach((zone, zoneId) => {
+        const floorId = zone.floorIds.values().next().value || null;
+        const floor = floorId ? floorInfos.get(floorId) : null;
+        const buildingId = zone.buildingIds.values().next().value || null;
+        const building = buildingId ? buildingInfos.get(buildingId) : null;
+        const record = {
+          id: zoneId,
+          name: zone.name || null,
+          roomId: zone.roomId || null,
+          floorId,
+          floorName: floor?.name || null,
+          buildingId,
+          buildingName: building?.name || null,
+          devices: Array.from(zone.deviceIds || []),
+          node: zone.node || null
+        };
+        zoneRecords.set(zoneId, record);
+        if (record.name) addToMapList(zoneByName, record.name.toLowerCase(), record);
+        if (record.roomId) addToMapList(zoneByRoomId, String(record.roomId).toLowerCase(), record);
+      });
+      const deviceMetaById = new Map();
+      const deviceMetaCanonical = new Map();
+      deviceInfos.forEach((device) => {
+        const cloudId = device.cloudId ? String(device.cloudId) : null;
+        if (!cloudId) return;
+        const zoneId = device.zoneIds.values().next().value || null;
+        const zoneRecord = zoneId ? zoneRecords.get(zoneId) : null;
+        let floorId = device.floorIds.values().next().value || null;
+        let floorRecord = floorId ? floorInfos.get(floorId) : null;
+        if (!floorRecord && zoneRecord?.floorId) {
+          floorId = zoneRecord.floorId;
+          floorRecord = floorInfos.get(floorId);
+        }
+        let buildingId = device.buildingIds.values().next().value || null;
+        let buildingRecord = buildingId ? buildingInfos.get(buildingId) : null;
+        if (!buildingRecord && zoneRecord?.buildingId) {
+          buildingId = zoneRecord.buildingId;
+          buildingRecord = buildingInfos.get(buildingId);
+        } else if (!buildingRecord && floorRecord) {
+          const bId = floorRecord.buildingIds.values().next().value || null;
+          if (bId && buildingInfos.has(bId)) {
+            buildingId = bId;
+            buildingRecord = buildingInfos.get(bId);
+          }
+        }
+        const meta = {
+          cloudId,
+          name: device.name || cloudId,
+          type: device.type || null,
+          zoneId,
+          zoneName: zoneRecord?.name || null,
+          floorId,
+          floorName: floorRecord?.name || null,
+          buildingId,
+          buildingName: buildingRecord?.name || null,
+          node: device.node || null
+        };
+        deviceMetaById.set(cloudId, meta);
+        if (device.node?.id) deviceMetaById.set(device.node.id, meta);
+        deviceMetaCanonical.set(cloudId.toLowerCase(), meta);
+      });
+      const floorRecords = new Map();
+      const floorByName = new Map();
+      floorInfos.forEach((floor, floorId) => {
+        const buildingId = floor.buildingIds.values().next().value || null;
+        const building = buildingId ? buildingInfos.get(buildingId) : null;
+        const record = {
+          id: floorId,
+          name: floor.name || null,
+          buildingId,
+          buildingName: building?.name || null,
+          zoneIds: Array.from(floor.zoneIds || []),
+          node: floor.node || null
+        };
+        floorRecords.set(floorId, record);
+        if (record.name) addToMapList(floorByName, record.name.toLowerCase(), record);
+      });
+      const buildingRecords = new Map();
+      const buildingByName = new Map();
+      buildingInfos.forEach((building, buildingId) => {
+        const record = {
+          id: buildingId,
+          name: building.name || null,
+          floorIds: Array.from(building.floorIds || []),
+          zoneIds: Array.from(building.zoneIds || []),
+          deviceIds: Array.from(building.deviceIds || []),
+          node: building.node || null
+        };
+        buildingRecords.set(buildingId, record);
+        if (record.name) addToMapList(buildingByName, record.name.toLowerCase(), record);
+      });
+      return {
+        raw: snap,
+        nodesById,
+        zoneById: zoneRecords,
+        zoneByName,
+        zoneByRoomId,
+        deviceMeta: deviceMetaById,
+        deviceMetaCanonical,
+        floorById: floorRecords,
+        floorByName,
+        buildingById: buildingRecords,
+        buildingByName
+      };
+    } catch (err) {
+      if (DEBUG) log('snapshot index build failed:', String(err));
       return null;
     }
   }
@@ -1149,13 +1766,31 @@ export function createAgent({ dataDir, listRooms, loadRoomTables, loadWeather, c
     const t = loadRoomTables(room);
     if (t[name]) return name;
     const keys = Object.keys(t);
+    if (!keys.length) return name;
     const n = norm(name);
+    const TABLE_ALIAS = {
+      iaq: 'telemetry',
+      indoorairquality: 'telemetry',
+      airquality: 'telemetry',
+      telemetryiaq: 'telemetry',
+      sensor: 'telemetry',
+      sensors: 'telemetry',
+      hvac: 'telemetry',
+      people: 'telemetry',
+      occupancy: 'telemetry',
+      energy: 'telemetry',
+      power: 'telemetry',
+      env: 'telemetry'
+    };
+    const aliasTarget = TABLE_ALIAS[n];
+    if (aliasTarget && t[aliasTarget]) return aliasTarget;
     const k1 = keys.find(k => norm(k) === n);
     if (k1) return k1;
     const parts = name.split('_');
     const core = norm(parts[parts.length-1] || name);
     const k2 = keys.find(k => norm(k) === core) || keys.find(k => norm(k).endsWith(core)) || keys.find(k => norm(k).includes(core));
-    return k2 || name;
+    if (k2) return k2;
+    return keys.length === 1 ? keys[0] : name;
   }
 
   function availableFieldsByTable(room) {
@@ -1571,22 +2206,57 @@ function parseFieldsFromQuestion(question, availableSets) {
       const t = loadRoomTables(room);
       const tab = resolveTable(room, table);
       const arr = t[tab] || [];
-      
+
+      const coerceValue = (value) => {
+        if (value == null) return value;
+        if (typeof value === 'number') return value;
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (trimmed === '') return null;
+          const num = Number(trimmed);
+          if (Number.isFinite(num)) return num;
+        }
+        return value;
+      };
+
+      const selectFields = (row) => {
+        const entry = { ts: row.ts };
+        const fieldList = Array.isArray(fields) && fields.length ? fields : Object.keys(row).filter((k) => k !== 'ts');
+        for (const f of fieldList) {
+          if (f in row) entry[f] = coerceValue(row[f]);
+        }
+        return entry;
+      };
+
       // If limit is small (like 1) and no specific start, get from the end (most recent)
       const getLatest = limit <= 5 && !start && !after_ts;
       const source = getLatest ? [...arr].reverse() : arr;
-      
+
       const out = [];
       for (const r of source) {
         if (after_ts != null && r.ts <= after_ts) continue;
         if (!withinRange(r.ts, start, end)) continue;
-        const o = { ts: r.ts };
-        for (const f of fields) if (f in r) o[f] = r[f];
-        out.push(o);
+        out.push(selectFields(r));
         if (limit && out.length >= limit) break;
       }
-      
-      // If we reversed for latest, reverse back to chronological order
+
+      if (out.length === 0 && arr.length) {
+        const fallbackLimit = limit && limit > 0 ? limit : Math.min(arr.length, 2000);
+        if (fallbackLimit <= 5) {
+          const target = start != null ? start : (end != null ? end : arr[arr.length - 1].ts);
+          const sorted = [...arr].sort((a, b) => {
+            const da = Math.abs((a.ts ?? 0) - target);
+            const db = Math.abs((b.ts ?? 0) - target);
+            return da - db;
+          });
+          const slice = sorted.slice(0, fallbackLimit).sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+          for (const row of slice) out.push(selectFields(row));
+        } else {
+          const slice = arr.slice(-fallbackLimit);
+          for (const row of slice) out.push(selectFields(row));
+        }
+      }
+
       return getLatest ? out.reverse() : out;
     },
     
@@ -1615,14 +2285,18 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
     
     correlate({ room, table1, field1, table2, field2, start = null, end = null, time_window_ms = 30 * 60 * 1000 }) {
-      const t = loadRoomTables(room);
-      const a = t[table1] || [];
+      const resolvedRoom = resolveDeviceIdForRoom(room) || room;
+      const t = loadRoomTables(resolvedRoom);
+      const tab1 = resolveTable(resolvedRoom, table1);
+      const a = t[tab1] || [];
+      let tab2 = null;
       let b = [];
       if (table2 === 'weather') {
         b = loadWeather();
         if (field2 === 'temperature') field2 = 'temp';
       } else {
-        b = t[table2] || [];
+        tab2 = resolveTable(resolvedRoom, table2);
+        b = t[tab2] || [];
       }
       
       const pairs = [];
@@ -1661,20 +2335,27 @@ function parseFieldsFromQuestion(question, availableSets) {
       }
       
       const corr = pearson(pairs.map(p => p[0]), pairs.map(p => p[1]));
-      return { 
-        n: pairs.length, 
+      return {
+        n: pairs.length,
         corr,
         time_window_ms,
         table1_samples: aFiltered.length,
-        table2_samples: bFiltered.length
+        table2_samples: bFiltered.length,
+        table1_resolved: tab1,
+        table2_resolved: tab2 || table2,
+        room: resolvedRoom
       };
     },
     
     correlate_cross_room({ room1, table1, field1, room2, table2, field2, start = null, end = null, time_window_ms = 30 * 60 * 1000 }) {
-      const t1 = loadRoomTables(room1);
-      const t2 = loadRoomTables(room2);
-      const a = t1[table1] || [];
-      const b = t2[table2] || [];
+      const resolvedRoom1 = resolveDeviceIdForRoom(room1) || room1;
+      const resolvedRoom2 = resolveDeviceIdForRoom(room2) || room2;
+      const t1 = loadRoomTables(resolvedRoom1);
+      const t2 = loadRoomTables(resolvedRoom2);
+      const tab1 = resolveTable(resolvedRoom1, table1);
+      const tab2 = resolveTable(resolvedRoom2, table2);
+      const a = t1[tab1] || [];
+      const b = t2[tab2] || [];
       
       const aFiltered = a.filter(r => withinRange(r.ts, start, end));
       const bFiltered = b.filter(r => withinRange(r.ts, start, end));
@@ -1707,11 +2388,15 @@ function parseFieldsFromQuestion(question, availableSets) {
       }
       
       const corr = pearson(pairs.map(p => p[0]), pairs.map(p => p[1]));
-      return { 
-        n: pairs.length, 
+      return {
+        n: pairs.length,
         corr,
-        room1,
-        room2,
+        room1: resolvedRoom1,
+        room2: resolvedRoom2,
+        table1_resolved: tab1,
+        table2_resolved: tab2,
+        table1_samples: aFiltered.length,
+        table2_samples: bFiltered.length,
         time_window_ms
       };
     },
@@ -1812,9 +2497,11 @@ function parseFieldsFromQuestion(question, availableSets) {
       if (!Array.isArray(series)) return out;
       for (const s of series) {
         if (!s || !s.room || !s.table || !s.field) continue;
-        const t = loadRoomTables(String(s.room));
-        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
-        const name = s.name || `${s.room} ${s.field}`;
+        const resolvedRoom = resolveDeviceIdForRoom(s.room) || String(s.room);
+        const t = loadRoomTables(resolvedRoom);
+        const tab = resolveTable(resolvedRoom, s.table);
+        const arr = (t[tab] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${resolvedRoom} ${s.field}`;
         const points = [];
         for (const r of arr) {
           const y = Number(r[s.field]);
@@ -2086,7 +2773,7 @@ function parseFieldsFromQuestion(question, availableSets) {
             // find building
             let bNode = null;
             if (fid) {
-              const bLink = snap.links.find(l => l.source===fid && l.rel==='BELONGS_TO_BUILDING');
+              const bLink = snap.links.find(l => l.source===fid && l.rel==='LOCATED_IN_BUILDING');
               const bid = bLink ? bLink.target : null;
               bNode = bid ? nodesById.get(bid) : null;
             }
@@ -2136,7 +2823,7 @@ function parseFieldsFromQuestion(question, availableSets) {
         for (const n of snap.nodes) {
           if ((n.nodeType||n.label) !== 'Floor') continue;
           const fid = n.id;
-          const bLink = snap.links.find(l => l.source===fid && l.rel==='BELONGS_TO_BUILDING');
+          const bLink = snap.links.find(l => l.source===fid && l.rel==='LOCATED_IN_BUILDING');
           const bid = bLink ? bLink.target : null;
           const bNode = bid ? snap.nodes.find(nn => nn.id===bid) : null;
           if (targetB && (!bNode || bNode.name !== targetB)) continue;
@@ -3006,25 +3693,105 @@ function parseFieldsFromQuestion(question, availableSets) {
           agg[t] = cur;
         }
       }
-      Object.assign(meta, agg);
-    }
-    return { retrieved: head, schema, meta, range, room, selectionRooms, _retrievedDocs: retrieved };
+	      Object.assign(meta, agg);
+	    }
+	    return { retrieved: head, schema, meta, range, room, selectionRooms, _retrievedDocs: retrieved };
+	  }
+	
+  function zoneLabelFromEntry(entry) {
+    if (!entry) return null;
+    const snapZone = entry.__snapshot || (snapshotIndex ? findSnapshotZone(entry.name || entry.zone || entry.id || null) : null);
+    const zoneName = entry.name || entry.zone || snapZone?.name || entry.id || null;
+    const floorName = entry.floorName
+      || snapZone?.floorName
+      || (entry.floorId && graphHierarchy?.floorById?.get(entry.floorId)?.name)
+      || null;
+    const buildingName = entry.buildingName
+      || snapZone?.buildingName
+      || (entry.buildingId && graphHierarchy?.buildingById?.get(entry.buildingId)?.name)
+      || null;
+    if (!zoneName) return null;
+    const ctx = [];
+    if (floorName) ctx.push(floorName);
+    if (buildingName) ctx.push(buildingName);
+    return ctx.length ? `${zoneName} (${ctx.join(', ')})` : zoneName;
   }
-
-  async function run(messages, {
-    room,
-    range,
-    selectionRooms = [],
-    selectionZones = [],
-    tenant = null,
-    building = null,
-    floor = null,
-    zone = null,
-    scopeLabels = null,
-    scopeFloors = [],
-    scopeDeviceZones = {}
-  }) {
+	
+  function resolveZoneLabelDisplay(zoneKey, { building, floor } = {}) {
+    if (!zoneKey) return null;
+    const raw = String(zoneKey).trim();
+    let entry = null;
+    try { entry = resolveZoneEntry(raw, { building, floor }); } catch {}
+    if (entry) return zoneLabelFromEntry(entry) || raw;
+    if (snapshotIndex) {
+      const snapZone = findSnapshotZone(raw, { building, floor });
+      if (snapZone) {
+        return zoneLabelFromEntry({ name: snapZone.name, floorName: snapZone.floorName, buildingName: snapZone.buildingName, __snapshot: snapZone }) || raw;
+      }
+    }
+    if (graphHierarchy) {
+      const candidate = graphHierarchy.zoneById.get(raw) || null;
+      if (candidate) return zoneLabelFromEntry(candidate) || raw;
+    }
+    return raw;
+  }
+	
+	  function getDeviceZoneCandidate(deviceId, scopeDeviceZones = {}) {
+	    if (!deviceId) return null;
+	    const keyVariants = [
+	      String(deviceId).trim(),
+	      normalizeDeviceKey(deviceId, false),
+	      normalizeDeviceKey(deviceId, true)
+	    ];
+	    for (const key of keyVariants) {
+	      if (key && scopeDeviceZones[key] != null) return scopeDeviceZones[key];
+	    }
+	    const info = lookupDeviceHierarchy(deviceId);
+	    if (info) return info.zoneName || info.zoneId || null;
+	    return null;
+	  }
+	
+	  function summarizeZones(selectionRooms = [], selectionZones = [], scopeDeviceZones = {}, context = {}) {
+	    const zoneDisplaySet = new Map();
+	    const addZone = (zoneKey, deviceId = null) => {
+	      const label = resolveZoneLabelDisplay(zoneKey, context);
+	      if (!label) return;
+	      if (!zoneDisplaySet.has(label)) zoneDisplaySet.set(label, new Set());
+	      if (deviceId) zoneDisplaySet.get(label).add(deviceId);
+	    };
+	
+	    for (const deviceId of selectionRooms || []) {
+	      const zoneCandidate = getDeviceZoneCandidate(deviceId, scopeDeviceZones);
+	      if (zoneCandidate) addZone(zoneCandidate, deviceId);
+	    }
+	
+	    for (const zone of selectionZones || []) addZone(zone);
+	
+	    return Array.from(zoneDisplaySet.entries()).map(([label, devices]) => {
+	      if (!devices || devices.size === 0) return label;
+	      const listed = Array.from(devices).slice(0, 3).map((id) => deviceFriendlyName(id));
+	      const suffix = devices.size > 3 ? `, …${devices.size - 3} more` : '';
+	      return `${label} — devices: ${listed.join(', ')}${suffix}`;
+	    });
+	  }
+	
+	  async function run(messages, {
+	    room,
+	    range,
+	    selectionRooms = [],
+	    selectionZones = [],
+	    tenant = null,
+	    building = null,
+	    floor = null,
+	    zone = null,
+	    scopeLabels = null,
+	    scopeFloors = [],
+	    scopeDeviceZones = {}
+	  }) {
     const question = messages[messages.length - 1]?.content || '';
+    setScopeContext({ selectionRooms, selectionZones, scopeDeviceZones, scopeLabels });
+
+    try {
 
     // --- ROUTING & HYBRID RETRIEVAL ---
     const routing = classifyQuery(question);
@@ -3049,13 +3816,18 @@ function parseFieldsFromQuestion(question, availableSets) {
     // Inject knowledge enrichment into system prompt
     const startDate = rr.start ? new Date(rr.start) : null;
     const endDate = rr.end ? new Date(rr.end) : null;
-const startFmt = startDate ? `${startDate.toLocaleString()} (UTC: ${startDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
-const endFmt = endDate ? `${endDate.toLocaleString()} (UTC: ${endDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
-
-const sys = `You are a senior data analyst agent for building operations.
+	    const startFmt = startDate ? `${startDate.toLocaleString()} (UTC: ${startDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
+	    const endFmt = endDate ? `${endDate.toLocaleString()} (UTC: ${endDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
+	
+	    const zoneSummaries = summarizeZones(selectionRooms, selectionZones, scopeDeviceZones, { building, floor });
+	    const zonesLine = zoneSummaries.length ? zoneSummaries.join('; ') : '(none)';
+	    const devicesLine = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : '(none)';
+	
+	    const sys = `You are a senior data analyst agent for building operations.
 Selected room: ${room || '(none)'}.
-Rooms in scope: ${Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : (room || '(none)')}
-${room === 'ALL' && selectionRooms && selectionRooms.length ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these rooms. Do NOT invent other rooms.` : ''}
+Zones in scope: ${zonesLine}
+Devices in scope: ${devicesLine}
+${room === 'ALL' && selectionRooms && selectionRooms.length ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these devices and their parent zones. Do NOT introduce other scopes.` : ''}
 Selected time window: 
 - Local: ${startFmt} to ${endFmt}
 - Epoch ms: start=${rr.start ?? 'none'} end=${rr.end ?? 'none'}
@@ -3494,8 +4266,9 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
 
     const trace = [];
     let lastToolSig = '';
-    let repeatCount = 0;
-    let totalToolCalls = 0;
+   let repeatCount = 0;
+   let totalToolCalls = 0;
+    const adaptationNotes = [];
     
     STEP_LOOP: for (let step = 0; step < 10; step++) {
       const t0 = Date.now();
@@ -3779,6 +4552,12 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
           continue STEP_LOOP;
         }
         
+        convo.push({
+          role: 'model',
+          content: `CRITICAL ERROR: Response could not be parsed as valid JSON. You must respond with a JSON object using the documented schema (action/tool_calls/final/chart). Resend your answer in the required JSON format.`
+        });
+        continue STEP_LOOP;
+        
         // After step 2, if reply is not valid JSON with "action", force a JSON answer
         if (step >= 2 && (!obj || !obj.action)) {
           convo.push({
@@ -3870,6 +4649,13 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         convo.push({ role: 'model', content: `{"tool_results": ${JSON.stringify(results).slice(0, 15000)} }` });
         continue STEP_LOOP;
       }
+      if (obj.action === 'tool_calls' && !Array.isArray(obj.tools)) {
+        convo.push({
+          role: 'model',
+          content: 'ERROR: Received tool_calls without a tools array. Respond with a proper JSON final answer.'
+        });
+        continue STEP_LOOP;
+      }
 
       if (obj.action === 'tool_call') {
         let { tool, args } = obj;
@@ -3922,9 +4708,53 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         // If compare tool returned series, finalize immediately with a ready-to-plot chart
         if (tool === 'compare_series_cross_room' && result && typeof result === 'object' && !Array.isArray(result)) {
           try {
-            const entries = Object.entries(result);
+            let entries = Object.entries(result);
             const qlc = String(question||'').toLowerCase();
             let chart = null;
+            const requested = (args && Array.isArray(args.series)) ? args.series : [];
+            let adaptedRange = null;
+            const metaSummaries = [];
+            const allEmpty = entries.every(([, pts]) => !Array.isArray(pts) || pts.length === 0);
+            if (allEmpty && requested.length) {
+              let maxStart = -Infinity;
+              let minEnd = Infinity;
+              let overlapPossible = true;
+              for (const s of requested) {
+                const tableReq = s.table || 'iaq';
+                const meta = tools.fetch_table_meta({ room: s.room, table: tableReq });
+                trace.push({ tool: 'fetch_table_meta', args: { room: s.room, table: tableReq }, result: meta });
+                const label = s.name || deviceFriendlyName(s.room);
+                metaSummaries.push({ label, meta });
+                if (!meta || !Number(meta.count)) {
+                  overlapPossible = false;
+                  continue;
+                }
+                if (meta.tsMin != null) maxStart = Math.max(maxStart, meta.tsMin);
+                if (meta.tsMax != null) minEnd = Math.min(minEnd, meta.tsMax);
+              }
+              if (overlapPossible && Number.isFinite(maxStart) && Number.isFinite(minEnd) && maxStart < minEnd) {
+                const adaptedArgs = { ...args, start: maxStart, end: minEnd };
+                const adaptedResult = tools.compare_series_cross_room(adaptedArgs);
+                trace.push({ tool: 'compare_series_cross_room', args: { ...adaptedArgs, _adapted: true }, result: adaptedResult });
+                const adaptedEntries = Object.entries(adaptedResult || {});
+                const hasData = adaptedEntries.some(([, pts]) => Array.isArray(pts) && pts.length);
+                if (hasData) {
+                  result = adaptedResult;
+                  entries = adaptedEntries;
+                  adaptedRange = { start: maxStart, end: minEnd };
+                }
+              }
+              if (adaptedRange) {
+                adaptationNotes.push(`No overlapping data in the requested window; showing overlap from ${formatLocal(adaptedRange.start)} to ${formatLocal(adaptedRange.end)}.`);
+              } else if (metaSummaries.length) {
+                const summaryText = metaSummaries.map(({ label, meta }) => {
+                  if (!meta || !Number(meta.count)) return `${label}: no stored data`;
+                  const latest = meta.tsMax != null ? formatLocal(meta.tsMax) : 'n/a';
+                  return `${label}: last data ${latest}`;
+                }).join('; ');
+                adaptationNotes.push(`No data in the requested window. ${summaryText}.`);
+              }
+            }
             if (/(histogram|distribution)\b/.test(qlc)) {
               // Build histograms per series (per room/field)
               const colSeries = [];
@@ -3956,7 +4786,21 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
                 series: lineSeries
               } : null;
             }
-            const answerText = entries.length ? 'Compared series across rooms.' : 'No data available to compare in the selected period.';
+            const baseAnswer = entries.length ? 'Compared series across rooms.' : 'No data available to compare in the selected period.';
+            let answerText = buildDefaultAnswer({
+              question,
+              chart,
+              trace,
+              fallbackText: baseAnswer,
+              notes: adaptationNotes
+            });
+            if (!answerText || normalizeText(answerText) === normalizeText(question)) {
+              const chartSummary = summarizeChart(chart);
+              answerText = chartSummary || baseAnswer || 'Compared the requested metrics using available data.';
+              if (Array.isArray(adaptationNotes) && adaptationNotes.length) {
+                answerText += ' ' + adaptationNotes.join(' ');
+              }
+            }
             const evalMetrics = evaluateQA({ question, answer: answerText, retrievedDocs: ctx._retrievedDocs || [] });
             const extraEval = { message: { role: 'assistant', content: `Eval grounding=${(evalMetrics.grounding*100).toFixed(0)}% uncertainty=${(evalMetrics.uncertainty*100).toFixed(0)}%` }, chart: null };
             return {
@@ -4000,9 +4844,28 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
                     role: 'model', 
                     content: `{"tool_result_adapted": { "tool": ${JSON.stringify(tool)}, "args": ${JSON.stringify(adaptedArgs)}, "result": ${JSON.stringify(result).slice(0, 10000)}, "note": "Query adapted to use actual data range since selected window had no data. Data available from ${new Date(meta.tsMin).toISOString()} to ${new Date(meta.tsMax).toISOString()}" }}` 
                   });
+                  adaptationNotes.push(`Selected window returned no rows; showing latest available data up to ${formatLocal(meta.tsMax)}.`);
                   continue STEP_LOOP;
                 }
               } catch {}
+            } else if (meta && meta.count > 0 && meta.tsMin != null && meta.tsMax != null) {
+              const adaptedArgs = { ...filledArgs, start: meta.tsMin, end: meta.tsMax };
+              try {
+                const adaptedResult = tools[tool](adaptedArgs);
+                if ((Array.isArray(adaptedResult) && adaptedResult.length > 0) || 
+                    (adaptedResult && typeof adaptedResult === 'object' && adaptedResult.count > 0)) {
+                  log('Auto-adapting to full available range', adaptedArgs);
+                  result = adaptedResult;
+                  convo.push({
+                    role: 'model',
+                    content: `{"tool_result_adapted": { "tool": ${JSON.stringify(tool)}, "args": ${JSON.stringify(adaptedArgs)}, "result": ${JSON.stringify(result).slice(0, 10000)}, "note": "Selected window had no rows. Showing available data from ${new Date(meta.tsMin).toISOString()} to ${new Date(meta.tsMax).toISOString()}." }}`
+                  });
+                  adaptationNotes.push(`Selected window returned no rows; showing available data from ${formatLocal(meta.tsMin)} to ${formatLocal(meta.tsMax)} instead.`);
+                  continue STEP_LOOP;
+                }
+              } catch (e) {
+                log('Full-range adaptation failed:', String(e));
+              }
             }
             
             convo.push({ 
@@ -4371,14 +5234,30 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         } catch (e) { log('background_tools execution failed:', String(e)); }
 
         // Inject routing info and evaluation into extras
+        const answerText = buildDefaultAnswer({
+          question,
+          chart: validChart,
+          trace,
+          fallbackText: obj.answer || reply || '',
+          notes: adaptationNotes
+        });
+        let finalAnswer = answerText;
+        if (!finalAnswer || normalizeText(finalAnswer) === normalizeText(question)) {
+          const chartSummary = summarizeChart(validChart);
+          const insight = traceInsight(trace);
+          finalAnswer = chartSummary || insight || 'I analyzed the available data for the selected scope and time window.';
+          if (Array.isArray(adaptationNotes) && adaptationNotes.length) {
+            finalAnswer += ' ' + adaptationNotes.join(' ');
+          }
+        }
         try {
-          const evalMetrics = evaluateQA({ question, answer: obj.answer || reply, retrievedDocs: ctx._retrievedDocs || [] });
+          const evalMetrics = evaluateQA({ question, answer: finalAnswer, retrievedDocs: ctx._retrievedDocs || [] });
           extras = extras || [];
           extras.unshift({ message: { role: 'assistant', content: `Query ${routing.level}; grounding ${(evalMetrics.grounding*100).toFixed(0)}%; uncertainty ${(evalMetrics.uncertainty*100).toFixed(0)}%` }, chart: null });
         } catch {}
 
         return {
-          message: { role: 'assistant', content: obj.answer || reply },
+          message: { role: 'assistant', content: finalAnswer },
           chart: validChart,
           extras,
           trace
@@ -4386,8 +5265,23 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         
       } else if (obj.action === 'final_text') {
         log('Finalizing plain text answer.');
+        const answerText = buildDefaultAnswer({
+          question,
+          chart: null,
+          trace,
+          fallbackText: obj.answer || reply || '',
+          notes: adaptationNotes
+        });
+        let finalAnswer = answerText;
+        if (!finalAnswer || normalizeText(finalAnswer) === normalizeText(question)) {
+          const insight = traceInsight(trace);
+          finalAnswer = insight || 'I analyzed the available data for the selected scope and time window.';
+          if (Array.isArray(adaptationNotes) && adaptationNotes.length) {
+            finalAnswer += ' ' + adaptationNotes.join(' ');
+          }
+        }
         return {
-          message: { role: 'assistant', content: obj.answer || reply },
+          message: { role: 'assistant', content: finalAnswer },
           chart: null,
           trace
         };
@@ -4402,6 +5296,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
     }
     
     // If model emitted non-JSON but informative text, return it
+    let autoChart = null;
     if (convo.length && typeof convo[convo.length - 1]?.content === 'string') {
       const last = convo[convo.length - 1].content;
       // NEVER return tool_results JSON as the final answer
@@ -4429,48 +5324,24 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           }
         } catch (e) { log('detectors summary in tool_results fallback failed:', String(e)); }
 
-        // Try to construct a useful answer from the last tool otherwise
-        let answer = 'I analyzed the data. ';
-        const lastTool = trace[trace.length - 1];
-        
-        if (lastTool) {
-          if (lastTool.tool === 'correlate' || lastTool.tool === 'correlate_weather_room' || lastTool.tool === 'correlate_cross_room') {
-            const corr = lastTool.result?.corr;
-            const n = lastTool.result?.n || 0;
-            if (Number.isFinite(corr)) {
-              const strength = Math.abs(corr) > 0.7 ? 'strong' : Math.abs(corr) > 0.4 ? 'moderate' : 'weak';
-              const direction = corr > 0 ? 'positive' : 'negative';
-              answer = `The correlation is ${corr.toFixed(3)}, showing a ${strength} ${direction} relationship (based on ${n} data pairs).`;
-            } else {
-              answer = `Could not calculate correlation. ${lastTool.result?.error || 'Insufficient paired data in the selected time window.'}`;
-            }
-          } else if (lastTool.tool === 'compute_ratio') {
-            const ratios = lastTool.result;
-            if (Array.isArray(ratios) && ratios.length > 0) {
-              const avgRatio = ratios.reduce((sum, r) => sum + (r.ratio || 0), 0) / ratios.length;
-              answer = `Computed ${ratios.length} ratio values. Average ratio: ${avgRatio.toFixed(2)}.`;
-            } else {
-              answer = 'Could not compute ratios for the selected period.';
-            }
-          } else if (lastTool.tool === 'fetch_timeseries' || lastTool.tool === 'weather_fetch') {
-            const data = lastTool.result;
-            if (Array.isArray(data)) {
-              answer = `Retrieved ${data.length} data points from ${lastTool.tool}.`;
-            }
-          } else {
-            answer = `Retrieved data using ${lastTool.tool}.`;
-          }
-        }
-        
+        // Try to construct a useful answer from the trace otherwise
+        const answer = buildDefaultAnswer({
+          question,
+          chart: null,
+          trace,
+          notes: adaptationNotes
+        });
         return {
           message: { role: 'assistant', content: answer },
           chart: null,
           trace
         };
       }
-      if (last && last.length > 40 && !last.includes('respond with a JSON') && !last.includes('ERROR:')) {
+      const trimmedLast = last.trim();
+      if (!/^Reminder:/i.test(trimmedLast) && !/^MANDATORY:/i.test(trimmedLast) && !/^CRITICAL ERROR:/i.test(trimmedLast) && !/^ERROR:/i.test(trimmedLast) &&
+          last && last.length > 40 && !last.includes('respond with a JSON') && !last.includes('ERROR:')) {
         // Try to infer a helpful chart for plain text responses
-        let autoChart = null;
+        autoChart = null;
         try {
           const tablesSets = availableFieldsByTable(room);
           const fields = parseFieldsFromQuestion(question, tablesSets);
@@ -4542,50 +5413,62 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             return { message: { role: 'assistant', content: msg }, chart: autoChart, trace };
           }
         } catch {}
-        return { message: { role: 'assistant', content: last }, chart: autoChart, trace };
+        let safeAnswer = buildDefaultAnswer({
+          question,
+          chart: autoChart,
+          trace,
+          fallbackText: last,
+          notes: adaptationNotes
+        });
+        if (!safeAnswer || normalizeText(safeAnswer) === normalizeText(question)) {
+          const chartSummary = summarizeChart(autoChart);
+          const insight = traceInsight(trace);
+          safeAnswer = chartSummary || insight || 'I analyzed the available data for the selected scope and time window.';
+          if (Array.isArray(adaptationNotes) && adaptationNotes.length) {
+            safeAnswer += ' ' + adaptationNotes.join(' ');
+          }
+        }
+        return { message: { role: 'assistant', content: safeAnswer }, chart: autoChart, trace };
       }
     }
     
     // Fallback: construct answer from trace
     log('Constructing fallback answer from trace');
-    let fallbackAnswer = 'I gathered information from the available data. ';
+    const traceSummary = traceInsight(trace);
+    const fallbackAnswer = buildDefaultAnswer({
+      question,
+      chart: autoChart,
+      trace,
+      fallbackText: traceSummary,
+      knowledgeSnippets,
+      includeKnowledge: !traceSummary,
+      notes: adaptationNotes
+    });
 
-    // Find the most useful tool result
-    let foundUseful = false;
-    for (let i = trace.length - 1; i >= 0; i--) {
-      const t = trace[i];
-      if (t.tool === 'correlate' || t.tool === 'correlate_weather_room' || t.tool === 'correlate_cross_room') {
-        const corr = t.result?.corr;
-        const n = t.result?.n || 0;
-        if (Number.isFinite(corr)) {
-          const strength = Math.abs(corr) > 0.7 ? 'strong' : Math.abs(corr) > 0.4 ? 'moderate' : 'weak';
-          const direction = corr > 0 ? 'positive' : 'negative';
-          fallbackAnswer = `The correlation is ${corr.toFixed(3)}, showing a ${strength} ${direction} relationship (based on ${n} data pairs).`;
-          foundUseful = true;
-          break;
-        }
-      } else if (t.tool === 'stats') {
-        const stats = t.result;
-        if (stats && Number.isFinite(stats.avg)) {
-          fallbackAnswer = `Statistics: average ${stats.avg.toFixed(2)}, range ${stats.min?.toFixed(2)}-${stats.max?.toFixed(2)} (${stats.count} samples).`;
-          foundUseful = true;
-          break;        }
+    let finalFallback = fallbackAnswer;
+    if (!finalFallback || normalizeText(finalFallback) === normalizeText(question)) {
+      const chartSummary = summarizeChart(autoChart);
+      const insight = traceSummary || traceInsight(trace);
+      finalFallback = chartSummary || insight || 'I analyzed the available data for the selected scope and time window.';
+      if (Array.isArray(adaptationNotes) && adaptationNotes.length) {
+        finalFallback += ' ' + adaptationNotes.join(' ');
       }
-    }
-
-    // If no useful data, inject knowledge pack guidance
-    if (!foundUseful && knowledgeSnippets) {
-      fallbackAnswer += '\n\nBased on best practices and available knowledge:\n' + knowledgeSnippets;
+      if (knowledgeSnippets && knowledgeSnippets.trim()) {
+        finalFallback += '\n\nBased on best practices and available knowledge:\n' + knowledgeSnippets.trim();
+      }
     }
 
     return { 
       message: { 
         role: 'assistant', 
-        content: fallbackAnswer
+        content: finalFallback
       }, 
       chart: null, 
       trace 
     };
+    } finally {
+      setScopeContext();
+    }
   }
 
   return { run };

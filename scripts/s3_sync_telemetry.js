@@ -58,6 +58,7 @@ function sign({ method, region, service, host, canonicalUri, query, headers, acc
   const now = new Date();
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '') + 'Z';
   const dateStamp = amzDate.substring(0, 8);
+  headers['x-amz-date'] = amzDate;
   const canonicalHeaders = Object.entries(headers)
     .map(([k, v]) => `${k.toLowerCase()}:${v.trim()}\n`)
     .sort()

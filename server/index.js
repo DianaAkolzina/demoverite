@@ -1035,11 +1035,11 @@ const server = http.createServer(async (req, res) => {
             const fNode = fLink ? nodesById.get(fLink.target) : null;
             let bNode = bLink ? nodesById.get(bLink.target) : null;
             if (!bNode && fNode) {
-              const fToB = links.find(l => l.source===fNode.id && l.rel==='LOCATED_IN_BUILDING');
+              const fToB = links.find(l => l.source===fNode.id && ['LOCATED_IN_BUILDING','PART_OF_BUILDING'].includes(l.rel));
               bNode = fToB ? nodesById.get(fToB.target) : bNode;
             }
             if (!bNode && zNode) {
-              const zToB = links.find(l => l.source===zNode.id && l.rel==='LOCATED_IN_BUILDING');
+              const zToB = links.find(l => l.source===zNode.id && ['LOCATED_IN_BUILDING','PART_OF_BUILDING'].includes(l.rel));
               bNode = zToB ? nodesById.get(zToB.target) : bNode;
             }
             devices.push({ id, name: dn.name || id, type: dn.deviceType || null, zone: zNode?.name || null, floor: fNode?.name || null, building: bNode?.name || null });
@@ -1377,9 +1377,9 @@ const server = http.createServer(async (req, res) => {
           const floors = nodes.filter(n => typeOf(n)==='Floor');
           const zones = nodes.filter(n => typeOf(n)==='Zone');
           const bNode = building ? buildings.find(b => String(b.name) === String(building)) : null;
-          const fNode = floor && bNode ? floors.find(f => String(f.name) === String(floor) && links.some(l => l.source===f.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)) : null;
-          const zNode = zone && ((fNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && l.rel==='BELONGS_TO_FLOOR' && l.target===fNode.id)))
-                                  || (!fNode && bNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)))
+          const fNode = floor && bNode ? floors.find(f => String(f.name) === String(floor) && links.some(l => l.source===f.id && ['LOCATED_IN_BUILDING','PART_OF_BUILDING'].includes(l.rel) && l.target===bNode.id)) : null;
+          const zNode = zone && ((fNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && ['BELONGS_TO_FLOOR','PART_OF_FLOOR'].includes(l.rel) && l.target===fNode.id)))
+                                  || (!fNode && bNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && ['LOCATED_IN_BUILDING','PART_OF_BUILDING'].includes(l.rel) && l.target===bNode.id)))
                                   || zones.find(z => String(z.name)===String(zone))) || null;
           const pushDev = (devId) => {
             const d = byId.get(devId); if (!d) return;
@@ -1389,12 +1389,12 @@ const server = http.createServer(async (req, res) => {
           if (zNode) {
             for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && l.target===zNode.id) pushDev(l.source);
           } else if (fNode) {
-            const zIds = new Set(links.filter(l => l.rel==='BELONGS_TO_FLOOR' && l.target===fNode.id).map(l => l.source));
+            const zIds = new Set(links.filter(l => ['BELONGS_TO_FLOOR','PART_OF_FLOOR'].includes(l.rel) && l.target===fNode.id).map(l => l.source));
             for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && zIds.has(l.target)) pushDev(l.source);
             for (const l of links) if (l.rel==='LOCATED_ON_FLOOR' && l.target===fNode.id) pushDev(l.source);
           } else if (bNode) {
-            const fIds = new Set(links.filter(l => l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id).map(l => l.source));
-            const zIds = new Set(links.filter(l => l.rel==='BELONGS_TO_FLOOR' && fIds.has(l.target)).map(l => l.source));
+            const fIds = new Set(links.filter(l => ['LOCATED_IN_BUILDING','PART_OF_BUILDING'].includes(l.rel) && l.target===bNode.id).map(l => l.source));
+            const zIds = new Set(links.filter(l => ['BELONGS_TO_FLOOR','PART_OF_FLOOR'].includes(l.rel) && fIds.has(l.target)).map(l => l.source));
             for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && zIds.has(l.target)) pushDev(l.source);
             for (const l of links) if (l.rel==='LOCATED_ON_FLOOR' && fIds.has(l.target)) pushDev(l.source);
             for (const l of links) if (l.rel==='IN_BUILDING' && l.target===bNode.id) pushDev(l.source);
@@ -1484,10 +1484,10 @@ const server = http.createServer(async (req, res) => {
                       WHERE ($tenant IS NULL OR (b)-[:BELONGS_TO_TENANT]->(t)) AND ($building IS NULL OR b.name=$building OR toString(b.id)=$building OR toString(b.buildingID)=$building)
                       OPTIONAL MATCH (f:Floor)
                       WHERE ($floor IS NULL OR f.name=$floor OR toString(f.id)=$floor OR toString(f.floorID)=$floor)
-                        AND ( ($building IS NULL) OR ( (f)-[:LOCATED_IN_BUILDING]->(b) ) )
+                        AND ( ($building IS NULL) OR ( (f)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b) ) )
                       MATCH (z:Zone)
-                      WHERE ( ($building IS NULL) OR ((z)-[:LOCATED_IN_BUILDING]->(b)) )
-                        AND ( ($floor IS NULL) OR EXISTS { MATCH (z)-[:BELONGS_TO_FLOOR]->(f) } )
+                      WHERE ( ($building IS NULL) OR ((z)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)) )
+                        AND ( ($floor IS NULL) OR EXISTS { MATCH (z)-[:BELONGS_TO_FLOOR|PART_OF_FLOOR]->(f) } )
                       RETURN DISTINCT z.name AS name
                     `;
                     const { records: zrecs } = await g.runQuery(cyZ, { tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null });
@@ -1503,7 +1503,7 @@ const server = http.createServer(async (req, res) => {
                 const cyF = `
                   MATCH (b:Building)
                   WHERE toLower(b.name)=toLower($building) OR toString(b.id)=$building OR toString(b.buildingID)=$building
-                  OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
+                  OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
                   RETURN DISTINCT f.name AS name
                 `;
                 const rrF = await g.runQuery(cyF, { building: selection.building });
@@ -1523,10 +1523,10 @@ const server = http.createServer(async (req, res) => {
                   WHERE ($tenant IS NULL OR (b)-[:BELONGS_TO_TENANT]->(t)) AND ($building IS NULL OR b.name=$building OR toString(b.id)=$building OR toString(b.buildingID)=$building)
                   OPTIONAL MATCH (f:Floor)
                   WHERE ($floor IS NULL OR f.name=$floor OR toString(f.id)=$floor OR toString(f.floorID)=$floor)
-                    AND ( ($building IS NULL) OR ( (f)-[:LOCATED_IN_BUILDING]->(b) ) )
+                    AND ( ($building IS NULL) OR ( (f)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b) ) )
                   MATCH (z:Zone)
-                  WHERE ( ($building IS NULL) OR ((z)-[:LOCATED_IN_BUILDING]->(b)) )
-                    AND ( ($floor IS NULL) OR EXISTS { MATCH (z)-[:BELONGS_TO_FLOOR]->(f) } )
+                  WHERE ( ($building IS NULL) OR ((z)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)) )
+                    AND ( ($floor IS NULL) OR EXISTS { MATCH (z)-[:BELONGS_TO_FLOOR|PART_OF_FLOOR]->(f) } )
                   RETURN DISTINCT z.name AS name
                 `;
                 const { records: zrecs } = await g.runQuery(cyZ, { tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null });
@@ -1538,7 +1538,7 @@ const server = http.createServer(async (req, res) => {
                     WHERE $tenant IS NULL OR t.name=$tenant OR toString(t.id)=$tenant
                     MATCH (b:Building)
                     WHERE ($tenant IS NULL OR (b)-[:BELONGS_TO_TENANT]->(t)) AND ($building IS NULL OR b.name=$building OR toString(b.id)=$building OR toString(b.buildingID)=$building)
-                    MATCH (z:Zone)-[:LOCATED_IN_BUILDING]->(b)
+                    MATCH (z:Zone)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
                     RETURN DISTINCT z.name AS name
                   `;
                   const { records: zrecs2 } = await g.runQuery(cyZ2, { tenant: selection.tenant || null, building: selection.building || null });
@@ -1562,7 +1562,7 @@ const server = http.createServer(async (req, res) => {
                   const cyF = `
                     MATCH (b:Building)
                   WHERE toLower(b.name)=toLower($building) OR toString(b.id)=$building OR toString(b.buildingID)=$building
-                  OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
+                  OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
                   RETURN DISTINCT f.name AS name
                   `;
                   const rrF = await g.runQuery(cyF, { building: selection.building });
@@ -1591,7 +1591,7 @@ const server = http.createServer(async (req, res) => {
               buildingsList = (br.records || []).map(rec => rec.get('name')).filter(Boolean);
             } catch {}
             try {
-              const fr = await g.runQuery('MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(:Building) RETURN DISTINCT f.name AS name ORDER BY name');
+              const fr = await g.runQuery('MATCH (f:Floor)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(:Building) RETURN DISTINCT f.name AS name ORDER BY name');
               floorsListAll = (fr.records || []).map(rec => rec.get('name')).filter(Boolean);
             } catch {}
             const zList = selectionZones || [];
@@ -1812,12 +1812,12 @@ const server = http.createServer(async (req, res) => {
         WHERE $tenant IS NULL OR t.name=$tenant OR toString(t.id)=$tenant
         MATCH (b:Building)
         WHERE $tenant IS NULL OR (b)-[:BELONGS_TO_TENANT]->(t)
-        OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING|BELONGS_TO_BUILDING|IN_BUILDING]->(b)
-        OPTIONAL MATCH (z1:Zone)-[:LOCATED_ON_FLOOR|BELONGS_TO_FLOOR]->(f)
-        OPTIONAL MATCH (z2:Zone)-[:LOCATED_IN_BUILDING|BELONGS_TO_BUILDING]->(b)
+        OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING|BELONGS_TO_BUILDING|IN_BUILDING]->(b)
+        OPTIONAL MATCH (z1:Zone)-[:LOCATED_ON_FLOOR|BELONGS_TO_FLOOR|PART_OF_FLOOR]->(f)
+        OPTIONAL MATCH (z2:Zone)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING|BELONGS_TO_BUILDING]->(b)
         WITH b, collect(DISTINCT f) AS fs, collect(DISTINCT coalesce(z1,z2)) AS zs
         OPTIONAL MATCH (d:Device)-[:IN_BUILDING|LOCATED_IN_BUILDING]->(b)
-        OPTIONAL MATCH (d2:Device)-[:LOCATED_IN_ZONE]->(:Zone)-[:LOCATED_IN_BUILDING|BELONGS_TO_BUILDING]->(b)
+        OPTIONAL MATCH (d2:Device)-[:LOCATED_IN_ZONE]->(:Zone)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING|BELONGS_TO_BUILDING]->(b)
         WITH b, fs, zs, collect(DISTINCT coalesce(d,d2)) AS ds
         RETURN b.name AS name,
                size([x IN fs WHERE x IS NOT NULL]) AS floors,
@@ -1845,8 +1845,8 @@ const server = http.createServer(async (req, res) => {
         WHERE $tenant IS NULL OR t.name=$tenant OR toString(t.id)=$tenant
         MATCH (b:Building)
         WHERE $tenant IS NULL OR (b)-[:BELONGS_TO_TENANT]->(t)
-        OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING]->(b)
-        OPTIONAL MATCH (z:Zone)-[:LOCATED_IN_BUILDING]->(b)
+        OPTIONAL MATCH (f:Floor)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
+        OPTIONAL MATCH (z:Zone)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
         WITH b, f, z
         OPTIONAL MATCH (d:Device)
         WHERE (z IS NOT NULL AND (d)-[:LOCATED_IN_ZONE]->(z))
@@ -1907,9 +1907,9 @@ const server = http.createServer(async (req, res) => {
           const zones = nodes.filter(n => typeOf(n)==='Zone');
           const devices = nodes.filter(n => typeOf(n)==='Device');
           const bNode = building ? buildings.find(b => String(b.name) === String(building)) : null;
-          const fNode = floor && bNode ? floors.find(f => String(f.name) === String(floor) && links.some(l => l.source===f.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)) : null;
-          const zNode = zone && ((fNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && l.rel==='BELONGS_TO_FLOOR' && l.target===fNode.id)))
-                                  || (!fNode && bNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)))
+          const fNode = floor && bNode ? floors.find(f => String(f.name) === String(floor) && links.some(l => l.source===f.id && ['LOCATED_IN_BUILDING','PART_OF_BUILDING'].includes(l.rel) && l.target===bNode.id)) : null;
+          const zNode = zone && ((fNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && ['BELONGS_TO_FLOOR','PART_OF_FLOOR'].includes(l.rel) && l.target===fNode.id)))
+                                  || (!fNode && bNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && ['LOCATED_IN_BUILDING','PART_OF_BUILDING'].includes(l.rel) && l.target===bNode.id)))
                                   || zones.find(z => String(z.name)===String(zone))) || null;
           const s3Dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
           const s3set = fs.existsSync(s3Dir) ? new Set(fs.readdirSync(s3Dir).filter(f=>/\.csv$/i.test(f)).map(f=>f.replace(/\.csv$/i,''))) : new Set();
@@ -1932,12 +1932,12 @@ const server = http.createServer(async (req, res) => {
             // also propagate from zone/floor if missing
             if (!meta.floor && meta.zone) {
               const zn = zones.find(z => z.name===meta.zone);
-              const fl = links.find(l => l.source===zn?.id && l.rel==='BELONGS_TO_FLOOR');
+              const fl = links.find(l => l.source===zn?.id && ['BELONGS_TO_FLOOR','PART_OF_FLOOR'].includes(l.rel));
               const fn = byId.get(fl?.target); if (typeOf(fn)==='Floor') meta.floor = fn.name || meta.floor;
             }
             if (!meta.building && meta.floor) {
               const fn = floors.find(f => f.name===meta.floor);
-              const bl = links.find(l => l.source===fn?.id && l.rel==='LOCATED_IN_BUILDING');
+              const bl = links.find(l => l.source===fn?.id && ['LOCATED_IN_BUILDING','PART_OF_BUILDING'].includes(l.rel));
               const bn = byId.get(bl?.target); if (typeOf(bn)==='Building') meta.building = bn.name || meta.building;
             }
             devMeta.set(id, meta);
@@ -1946,13 +1946,13 @@ const server = http.createServer(async (req, res) => {
           if (zNode) {
             for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && l.target===zNode.id) pushDev(l.source);
           } else if (fNode) {
-            const zIds = new Set(links.filter(l => l.rel==='BELONGS_TO_FLOOR' && l.target===fNode.id).map(l => l.source));
+            const zIds = new Set(links.filter(l => ['BELONGS_TO_FLOOR','PART_OF_FLOOR'].includes(l.rel) && l.target===fNode.id).map(l => l.source));
             for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && zIds.has(l.target)) pushDev(l.source);
             for (const l of links) if (l.rel==='LOCATED_ON_FLOOR' && l.target===fNode.id) pushDev(l.source);
           } else if (bNode) {
             // include any device in building via zone/floor/building edges
-            const fIds = new Set(links.filter(l => l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id).map(l => l.source));
-            const zIds = new Set(links.filter(l => l.rel==='BELONGS_TO_FLOOR' && fIds.has(l.target)).map(l => l.source));
+            const fIds = new Set(links.filter(l => ['LOCATED_IN_BUILDING','PART_OF_BUILDING'].includes(l.rel) && l.target===bNode.id).map(l => l.source));
+            const zIds = new Set(links.filter(l => ['BELONGS_TO_FLOOR','PART_OF_FLOOR'].includes(l.rel) && fIds.has(l.target)).map(l => l.source));
             for (const l of links) if (l.rel==='LOCATED_IN_ZONE' && zIds.has(l.target)) pushDev(l.source);
             for (const l of links) if (l.rel==='LOCATED_ON_FLOOR' && fIds.has(l.target)) pushDev(l.source);
             for (const l of links) if (l.rel==='IN_BUILDING' && l.target===bNode.id) pushDev(l.source);

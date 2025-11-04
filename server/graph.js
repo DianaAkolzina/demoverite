@@ -74,7 +74,7 @@ export function createGraphClient({ uri, username, password, database }) {
   async function subgraphByZoneType(zoneType, { maxZones = 12, maxDevicesPerZone = 4 } = {}) {
     // Fetch hierarchy: Tenant -> Building -> Floor -> Zone (filtered by type)
     const hRes = await runQuery(`
-      MATCH (t:Tenant)<-[:BELONGS_TO_TENANT]-(b:Building)<-[:BELONGS_TO_BUILDING]-(f:Floor)<-[:BELONGS_TO_FLOOR]-(z:Zone {type:$zoneType})
+      MATCH (t:Tenant)<-[:BELONGS_TO_TENANT]-(b:Building)<-[:LOCATED_IN_BUILDING|PART_OF_BUILDING|BELONGS_TO_BUILDING]-(f:Floor)<-[:BELONGS_TO_FLOOR|PART_OF_FLOOR]-(z:Zone {type:$zoneType})
       RETURN DISTINCT t,b,f,z
     `, { zoneType });
     if (hRes.error) return { nodes: [], links: [], error: hRes.error };
@@ -103,7 +103,7 @@ export function createGraphClient({ uri, username, password, database }) {
       const zid = addNode(z, { highlight: true });
       if (zid) zoneIds.add(zid);
       addLink(bid, tid, 'BELONGS_TO_TENANT');
-      addLink(fid, bid, 'BELONGS_TO_BUILDING');
+      addLink(fid, bid, 'LOCATED_IN_BUILDING');
       addLink(zid, fid, 'BELONGS_TO_FLOOR');
     }
 
@@ -163,11 +163,11 @@ export function createGraphClient({ uri, username, password, database }) {
         WHERE b.name=$building OR toString(b.id)=$building OR toString(b.buildingID)=$building
         MATCH (f:Floor)
         WHERE (f.name=$floor OR toString(f.id)=$floor OR toString(f.floorID)=$floor)
-          AND ( (f)-[:LOCATED_IN_BUILDING]->(b)
+          AND ( (f)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
                 OR toString(f.buildingID)=toString(b.id)
                 OR toString(f.buildingID)=toString(b.buildingID) )
         MATCH (z:Zone)
-        WHERE ( (z)-[:LOCATED_IN_BUILDING]->(b)
+        WHERE ( (z)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
                 OR toString(z.buildingID)=toString(b.id)
                 OR toString(z.buildingID)=toString(b.buildingID) )
           AND (
@@ -186,7 +186,7 @@ export function createGraphClient({ uri, username, password, database }) {
         MATCH (b:Building)
         WHERE b.name=$building OR toString(b.id)=$building OR toString(b.buildingID)=$building
         MATCH (z:Zone)
-        WHERE ( (z)-[:LOCATED_IN_BUILDING]->(b)
+        WHERE ( (z)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
                 OR toString(z.buildingID)=toString(b.id)
                 OR toString(z.buildingID)=toString(b.buildingID) )
         RETURN DISTINCT coalesce(z.roomId, toString(z.id), z.name) AS room
@@ -225,17 +225,17 @@ export function createGraphClient({ uri, username, password, database }) {
       OPTIONAL MATCH (f)-[:BELONGS_TO_TENANT]->(tf:Tenant)
       OPTIONAL MATCH (b)-[:BELONGS_TO_TENANT]->(tb:Tenant)
       // Derive building from zone/floor links
-      OPTIONAL MATCH (z)-[:LOCATED_IN_BUILDING]->(bz:Building)
-      OPTIONAL MATCH (f)-[:LOCATED_IN_BUILDING]->(bf:Building)
+      OPTIONAL MATCH (z)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(bz:Building)
+      OPTIONAL MATCH (f)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(bf:Building)
+      // Derive floor from zone.floorID when device lacks LOCATED_ON_FLOOR
+      OPTIONAL MATCH (zf:Floor)
+      WHERE z IS NOT NULL AND (toString(z.floorID) = toString(zf.id) OR toString(z.floorID) = toString(zf.floorID))
       // Derive building via zone.buildingID or floor.buildingID
       OPTIONAL MATCH (zb:Building)
       WHERE z IS NOT NULL AND (toString(z.buildingID) = toString(zb.id) OR toString(z.buildingID) = toString(zb.buildingID))
       OPTIONAL MATCH (fb:Building)
       WHERE (f IS NOT NULL AND (toString(f.buildingID) = toString(fb.id) OR toString(f.buildingID) = toString(fb.buildingID)))
          OR (zf IS NOT NULL AND (toString(zf.buildingID) = toString(fb.id) OR toString(zf.buildingID) = toString(fb.buildingID)))
-      // Derive floor from zone.floorID when device lacks LOCATED_ON_FLOOR
-      OPTIONAL MATCH (zf:Floor)
-      WHERE z IS NOT NULL AND (toString(z.floorID) = toString(zf.id) OR toString(z.floorID) = toString(zf.floorID))
       // Derive building via device.buildingID when present
       OPTIONAL MATCH (db:Building)
       WHERE (toString(db.id) = toString(d.buildingID) OR toString(db.buildingID) = toString(d.buildingID))
@@ -258,9 +258,9 @@ export function createGraphClient({ uri, username, password, database }) {
       WITH d, z, f, b, t
       ${building ? 'WHERE (toLower(b.name) = toLower($building) OR toString(b.id) = $building OR toString(b.buildingID) = $building)' : ''}
       RETURN DISTINCT
-             coalesce(d.cloud_id, d.id, d.deviceId, d.name) AS id,
+             coalesce(d.cloud_id, d.cloudId, d.cloudID, d.id, d.deviceId, d.name) AS id,
              d.name AS name,
-             d.type AS type,
+             coalesce(d.type, d.deviceType) AS type,
              coalesce(z.name, d.zone) AS zone,
              coalesce(b.name, d.building) AS building,
              f.name AS floor
@@ -319,12 +319,12 @@ export function createGraphClient({ uri, username, password, database }) {
         ${tenant ? 'MATCH (t:Tenant {name:$tenant})' : ''}
         MATCH (b:Building)
         ${tenant ? 'WHERE (b)-[:BELONGS_TO_TENANT]->(t)' : ''}
-        OPTIONAL MATCH (fr:Floor)-[:LOCATED_IN_BUILDING]->(b)
+        OPTIONAL MATCH (fr:Floor)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
         WITH b, fr
         OPTIONAL MATCH (fp:Floor)
         WHERE toString(fp.buildingID)=toString(b.id) OR toString(fp.buildingID)=toString(b.buildingID)
         WITH b, coalesce(fr, fp) AS f
-        OPTIONAL MATCH (z:Zone)-[:LOCATED_IN_BUILDING]->(b)
+        OPTIONAL MATCH (z:Zone)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
         WITH b, f, z
         OPTIONAL MATCH (zf:Floor)
         WHERE z IS NOT NULL AND (
@@ -357,13 +357,9 @@ export function createGraphClient({ uri, username, password, database }) {
           const roomId = rawRid != null ? String(rawRid) : null;
           addNode(zid, { label: 'Zone', name: z.properties?.name, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null });
         }
-        if (f && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
-        if (z && b) {
-          const zFloorId = (z.properties?.floorID != null) ? String(z.properties.floorID) : null;
-          const fId = (f && (f.properties?.id != null ? String(f.properties.id) : (f.properties?.floorID != null ? String(f.properties.floorID) : null))) || (zf && (zf.properties?.id != null ? String(zf.properties.id) : (zf.properties?.floorID != null ? String(zf.properties.floorID) : null))) || null;
-          if (zFloorId && fId && zFloorId === fId && fid) addLink(zid, fid, 'BELONGS_TO_FLOOR');
-          else addLink(zid, bid, 'LOCATED_IN_BUILDING');
-        }
+        if ((f || zf) && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
+        if (z && fid) addLink(zid, fid, 'BELONGS_TO_FLOOR');
+        if (z && bid) addLink(zid, bid, 'LOCATED_IN_BUILDING');
       }
 
       // Second pass: include all devices present in S3, deriving building/floor/zone via rels OR properties
@@ -381,8 +377,8 @@ export function createGraphClient({ uri, username, password, database }) {
         WHERE (toString(db.id) = toString(d.buildingID) OR toString(db.buildingID) = toString(d.buildingID))
         WITH d, coalesce(z1, dz) AS z, coalesce(f1, df) AS f, coalesce(b1, db) AS b
         // If building still null, derive via z->b or f->b
-        OPTIONAL MATCH (z)-[:LOCATED_IN_BUILDING]->(bz2:Building)
-        OPTIONAL MATCH (f)-[:LOCATED_IN_BUILDING]->(bf2:Building)
+        OPTIONAL MATCH (z)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(bz2:Building)
+        OPTIONAL MATCH (f)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(bf2:Building)
         WITH d, z, f, coalesce(b, bz2, bf2) AS b
         ${tenant ? 'WITH d, z, f, b OPTIONAL MATCH (bt:Tenant)<-[:BELONGS_TO_TENANT]-(b) WITH d, z, f, b, bt WHERE bt.name=$tenant OR $tenant IS NULL' : ''}
         RETURN d, z, f, b
@@ -391,7 +387,7 @@ export function createGraphClient({ uri, username, password, database }) {
       if (devErr) return { nodes: Array.from(outNodes.values()), links: outLinks, error: devErr };
       for (const r of devRows) {
         const d = r.get('d'); const z = r.get('z'); const f = r.get('f'); const b = r.get('b');
-        const cloudId = d?.properties?.cloud_id || null;
+        const cloudId = d?.properties?.cloud_id || d?.properties?.cloudId || d?.properties?.cloudID || null;
         const includeDevice = d ? (cloudId ? s3Ids.has(String(cloudId)) : false) : false;
         if (!includeDevice) continue;
         const did = `Device:${d.properties?.id || d.properties?.name}`;
@@ -413,12 +409,8 @@ export function createGraphClient({ uri, username, password, database }) {
         addNode(did, { label: 'Device', name: d.properties?.name, nodeType: 'Device', deviceType: d.properties?.type || null, cloudId });
         includedDevices.add(did);
         if (f && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
-        if (z && b) {
-          const zFloorId = (z.properties?.floorID != null) ? String(z.properties.floorID) : null;
-          const fId = (f && (f.properties?.id != null ? String(f.properties.id) : (f.properties?.floorID != null ? String(f.properties.floorID) : null))) || null;
-          if (zFloorId && fId && zFloorId === fId && fid) addLink(zid, fid, 'BELONGS_TO_FLOOR');
-          else addLink(zid, bid, 'LOCATED_IN_BUILDING');
-        }
+        if (z && fid) addLink(zid, fid, 'BELONGS_TO_FLOOR');
+        if (z && bid) addLink(zid, bid, 'LOCATED_IN_BUILDING');
         if (z) addLink(did, zid, 'LOCATED_IN_ZONE');
         if (f) addLink(did, fid, 'LOCATED_ON_FLOOR');
         if (b) { addLink(did, bid, 'IN_BUILDING'); bumpBuildingCount(bid); }

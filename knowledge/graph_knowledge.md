@@ -3,33 +3,41 @@
 This knowledge pack documents how the building graph is generated, what attributes each node carries, and the shortest-path strategies to resolve scope fast (UI and agent).
 
 ## Node Types
-- Building:
-  - Attributes: `id`, `name`, `tenantID`, `lat`, `long`, `is_active`, `floor_count`
-  - Example headers: `buildings id,name,tenantID,lat,long,is_active,floor_count`
-- Floor:
-  - Attributes: `id`, `name`, `buildingID`, `tenantID`, `is_active`, `zone_count`
-  - Example headers: `floors id,name,buildingID,tenantID,is_active,zone_count`
-- Zone (aka Room):
-  - Attributes: `id`, `name`, `floorID`, `buildingID`, `tenantID`, `is_active`, `device_count`
-  - Example headers: `zones id,name,floorID,buildingID,tenantID,is_active,device_count`
-- Device:
-  - Attributes: `id`, `name`, `type`/`deviceType`, `cloudId`, `tenantID`, `buildingID`, `floorID`, `zoneID`, `deviceProfileID`, `is_active`, `licence_status`
-  - Example headers: `device profiles id,name,label,cloud_id,tenantID,buildingID,floorID,zoneID,deviceProfileID,is_active,licence_status`
-- TelemetryKey:
-  - Attributes: `name`
-  - Example headers: `telemetry keys id,cloud_id,keys`
 - Tenant:
-  - Attributes: `id`, `name`, `domain_name`, `is_active`, `reseller_id`
-  - Example headers: `tenants id,name,domain_name,is_active,reseller_id`
+  - Represents an organisation or customer.
+  - Attributes include `id`, `name`, `domain_name`, `is_active`, `reseller_id`.
+- Building:
+  - Physical site owned by a tenant.
+  - Attributes: `id`, `name`, `tenantID`, `lat`, `long`, `is_active`, `floor_count`.
+- Floor:
+  - Represents a level within a building.
+  - Attributes: `id`, `name`, `buildingID`, `tenantID`, `is_active`, `zone_count`.
+- Zone (aka Room):
+  - Spatial subdivision for devices.
+  - Attributes: `id`, `name`, `floorID`, `buildingID`, `tenantID`, `is_active`, `device_count`.
+- Device:
+  - IoT endpoint deployed in a zone/floor/building.
+  - Attributes: `id`, `name`, `type`/`deviceType`, `cloudId`, `tenantID`, `buildingID`, `floorID`, `zoneID`, `deviceProfileID`, `is_active`, `licence_status`.
+- Device Profile:
+  - Template/metadata describing a class of devices.
+- Telemetry Key:
+  - Data point definition emitted by a device (e.g. `temperature`, `powerFailure`).
+- User:
+  - Person interacting with the system (engineer, operator, etc.).
+- Role:
+  - Permission bundle assigned to a user.
 
 ## Relationships
-- `LOCATED_IN_BUILDING` (Floor → Building, Zone → Building)
-- `BELONGS_TO_FLOOR` (Zone → Floor)
-- `IN_BUILDING` (Device → Building)
+- `BELONGS_TO_TENANT` (Building / Floor / Zone / Device / User → Tenant)
+- `PART_OF_BUILDING` (Floor / Zone → Building)
+- `PART_OF_FLOOR` (Zone → Floor)
+- `LOCATED_IN_BUILDING` (Device → Building)
 - `LOCATED_ON_FLOOR` (Device → Floor)
 - `LOCATED_IN_ZONE` (Device → Zone)
-- `BELONGS_TO_TENANT` (Building/Floor/Zone/Device → Tenant)
-- `HAS_TELEMETRY_KEY` or `MEASURES` (Device ↔ TelemetryKey)
+- `HAS_PROFILE` (Device → Device Profile)
+- `HAS_TELEMETRY_KEY` / `MEASURES` (Device ↔ Telemetry Key)
+- `ASSOCIATED_WITH_BUILDING` (User → Building)
+- `HAS_ROLE` (User → Role)
 
 ## Shortest Paths for Scope Resolution
 - Always resolve UI selections with the following order for best latency:
@@ -38,9 +46,9 @@ This knowledge pack documents how the building graph is generated, what attribut
   3) Cached `/api/topology` → 15s TTL.
   4) Cached `/api/graph/full` → 20s TTL (serves snapshot file if present).
 - Floors for a building:
-  - From snapshot: Floors with `LOCATED_IN_BUILDING` to the selected building AND at least one device reachable via Zone (`BELONGS_TO_FLOOR` → Zone and `LOCATED_IN_ZONE` → Device).
+  - From snapshot: Floors with `PART_OF_BUILDING` to the selected building AND at least one device reachable via Zone (`PART_OF_FLOOR` → Zone and `LOCATED_IN_ZONE` → Device).
 - Zones for a floor:
-  - From snapshot: Zones with `BELONGS_TO_FLOOR` to the selected floor AND at least one device via `LOCATED_IN_ZONE`.
+  - From snapshot: Zones with `PART_OF_FLOOR` to the selected floor AND at least one device via `LOCATED_IN_ZONE`.
 - Devices for a zone/floor/building:
   - Prefer devices reachable via:
     - Zone: `LOCATED_IN_ZONE`.
