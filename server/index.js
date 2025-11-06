@@ -38,6 +38,9 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || 'models/gemini-2.5-flash';
 
 
 const dataDir = path.join(root, 'data');
+const WEATHER_BACKFILL_START = process.env.WEATHER_BACKFILL_START || '2025-09-01';
+const WEATHER_BACKFILL_END = process.env.WEATHER_BACKFILL_END || '2025-10-31';
+const WEATHER_ONECALL_URL = 'https://api.openweathermap.org/data/3.0/onecall/timemachine';
 
 // Simple in-memory cache (best-effort, short TTLs)
 const __cache = {
@@ -265,25 +268,122 @@ function listRooms() {
   } catch { return []; }
 }
 
-// Helper to parse CSV files
+function splitCsvLine(line, expectedLength = null) {
+  if (line.endsWith('\r')) line = line.slice(0, -1);
+  const out = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      const next = line[i + 1];
+      if (inQuotes && next === '"') {
+        current += '"';
+        i++;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (!inQuotes && ch === ',') {
+      out.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  out.push(current);
+  if (expectedLength != null) {
+    if (out.length < expectedLength) {
+      while (out.length < expectedLength) out.push('');
+    } else if (out.length > expectedLength) {
+      out[expectedLength - 1] = out.slice(expectedLength - 1).join(',');
+      out.length = expectedLength;
+    }
+  }
+  return out;
+}
+
+// Helper to parse CSV files (filters columns that never contain data)
 function parseCSV(filePath) {
-  const rows = [];
+  let rows = [];
   if (!fs.existsSync(filePath)) return rows;
   const text = fs.readFileSync(filePath, 'utf8');
-  const lines = text.split(/\r?\n/).filter(Boolean);
+  const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
   if (lines.length < 2) return rows;
-  const headers = lines[0].split(',');
+  const headers = splitCsvLine(lines[0]).map(h => h.trim());
+  const colCount = headers.length;
+
   for (let i = 1; i < lines.length; i++) {
-    const vals = lines[i].split(',');
+    const vals = splitCsvLine(lines[i], colCount);
     const row = {};
+    let tsValid = true;
+
     headers.forEach((h, idx) => {
-      let v = vals[idx];
-      if (h === 'ts') v = Number(v);
-      else if (!isNaN(Number(v))) v = Number(v);
-      row[h] = v;
+      let raw = vals[idx];
+      if (raw === undefined || raw === null) raw = '';
+
+      if (h === 'ts') {
+        const num = Number(raw);
+        if (Number.isFinite(num)) {
+          row.ts = num;
+        } else {
+          tsValid = false;
+        }
+        return;
+      }
+
+      if (typeof raw === 'string') raw = raw.trim();
+      let value = raw;
+      if (typeof value === 'string') {
+        const lower = value.toLowerCase();
+        if (lower === 'true' || lower === 'yes' || lower === 'y') {
+          value = 1;
+        } else if (lower === 'false' || lower === 'no' || lower === 'n') {
+          value = 0;
+        }
+      }
+      if (value === '') {
+        value = null;
+      } else if (typeof value === 'string' && !Number.isNaN(Number(value))) {
+        const num = Number(value);
+        if (!Number.isNaN(num)) value = num;
+      }
+
+      row[h] = value;
     });
-    rows.push(row);
+
+    if (tsValid && row.ts != null) rows.push(row);
   }
+
+  rows = rows.filter((r) => {
+    if (!Number.isFinite(r.ts)) return false;
+    const d = new Date(r.ts);
+    if (Number.isNaN(d.getTime())) return false;
+    const cutoff = Date.UTC(d.getUTCFullYear(), 8, 1); // September of the row's year
+    return r.ts >= cutoff;
+  });
+  if (!rows.length) return rows;
+
+  const hasData = new Array(headers.length).fill(false);
+  for (const row of rows) {
+    headers.forEach((h, idx) => {
+      if (h === 'ts') {
+        if (Number.isFinite(row.ts)) hasData[idx] = true;
+        return;
+      }
+      const value = row[h];
+      if (value !== null && value !== undefined && value !== '') hasData[idx] = true;
+    });
+  }
+
+  const emptyHeaders = headers.filter((h, idx) => h !== 'ts' && !hasData[idx]);
+  if (emptyHeaders.length) {
+    for (const row of rows) {
+      for (const h of emptyHeaders) delete row[h];
+    }
+  }
+
   return rows;
 }
 
@@ -352,6 +452,66 @@ function withinRange(ts, start, end) {
 
 function buildingSlug(name) { return String(name||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
 
+function toNumeric(value) {
+  if (value == null) return null;
+  if (typeof value === 'object') {
+    if (typeof value.toNumber === 'function') {
+      try { return value.toNumber(); } catch {}
+    }
+    if (Array.isArray(value) && value.length) return toNumeric(value[0]);
+  }
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function parseUtcDate(str) {
+  if (!str) return null;
+  const d = new Date(`${str}T00:00:00Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+async function fetchHistoricalWeather({ lat, lon, key, start, end }) {
+  const startDt = parseUtcDate(start);
+  const endDt = parseUtcDate(end);
+  if (!startDt || !endDt || startDt > endDt) return [];
+  const out = [];
+  const seen = new Set();
+  for (let dt = new Date(startDt); dt <= endDt; dt.setUTCDate(dt.getUTCDate() + 1)) {
+    const mid = new Date(dt);
+    mid.setUTCHours(12, 0, 0, 0);
+    const tsSeconds = Math.floor(mid.getTime() / 1000);
+    const url = `${WEATHER_ONECALL_URL}?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&dt=${encodeURIComponent(tsSeconds)}&appid=${encodeURIComponent(key)}&units=metric`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`onecall HTTP ${res.status}`);
+      const body = await res.json();
+      const hourly = Array.isArray(body?.data || body?.hourly) ? (body.data || body.hourly) : [];
+      for (const row of hourly) {
+        const ts = Number(row?.dt) * 1000;
+        if (!Number.isFinite(ts) || seen.has(ts)) continue;
+        seen.add(ts);
+        const weather = Array.isArray(row?.weather) && row.weather[0] ? row.weather[0] : null;
+        out.push({
+          ts,
+          temp: row?.temp != null ? Number(row.temp) : null,
+          humidity: row?.humidity != null ? Number(row.humidity) : null,
+          pressure: row?.pressure != null ? Number(row.pressure) : null,
+          wind_speed: row?.wind_speed != null ? Number(row.wind_speed) : null,
+          wind_deg: row?.wind_deg != null ? Number(row.wind_deg) : null,
+          clouds: row?.clouds != null ? Number(row.clouds) : null,
+          weather_main: weather?.main || '',
+          weather_desc: weather?.description || ''
+        });
+      }
+      await wait(350);
+    } catch (err) {
+      console.warn('[weather] historical fetch failed', lat, lon, mid.toISOString(), String(err));
+      await wait(650);
+    }
+  }
+  return out;
+}
+
 function loadWeather(building = null) {
   try {
     // Per-building weather cached under S3 local mirror
@@ -361,12 +521,14 @@ function loadWeather(building = null) {
       const csvData = path.join(root, 'data', 'weather_buildings', `${bslug}.csv`);
       const file = fs.existsSync(csvS3) ? csvS3 : (fs.existsSync(csvData) ? csvData : null);
       if (file) return parseCSV(file).map(r => ({ ts: Number(r.ts), temp: Number(r.temp), humidity: Number(r.humidity), pressure: Number(r.pressure), wind_speed: Number(r.wind_speed), wind_deg: Number(r.wind_deg), clouds: Number(r.clouds), weather_main: r.weather_main, weather_desc: r.weather_desc }));
+      ensureWeatherFetchForBuilding(building);
     }
     // Generic fallback
     const csvGeneric = path.join(s3LocalDir, 'weather.csv');
     const csvGenericData = path.join(root, 'data', 'weather.csv');
     const f = fs.existsSync(csvGeneric) ? csvGeneric : (fs.existsSync(csvGenericData) ? csvGenericData : null);
     if (f) return parseCSV(f).map(r => ({ ts: Number(r.ts), temp: Number(r.temp), humidity: Number(r.humidity), pressure: Number(r.pressure), wind_speed: Number(r.wind_speed), wind_deg: Number(r.wind_deg), clouds: Number(r.clouds), weather_main: r.weather_main, weather_desc: r.weather_desc }));
+    if (building) ensureWeatherFetchForBuilding(building);
     return [];
   } catch { return []; }
 }
@@ -374,10 +536,12 @@ function loadWeather(building = null) {
 // Fetch and cache per-building weather (OpenWeather) using lat/lon from graph
 async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
   const key = process.env.OPENWEATHER_API_KEY;
-  if (!key || !lat || !lon) return { error: 'missing_api_or_coords' };
+  const latNum = toNumeric(lat);
+  const lonNum = toNumeric(lon);
+  if (!key || !Number.isFinite(latNum) || !Number.isFinite(lonNum)) return { error: 'missing_api_or_coords' };
   try {
-    const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&appid=${encodeURIComponent(key)}&units=metric`;
-    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&appid=${encodeURIComponent(key)}&units=metric`;
+    const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${encodeURIComponent(latNum)}&lon=${encodeURIComponent(lonNum)}&appid=${encodeURIComponent(key)}&units=metric`;
+    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${encodeURIComponent(latNum)}&lon=${encodeURIComponent(lonNum)}&appid=${encodeURIComponent(key)}&units=metric`;
     const [curRes, fcRes] = await Promise.all([ fetch(currentUrl), fetch(forecastUrl) ]);
     const cur = await curRes.json();
     const fc = await fcRes.json();
@@ -390,12 +554,47 @@ async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
     if (cur && cur.dt) push(cur.dt * 1000, cur.main, cur.wind, cur.clouds, cur.weather);
     if (fc && Array.isArray(fc.list)) fc.list.forEach(x => push(x.dt * 1000, x.main, x.wind, x.clouds, x.weather));
     // Write under S3 local dir for S3-only mode compatibility
+    const slug = buildingSlug(buildingName);
     const outDir = path.join(s3LocalDir, 'weather_buildings');
+    const dataDir = path.join(root, 'data', 'weather_buildings');
     try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
-    const outFile = path.join(outDir, `${buildingSlug(buildingName)}.csv`);
+    try { fs.mkdirSync(dataDir, { recursive: true }); } catch {}
+    const outFile = path.join(outDir, `${slug}.csv`);
+    const outFileData = path.join(dataDir, `${slug}.csv`);
     const header = 'ts,temp,humidity,pressure,wind_speed,wind_deg,clouds,weather_main,weather_desc\n';
     const csv = header + rows.map(r => [r.ts, r.temp, r.humidity, r.pressure, r.wind_speed, r.wind_deg, r.clouds, JSON.stringify(r.weather_main).replace(/"/g,''), JSON.stringify(r.weather_desc).replace(/"/g,'')].join(',')).join('\n') + '\n';
     fs.writeFileSync(outFile, csv);
+    try { fs.writeFileSync(outFileData, csv); } catch {}
+
+    const historical = await fetchHistoricalWeather({
+      lat: latNum,
+      lon: lonNum,
+      key,
+      start: WEATHER_BACKFILL_START,
+      end: WEATHER_BACKFILL_END
+    });
+    if (historical.length) {
+      const existingMap = new Map(rows.map(r => [Number(r.ts), r]));
+      for (const h of historical) {
+        if (!existingMap.has(h.ts)) existingMap.set(h.ts, h);
+      }
+      const merged = Array.from(existingMap.values()).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+      const header = 'ts,temp,humidity,pressure,wind_speed,wind_deg,clouds,weather_main,weather_desc\n';
+      const csvFull = header + merged.map(r => [
+        r.ts,
+        r.temp,
+        r.humidity,
+        r.pressure,
+        r.wind_speed,
+        r.wind_deg,
+        r.clouds,
+        JSON.stringify(r.weather_main ?? '').replace(/"/g,''),
+        JSON.stringify(r.weather_desc ?? '').replace(/"/g,'')
+      ].join(',')).join('\n') + '\n';
+      fs.writeFileSync(outFile, csvFull);
+      try { fs.writeFileSync(outFileData, csvFull); } catch {}
+      return { ok: true, rows: merged.length, file: outFile };
+    }
     return { ok: true, rows: rows.length, file: outFile };
   } catch (e) {
     return { error: String(e) };
@@ -1630,21 +1829,58 @@ const server = http.createServer(async (req, res) => {
           weatherSample: loadWeather().slice(-50)
         };
 
-        // Use the tool-enabled agent (RAG + tools). If it can't complete, fall back to heuristics.
+        // Use the tool-enabled agent (RAG + tools). Retry once with a richer mode if the first attempt
+        // does not produce a substantive answer or required chart.
         const effMessages = scopeNote ? [{ role: 'user', content: scopeNote }, ...messages, { role: 'user', content: question }] : messages.concat({ role: 'user', content: question });
-    const { message, chart, trace, extras } = await agent.run(effMessages, {
-      room: effRoom,
-      range,
-      selectionRooms,
-      selectionZones,
-      tenant: (selection && selection.tenant) ? String(selection.tenant) : null,
-      building: (selection && selection.building) ? String(selection.building) : null,
-      floor: (selection && selection.floor) ? String(selection.floor) : null,
-      zone: (selection && selection.room) ? String(selection.room) : null,
-      scopeLabels: selection && selection.labels ? selection.labels : null,
-      scopeFloors: selectionFloors,
-      scopeDeviceZones: selectionDeviceZones
-    });
+
+    function expectsChartFromQuestion(q) {
+      return /(plot|chart|graph|visualize|heatmap|compare|forecast|correlat)/i.test(q || '');
+    }
+
+    function chartHasRenderableSeries(res) {
+      const series = res?.chart?.series;
+      if (!Array.isArray(series) || !series.length) return false;
+      return series.some((s) => s && (s.data || s.dataRef));
+    }
+
+    function resultNeedsRetry(res) {
+      if (!res) return true;
+      const text = (res.message && res.message.content) ? String(res.message.content).trim() : '';
+      if (!text) return true;
+      const lower = text.toLowerCase();
+      if (/unable to/.test(lower) || /no data available/.test(lower)) return true;
+      if (expectsChartFromQuestion(question) && !chartHasRenderableSeries(res)) return true;
+      return false;
+    }
+
+    const maxAttempts = Number(process.env.AGENT_MAX_ATTEMPTS || 2);
+    let agentResult = null;
+    for (let attempt = 0; attempt < Math.max(1, maxAttempts); attempt += 1) {
+      const runResult = await agent.run(effMessages, {
+        room: effRoom,
+        range,
+        selectionRooms,
+        selectionZones,
+        tenant: (selection && selection.tenant) ? String(selection.tenant) : null,
+        building: (selection && selection.building) ? String(selection.building) : null,
+        floor: (selection && selection.floor) ? String(selection.floor) : null,
+        zone: (selection && selection.room) ? String(selection.room) : null,
+        scopeLabels: selection && selection.labels ? selection.labels : null,
+        scopeFloors: selectionFloors,
+        scopeDeviceZones: selectionDeviceZones,
+        attempt
+      });
+      if (!resultNeedsRetry(runResult)) {
+        agentResult = runResult;
+        break;
+      }
+      if (DEBUG_HTTP) console.warn(`[API/chat] attempt ${attempt} delivered incomplete result; retrying`);
+      if (attempt === Math.max(1, maxAttempts) - 1) {
+        agentResult = runResult; // give best-effort result after final attempt
+      }
+    }
+
+    const { message, chart, trace, extras } = agentResult || {};
     try {
       if (Array.isArray(trace)) {
         console.log(`[Agent][trace] ${trace.length} entries`);
@@ -1685,9 +1921,11 @@ const server = http.createServer(async (req, res) => {
         console.log('[Agent][trace] saved to', path.join(TRACE_DIR, fname));
       }
     } catch (e) { console.warn('[Agent][trace] save failed:', String(e)); }
-        if (!message || !message.content || /^Unable to complete tool-based reasoning/i.test(message.content)) {
-          const fb = answerWithFallback(question, room, range || {});
-          return sendJson(res, 200, { message: { role: 'assistant', content: fb.answer }, chart: fb.chart, mode: 'fallback', trace: [] });
+        if (!message || !message.content) {
+          return sendJson(res, 502, { error: 'agent_empty', detail: 'Agent returned no answer after retries.' });
+        }
+        if (expectsChartFromQuestion(question) && !chartHasRenderableSeries(agentResult)) {
+          return sendJson(res, 502, { error: 'agent_no_chart', detail: 'Agent did not deliver chart data after retries.' });
         }
         return sendJson(res, 200, { message, chart, extras: extras || ((agent && agent.extras) ? agent.extras : undefined), trace, mode: 'agent' });
       } catch (e) {
@@ -1738,8 +1976,7 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 200, { mode: 'llm', answer: llmText });
         }
 
-        const fb = answerWithFallback(question, room, { start, end });
-        return sendJson(res, 200, { mode: 'fallback', answer: fb.answer, chart: fb.chart });
+        return sendJson(res, 502, { error: 'analysis_failed', detail: 'Unable to generate analysis for the requested query.' });
       } catch (e) {
         return sendJson(res, 500, { error: 'bad_request', detail: String(e) });
       }
@@ -2154,8 +2391,85 @@ const vector = createVectorClient({ chromaUrl: process.env.CHROMA_URL || '' });
 
 // -------- Persistent In-Memory Index (Snapshot-first O(1) resolution) --------
 const __indexStore = {
-  tenants: new Map(), // tenantKey -> { floorsByBuilding, zonesByBF, deviceIdsByScope, devicesMeta, keysByDevice, buildings }
+  tenants: new Map(), // tenantKey -> { floorsByBuilding, zonesByBF, deviceIdsByScope, devicesMeta, keysByDevice, buildings, buildingCoords }
 };
+
+let __buildingCoordsCache = null;
+const __weatherFetchPromises = new Map();
+
+function resetBuildingCoordsCache() {
+  __buildingCoordsCache = null;
+}
+
+function getAllIndexedBuildingCoords() {
+  if (__buildingCoordsCache) return __buildingCoordsCache;
+  const coords = new Map();
+  for (const idx of __indexStore.tenants.values()) {
+    if (!idx || !idx.buildingCoords) continue;
+    for (const [name, value] of idx.buildingCoords.entries()) {
+      if (!value) continue;
+      const lat = toNumeric(value.lat);
+      const lon = toNumeric(value.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      const key = buildingSlug(name);
+      if (!coords.has(key)) coords.set(key, { name, lat, lon });
+    }
+  }
+  __buildingCoordsCache = coords;
+  return coords;
+}
+
+function findIndexedBuildingCoord(buildingName) {
+  if (!buildingName) return null;
+  const slug = buildingSlug(buildingName);
+  const coords = getAllIndexedBuildingCoords();
+  if (coords.has(slug)) return coords.get(slug);
+  const targetLower = String(buildingName).trim().toLowerCase();
+  for (const entry of coords.values()) {
+    if (String(entry.name).trim().toLowerCase() === targetLower) return entry;
+  }
+  return null;
+}
+
+async function prefetchWeatherForAllBuildings() {
+  try {
+    const coords = getAllIndexedBuildingCoords();
+    for (const { name, lat, lon } of coords.values()) {
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      const slug = buildingSlug(name);
+      const fileA = path.join(s3LocalDir, 'weather_buildings', `${slug}.csv`);
+      const fileB = path.join(root, 'data', 'weather_buildings', `${slug}.csv`);
+      if (fs.existsSync(fileA) || fs.existsSync(fileB)) continue;
+      try {
+        const res = await fetchAndCacheWeatherForBuilding(name, lat, lon);
+        if (res?.error) console.warn('[startup][weather] Prefetch failed for', name, res.error);
+      } catch (e) {
+        console.warn('[startup][weather] Prefetch error:', name, String(e));
+      }
+    }
+  } catch (e) {
+    console.warn('[startup][weather] Prefetch index error:', String(e));
+  }
+}
+
+function ensureWeatherFetchForBuilding(buildingName) {
+  if (!buildingName) return;
+  const slug = buildingSlug(buildingName);
+  const csvS3 = path.join(s3LocalDir, 'weather_buildings', `${slug}.csv`);
+  const csvData = path.join(root, 'data', 'weather_buildings', `${slug}.csv`);
+  if (fs.existsSync(csvS3) || fs.existsSync(csvData)) return;
+  if (__weatherFetchPromises.has(slug)) return;
+  const coord = findIndexedBuildingCoord(buildingName);
+  if (!coord) return;
+  const promise = fetchAndCacheWeatherForBuilding(coord.name, coord.lat, coord.lon)
+    .catch((err) => {
+      console.warn('[weather] async fetch failed for', coord.name, String(err));
+    })
+    .finally(() => {
+      __weatherFetchPromises.delete(slug);
+    });
+  __weatherFetchPromises.set(slug, promise);
+}
 
 function buildTenantIndexFromSnapshot(snap, tenant = null) {
   try {
@@ -2170,6 +2484,7 @@ function buildTenantIndexFromSnapshot(snap, tenant = null) {
       devicesMeta: new Map(),
       keysByDevice: new Map(),
       buildings: new Set(),
+      buildingCoords: new Map(),
     };
     // Telemetry keys mapping
     for (const l of links) {
@@ -2195,6 +2510,20 @@ function buildTenantIndexFromSnapshot(snap, tenant = null) {
       for (const k of [keyB, keyBF, keyBFZ]) { if (!s.deviceIdsByScope.has(k)) s.deviceIdsByScope.set(k, new Set()); s.deviceIdsByScope.get(k).add(id); }
       if (metaB && metaF) { const fb = s.floorsByBuilding.get(metaB) || new Set(); fb.add(metaF); s.floorsByBuilding.set(metaB, fb); }
       if (metaB && metaF) { const k = `${metaB}||${metaF}`; const zs = s.zonesByBF.get(k) || new Set(); if (metaZ) zs.add(metaZ); s.zonesByBF.set(k, zs); }
+    }
+    for (const n of nodes) {
+      if (typeOf(n) !== 'Building') continue;
+      const name = n.name || n.id;
+      if (!name) continue;
+      s.buildings.add(String(name));
+      const props = n.properties || {};
+      const latRaw = n.lat ?? n.latitude ?? props.lat ?? props.latitude;
+      const lonRaw = n.long ?? n.lon ?? n.longitude ?? props.long ?? props.lon ?? props.longitude;
+      const latNum = toNumeric(latRaw);
+      const lonNum = toNumeric(lonRaw);
+      if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
+        s.buildingCoords.set(String(name), { lat: latNum, lon: lonNum });
+      }
     }
     for (const n of nodes) {
       if (typeOf(n) !== 'Device') continue;
@@ -2226,6 +2555,7 @@ function prefetchSnapshotsAtStartup() {
         const tenant = snap.tenant || null;
         const idx = buildTenantIndexFromSnapshot(snap, tenant);
         if (idx) __indexStore.tenants.set(tenant || '__default__', idx);
+        resetBuildingCoordsCache();
       } catch {}
     }
   } catch {}
@@ -2238,6 +2568,7 @@ function updateIndexForTenant(tenant) {
       const snap = JSON.parse(fs.readFileSync(file, 'utf8'));
       const idx = buildTenantIndexFromSnapshot(snap, tenant);
       if (idx) __indexStore.tenants.set(tenant || '__default__', idx);
+      resetBuildingCoordsCache();
     }
   } catch {}
 }
@@ -2253,9 +2584,10 @@ const agent = createAgent({
 });
 
 ensureDatastores()
-  .then(() => {
+  .then(async () => {
     // Prefetch snapshot indexes for fast scope resolution
     prefetchSnapshotsAtStartup();
+    await prefetchWeatherForAllBuildings();
     // Warm up LLM for lower-latency first response
     if (USE_LLM) {
       try {

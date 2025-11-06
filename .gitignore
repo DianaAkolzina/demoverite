@@ -10,6 +10,8 @@ csvex_enriched/
 CSVex_s3/
 chroma/
 neo4j/
+data/weather_buildings/
+data/tests/
 
 # Logs and caches
 *.log
@@ -23,3 +25,7 @@ neo4j/
 
 # Env files
 .env
+
+# Generated reports
+data/traces_report.pdf
+data/traces_report.tex

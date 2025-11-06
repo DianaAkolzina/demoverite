@@ -6,7 +6,12 @@ This project lets you query and visualize building metrics (CO2, VOC, lux, occup
 
 ## Quick Start (Dev Controls)
 
-Prereqs: Docker, Docker Compose (optional), AWS credentials for S3, Neo4j connection, and optionally a running Chroma.
+Prereqs:  
+- Node.js 18+ (or Docker)  
+- Python 3.10+ (for Chroma/utility scripts)  
+- Neo4j database (local or hosted)  
+- AWS credentials (optional, only if syncing telemetry from S3)  
+- OpenWeather API key (optional but recommended — enables automatic weather backfill)
 
 1) Clone
 ```bash
@@ -33,6 +38,27 @@ Useful commands:
 - `scripts/dev_controls.sh logs` to tail app logs
  - `curl -X POST http://localhost:3000/api/graph/snapshot` to regenerate the default snapshot, or `-d '{"tenant":"<name>"}'` for a tenant-specific snapshot saved under `./data`.
 
+### Running Without External Data Sources
+
+If you do **not** have access to production S3 buckets or wish to run the UI against the sample telemetry already checked into the repo:
+
+1. Leave the AWS variables unset (or set `AWS_S3_ENABLED=0`). The server falls back to the CSVs under `CSVex_s3/`.
+2. Populate minimal Neo4j data by running `node scripts/populate_neo4j.js` (dev controls handle this automatically).
+3. Provide any OpenWeather API key — on startup the server backfills historical weather for every building between **2025‑09‑01** and **2025‑10‑31** and stores it in both `CSVex_s3/weather_buildings/` and `data/weather_buildings/`.  
+   - To customise the backfill window, set `WEATHER_BACKFILL_START` / `WEATHER_BACKFILL_END` in `.env`.
+4. Start the server: `NODE_ENV=production node server/index.js`.
+
+With those defaults the UI will render dashboards using the bundled telemetry and the freshly cached weather data; no S3 sync is required.
+
+### Requirements Summary
+
+| Service / Tool | Required | Notes |
+|----------------|----------|-------|
+| Neo4j          | ✅        | Used for topology, tenants, scopes. Local Aura or Docker deployment works. |
+| OpenWeather    | ⚠️ Recommended | Needed to prefetch / backfill weather per building. Without it, weather features are disabled. |
+| AWS S3         | ⚠️ Optional | Only necessary when mirroring live telemetry. Sample CSVs in `CSVex_s3/` are enough for local development. |
+| Chroma         | ⚠️ Optional | Required for vector search. Skip by omitting `CHROMA_URL` or setting `CHROMA_SKIP_INDEX=1`. |
+
 ## Telemetry via S3
 
 - The server reads device timeseries from a local mirror under `./CSVex_s3` (mounted into the container), populated by `scripts/s3_sync_telemetry.js` using your AWS credentials.
@@ -46,6 +72,7 @@ Useful commands:
 - S3 telemetry: `AWS_S3_ENABLED=1`, `AWS_S3_BUCKET`, `AWS_S3_REGION`, optional `AWS_S3_PREFIX`, `S3_LOCAL_DIR` (default `CSVex_s3`)
 - Chroma: `CHROMA_URL` (http URL)
 - Weather (optional): `OPENWEATHER_API_KEY` (per‑building fetch using Building lat/lon from Neo4j)
+- Weather historical window: `WEATHER_BACKFILL_START`, `WEATHER_BACKFILL_END` (defaults: `2025-09-01` to `2025-10-31`)
 
 LLM (optional):
 - `USE_LLM=true`, `LLM_PROVIDER=gemini`, `GEMINI_API_KEY=...`, `LLM_TEMPERATURE`, see `server/index.js`
