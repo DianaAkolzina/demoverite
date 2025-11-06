@@ -470,10 +470,22 @@ function parseUtcDate(str) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-async function fetchHistoricalWeather({ lat, lon, key, start, end }) {
+async function fetchHistoricalWeather({ lat, lon, key, start, end, existingMap }) {
   const startDt = parseUtcDate(start);
   const endDt = parseUtcDate(end);
   if (!startDt || !endDt || startDt > endDt) return [];
+  if (existingMap && existingMap.size) {
+    const timestamps = Array.from(existingMap.keys());
+    const minTs = Math.min(...timestamps);
+    const maxTs = Math.max(...timestamps);
+    if (Number.isFinite(minTs) && Number.isFinite(maxTs)) {
+      const needsStart = minTs > startDt.getTime();
+      const needsEnd = maxTs < endDt.getTime() + 24 * 60 * 60 * 1000;
+      if (!needsStart && !needsEnd) {
+        return [];
+      }
+    }
+  }
   const out = [];
   const seen = new Set();
   for (let dt = new Date(startDt); dt <= endDt; dt.setUTCDate(dt.getUTCDate() + 1)) {
@@ -561,41 +573,38 @@ async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
     try { fs.mkdirSync(dataDir, { recursive: true }); } catch {}
     const outFile = path.join(outDir, `${slug}.csv`);
     const outFileData = path.join(dataDir, `${slug}.csv`);
-    const header = 'ts,temp,humidity,pressure,wind_speed,wind_deg,clouds,weather_main,weather_desc\n';
-    const csv = header + rows.map(r => [r.ts, r.temp, r.humidity, r.pressure, r.wind_speed, r.wind_deg, r.clouds, JSON.stringify(r.weather_main).replace(/"/g,''), JSON.stringify(r.weather_desc).replace(/"/g,'')].join(',')).join('\n') + '\n';
-    fs.writeFileSync(outFile, csv);
-    try { fs.writeFileSync(outFileData, csv); } catch {}
+
+    const existingMap = new Map(rows.map(r => [Number(r.ts), r]));
 
     const historical = await fetchHistoricalWeather({
       lat: latNum,
       lon: lonNum,
       key,
       start: WEATHER_BACKFILL_START,
-      end: WEATHER_BACKFILL_END
+      end: WEATHER_BACKFILL_END,
+      existingMap
     });
-    if (historical.length) {
-      const existingMap = new Map(rows.map(r => [Number(r.ts), r]));
-      for (const h of historical) {
-        if (!existingMap.has(h.ts)) existingMap.set(h.ts, h);
-      }
-      const merged = Array.from(existingMap.values()).sort((a, b) => (a.ts || 0) - (b.ts || 0));
-      const header = 'ts,temp,humidity,pressure,wind_speed,wind_deg,clouds,weather_main,weather_desc\n';
-      const csvFull = header + merged.map(r => [
-        r.ts,
-        r.temp,
-        r.humidity,
-        r.pressure,
-        r.wind_speed,
-        r.wind_deg,
-        r.clouds,
-        JSON.stringify(r.weather_main ?? '').replace(/"/g,''),
-        JSON.stringify(r.weather_desc ?? '').replace(/"/g,'')
-      ].join(',')).join('\n') + '\n';
-      fs.writeFileSync(outFile, csvFull);
-      try { fs.writeFileSync(outFileData, csvFull); } catch {}
-      return { ok: true, rows: merged.length, file: outFile };
+
+    for (const h of historical) {
+      if (!existingMap.has(h.ts)) existingMap.set(h.ts, h);
     }
-    return { ok: true, rows: rows.length, file: outFile };
+
+    const finalRows = Array.from(existingMap.values()).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    const header = 'ts,temp,humidity,pressure,wind_speed,wind_deg,clouds,weather_main,weather_desc\n';
+    const csvFull = header + finalRows.map(r => [
+      r.ts,
+      r.temp,
+      r.humidity,
+      r.pressure,
+      r.wind_speed,
+      r.wind_deg,
+      r.clouds,
+      JSON.stringify(r.weather_main ?? '').replace(/"/g,''),
+      JSON.stringify(r.weather_desc ?? '').replace(/"/g,'')
+    ].join(',')).join('\n') + '\n';
+    fs.writeFileSync(outFile, csvFull);
+    try { fs.writeFileSync(outFileData, csvFull); } catch {}
+    return { ok: true, rows: finalRows.length, file: outFile };
   } catch (e) {
     return { error: String(e) };
   }
