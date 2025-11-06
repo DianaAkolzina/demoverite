@@ -10,6 +10,7 @@ csvex_enriched/
 CSVex_s3/
 chroma/
 neo4j/
+data/graph_snapshot*.json
 data/weather_buildings/
 data/tests/
 

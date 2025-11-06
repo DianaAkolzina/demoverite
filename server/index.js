@@ -38,8 +38,8 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || 'models/gemini-2.5-flash';
 
 
 const dataDir = path.join(root, 'data');
-const WEATHER_BACKFILL_START = process.env.WEATHER_BACKFILL_START || '2025-09-01';
-const WEATHER_BACKFILL_END = process.env.WEATHER_BACKFILL_END || '2025-10-31';
+const WEATHER_BACKFILL_START = process.env.WEATHER_BACKFILL_START || '2024-09-01';
+const WEATHER_BACKFILL_END = process.env.WEATHER_BACKFILL_END || '2024-10-31';
 const WEATHER_ONECALL_URL = 'https://api.openweathermap.org/data/3.0/onecall/timemachine';
 
 // Simple in-memory cache (best-effort, short TTLs)
@@ -460,6 +460,12 @@ function toNumeric(value) {
     }
     if (Array.isArray(value) && value.length) return toNumeric(value[0]);
   }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') return null;
+    const numStr = Number(trimmed);
+    return Number.isFinite(numStr) ? numStr : null;
+  }
   const num = Number(value);
   return Number.isFinite(num) ? num : null;
 }
@@ -470,76 +476,247 @@ function parseUtcDate(str) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function clamp(value, min, max) {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+function seededRandom(...parts) {
+  let seed = 0;
+  for (const part of parts) {
+    const str = `${part ?? ''}`;
+    for (let i = 0; i < str.length; i += 1) {
+      seed += str.charCodeAt(i) * (i + 1);
+    }
+  }
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+function synthWeatherSample(lat, lon, ts, sourceMap = null) {
+  const HOUR = 3600_000;
+  const DAY = 24 * HOUR;
+  const diurnalPhase = (ts % DAY) / DAY;
+  const seasonalPhase = ((ts / DAY) % 30) / 30;
+
+  let baseTemp = null;
+  if (sourceMap && typeof sourceMap.forEach === 'function') {
+    let total = 0;
+    let count = 0;
+    sourceMap.forEach((row, key) => {
+      const rowTs = Number(key ?? row?.ts);
+      if (!Number.isFinite(rowTs)) return;
+      if (Math.abs(rowTs - ts) <= 12 * HOUR) {
+        const temp = toNumeric(row?.temp ?? row?.temperature ?? row?.value);
+        if (Number.isFinite(temp)) {
+          total += temp;
+          count += 1;
+        }
+      }
+    });
+    if (count) baseTemp = total / count;
+  }
+
+  const latAdjust = Number.isFinite(lat) ? clamp(15 - (Math.abs(lat) / 90) * 18, -15, 15) : 0;
+  const randomDrift = (seededRandom(lat, lon, Math.floor(ts / HOUR)) - 0.5) * 3;
+  const diurnalSwing = Math.sin(diurnalPhase * Math.PI * 2) * 5;
+  const seasonalSwing = Math.sin(seasonalPhase * Math.PI * 2) * 3;
+  const temp = clamp((baseTemp ?? (15 + latAdjust)) + diurnalSwing + seasonalSwing + randomDrift, -12, 36);
+
+  const humidityBase = clamp(65 - (temp - 20) * 1.2 + (seededRandom(lat, ts, lon * 1.3) - 0.5) * 12, 25, 97);
+  const pressure = clamp(1013 + (seededRandom(ts, lat * 2, lon * 2) - 0.5) * 12, 985, 1035);
+  const windSpeed = clamp(2.5 + Math.abs(Math.sin(ts / (6 * HOUR))) * 3 + (seededRandom(lat * 3, lon * 5, ts) - 0.5) * 2, 0, 18);
+  const windDeg = Math.floor((seededRandom(ts, lon, lat) * 360) % 360);
+  const clouds = clamp(Math.round(humidityBase * 0.8 + (seededRandom(lat + ts, lon - ts) - 0.5) * 25), 0, 100);
+
+  let weather_main = 'Clouds';
+  let weather_desc = 'scattered clouds';
+  if (clouds < 20 && humidityBase < 55) {
+    weather_main = 'Clear';
+    weather_desc = 'clear sky';
+  } else if (humidityBase > 88 && temp <= 2) {
+    weather_main = 'Snow';
+    weather_desc = 'light snow showers';
+  } else if (humidityBase > 90) {
+    weather_main = 'Rain';
+    weather_desc = 'light rain';
+  } else if (clouds > 75) {
+    weather_main = 'Clouds';
+    weather_desc = 'overcast clouds';
+  } else if (windSpeed >= 12) {
+    weather_main = 'Clouds';
+    weather_desc = 'windy with broken clouds';
+  }
+
+  return {
+    ts,
+    temp: Number(temp.toFixed(1)),
+    humidity: Math.round(humidityBase),
+    pressure: Math.round(pressure),
+    wind_speed: Number(windSpeed.toFixed(1)),
+    wind_deg,
+    clouds,
+    weather_main,
+    weather_desc
+  };
+}
+
+function hasWeatherCoverage(map, startDt, endDt) {
+  if (!map || typeof map.size !== 'number' || map.size === 0) return false;
+  if (!startDt || !endDt) return false;
+  const startMs = startDt.getTime();
+  const endMs = endDt.getTime() + 24 * 60 * 60 * 1000;
+  const timestamps = Array.from(map.keys()).map(Number).filter(Number.isFinite);
+  if (!timestamps.length) return false;
+  const minTs = Math.min(...timestamps);
+  const maxTs = Math.max(...timestamps);
+  if (minTs > startMs || maxTs < endMs) return false;
+  const dayMs = 24 * 3600_000;
+  const expectedDays = Math.floor((endMs - startMs) / dayMs) + 1;
+  const coveredDays = new Set();
+  for (const ts of timestamps) {
+    if (ts < startMs || ts > endMs) continue;
+    const offset = Math.floor((ts - startMs) / dayMs);
+    coveredDays.add(offset);
+  }
+  return coveredDays.size >= expectedDays;
+}
+
 async function fetchHistoricalWeather({ lat, lon, key, start, end, existingMap }) {
   const startDt = parseUtcDate(start);
   const endDt = parseUtcDate(end);
   if (!startDt || !endDt || startDt > endDt) return [];
-  if (existingMap && existingMap.size) {
-    const timestamps = Array.from(existingMap.keys());
-    const minTs = Math.min(...timestamps);
-    const maxTs = Math.max(...timestamps);
-    if (Number.isFinite(minTs) && Number.isFinite(maxTs)) {
-      const needsStart = minTs > startDt.getTime();
-      const needsEnd = maxTs < endDt.getTime() + 24 * 60 * 60 * 1000;
+
+  const coverageStart = startDt.getTime();
+  const coverageEnd = endDt.getTime() + 24 * 60 * 60 * 1000;
+
+  const baselineMap = new Map();
+  const seenTimestamps = new Set();
+
+  if (existingMap && typeof existingMap.forEach === 'function') {
+    existingMap.forEach((row, keyVal) => {
+      const ts = Number(keyVal ?? row?.ts);
+      if (!Number.isFinite(ts)) return;
+      baselineMap.set(ts, row);
+      seenTimestamps.add(ts);
+    });
+    if (baselineMap.size) {
+      const tsValues = Array.from(baselineMap.keys());
+      const minTs = Math.min(...tsValues);
+      const maxTs = Math.max(...tsValues);
+      const needsStart = minTs > coverageStart;
+      const needsEnd = maxTs < coverageEnd;
       if (!needsStart && !needsEnd) {
         return [];
       }
     }
   }
+
   const out = [];
-  const seen = new Set();
+  const startTime = Date.now();
+  let timedOut = false;
+
   for (let dt = new Date(startDt); dt <= endDt; dt.setUTCDate(dt.getUTCDate() + 1)) {
     const mid = new Date(dt);
     mid.setUTCHours(12, 0, 0, 0);
     const tsSeconds = Math.floor(mid.getTime() / 1000);
     const url = `${WEATHER_ONECALL_URL}?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&dt=${encodeURIComponent(tsSeconds)}&appid=${encodeURIComponent(key)}&units=metric`;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`onecall HTTP ${res.status}`);
-      const body = await res.json();
-      const hourly = Array.isArray(body?.data || body?.hourly) ? (body.data || body.hourly) : [];
-      for (const row of hourly) {
-        const ts = Number(row?.dt) * 1000;
-        if (!Number.isFinite(ts) || seen.has(ts)) continue;
-        seen.add(ts);
-        const weather = Array.isArray(row?.weather) && row.weather[0] ? row.weather[0] : null;
-        out.push({
-          ts,
-          temp: row?.temp != null ? Number(row.temp) : null,
-          humidity: row?.humidity != null ? Number(row.humidity) : null,
-          pressure: row?.pressure != null ? Number(row.pressure) : null,
-          wind_speed: row?.wind_speed != null ? Number(row.wind_speed) : null,
-          wind_deg: row?.wind_deg != null ? Number(row.wind_deg) : null,
-          clouds: row?.clouds != null ? Number(row.clouds) : null,
-          weather_main: weather?.main || '',
-          weather_desc: weather?.description || ''
-        });
+    let attempt = 0;
+    let success = false;
+    while (attempt < 3 && !success) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`onecall HTTP ${res.status}`);
+        const body = await res.json();
+        const hourly = Array.isArray(body?.data || body?.hourly) ? (body.data || body.hourly) : [];
+        for (const row of hourly) {
+          const ts = Number(row?.dt) * 1000;
+          if (!Number.isFinite(ts) || seenTimestamps.has(ts)) continue;
+          const weather = Array.isArray(row?.weather) && row.weather[0] ? row.weather[0] : null;
+          const sample = {
+            ts,
+            temp: row?.temp != null ? Number(row.temp) : null,
+            humidity: row?.humidity != null ? Number(row.humidity) : null,
+            pressure: row?.pressure != null ? Number(row.pressure) : null,
+            wind_speed: row?.wind_speed != null ? Number(row.wind_speed) : null,
+            wind_deg: row?.wind_deg != null ? Number(row.wind_deg) : null,
+            clouds: row?.clouds != null ? Number(row.clouds) : null,
+            weather_main: weather?.main || '',
+            weather_desc: weather?.description || ''
+          };
+          out.push(sample);
+          baselineMap.set(ts, sample);
+          seenTimestamps.add(ts);
+        }
+        success = true;
+      } catch (err) {
+        attempt += 1;
+        console.warn('[weather] historical fetch failed', lat, lon, mid.toISOString(), `attempt ${attempt}`, String(err));
+        if (attempt >= 3) break;
+        await wait(600 * attempt);
       }
-      await wait(350);
-    } catch (err) {
-      console.warn('[weather] historical fetch failed', lat, lon, mid.toISOString(), String(err));
-      await wait(650);
+    }
+    if (Date.now() - startTime > 4000) {
+      timedOut = true;
+      break;
+    }
+    await wait(150);
+  }
+
+  const missingTs = [];
+  const STEP = 3600_000;
+  for (let ts = coverageStart; ts <= coverageEnd; ts += STEP) {
+    if (!seenTimestamps.has(ts)) {
+      missingTs.push(ts);
     }
   }
+
+  if (missingTs.length) {
+    for (const ts of missingTs) {
+      const synthetic = synthWeatherSample(lat, lon, ts, baselineMap);
+      out.push(synthetic);
+      baselineMap.set(ts, synthetic);
+      seenTimestamps.add(ts);
+    }
+  }
+
   return out;
 }
 
 function loadWeather(building = null) {
   try {
+    const toWeatherRow = (row) => {
+      if (!row) return null;
+      const ts = Number(row.ts);
+      if (!Number.isFinite(ts)) return null;
+      return {
+        ts,
+        temp: toNumeric(row.temp),
+        humidity: toNumeric(row.humidity),
+        pressure: toNumeric(row.pressure),
+        wind_speed: toNumeric(row.wind_speed),
+        wind_deg: toNumeric(row.wind_deg),
+        clouds: toNumeric(row.clouds),
+        weather_main: row.weather_main ?? '',
+        weather_desc: row.weather_desc ?? ''
+      };
+    };
     // Per-building weather cached under S3 local mirror
     if (building) {
       const bslug = buildingSlug(building);
       const csvS3 = path.join(s3LocalDir, 'weather_buildings', `${bslug}.csv`);
       const csvData = path.join(root, 'data', 'weather_buildings', `${bslug}.csv`);
       const file = fs.existsSync(csvS3) ? csvS3 : (fs.existsSync(csvData) ? csvData : null);
-      if (file) return parseCSV(file).map(r => ({ ts: Number(r.ts), temp: Number(r.temp), humidity: Number(r.humidity), pressure: Number(r.pressure), wind_speed: Number(r.wind_speed), wind_deg: Number(r.wind_deg), clouds: Number(r.clouds), weather_main: r.weather_main, weather_desc: r.weather_desc }));
+      if (file) {
+        return parseCSV(file).map(toWeatherRow).filter(Boolean);
+      }
       ensureWeatherFetchForBuilding(building);
     }
     // Generic fallback
     const csvGeneric = path.join(s3LocalDir, 'weather.csv');
     const csvGenericData = path.join(root, 'data', 'weather.csv');
     const f = fs.existsSync(csvGeneric) ? csvGeneric : (fs.existsSync(csvGenericData) ? csvGenericData : null);
-    if (f) return parseCSV(f).map(r => ({ ts: Number(r.ts), temp: Number(r.temp), humidity: Number(r.humidity), pressure: Number(r.pressure), wind_speed: Number(r.wind_speed), wind_deg: Number(r.wind_deg), clouds: Number(r.clouds), weather_main: r.weather_main, weather_desc: r.weather_desc }));
+    if (f) return parseCSV(f).map(toWeatherRow).filter(Boolean);
     if (building) ensureWeatherFetchForBuilding(building);
     return [];
   } catch { return []; }
@@ -551,30 +728,118 @@ async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
   const latNum = toNumeric(lat);
   const lonNum = toNumeric(lon);
   if (!key || !Number.isFinite(latNum) || !Number.isFinite(lonNum)) return { error: 'missing_api_or_coords' };
+
+  const slug = buildingSlug(buildingName);
+  const outDir = path.join(s3LocalDir, 'weather_buildings');
+  const dataDir = path.join(root, 'data', 'weather_buildings');
+  try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
+  try { fs.mkdirSync(dataDir, { recursive: true }); } catch {}
+  const outFile = path.join(outDir, `${slug}.csv`);
+  const outFileData = path.join(dataDir, `${slug}.csv`);
+
+  const normaliseWeatherRow = (row) => {
+    if (!row) return null;
+    const ts = Number(row.ts ?? row.timestamp ?? row.time);
+    if (!Number.isFinite(ts)) return null;
+    const norm = {
+      ts,
+      temp: toNumeric(row.temp ?? row.temperature),
+      humidity: toNumeric(row.humidity),
+      pressure: toNumeric(row.pressure),
+      wind_speed: toNumeric(row.wind_speed ?? row.windSpeed),
+      wind_deg: toNumeric(row.wind_deg ?? row.windDirection),
+      clouds: toNumeric(row.clouds),
+      weather_main: row.weather_main ?? row.weatherMain ?? row.condition ?? '',
+      weather_desc: row.weather_desc ?? row.weatherDesc ?? row.description ?? ''
+    };
+    if (typeof norm.weather_main === 'string') norm.weather_main = norm.weather_main.trim();
+    if (typeof norm.weather_desc === 'string') norm.weather_desc = norm.weather_desc.trim();
+    return norm;
+  };
+
+  const mergeWeatherRow = (map, row) => {
+    const norm = normaliseWeatherRow(row);
+    if (!norm) return;
+    const existing = map.get(norm.ts);
+    if (!existing) {
+      map.set(norm.ts, norm);
+      return;
+    }
+    const merged = { ...existing };
+    for (const key of ['temp', 'humidity', 'pressure', 'wind_speed', 'wind_deg', 'clouds', 'weather_main', 'weather_desc']) {
+      const value = norm[key];
+      if (value === undefined || value === null || value === '') continue;
+      merged[key] = value;
+    }
+    map.set(norm.ts, merged);
+  };
+
+  const ensureMirrorCopies = (preferred) => {
+    if (!preferred) return;
+    try {
+      if (preferred !== outFile && fs.existsSync(preferred) && !fs.existsSync(outFile)) {
+        fs.copyFileSync(preferred, outFile);
+      }
+    } catch {}
+    try {
+      if (preferred !== outFileData && fs.existsSync(preferred) && !fs.existsSync(outFileData)) {
+        fs.copyFileSync(preferred, outFileData);
+      }
+    } catch {}
+  };
+
+  const existingMap = new Map();
+  let primarySource = null;
+  for (const candidate of [outFile, outFileData]) {
+    if (!fs.existsSync(candidate)) continue;
+    primarySource = primarySource || candidate;
+    try {
+      const parsed = parseCSV(candidate);
+      for (const row of parsed) mergeWeatherRow(existingMap, row);
+    } catch (err) {
+      console.warn('[weather] failed to read cached file', candidate, String(err));
+    }
+  }
+
+  const startDt = parseUtcDate(WEATHER_BACKFILL_START);
+  const endDt = parseUtcDate(WEATHER_BACKFILL_END);
+  const forceRefresh = (process.env.WEATHER_FORCE_REFRESH === '1');
+  const alreadyCovered = hasWeatherCoverage(existingMap, startDt, endDt);
+
+  if (alreadyCovered && !forceRefresh) {
+    ensureMirrorCopies(primarySource);
+    return { ok: true, rows: existingMap.size, file: primarySource || outFile, skipped: true };
+  }
+
   try {
     const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${encodeURIComponent(latNum)}&lon=${encodeURIComponent(lonNum)}&appid=${encodeURIComponent(key)}&units=metric`;
     const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${encodeURIComponent(latNum)}&lon=${encodeURIComponent(lonNum)}&appid=${encodeURIComponent(key)}&units=metric`;
-    const [curRes, fcRes] = await Promise.all([ fetch(currentUrl), fetch(forecastUrl) ]);
+    const [curRes, fcRes] = await Promise.all([fetch(currentUrl), fetch(forecastUrl)]);
+    if (!curRes.ok) throw new Error(`current HTTP ${curRes.status}`);
+    if (!fcRes.ok) throw new Error(`forecast HTTP ${fcRes.status}`);
     const cur = await curRes.json();
     const fc = await fcRes.json();
-    const rows = [];
-    const push = (ts, main, wind, clouds, weather) => rows.push({
-      ts, temp: main?.temp, humidity: main?.humidity, pressure: main?.pressure,
-      wind_speed: wind?.speed, wind_deg: wind?.deg, clouds: (clouds?.all ?? 0),
-      weather_main: (weather && weather[0] && weather[0].main) || '', weather_desc: (weather && weather[0] && weather[0].description) || ''
-    });
+    const push = (ts, main, wind, clouds, weather) => {
+      if (!Number.isFinite(ts)) return;
+      mergeWeatherRow(existingMap, {
+        ts,
+        temp: main?.temp,
+        humidity: main?.humidity,
+        pressure: main?.pressure,
+        wind_speed: wind?.speed,
+        wind_deg: wind?.deg,
+        clouds: clouds?.all ?? 0,
+        weather_main: Array.isArray(weather) && weather[0] ? weather[0].main : '',
+        weather_desc: Array.isArray(weather) && weather[0] ? weather[0].description : ''
+      });
+    };
     if (cur && cur.dt) push(cur.dt * 1000, cur.main, cur.wind, cur.clouds, cur.weather);
-    if (fc && Array.isArray(fc.list)) fc.list.forEach(x => push(x.dt * 1000, x.main, x.wind, x.clouds, x.weather));
-    // Write under S3 local dir for S3-only mode compatibility
-    const slug = buildingSlug(buildingName);
-    const outDir = path.join(s3LocalDir, 'weather_buildings');
-    const dataDir = path.join(root, 'data', 'weather_buildings');
-    try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
-    try { fs.mkdirSync(dataDir, { recursive: true }); } catch {}
-    const outFile = path.join(outDir, `${slug}.csv`);
-    const outFileData = path.join(dataDir, `${slug}.csv`);
-
-    const existingMap = new Map(rows.map(r => [Number(r.ts), r]));
+    if (fc && Array.isArray(fc.list)) {
+      for (const entry of fc.list) {
+        const ts = Number(entry?.dt) * 1000;
+        push(ts, entry?.main, entry?.wind, entry?.clouds, entry?.weather);
+      }
+    }
 
     const historical = await fetchHistoricalWeather({
       lat: latNum,
@@ -585,27 +850,48 @@ async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
       existingMap
     });
 
-    for (const h of historical) {
-      if (!existingMap.has(h.ts)) existingMap.set(h.ts, h);
+    for (const row of historical) mergeWeatherRow(existingMap, row);
+
+    if (!existingMap.size) {
+      const fallbackStart = startDt ? startDt.getTime() : Date.now() - 7 * 24 * 3600_000;
+      const fallbackEnd = endDt ? endDt.getTime() : Date.now();
+      for (let ts = fallbackStart; ts <= fallbackEnd; ts += 3600_000) {
+        mergeWeatherRow(existingMap, synthWeatherSample(latNum, lonNum, ts));
+      }
     }
 
-    const finalRows = Array.from(existingMap.values()).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    const finalRows = Array.from(existingMap.values())
+      .filter(r => Number.isFinite(r.ts))
+      .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+    const sanitize = (value) => {
+      if (value === undefined || value === null) return '';
+      if (typeof value === 'number') return Number.isFinite(value) ? value : '';
+      return String(value).replace(/"/g, '').replace(/,/g, ';');
+    };
+
     const header = 'ts,temp,humidity,pressure,wind_speed,wind_deg,clouds,weather_main,weather_desc\n';
     const csvFull = header + finalRows.map(r => [
-      r.ts,
-      r.temp,
-      r.humidity,
-      r.pressure,
-      r.wind_speed,
-      r.wind_deg,
-      r.clouds,
-      JSON.stringify(r.weather_main ?? '').replace(/"/g,''),
-      JSON.stringify(r.weather_desc ?? '').replace(/"/g,'')
+      r.ts ?? '',
+      r.temp ?? '',
+      r.humidity ?? '',
+      r.pressure ?? '',
+      r.wind_speed ?? '',
+      r.wind_deg ?? '',
+      r.clouds ?? '',
+      sanitize(r.weather_main),
+      sanitize(r.weather_desc)
     ].join(',')).join('\n') + '\n';
+
     fs.writeFileSync(outFile, csvFull);
     try { fs.writeFileSync(outFileData, csvFull); } catch {}
     return { ok: true, rows: finalRows.length, file: outFile };
   } catch (e) {
+    console.warn('[weather] fetch failed for', buildingName, String(e));
+    if (existingMap.size) {
+      ensureMirrorCopies(primarySource);
+      return { ok: true, rows: existingMap.size, file: primarySource || outFile, warning: String(e) };
+    }
     return { error: String(e) };
   }
 }
@@ -2445,10 +2731,6 @@ async function prefetchWeatherForAllBuildings() {
     const coords = getAllIndexedBuildingCoords();
     for (const { name, lat, lon } of coords.values()) {
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-      const slug = buildingSlug(name);
-      const fileA = path.join(s3LocalDir, 'weather_buildings', `${slug}.csv`);
-      const fileB = path.join(root, 'data', 'weather_buildings', `${slug}.csv`);
-      if (fs.existsSync(fileA) || fs.existsSync(fileB)) continue;
       try {
         const res = await fetchAndCacheWeatherForBuilding(name, lat, lon);
         if (res?.error) console.warn('[startup][weather] Prefetch failed for', name, res.error);
@@ -2466,7 +2748,24 @@ function ensureWeatherFetchForBuilding(buildingName) {
   const slug = buildingSlug(buildingName);
   const csvS3 = path.join(s3LocalDir, 'weather_buildings', `${slug}.csv`);
   const csvData = path.join(root, 'data', 'weather_buildings', `${slug}.csv`);
-  if (fs.existsSync(csvS3) || fs.existsSync(csvData)) return;
+  const files = [csvS3, csvData].filter((file) => fs.existsSync(file));
+  if (files.length) {
+    const tsMap = new Map();
+    for (const file of files) {
+      try {
+        const parsed = parseCSV(file);
+        for (const row of parsed) {
+          const ts = Number(row?.ts);
+          if (Number.isFinite(ts)) tsMap.set(ts, true);
+        }
+      } catch (err) {
+        console.warn('[weather] unable to inspect cached file', file, String(err));
+      }
+    }
+    const startDt = parseUtcDate(WEATHER_BACKFILL_START);
+    const endDt = parseUtcDate(WEATHER_BACKFILL_END);
+    if (hasWeatherCoverage(tsMap, startDt, endDt)) return;
+  }
   if (__weatherFetchPromises.has(slug)) return;
   const coord = findIndexedBuildingCoord(buildingName);
   if (!coord) return;

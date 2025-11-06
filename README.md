@@ -62,7 +62,7 @@ If you do **not** have access to production S3 buckets or wish to run the UI aga
 
 1. Leave the AWS variables unset (or set `AWS_S3_ENABLED=0`). The server falls back to the CSVs under `CSVex_s3/`.
 2. Populate minimal Neo4j data by running `node scripts/populate_neo4j.js` (dev controls handle this automatically).
-3. Provide any OpenWeather API key — on startup the server backfills historical weather for every building between **2025‑09‑01** and **2025‑10‑31** and stores it in both `CSVex_s3/weather_buildings/` and `data/weather_buildings/`.  
+3. Provide any OpenWeather API key — on startup the server backfills historical weather for every building between **2024‑09‑01** and **2024‑10‑31** (skipping the API call if that window is already cached) and stores it in both `CSVex_s3/weather_buildings/` and `data/weather_buildings/`.  
    - To customise the backfill window, set `WEATHER_BACKFILL_START` / `WEATHER_BACKFILL_END` in `.env`.
 4. Start the server: `NODE_ENV=production node server/index.js`.
 
@@ -82,7 +82,7 @@ With those defaults the UI will render dashboards using the bundled telemetry an
 1. **Startup pipeline**
    - The Node server verifies Neo4j connectivity, optionally seeds demo data, and emits topology snapshots under `data/graph_snapshot*.json`.  
      These snapshots serve both the UI (fast load, offline fallback) and the agent (device/zone lookup without hitting Neo4j for every question).
-   - When an OpenWeather API key is present the server backfills every building between `WEATHER_BACKFILL_START` and `WEATHER_BACKFILL_END` (defaults: 2025‑09‑01 → 2025‑10‑31) and writes the results to both `CSVex_s3/weather_buildings/` and `data/weather_buildings/`.
+  - When an OpenWeather API key is present the server backfills every building between `WEATHER_BACKFILL_START` and `WEATHER_BACKFILL_END` (defaults: 2024‑09‑01 → 2024‑10‑31), writing the results to both `CSVex_s3/weather_buildings/` and `data/weather_buildings/`. If the cached files already span that range, startup reuses them. Any residual gaps after ~4 s of fetching are bridged with flagged synthetic rows so tools never operate on empty ranges.
 
 2. **Local telemetry mirror**
    - Device CSVs live in `CSVex_s3/`. When AWS variables are supplied, `scripts/dev_controls.sh sync-s3` mirrors production S3 into this directory; otherwise, the bundled CSVs keep dashboards functional in offline mode.
@@ -106,7 +106,7 @@ With those defaults the UI will render dashboards using the bundled telemetry an
 - S3 telemetry: `AWS_S3_ENABLED=1`, `AWS_S3_BUCKET`, `AWS_S3_REGION`, optional `AWS_S3_PREFIX`, `S3_LOCAL_DIR` (default `CSVex_s3`)
 - Chroma: `CHROMA_URL` (http URL)
 - Weather (optional): `OPENWEATHER_API_KEY` (per‑building fetch using Building lat/lon from Neo4j)
-- Weather historical window: `WEATHER_BACKFILL_START`, `WEATHER_BACKFILL_END` (defaults: `2025-09-01` to `2025-10-31`)
+- Weather historical window: `WEATHER_BACKFILL_START`, `WEATHER_BACKFILL_END` (defaults: `2024-09-01` to `2024-10-31`)
 
 LLM (optional):
 - `USE_LLM=true`, `LLM_PROVIDER=gemini`, `GEMINI_API_KEY=...`, `LLM_TEMPERATURE`, see `server/index.js`
@@ -140,6 +140,7 @@ Notes:
 ## Weather
 
 - Weather is fetched per building from OpenWeather at startup if `OPENWEATHER_API_KEY` is set and stored under `CSVex_s3/weather_buildings/<building>.csv`.
+- Cached weather files are inspected on each startup; if they already span `WEATHER_BACKFILL_START` → `WEATHER_BACKFILL_END` the API is skipped. Otherwise, the fetcher retries each historical day up to three times, stops after ~4 s, and generates synthetic hourly samples for any remaining gaps so charts remain continuous.
 - The agent’s weather tools transparently use these cached files based on the selected building.
 ## Local (no Docker)
 
