@@ -14,16 +14,6 @@ const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
 const RESULTS_DIR = process.env.TEST_RESULTS_DIR || path.join('data', 'tests');
 const REQUIRED_SCENARIO_COUNT = Number(process.env.TEST_SCENARIO_COUNT || 60);
 const DURATIONS_HOURS = [6, 12, 24, 48, 72, 96, 168, 240, 336, 504];
-const METRIC_PREFERENCE = [
-  'humidity',
-  'co2',
-  'people_count',
-  'temperature',
-  'lux',
-  'occupancy',
-  'total_kwh',
-  'voc'
-];
 
 async function fetchJson(url, init) {
   const res = await fetch(`${BASE_URL}${url}`, init);
@@ -80,31 +70,114 @@ function collectMetrics(meta) {
   return Array.from(metrics);
 }
 
-function chooseMetric(metrics) {
-  if (!metrics.length) return null;
-  const lower = metrics.map((m) => String(m).toLowerCase());
-  for (const pref of METRIC_PREFERENCE) {
-    const idx = lower.findIndex((m) => m.includes(pref));
-    if (idx >= 0) return metrics[idx];
-  }
-  return metrics[0];
-}
-
 function normaliseList(value) {
   return Array.isArray(value) ? value.map((v) => String(v)) : [];
 }
 
-function metricMatches(metrics, regex) {
-  return metrics.some((m) => regex.test(String(m).toLowerCase()));
+const DAY_MS = 24 * 60 * 60 * 1000;
+const RANGE_START_MS = Date.UTC(2024, 8, 1); // 1 Sept 2024
+const RANGE_MAX_START_MS = Date.UTC(2024, 9, 3); // allows 14-day window ending by 17 Oct
+const RANGE_END_LIMIT_MS = Date.UTC(2024, 9, 17, 23, 59, 59, 999);
+
+function createTimeRange() {
+  const totalDays = Math.floor((RANGE_MAX_START_MS - RANGE_START_MS) / DAY_MS);
+  const offsetDays = Math.floor(Math.random() * (totalDays + 1));
+  const start = RANGE_START_MS + offsetDays * DAY_MS;
+  const durationDays = 7 + Math.floor(Math.random() * 8); // 7-14 days
+  let end = start + (durationDays * DAY_MS) - 1;
+  if (end > RANGE_END_LIMIT_MS) end = RANGE_END_LIMIT_MS;
+  return { start, end };
 }
 
-function pickMetricMatching(metrics, regex, fallback = null) {
-  const match = metrics.find((m) => regex.test(String(m).toLowerCase()));
-  return match || fallback;
+function formatRangeText(range) {
+  const startIso = new Date(range.start).toISOString().slice(0, 10);
+  const endIso = new Date(range.end).toISOString().slice(0, 10);
+  return `${startIso} to ${endIso}`;
 }
 
-function randomDuration(index) {
-  return DURATIONS_HOURS[index % DURATIONS_HOURS.length];
+function formatMetricName(metric = '') {
+  if (!metric) return 'the metric';
+  return String(metric)
+    .replace(/_/g, ' ')
+    .replace(/\b([a-z])/g, (m) => m.toUpperCase());
+}
+
+function findDeviceMatch(devices, regex) {
+  for (const device of devices) {
+    const idx = device.metricsLC.findIndex((m) => regex.test(m));
+    if (idx >= 0) {
+      return {
+        device,
+        metric: device.metrics[idx] || device.metricsLC[idx],
+        metricLC: device.metricsLC[idx]
+      };
+    }
+  }
+  return null;
+}
+
+function findDevicePair(devices, regexA, regexB) {
+  const first = findDeviceMatch(devices, regexA);
+  const second = findDeviceMatch(devices.filter((d) => d !== (first && first.device)), regexB);
+  if (first && second) return { first, second };
+  if (first) {
+    const fallbackSecond = devices.find((d) => d !== first.device);
+    if (fallbackSecond) {
+      return {
+        first,
+        second: {
+          device: fallbackSecond,
+          metric: fallbackSecond.metrics[0] || 'value',
+          metricLC: fallbackSecond.metricsLC[0] || 'value'
+        }
+      };
+    }
+  }
+  return null;
+}
+
+function getZoneForDevice(ctx, device) {
+  if (!device) return null;
+  const zoneName = ctx.deviceZoneMap[device.id] || device.zone || null;
+  if (!zoneName) return null;
+  return ctx.zoneByName.get(zoneName) || null;
+}
+
+function createScenarioScope(ctx, { devices = [], zone = null, additionalZones = [] } = {}) {
+  const deviceIds = devices.map((d) => d.id).filter(Boolean);
+  const floors = new Set();
+  const zones = new Set();
+
+  if (zone) {
+    if (zone.floor) floors.add(zone.floor);
+    if (zone.name) zones.add(zone.name);
+  }
+
+  for (const dev of devices) {
+    if (dev.floor) floors.add(dev.floor);
+    const z = ctx.deviceZoneMap[dev.id] || dev.zone;
+    if (z) zones.add(z);
+  }
+
+  for (const extraZone of additionalZones) {
+    if (extraZone) zones.add(extraZone);
+  }
+
+  const deviceZones = {};
+  for (const id of deviceIds) {
+    deviceZones[id] = ctx.deviceZoneMap[id] || (zone ? zone.name : null) || null;
+  }
+
+  return createScope({
+    tenant: ctx.tenant,
+    building: ctx.building,
+    floor: zone?.floor || null,
+    zone: zone?.name || null,
+    floors: Array.from(floors).filter(Boolean),
+    zones: Array.from(zones).filter(Boolean),
+    devices: deviceIds,
+    deviceZones
+  });
 }
 
 function createScope({ tenant, building, floor = null, zone = null, floors = [], zones = [], devices = [], deviceZones = {} }) {
@@ -129,46 +202,20 @@ function pushScenario(list, scenario) {
   list.push(scenario);
 }
 
-function buildZoneDeviceMap(zones = []) {
-  const map = {};
-  for (const zone of zones) {
-    for (const device of zone.devices || []) {
-      map[device] = zone.name || null;
-    }
-  }
-  return map;
-}
-
-function defaultMetricPairs(metrics) {
-  const pairs = [];
-  if (metricMatches(metrics, /(people_count|occupancy)/) && metricMatches(metrics, /co2/)) {
-    pairs.push(['co2', 'people_count']);
-  }
-  if (metricMatches(metrics, /(temperature|temp)/) && metricMatches(metrics, /humidity/)) {
-    pairs.push(['temperature', 'humidity']);
-  }
-  if (metricMatches(metrics, /lux/) && metricMatches(metrics, /(people_count|occupancy)/)) {
-    pairs.push(['lux', 'people_count']);
-  }
-  return pairs;
-}
-
 async function discoverScenarios() {
   const scenarios = [];
+  const buildingContexts = [];
   const tenantsResp = await fetchJson('/api/tenants').catch(() => ({ tenants: [] }));
   const tenantNames = Array.isArray(tenantsResp?.tenants) && tenantsResp.tenants.length
     ? tenantsResp.tenants
     : [null];
 
   for (const tenant of tenantNames) {
-    if (scenarios.length >= REQUIRED_SCENARIO_COUNT) break;
-
     const tenantParam = tenant ? `?tenant=${encodeURIComponent(tenant)}` : '';
     const buildingsResp = await fetchJson(`/api/buildings${tenantParam}`).catch(() => ({ buildings: [] }));
     const buildings = Array.isArray(buildingsResp?.buildings) ? buildingsResp.buildings : [];
 
     for (const building of buildings) {
-      if (scenarios.length >= REQUIRED_SCENARIO_COUNT) break;
       const buildingName = building.name;
       if (!buildingName) continue;
 
@@ -180,301 +227,365 @@ async function discoverScenarios() {
       if (!meta) continue;
 
       const buildingMetrics = collectMetrics(meta);
-      const buildingDevices = [];
-      const buildingFloors = new Set();
-      const buildingZones = new Set();
-      const deviceZoneMap = {};
-
-      const groups = Array.isArray(meta.groups) ? meta.groups : [];
-      for (const group of groups) {
-        for (const floor of group.floors || []) {
-          buildingFloors.add(floor.floor);
-          for (const zone of floor.zones || []) {
-            buildingZones.add(zone.zone);
-            for (const device of zone.devices || []) {
-              if (device.name) {
-                buildingDevices.push(device.name);
-                deviceZoneMap[device.name] = zone.zone || null;
-              }
-            }
-          }
-        }
-      }
-
       if (!buildingMetrics.length) continue;
 
-      const baseScope = createScope({
+      const deviceZoneMap = {};
+      const deviceMap = new Map();
+      const zoneMap = new Map();
+      const buildingFloors = new Set();
+
+      const groups = Array.isArray(meta.groups) ? meta.groups : [];
+      groups.forEach((group) => {
+        (group.floors || []).forEach((floor) => {
+          const floorName = floor.floor || null;
+          if (floorName) buildingFloors.add(floorName);
+          (floor.zones || []).forEach((zone, zoneIdx) => {
+            const zoneName = zone.zone || `${floorName || 'Floor'} Zone ${zoneIdx + 1}`;
+            const zoneKey = zoneName;
+            if (!zoneMap.has(zoneKey)) {
+              zoneMap.set(zoneKey, {
+                name: zoneName,
+                floor: floorName,
+                deviceIds: new Set(),
+                metricsSet: new Set()
+              });
+            }
+            const zoneEntry = zoneMap.get(zoneKey);
+
+            (zone.devices || []).forEach((device) => {
+              const rawId = device.cloudId || device.deviceId || device.id || device.name;
+              if (!rawId) return;
+              const deviceId = String(rawId);
+              let deviceEntry = deviceMap.get(deviceId);
+              if (!deviceEntry) {
+                deviceEntry = {
+                  id: deviceId,
+                  name: device.name || deviceId,
+                  zone: zoneName,
+                  floor: floorName,
+                  type: device.deviceType || device.type || null,
+                  metricsSet: new Set()
+                };
+                deviceMap.set(deviceId, deviceEntry);
+              }
+              const metrics = Array.isArray(device.metrics)
+                ? device.metrics.map((m) => String(m)).filter(Boolean)
+                : [];
+              metrics.forEach((m) => deviceEntry.metricsSet.add(m));
+              if (!deviceEntry.zone && zoneName) deviceEntry.zone = zoneName;
+              if (!deviceEntry.floor && floorName) deviceEntry.floor = floorName;
+              zoneEntry.deviceIds.add(deviceId);
+              metrics.forEach((m) => zoneEntry.metricsSet.add(m));
+              deviceZoneMap[deviceId] = zoneName;
+            });
+          });
+        });
+      });
+
+      const devices = Array.from(deviceMap.values()).map((device) => {
+        const metrics = Array.from(device.metricsSet);
+        return {
+          id: device.id,
+          name: device.name,
+          zone: device.zone || null,
+          floor: device.floor || null,
+          type: device.type || null,
+          metrics,
+          metricsLC: metrics.map((m) => m.toLowerCase())
+        };
+      });
+
+      if (!devices.length) continue;
+
+      const zones = Array.from(zoneMap.values()).map((zone) => {
+        const zoneDevices = Array.from(zone.deviceIds)
+          .map((id) => deviceMap.get(id))
+          .filter(Boolean);
+        if (!zoneDevices.length) return null;
+        return {
+          name: zone.name,
+          floor: zone.floor || null,
+          devices: zoneDevices.map((d) => ({
+            id: d.id,
+            name: d.name,
+            zone: d.zone || zone.name,
+            floor: d.floor || zone.floor,
+            metrics: Array.from(d.metricsSet || []),
+            metricsLC: Array.from(d.metricsSet || []).map((m) => m.toLowerCase())
+          })),
+          metrics: Array.from(zone.metricsSet)
+        };
+      }).filter(Boolean);
+
+      if (!zones.length) continue;
+
+      const context = {
         tenant,
         building: buildingName,
+        buildingMetrics,
         floors: Array.from(buildingFloors).filter(Boolean),
-        zones: Array.from(buildingZones).filter(Boolean),
-        devices: buildingDevices,
-        deviceZones: deviceZoneMap
-      });
+        devices,
+        zones,
+        deviceZoneMap,
+        zoneByName: new Map(zones.map((z) => [z.name, {
+          name: z.name,
+          floor: z.floor,
+          devices: devices.filter((d) => d.zone === z.name),
+          metrics: z.metrics
+        }]))
+      };
 
-      const buildingMetric = chooseMetric(buildingMetrics) || 'temperature';
-      pushScenario(scenarios, {
-        label: `Building ${buildingName} trend`,
-        scope: baseScope,
-        question: `Plot ${buildingMetric} trends for each floor in this building and highlight daytime anomalies.`,
-        durationHours: randomDuration(scenarios.length),
-        expectedMetric: buildingMetric
-      });
+      buildingContexts.push(context);
+    }
+  }
 
-      const heatmapMetric = pickMetricMatching(buildingMetrics, /(people_count|occupancy)/, 'people_count');
-      pushScenario(scenarios, {
-        label: `Building ${buildingName} heatmap`,
-        scope: baseScope,
-        question: `Generate a heatmap of ${heatmapMetric} across all rooms this building sees and call out the quietest zones.`,
-        durationHours: randomDuration(scenarios.length + 1),
-        expectedMetric: heatmapMetric
-      });
+  if (!buildingContexts.length) {
+    return scenarios;
+  }
 
-      const co2Metric = pickMetricMatching(buildingMetrics, /co2/, 'co2');
-      pushScenario(scenarios, {
-        label: `Building ${buildingName} CO2 vs occupancy`,
-        scope: baseScope,
-        question: `Create a scatter plot of ${co2Metric} versus ${heatmapMetric} for the busiest rooms and explain the relationship.`,
-        durationHours: randomDuration(scenarios.length + 2),
-        expectedMetric: `${co2Metric}/${heatmapMetric}`
-      });
-
-      pushScenario(scenarios, {
-        label: `Building ${buildingName} daily profile`,
-        scope: baseScope,
-        question: `Use a daily profile to forecast the occupancy cycle for next week based on the selected window.`,
-        durationHours: randomDuration(scenarios.length + 3),
-        expectedMetric: heatmapMetric
-      });
-
-      pushScenario(scenarios, {
-        label: `Building ${buildingName} data gaps`,
-        scope: baseScope,
-        question: `Identify data gaps longer than one hour for ${buildingMetric} across this building.`,
-        durationHours: randomDuration(scenarios.length + 4),
-        expectedMetric: buildingMetric
-      });
-
-      // Floor & zone scenarios
-      const floors = [];
-      for (const group of groups) {
-        for (const floor of group.floors || []) {
-          const zones = [];
-          for (const zone of floor.zones || []) {
-            const zoneMetrics = new Set();
-            const zoneDevices = [];
-            for (const device of zone.devices || []) {
-              zoneDevices.push(device.name);
-              for (const m of device.metrics || []) zoneMetrics.add(m);
-            }
-            zones.push({
-              name: zone.zone,
-              devices: zoneDevices,
-              metrics: Array.from(zoneMetrics)
-            });
-          }
-          floors.push({
-            name: floor.floor,
-            zones
-          });
-        }
-      }
-
-      for (const floor of floors) {
-        if (scenarios.length >= REQUIRED_SCENARIO_COUNT) break;
-        if (!floor.name || !floor.zones.length) continue;
-        const floorMetrics = collectMetrics({ zones: floor.zones.map((z) => z.metrics), deviceIndex: floor.zones.flatMap((z) => z.devices) });
-        const floorScope = createScope({
-          tenant,
-          building: buildingName,
-          floor: floor.name,
-          floors: [floor.name],
-          zones: floor.zones.map((z) => z.name).filter(Boolean),
-          devices: floor.zones.flatMap((z) => z.devices).filter(Boolean),
-          deviceZones: buildZoneDeviceMap(floor.zones)
-        });
-
-        const floorMetric = chooseMetric(floorMetrics) || buildingMetric;
-        pushScenario(scenarios, {
-          label: `Floor ${floor.name} comparison`,
-          scope: floorScope,
-          question: `Compare ${floorMetric} across zones on ${floor.name} and call out the peak performers.`,
-          durationHours: randomDuration(scenarios.length),
-          expectedMetric: floorMetric
-        });
-
-        const floorOccMetric = pickMetricMatching(floorMetrics, /(people_count|occupancy)/, 'people_count');
-        pushScenario(scenarios, {
-          label: `Floor ${floor.name} occupancy hour`,
-          scope: floorScope,
-          question: `Identify the lowest occupancy hour on ${floor.name} and include a column chart of ${floorOccMetric} by hour.`,
-          durationHours: randomDuration(scenarios.length + 1),
-          expectedMetric: floorOccMetric
-        });
-
-        pushScenario(scenarios, {
-          label: `Floor ${floor.name} distribution`,
-          scope: floorScope,
-          question: `Build a histogram of ${floorMetric} readings across ${floor.name} for the selected window and describe the distribution shape.`,
-          durationHours: randomDuration(scenarios.length + 2),
-          expectedMetric: floorMetric
-        });
-
-        pushScenario(scenarios, {
-          label: `Floor ${floor.name} heatmap`,
-          scope: floorScope,
-          question: `Create a zone-by-time heatmap of ${floorOccMetric} for ${floor.name} and highlight outliers.`,
-          durationHours: randomDuration(scenarios.length + 3),
-          expectedMetric: floorOccMetric
-        });
-
-        pushScenario(scenarios, {
-          label: `Floor ${floor.name} data gaps`,
-          scope: floorScope,
-          question: `List data gaps longer than 45 minutes for ${floorMetric} on ${floor.name}.`,
-          durationHours: randomDuration(scenarios.length + 4),
-          expectedMetric: floorMetric
-        });
-
-        for (const zone of floor.zones) {
-          if (scenarios.length >= REQUIRED_SCENARIO_COUNT) break;
-          if (!zone.name || !zone.metrics.length) continue;
-          const zoneMetric = chooseMetric(zone.metrics) || floorMetric;
-          const zoneScope = createScope({
-            tenant,
-            building: buildingName,
-            floor: floor.name,
-            zone: zone.name,
-            floors: [floor.name],
-            zones: [zone.name],
-            devices: zone.devices,
-            deviceZones: buildZoneDeviceMap([zone])
-          });
-
-          pushScenario(scenarios, {
-            label: `Zone ${zone.name} trend`,
-            scope: zoneScope,
-            question: `Plot ${zoneMetric} for ${zone.name} and describe any notable changes.`,
-            durationHours: randomDuration(scenarios.length),
-            expectedMetric: zoneMetric
-          });
-
-          if (metricMatches(zone.metrics, /total_kwh|energy|power/)) {
-            const energyMetric = pickMetricMatching(zone.metrics, /total_kwh|energy|power/, zoneMetric);
-            pushScenario(scenarios, {
-              label: `Zone ${zone.name} energy histogram`,
-              scope: zoneScope,
-              question: `Provide a histogram of ${energyMetric} for ${zone.name} and highlight skew or spikes.`,
-              durationHours: randomDuration(scenarios.length + 1),
-              expectedMetric: energyMetric
-            });
-          }
-
-          const pairCandidates = defaultMetricPairs(zone.metrics);
-          for (const [m1, m2] of pairCandidates) {
-            pushScenario(scenarios, {
-              label: `Zone ${zone.name} ${m1} vs ${m2}`,
-              scope: zoneScope,
-              question: `Create a scatter plot of ${m1} versus ${m2} for ${zone.name} and interpret the relationship.`,
-              durationHours: randomDuration(scenarios.length + 2),
-              expectedMetric: `${m1}/${m2}`
-            });
-          }
-
-          if (metricMatches(zone.metrics, /(co2|humidity)/) && metricMatches(zone.metrics, /(people_count|occupancy)/)) {
-            const airMetric = pickMetricMatching(zone.metrics, /(co2|humidity)/, zoneMetric);
-            const occMetric = pickMetricMatching(zone.metrics, /(people_count|occupancy)/, zoneMetric);
-            pushScenario(scenarios, {
-              label: `Zone ${zone.name} air vs occupancy`,
-              scope: zoneScope,
-              question: `Correlate ${airMetric} against ${occMetric} for ${zone.name} and include a scatter chart.`,
-              durationHours: randomDuration(scenarios.length + 3),
-              expectedMetric: `${airMetric}/${occMetric}`
-            });
-            pushScenario(scenarios, {
-              label: `Zone ${zone.name} CO2 per person`,
-              scope: zoneScope,
-              question: `Calculate and plot ${airMetric} per person for ${zone.name}; flag any sustained values above guidelines.`,
-              durationHours: randomDuration(scenarios.length + 4),
-              expectedMetric: `${airMetric}/${occMetric}`
-            });
-          }
-
-          pushScenario(scenarios, {
-            label: `Zone ${zone.name} correlation matrix`,
-            scope: zoneScope,
-            question: `Build a correlation matrix for temperature, humidity, co2, and lux in ${zone.name}.`,
-            durationHours: randomDuration(scenarios.length + 5),
-            expectedMetric: 'correlation'
-          });
-
-          pushScenario(scenarios, {
-            label: `Zone ${zone.name} spikes`,
-            scope: zoneScope,
-            question: `Detect any spikes where ${zoneMetric} in ${zone.name} exceeds the percentile-95 threshold and visualize them.`,
-            durationHours: randomDuration(scenarios.length + 6),
-            expectedMetric: zoneMetric
-          });
-
-          pushScenario(scenarios, {
-            label: `Zone ${zone.name} forecast`,
-            scope: zoneScope,
-            question: `Forecast the next week of ${zoneMetric} for ${zone.name} using the recent window and include the historical context.`,
-            durationHours: randomDuration(scenarios.length + 7),
-            expectedMetric: zoneMetric
-          });
-
-          pushScenario(scenarios, {
-            label: `Zone ${zone.name} weather correlation`,
-            scope: zoneScope,
-            question: `Analyze the correlation between outdoor humidity and ${zone.name} humidity over the selected window.`,
-            durationHours: randomDuration(scenarios.length + 8),
-            expectedMetric: zoneMetric
-          });
-
-          pushScenario(scenarios, {
-            label: `Zone ${zone.name} best time`,
-            scope: zoneScope,
-            question: `Determine the best low occupancy hour in ${zone.name} and visualize the hourly occupancy profile.`,
-            durationHours: randomDuration(scenarios.length + 9),
-            expectedMetric: 'people_count'
-          });
-
-          pushScenario(scenarios, {
-            label: `Zone ${zone.name} weather-adjusted`,
-            scope: zoneScope,
-            question: `Show how ${zoneMetric} in ${zone.name} changes on rainy vs. dry days using a comparison chart.`,
-            durationHours: randomDuration(scenarios.length + 10),
-            expectedMetric: zoneMetric
-          });
-        }
-      }
-
+  const primaryContexts = buildingContexts.slice(0, Math.min(5, buildingContexts.length));
+  for (const ctx of primaryContexts) {
+    const items = buildBuildingScenarios(ctx);
+    for (const scenario of items) {
+      pushScenario(scenarios, scenario);
       if (scenarios.length >= REQUIRED_SCENARIO_COUNT) break;
     }
-
     if (scenarios.length >= REQUIRED_SCENARIO_COUNT) break;
   }
 
-  if (scenarios.length < REQUIRED_SCENARIO_COUNT && scenarios.length) {
-    const needed = REQUIRED_SCENARIO_COUNT - scenarios.length;
-    for (let i = 0; i < needed; i += 1) {
-      const base = scenarios[i % scenarios.length];
-      pushScenario(scenarios, {
-        ...base,
-        label: `${base.label} (extended ${i + 1})`,
-        durationHours: randomDuration(scenarios.length + i),
-        question: `${base.question} Also include any relevant seasonal insight.`
-      });
+  if (scenarios.length < REQUIRED_SCENARIO_COUNT) {
+    for (const ctx of buildingContexts) {
+      if (primaryContexts.includes(ctx)) continue;
+      const items = buildBuildingScenarios(ctx);
+      for (const scenario of items) {
+        pushScenario(scenarios, scenario);
+        if (scenarios.length >= REQUIRED_SCENARIO_COUNT) break;
+      }
+      if (scenarios.length >= REQUIRED_SCENARIO_COUNT) break;
     }
   }
 
   return scenarios.slice(0, REQUIRED_SCENARIO_COUNT);
 }
 
+function buildBuildingScenarios(ctx) {
+  const scenarios = [];
+  if (!ctx.devices.length) return scenarios;
+
+  const zoneList = Array.from(ctx.zoneByName.values()).filter((zone) => zone && zone.devices && zone.devices.length);
+  const primaryZone = zoneList[0] || null;
+  const secondaryZone = zoneList.find((zone) => zone !== primaryZone) || primaryZone;
+
+  const fallbackDevice = ctx.devices[0];
+
+  function ensureMatch(match) {
+    if (match && match.device) return match;
+    return {
+      device: fallbackDevice,
+      metric: fallbackDevice?.metrics?.[0] || 'value',
+      metricLC: fallbackDevice?.metricsLC?.[0] || 'value'
+    };
+  }
+
+  const occupancyMatch = ensureMatch(findDeviceMatch(ctx.devices, /(people_count|occupancy|is_used|utilization)/i));
+  const co2Match = findDeviceMatch(ctx.devices, /\bco2\b/i);
+  const humidityMatch = findDeviceMatch(ctx.devices, /humidity/i);
+  const temperatureMatch = findDeviceMatch(ctx.devices, /(temperature|temp)/i);
+  const energyMatch = findDeviceMatch(ctx.devices, /(total_kwh|energy|power|kw)/i);
+  const vocMatch = findDeviceMatch(ctx.devices, /(voc|tvoc)/i);
+  const luxMatch = findDeviceMatch(ctx.devices, /lux/i);
+
+  const buildingScope = createScenarioScope(ctx, { devices: ctx.devices });
+
+  function addScenario(label, scope, question, range) {
+    scenarios.push({
+      label,
+      scope,
+      question,
+      range
+    });
+  }
+
+  const scopeRange1 = createTimeRange();
+  addScenario(
+    `${ctx.building} scope overview`,
+    buildingScope,
+    `Between ${formatRangeText(scopeRange1)}, summarise the active floors, zones, and telemetry devices for ${ctx.building}. Confirm the scope is complete and note any gaps.`,
+    scopeRange1
+  );
+
+  if (primaryZone) {
+    const zoneScopeRange = createTimeRange();
+    const zoneScope = createScenarioScope(ctx, { zone: primaryZone, devices: primaryZone.devices || [] });
+    addScenario(
+      `${ctx.building} ${primaryZone.name} scope`,
+      zoneScope,
+      `During ${formatRangeText(zoneScopeRange)}, list the sensors deployed in ${primaryZone.name} and the metrics each one captures. Flag anything missing from the zone scope.`,
+      zoneScopeRange
+    );
+  }
+
+  const anomalyRange = createTimeRange();
+  const anomalyZone = getZoneForDevice(ctx, occupancyMatch.device) || primaryZone;
+  const anomalyScope = createScenarioScope(ctx, { zone: anomalyZone, devices: [occupancyMatch.device] });
+  addScenario(
+    `${ctx.building} ${formatMetricName(occupancyMatch.metric)} anomalies`,
+    anomalyScope,
+    `Detect anomalies in ${formatMetricName(occupancyMatch.metric)} for ${anomalyZone?.name || ctx.building} across ${formatRangeText(anomalyRange)}. Use the anomaly detection tools and describe the abnormal periods.`,
+    anomalyRange
+  );
+
+  const forecastMatch = ensureMatch(energyMatch || temperatureMatch || occupancyMatch);
+  const forecastZone = getZoneForDevice(ctx, forecastMatch.device) || anomalyZone || primaryZone;
+  const forecastRange = createTimeRange();
+  const forecastScope = createScenarioScope(ctx, { zone: forecastZone, devices: [forecastMatch.device] });
+  addScenario(
+    `${ctx.building} ${formatMetricName(forecastMatch.metric)} forecast`,
+    forecastScope,
+    `Forecast the next week of ${formatMetricName(forecastMatch.metric)} for ${forecastZone?.name || ctx.building} using data from ${formatRangeText(forecastRange)}. Include the historical baseline and the forecast confidence band.`,
+    forecastRange
+  );
+
+  const correlationPair =
+    findDevicePair(ctx.devices, /(people_count|occupancy|is_used|utilization)/i, /\bco2\b/i) ||
+    findDevicePair(ctx.devices, /(temperature|temp)/i, /humidity/i);
+  if (correlationPair) {
+    const corrRange = createTimeRange();
+    const devices = [correlationPair.first.device, correlationPair.second.device];
+    const extraZones = devices.map((d) => ctx.deviceZoneMap[d.id]).filter(Boolean);
+    const corrScope = createScenarioScope(ctx, { devices, additionalZones: extraZones });
+    addScenario(
+      `${ctx.building} correlation study`,
+      corrScope,
+      `Compute the correlation between ${formatMetricName(correlationPair.first.metric)} (${ctx.deviceZoneMap[correlationPair.first.device.id] || 'unknown zone'}) and ${formatMetricName(correlationPair.second.metric)} (${ctx.deviceZoneMap[correlationPair.second.device.id] || 'unknown zone'}) during ${formatRangeText(corrRange)}. Provide the correlation value and a visual explaining the relationship.`,
+      corrRange
+    );
+  }
+
+  const comparisonDevices = ctx.devices
+    .filter((d) => d.metricsLC.some((m) => /(temperature|temp|humidity|co2|people_count|occupancy)/i.test(m)))
+    .slice(0, 2);
+  if (comparisonDevices.length === 2) {
+    const comparisonRange = createTimeRange();
+    const compScope = createScenarioScope(ctx, { devices: comparisonDevices });
+    addScenario(
+      `${ctx.building} metric comparison`,
+      compScope,
+      `Compare average ${formatMetricName(comparisonDevices[0].metrics[0] || 'temperature')} in ${ctx.deviceZoneMap[comparisonDevices[0].id] || 'zone A'} versus ${formatMetricName(comparisonDevices[1].metrics[0] || 'temperature')} in ${ctx.deviceZoneMap[comparisonDevices[1].id] || 'zone B'} for ${formatRangeText(comparisonRange)}. Explain the differences with supporting charts.`,
+      comparisonRange
+    );
+  }
+
+  const knowledgeRange = createTimeRange();
+  const knowledgeDevice = ensureMatch(findDeviceMatch(ctx.devices, /(water|leak|voc|pm|lux|rssi)/i)).device;
+  const knowledgeZone = getZoneForDevice(ctx, knowledgeDevice) || primaryZone;
+  const knowledgeScope = createScenarioScope(ctx, { zone: knowledgeZone, devices: [knowledgeDevice] });
+  addScenario(
+    `${ctx.building} knowledge check`,
+    knowledgeScope,
+    `For ${formatRangeText(knowledgeRange)}, describe the telemetry from ${knowledgeDevice.name} in ${knowledgeZone?.name || ctx.building}. Include the metrics it measures and which analysis tools or dashboards are best suited to inspect it.`,
+    knowledgeRange
+  );
+
+  const extremesMatch = ensureMatch(temperatureMatch || humidityMatch || occupancyMatch);
+  const extremesZone = getZoneForDevice(ctx, extremesMatch.device) || primaryZone;
+  const extremesRange = createTimeRange();
+  const extremesScope = createScenarioScope(ctx, { zone: extremesZone, devices: [extremesMatch.device] });
+  addScenario(
+    `${ctx.building} ${formatMetricName(extremesMatch.metric)} extremes`,
+    extremesScope,
+    `Report the average, highest, and lowest ${formatMetricName(extremesMatch.metric)} in ${extremesZone?.name || ctx.building} during ${formatRangeText(extremesRange)}. Include a line chart and annotate the peaks.`,
+    extremesRange
+  );
+
+  const histogramMatch = ensureMatch(humidityMatch || temperatureMatch || occupancyMatch);
+  const histogramZone = getZoneForDevice(ctx, histogramMatch.device) || primaryZone;
+  const histogramRange = createTimeRange();
+  const histogramScope = createScenarioScope(ctx, { zone: histogramZone, devices: [histogramMatch.device] });
+  addScenario(
+    `${ctx.building} ${formatMetricName(histogramMatch.metric)} histogram`,
+    histogramScope,
+    `Create a histogram of ${formatMetricName(histogramMatch.metric)} readings for ${histogramZone?.name || ctx.building} covering ${formatRangeText(histogramRange)}. Describe the distribution and whether it suggests skew or multi-modal behaviour.`,
+    histogramRange
+  );
+
+  const abnormalMatch = ensureMatch(co2Match || temperatureMatch || occupancyMatch);
+  const abnormalZone = getZoneForDevice(ctx, abnormalMatch.device) || primaryZone;
+  const abnormalRange = createTimeRange();
+  const abnormalScope = createScenarioScope(ctx, { zone: abnormalZone, devices: [abnormalMatch.device] });
+  addScenario(
+    `${ctx.building} comfort review`,
+    abnormalScope,
+    `Evaluate whether ${formatMetricName(abnormalMatch.metric)} in ${abnormalZone?.name || ctx.building} stays within normal comfort thresholds across ${formatRangeText(abnormalRange)}. Flag abnormal periods and reference guideline values.`,
+    abnormalRange
+  );
+
+  if (primaryZone && secondaryZone && primaryZone !== secondaryZone) {
+    const crossRange = createTimeRange();
+    const occSecond = findDeviceMatch(
+      ctx.devices.filter((d) => d.zone === secondaryZone.name),
+      /(people_count|occupancy|is_used|utilization)/i
+    );
+    const crossDevices = [occupancyMatch.device];
+    if (occSecond) crossDevices.push(occSecond.device);
+    const crossScope = createScenarioScope(ctx, { devices: crossDevices, additionalZones: [primaryZone.name, secondaryZone.name] });
+    addScenario(
+      `${ctx.building} cross-zone comparison`,
+      crossScope,
+      `Compare occupancy patterns between ${primaryZone.name} and ${secondaryZone.name} over ${formatRangeText(crossRange)}. Highlight differences in peak and low periods with supporting charts.`,
+      crossRange
+    );
+  }
+
+  const cleaningRange = createTimeRange();
+  const cleaningZone = getZoneForDevice(ctx, occupancyMatch.device) || primaryZone;
+  const cleaningScope = createScenarioScope(ctx, { zone: cleaningZone, devices: [occupancyMatch.device] });
+  addScenario(
+    `${ctx.building} cleaning window`,
+    cleaningScope,
+    `Using ${formatRangeText(cleaningRange)}, determine the best daily window for cleaning ${cleaningZone?.name || ctx.building} when occupancy is minimal. Provide evidence from occupancy charts and note any exceptions.`,
+    cleaningRange
+  );
+
+  const reasonMatch = ensureMatch(vocMatch || energyMatch || co2Match || occupancyMatch);
+  const reasonZone = getZoneForDevice(ctx, reasonMatch.device) || primaryZone;
+  const reasonRange = createTimeRange();
+  const reasonScope = createScenarioScope(ctx, { zone: reasonZone, devices: [reasonMatch.device] });
+  addScenario(
+    `${ctx.building} root cause analysis`,
+    reasonScope,
+    `Explain the causes behind any sustained elevations in ${formatMetricName(reasonMatch.metric)} for ${reasonZone?.name || ctx.building} during ${formatRangeText(reasonRange)}. Use correlations or comparisons to support the reasoning.`,
+    reasonRange
+  );
+
+  if (luxMatch) {
+    const luxZone = getZoneForDevice(ctx, luxMatch.device) || primaryZone;
+    const luxRange = createTimeRange();
+    const luxScope = createScenarioScope(ctx, { zone: luxZone, devices: [luxMatch.device] });
+    addScenario(
+      `${ctx.building} cleaning readiness`,
+      luxScope,
+      `Assess light levels (${formatMetricName(luxMatch.metric)}) in ${luxZone?.name || ctx.building} during ${formatRangeText(luxRange)} and determine if additional lighting adjustments are needed for after-hours cleaning.`,
+      luxRange
+    );
+  }
+
+  while (scenarios.length < 12) {
+    const fillerRange = createTimeRange();
+    addScenario(
+      `${ctx.building} supplemental insight ${scenarios.length + 1}`,
+      buildingScope,
+      `Provide a comprehensive performance review for ${ctx.building} covering ${formatRangeText(fillerRange)}. Summarise energy, air quality, and utilisation trends, and flag anything requiring follow-up.`,
+      fillerRange
+    );
+  }
+
+  return scenarios.slice(0, 12);
+}
+
 async function runScenario(index, scenario) {
   const { durationHours, scope, question } = scenario;
-  const range = epochRange(durationHours);
+  const range = scenario.range || epochRange(durationHours || DURATIONS_HOURS[0]);
   const payload = {
     messages: [{ role: 'user', content: question }],
     room: scope.zone || 'ALL',
