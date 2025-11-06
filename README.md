@@ -68,6 +68,17 @@ If you do **not** have access to production S3 buckets or wish to run the UI aga
 
 With those defaults the UI will render dashboards using the bundled telemetry and the freshly cached weather data; no S3 sync is required.
 
+### Automated Bolton Test Pipeline
+
+Run the end-to-end verification pipeline (build → start server → wait for LLM warmup → execute Bolton tests → render LaTeX/PDF → upload to S3) with:
+```bash
+npm run pipeline:bolton
+```
+Requirements:
+- `pdflatex` available in `PATH` (TeX Live or similar) for PDF generation.
+- AWS credentials in the environment (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional `AWS_SESSION_TOKEN`).
+- `AWS_S3_BUCKET` (and optional `AWS_S3_REGION` / `AWS_S3_PREFIX`). The PDF is uploaded to `tests/` under the configured prefix.
+
 ### Requirements Summary
 
 | Service / Tool | Required | Notes |
