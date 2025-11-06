@@ -1,6 +1,6 @@
 # AVM Solutions Analytics
 
-Production‑ready building analytics assistant with RAG + tool calling, Highcharts UI, Neo4j topology, Chroma vector search, and S3‑backed telemetry. Weather is fetched per building from OpenWeather using coordinates in Neo4j.
+Production‑ready building analytics assistant with RAG + tool calling, Highcharts UI, Neo4j topology, Chroma vector search, and S3‑backed telemetry. Weather is generated synthetically for each building using Neo4j coordinates (falling back to central Manchester) so charts stay populated even offline.
 
 This project lets you query and visualize building metrics (CO2, VOC, lux, occupancy, energy, etc.) per room and over a selected time range.
 
@@ -11,7 +11,7 @@ Prereqs:
 - Python 3.10+ (for Chroma/utility scripts)  
 - Neo4j database (local or hosted)  
 - AWS credentials (optional, only if syncing telemetry from S3)  
-- OpenWeather API key (optional but recommended — enables automatic weather backfill)
+- OpenWeather API key (legacy/optional — only needed if you re-enable live weather fetches)
 
 1) Clone
 ```bash
@@ -23,7 +23,6 @@ cd avmsolutions
 - Neo4j (required): `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, `NEO4J_DATABASE`
 - S3 telemetry: `AWS_S3_BUCKET`, `AWS_S3_REGION`, optional `AWS_S3_PREFIX`, set `AWS_S3_ENABLED=1`
 - Chroma (optional): `CHROMA_URL`
-- OpenWeather (optional, for per‑building caching): `OPENWEATHER_API_KEY`
 
 3) Start via dev controls
 ```bash
@@ -62,8 +61,9 @@ If you do **not** have access to production S3 buckets or wish to run the UI aga
 
 1. Leave the AWS variables unset (or set `AWS_S3_ENABLED=0`). The server falls back to the CSVs under `CSVex_s3/`.
 2. Populate minimal Neo4j data by running `node scripts/populate_neo4j.js` (dev controls handle this automatically).
-3. Provide any OpenWeather API key — on startup the server backfills historical weather for every building between **2024‑09‑01** and **2024‑10‑31** (skipping the API call if that window is already cached) and stores it in both `CSVex_s3/weather_buildings/` and `data/weather_buildings/`.  
-   - To customise the backfill window, set `WEATHER_BACKFILL_START` / `WEATHER_BACKFILL_END` in `.env`.
+3. Synthetic weather is generated automatically for every building between **2024‑09‑01** and **2024‑10‑31** and stored in both `CSVex_s3/weather_buildings/` and `data/weather_buildings/`. Buildings without coordinates fall back to a Manchester centroid (`53.4808`, `-2.2426`).  
+   - To customise the backfill window, set `WEATHER_BACKFILL_START` / `WEATHER_BACKFILL_END` in `.env` (hourly cadence).  
+   - To change the fallback location or disable synthetic forcing, adjust `WEATHER_DEFAULT_LAT` / `WEATHER_DEFAULT_LON` / `WEATHER_USE_SYNTHETIC`.
 4. Start the server: `NODE_ENV=production node server/index.js`.
 
 With those defaults the UI will render dashboards using the bundled telemetry and the freshly cached weather data; no S3 sync is required.
@@ -73,7 +73,7 @@ With those defaults the UI will render dashboards using the bundled telemetry an
 | Service / Tool | Required | Notes |
 |----------------|----------|-------|
 | Neo4j          | ✅        | Used for topology, tenants, scopes. Local Aura or Docker deployment works. |
-| OpenWeather    | ⚠️ Recommended | Needed to prefetch / backfill weather per building. Without it, weather features are disabled. |
+| OpenWeather    | ⚠️ Optional | Currently unused — synthetic backfill covers Sep–Oct offline. Provide a key only if you re-enable live fetches. |
 | AWS S3         | ⚠️ Optional | Only necessary when mirroring live telemetry. Sample CSVs in `CSVex_s3/` are enough for local development. |
 | Chroma         | ⚠️ Optional | Required for vector search. Skip by omitting `CHROMA_URL` or setting `CHROMA_SKIP_INDEX=1`. |
 
@@ -82,7 +82,7 @@ With those defaults the UI will render dashboards using the bundled telemetry an
 1. **Startup pipeline**
    - The Node server verifies Neo4j connectivity, optionally seeds demo data, and emits topology snapshots under `data/graph_snapshot*.json`.  
      These snapshots serve both the UI (fast load, offline fallback) and the agent (device/zone lookup without hitting Neo4j for every question).
-  - When an OpenWeather API key is present the server backfills every building between `WEATHER_BACKFILL_START` and `WEATHER_BACKFILL_END` (defaults: 2024‑09‑01 → 2024‑10‑31), writing the results to both `CSVex_s3/weather_buildings/` and `data/weather_buildings/`. If the cached files already span that range, startup reuses them. Any residual gaps after ~4 s of fetching are bridged with flagged synthetic rows so tools never operate on empty ranges.
+  - At startup the server synthesises hourly weather for every building between `WEATHER_BACKFILL_START` and `WEATHER_BACKFILL_END` (defaults: 2024‑09‑01 → 2024‑10‑31), writing the results to both `CSVex_s3/weather_buildings/` and `data/weather_buildings/`. Existing caches are reused, missing hours are regenerated, and buildings without coordinates fall back to Manchester defaults.
 
 2. **Local telemetry mirror**
    - Device CSVs live in `CSVex_s3/`. When AWS variables are supplied, `scripts/dev_controls.sh sync-s3` mirrors production S3 into this directory; otherwise, the bundled CSVs keep dashboards functional in offline mode.
@@ -105,8 +105,8 @@ With those defaults the UI will render dashboards using the bundled telemetry an
 - Neo4j (required): `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, `NEO4J_DATABASE`
 - S3 telemetry: `AWS_S3_ENABLED=1`, `AWS_S3_BUCKET`, `AWS_S3_REGION`, optional `AWS_S3_PREFIX`, `S3_LOCAL_DIR` (default `CSVex_s3`)
 - Chroma: `CHROMA_URL` (http URL)
-- Weather (optional): `OPENWEATHER_API_KEY` (per‑building fetch using Building lat/lon from Neo4j)
-- Weather historical window: `WEATHER_BACKFILL_START`, `WEATHER_BACKFILL_END` (defaults: `2024-09-01` to `2024-10-31`)
+- Weather: `WEATHER_USE_SYNTHETIC` (default `1`), `WEATHER_BACKFILL_START`, `WEATHER_BACKFILL_END` (defaults: `2024-09-01` to `2024-10-31`), `WEATHER_DEFAULT_LAT`, `WEATHER_DEFAULT_LON`
+- (Legacy) `OPENWEATHER_API_KEY` is currently ignored unless live fetching is re-enabled.
 
 LLM (optional):
 - `USE_LLM=true`, `LLM_PROVIDER=gemini`, `GEMINI_API_KEY=...`, `LLM_TEMPERATURE`, see `server/index.js`
@@ -139,8 +139,9 @@ Notes:
 
 ## Weather
 
-- Weather is fetched per building from OpenWeather at startup if `OPENWEATHER_API_KEY` is set and stored under `CSVex_s3/weather_buildings/<building>.csv`.
-- Cached weather files are inspected on each startup; if they already span `WEATHER_BACKFILL_START` → `WEATHER_BACKFILL_END` the API is skipped. Otherwise, the fetcher retries each historical day up to three times, stops after ~4 s, and generates synthetic hourly samples for any remaining gaps so charts remain continuous.
+- Hourly weather is synthesised for every building between `WEATHER_BACKFILL_START` and `WEATHER_BACKFILL_END` (defaults: 2024‑09‑01 → 2024‑10‑31) and saved under `CSVex_s3/weather_buildings/<building>.csv` plus `data/weather_buildings/<building>.csv`.
+- Buildings missing coordinates fall back to `WEATHER_DEFAULT_LAT` / `WEATHER_DEFAULT_LON` (defaults to Manchester city centre).
+- Startup inspects cached files: missing hours are regenerated, existing coverage is reused when `WEATHER_USE_SYNTHETIC=0`, and when `WEATHER_USE_SYNTHETIC=1` the generator refreshes the whole range to guarantee a dense hourly series.
 - The agent’s weather tools transparently use these cached files based on the selected building.
 ## Local (no Docker)
 

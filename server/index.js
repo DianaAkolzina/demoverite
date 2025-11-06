@@ -40,7 +40,9 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || 'models/gemini-2.5-flash';
 const dataDir = path.join(root, 'data');
 const WEATHER_BACKFILL_START = process.env.WEATHER_BACKFILL_START || '2024-09-01';
 const WEATHER_BACKFILL_END = process.env.WEATHER_BACKFILL_END || '2024-10-31';
-const WEATHER_ONECALL_URL = 'https://api.openweathermap.org/data/3.0/onecall/timemachine';
+const WEATHER_USE_SYNTHETIC = (process.env.WEATHER_USE_SYNTHETIC || '1') === '1';
+const DEFAULT_WEATHER_LAT = Number(process.env.WEATHER_DEFAULT_LAT ?? 53.4808);
+const DEFAULT_WEATHER_LON = Number(process.env.WEATHER_DEFAULT_LON ?? -2.2426);
 
 // Simple in-memory cache (best-effort, short TTLs)
 const __cache = {
@@ -184,11 +186,15 @@ async function ensureDatastores() {
       console.log('[startup][graph] Snapshot computed: nodes', nodes, 'links', links);
       if (!nodes || !links) console.warn('[startup][graph] Warning: snapshot has low counts (nodes or links missing). Check relationship names and filters.');
       // Optional per-building weather
-      if (process.env.OPENWEATHER_API_KEY && (process.env.WEATHER_FETCH_ALL_BUILDINGS || '1') === '1') {
+      if ((process.env.WEATHER_FETCH_ALL_BUILDINGS || '1') === '1') {
         try {
           const { records } = await g.runQuery('MATCH (b:Building) RETURN b.name AS name, b.lat AS lat, b.long AS lon, b.latitude AS lat2, b.longitude AS lon2');
-          const items = (records || []).map(r => ({ name: r.get('name'), lat: r.get('lat') ?? r.get('lat2'), lon: r.get('lon') ?? r.get('lon2') })).filter(x => x && x.name && x.lat != null && x.lon != null);
-          console.log('[startup][weather] Buildings with coordinates:', items.length);
+          const items = (records || []).map(r => ({
+            name: r.get('name'),
+            lat: r.get('lat') ?? r.get('lat2'),
+            lon: r.get('lon') ?? r.get('lon2')
+          })).filter(x => x && x.name);
+          console.log('[startup][weather] Buildings discovered:', items.length);
           for (const it of items) {
             try { const res = await fetchAndCacheWeatherForBuilding(it.name, it.lat, it.lon); if (res && res.ok) console.log(`[startup][weather] Cached for ${it.name}: rows=${res.rows}`); } catch (e) { console.warn('[startup][weather] Fetch failed:', String(e)); }
             await wait(300);
@@ -476,6 +482,12 @@ function parseUtcDate(str) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function defaultWeatherCoords() {
+  const lat = Number.isFinite(DEFAULT_WEATHER_LAT) ? DEFAULT_WEATHER_LAT : 53.4808;
+  const lon = Number.isFinite(DEFAULT_WEATHER_LON) ? DEFAULT_WEATHER_LON : -2.2426;
+  return { lat, lon };
+}
+
 function clamp(value, min, max) {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
@@ -582,7 +594,7 @@ function hasWeatherCoverage(map, startDt, endDt) {
   return coveredDays.size >= expectedDays;
 }
 
-async function fetchHistoricalWeather({ lat, lon, key, start, end, existingMap }) {
+async function fetchHistoricalWeather({ lat, lon, start, end, existingMap }) {
   const startDt = parseUtcDate(start);
   const endDt = parseUtcDate(end);
   if (!startDt || !endDt || startDt > endDt) return [];
@@ -590,96 +602,15 @@ async function fetchHistoricalWeather({ lat, lon, key, start, end, existingMap }
   const coverageStart = startDt.getTime();
   const coverageEnd = endDt.getTime() + 24 * 60 * 60 * 1000;
 
-  const baselineMap = new Map();
-  const seenTimestamps = new Set();
-
-  if (existingMap && typeof existingMap.forEach === 'function') {
-    existingMap.forEach((row, keyVal) => {
-      const ts = Number(keyVal ?? row?.ts);
-      if (!Number.isFinite(ts)) return;
-      baselineMap.set(ts, row);
-      seenTimestamps.add(ts);
-    });
-    if (baselineMap.size) {
-      const tsValues = Array.from(baselineMap.keys());
-      const minTs = Math.min(...tsValues);
-      const maxTs = Math.max(...tsValues);
-      const needsStart = minTs > coverageStart;
-      const needsEnd = maxTs < coverageEnd;
-      if (!needsStart && !needsEnd) {
-        return [];
-      }
-    }
-  }
-
+  const map = (existingMap && typeof existingMap.set === 'function') ? existingMap : new Map();
   const out = [];
-  const startTime = Date.now();
-  let timedOut = false;
-
-  for (let dt = new Date(startDt); dt <= endDt; dt.setUTCDate(dt.getUTCDate() + 1)) {
-    const mid = new Date(dt);
-    mid.setUTCHours(12, 0, 0, 0);
-    const tsSeconds = Math.floor(mid.getTime() / 1000);
-    const url = `${WEATHER_ONECALL_URL}?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&dt=${encodeURIComponent(tsSeconds)}&appid=${encodeURIComponent(key)}&units=metric`;
-    let attempt = 0;
-    let success = false;
-    while (attempt < 3 && !success) {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`onecall HTTP ${res.status}`);
-        const body = await res.json();
-        const hourly = Array.isArray(body?.data || body?.hourly) ? (body.data || body.hourly) : [];
-        for (const row of hourly) {
-          const ts = Number(row?.dt) * 1000;
-          if (!Number.isFinite(ts) || seenTimestamps.has(ts)) continue;
-          const weather = Array.isArray(row?.weather) && row.weather[0] ? row.weather[0] : null;
-          const sample = {
-            ts,
-            temp: row?.temp != null ? Number(row.temp) : null,
-            humidity: row?.humidity != null ? Number(row.humidity) : null,
-            pressure: row?.pressure != null ? Number(row.pressure) : null,
-            wind_speed: row?.wind_speed != null ? Number(row.wind_speed) : null,
-            wind_deg: row?.wind_deg != null ? Number(row.wind_deg) : null,
-            clouds: row?.clouds != null ? Number(row.clouds) : null,
-            weather_main: weather?.main || '',
-            weather_desc: weather?.description || ''
-          };
-          out.push(sample);
-          baselineMap.set(ts, sample);
-          seenTimestamps.add(ts);
-        }
-        success = true;
-      } catch (err) {
-        attempt += 1;
-        console.warn('[weather] historical fetch failed', lat, lon, mid.toISOString(), `attempt ${attempt}`, String(err));
-        if (attempt >= 3) break;
-        await wait(600 * attempt);
-      }
-    }
-    if (Date.now() - startTime > 4000) {
-      timedOut = true;
-      break;
-    }
-    await wait(150);
-  }
-
-  const missingTs = [];
   const STEP = 3600_000;
   for (let ts = coverageStart; ts <= coverageEnd; ts += STEP) {
-    if (!seenTimestamps.has(ts)) {
-      missingTs.push(ts);
-    }
+    if (map.has(ts)) continue;
+    const synthetic = synthWeatherSample(lat, lon, ts, map);
+    out.push(synthetic);
+    map.set(ts, synthetic);
   }
-
-  if (missingTs.length) {
-    for (const ts of missingTs) {
-      const synthetic = synthWeatherSample(lat, lon, ts, baselineMap);
-      out.push(synthetic);
-      baselineMap.set(ts, synthetic);
-      seenTimestamps.add(ts);
-    }
-  }
-
   return out;
 }
 
@@ -722,12 +653,19 @@ function loadWeather(building = null) {
   } catch { return []; }
 }
 
-// Fetch and cache per-building weather (OpenWeather) using lat/lon from graph
+// Fetch and cache per-building weather (synthetic generation using lat/lon from graph)
 async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
-  const key = process.env.OPENWEATHER_API_KEY;
-  const latNum = toNumeric(lat);
-  const lonNum = toNumeric(lon);
-  if (!key || !Number.isFinite(latNum) || !Number.isFinite(lonNum)) return { error: 'missing_api_or_coords' };
+  let latNum = toNumeric(lat);
+  let lonNum = toNumeric(lon);
+  const fallback = defaultWeatherCoords();
+  const fallbackLat = fallback.lat;
+  const fallbackLon = fallback.lon;
+  let usedFallbackCoords = false;
+  if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) {
+    latNum = fallbackLat;
+    lonNum = fallbackLon;
+    usedFallbackCoords = true;
+  }
 
   const slug = buildingSlug(buildingName);
   const outDir = path.join(s3LocalDir, 'weather_buildings');
@@ -803,7 +741,7 @@ async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
 
   const startDt = parseUtcDate(WEATHER_BACKFILL_START);
   const endDt = parseUtcDate(WEATHER_BACKFILL_END);
-  const forceRefresh = (process.env.WEATHER_FORCE_REFRESH === '1');
+  const forceRefresh = WEATHER_USE_SYNTHETIC || (process.env.WEATHER_FORCE_REFRESH === '1');
   const alreadyCovered = hasWeatherCoverage(existingMap, startDt, endDt);
 
   if (alreadyCovered && !forceRefresh) {
@@ -812,45 +750,15 @@ async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
   }
 
   try {
-    const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${encodeURIComponent(latNum)}&lon=${encodeURIComponent(lonNum)}&appid=${encodeURIComponent(key)}&units=metric`;
-    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${encodeURIComponent(latNum)}&lon=${encodeURIComponent(lonNum)}&appid=${encodeURIComponent(key)}&units=metric`;
-    const [curRes, fcRes] = await Promise.all([fetch(currentUrl), fetch(forecastUrl)]);
-    if (!curRes.ok) throw new Error(`current HTTP ${curRes.status}`);
-    if (!fcRes.ok) throw new Error(`forecast HTTP ${fcRes.status}`);
-    const cur = await curRes.json();
-    const fc = await fcRes.json();
-    const push = (ts, main, wind, clouds, weather) => {
-      if (!Number.isFinite(ts)) return;
-      mergeWeatherRow(existingMap, {
-        ts,
-        temp: main?.temp,
-        humidity: main?.humidity,
-        pressure: main?.pressure,
-        wind_speed: wind?.speed,
-        wind_deg: wind?.deg,
-        clouds: clouds?.all ?? 0,
-        weather_main: Array.isArray(weather) && weather[0] ? weather[0].main : '',
-        weather_desc: Array.isArray(weather) && weather[0] ? weather[0].description : ''
-      });
-    };
-    if (cur && cur.dt) push(cur.dt * 1000, cur.main, cur.wind, cur.clouds, cur.weather);
-    if (fc && Array.isArray(fc.list)) {
-      for (const entry of fc.list) {
-        const ts = Number(entry?.dt) * 1000;
-        push(ts, entry?.main, entry?.wind, entry?.clouds, entry?.weather);
-      }
-    }
-
-    const historical = await fetchHistoricalWeather({
+    const syntheticRows = await fetchHistoricalWeather({
       lat: latNum,
       lon: lonNum,
-      key,
       start: WEATHER_BACKFILL_START,
       end: WEATHER_BACKFILL_END,
       existingMap
     });
 
-    for (const row of historical) mergeWeatherRow(existingMap, row);
+    for (const row of syntheticRows) mergeWeatherRow(existingMap, row);
 
     if (!existingMap.size) {
       const fallbackStart = startDt ? startDt.getTime() : Date.now() - 7 * 24 * 3600_000;
@@ -885,9 +793,12 @@ async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
 
     fs.writeFileSync(outFile, csvFull);
     try { fs.writeFileSync(outFileData, csvFull); } catch {}
-    return { ok: true, rows: finalRows.length, file: outFile };
+    if (usedFallbackCoords) {
+      console.warn('[weather] using default coordinates for', buildingName, `(${latNum}, ${lonNum})`);
+    }
+    return { ok: true, rows: finalRows.length, file: outFile, synthetic: true, fallbackCoords: usedFallbackCoords };
   } catch (e) {
-    console.warn('[weather] fetch failed for', buildingName, String(e));
+    console.warn('[weather] synthetic generation failed for', buildingName, String(e));
     if (existingMap.size) {
       ensureMirrorCopies(primarySource);
       return { ok: true, rows: existingMap.size, file: primarySource || outFile, warning: String(e) };
@@ -2699,17 +2610,35 @@ function resetBuildingCoordsCache() {
 function getAllIndexedBuildingCoords() {
   if (__buildingCoordsCache) return __buildingCoordsCache;
   const coords = new Map();
+  const fallback = defaultWeatherCoords();
+  const addEntry = (name, value) => {
+    if (!name) return;
+    const slug = buildingSlug(name);
+    if (!slug || coords.has(slug)) return;
+    let lat = value ? toNumeric(value.lat ?? value.latitude) : null;
+    let lon = value ? toNumeric(value.lon ?? value.longitude ?? value.long) : null;
+    let fallbackUsed = false;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      lat = fallback.lat;
+      lon = fallback.lon;
+      fallbackUsed = true;
+    }
+    coords.set(slug, { name, lat, lon, fallback: fallbackUsed });
+  };
+
   for (const idx of __indexStore.tenants.values()) {
-    if (!idx || !idx.buildingCoords) continue;
-    for (const [name, value] of idx.buildingCoords.entries()) {
-      if (!value) continue;
-      const lat = toNumeric(value.lat);
-      const lon = toNumeric(value.lon);
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-      const key = buildingSlug(name);
-      if (!coords.has(key)) coords.set(key, { name, lat, lon });
+    if (!idx) continue;
+    if (idx.buildings && typeof idx.buildings.forEach === 'function') {
+      idx.buildings.forEach((name) => {
+        const coord = idx.buildingCoords?.get?.(name) ?? idx.buildingCoords?.get?.(String(name));
+        addEntry(name, coord);
+      });
+    }
+    if (idx.buildingCoords && typeof idx.buildingCoords.forEach === 'function') {
+      idx.buildingCoords.forEach((value, name) => addEntry(name, value));
     }
   }
+
   __buildingCoordsCache = coords;
   return coords;
 }
@@ -2723,14 +2652,14 @@ function findIndexedBuildingCoord(buildingName) {
   for (const entry of coords.values()) {
     if (String(entry.name).trim().toLowerCase() === targetLower) return entry;
   }
-  return null;
+  const fallback = defaultWeatherCoords();
+  return { name: buildingName, lat: fallback.lat, lon: fallback.lon, fallback: true };
 }
 
 async function prefetchWeatherForAllBuildings() {
   try {
     const coords = getAllIndexedBuildingCoords();
     for (const { name, lat, lon } of coords.values()) {
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
       try {
         const res = await fetchAndCacheWeatherForBuilding(name, lat, lon);
         if (res?.error) console.warn('[startup][weather] Prefetch failed for', name, res.error);
