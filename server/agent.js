@@ -1614,6 +1614,10 @@ const extractFieldValue = (row, fieldOrList) => {
       if (!result) continue;
       if (Array.isArray(result) && result.length) return true;
       if (typeof result === 'object') {
+        if (entry?.tool === 'compare_series_cross_room' && !Array.isArray(result)) {
+          const seriesArrays = Object.values(result).filter((val) => Array.isArray(val) && val.length);
+          if (seriesArrays.length) return true;
+        }
         if (Array.isArray(result.rows) && result.rows.length) return true;
         if (Array.isArray(result.data) && result.data.length) return true;
         if (Array.isArray(result.series) && result.series.some((s) => Array.isArray(s?.data) && s.data.length)) return true;
