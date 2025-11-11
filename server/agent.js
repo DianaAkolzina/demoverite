@@ -9157,18 +9157,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       // Handle multiple parallel tool calls
       if (obj.action === 'tool_calls' && Array.isArray(obj.tools)) {
         const resolvedCalls = [];
-        let planStepValidationError = null;
         for (const tc of obj.tools) {
           const planRefRaw = tc.planStep ?? tc.plan_step ?? tc.plan ?? tc.step ?? tc.stepId ?? tc.id ?? null;
-          if (planConfirmed && !planRefRaw) {
-            planStepValidationError = 'Each tool call must include "planStep":"S#" indicating which plan step it satisfies.';
-            break;
-          }
-          const planEntry = planConfirmed ? findPlanStep(planRefRaw) : null;
-          if (planConfirmed && !planEntry) {
-            const validIds = planStatus.map((s) => s.id).join(', ');
-            planStepValidationError = `Unknown planStep "${planRefRaw}". Valid ids: ${validIds}`;
-            break;
+          let planEntry = planConfirmed ? findPlanStep(planRefRaw) : null;
+          if (!planEntry && planConfirmed) {
+            planEntry = autoAssignPlanStep(tc.tool);
           }
           resolvedCalls.push({
             raw: tc,
@@ -9176,13 +9169,6 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             planEntry,
             planStepId: planEntry?.id || (planRefRaw ? canonicalPlanStepId(planRefRaw) : null)
           });
-        }
-        if (planStepValidationError) {
-          convo.push({
-            role: 'user',
-            content: `${planStepValidationError} Resend the tool call JSON like {"action":"tool_call","planStep":"${planStatus[0]?.id || 'S1'}","tool":"fetch_timeseries","args":{...}}.`
-          });
-          continue STEP_LOOP;
         }
         const results = [];
         for (const tc of resolvedCalls) {
@@ -9236,21 +9222,9 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
 
       if (obj.action === 'tool_call') {
         const planRefRaw = obj.planStep ?? obj.plan_step ?? obj.plan ?? obj.step ?? obj.stepId ?? null;
-        if (planConfirmed && !planRefRaw) {
-          convo.push({
-            role: 'user',
-            content: 'Every tool call must include "planStep":"S#" referencing the plan step it fulfills. Add it and resend the tool call.'
-          });
-          continue STEP_LOOP;
-        }
-        const planEntry = planConfirmed ? findPlanStep(planRefRaw) : null;
-        if (planConfirmed && !planEntry) {
-          const validIds = planStatus.map((s) => s.id).join(', ');
-          convo.push({
-            role: 'user',
-            content: `Unknown planStep "${planRefRaw}". Valid ids: ${validIds}. Resend the tool call with a valid plan reference.`
-          });
-          continue STEP_LOOP;
+        let planEntry = planConfirmed ? findPlanStep(planRefRaw) : null;
+        if (!planEntry && planConfirmed) {
+          planEntry = autoAssignPlanStep(obj.tool);
         }
         const planStepId = planEntry?.id || (planRefRaw ? canonicalPlanStepId(planRefRaw) : null);
         let { tool, args } = obj;
@@ -10007,3 +9981,14 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
 
   return { run };
 }
+    const autoAssignPlanStep = (toolName) => {
+      if (!planConfirmed || !planStatus.length) return null;
+      const normalizedTool = toolName ? resolveToolName(toolName) : null;
+      const open = planStatus.filter((step) => !step.done);
+      if (!open.length) return planStatus[planStatus.length - 1] || planStatus[0] || null;
+      if (normalizedTool) {
+        const match = open.find((step) => resolveToolName(step.tool) === normalizedTool);
+        if (match) return match;
+      }
+      return open[0];
+    };
