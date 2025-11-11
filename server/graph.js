@@ -296,11 +296,65 @@ export function createGraphClient({ uri, username, password, database }) {
       const outNodes = new Map();
       const outLinks = [];
       const addNode = (id, props) => { if (!outNodes.has(id)) outNodes.set(id, { id, ...props }); };
-      const addLink = (a, b, rel) => { outLinks.push({ source: a, target: b, rel }); };
+      const linkCache = new Set();
+      const addLink = (a, b, rel) => {
+        if (!a || !b || !rel) return;
+        const key = `${a}::${b}::${rel}`;
+        if (linkCache.has(key)) return;
+        linkCache.add(key);
+        outLinks.push({ source: a, target: b, rel });
+      };
       const bumpBuildingCount = (bid) => {
         if (!bid) return;
         const n = outNodes.get(bid) || null;
         if (n) { n.dataDevices = (n.dataDevices || 0) + 1; n.hasData = true; outNodes.set(bid, n); }
+      };
+      const zoneFloorAttachment = new Map();
+      const attachZoneFloor = (zid, fid, zoneName) => {
+        if (!zid || !fid) return;
+        const existing = zoneFloorAttachment.get(zid);
+        if (existing && existing !== fid) {
+          console.warn(`[graph][snapshot] Zone ${zoneName || zid} floor had multiple attachments; defaulting to ${existing}`);
+          return;
+        }
+        zoneFloorAttachment.set(zid, fid);
+        addLink(zid, fid, 'BELONGS_TO_FLOOR');
+      };
+      const normalizeToken = (val) => {
+        if (val === null || val === undefined) return null;
+        const str = String(val).trim().toLowerCase();
+        return str || null;
+      };
+      const zoneMatchesFloorNode = (zoneNode, floorNode) => {
+        if (!zoneNode || !floorNode) return false;
+        const zProps = zoneNode.properties || {};
+        const fProps = floorNode.properties || {};
+        const zoneTokens = [
+          zProps.floorID,
+          zProps.floorId,
+          zProps.floor,
+          zProps.floor_name,
+          zProps.level
+        ].map(normalizeToken).filter(Boolean);
+        if (!zoneTokens.length) return false;
+        const floorTokens = [
+          fProps.id,
+          fProps.floorID,
+          fProps.name
+        ].map(normalizeToken).filter(Boolean);
+        if (!floorTokens.length) return false;
+        return zoneTokens.some((token) => floorTokens.includes(token));
+      };
+      const buildingFloorsCache = new Map();
+      const ensureFloorNode = (floorNode, buildingNode, buildingKey, bid, floorMap) => {
+        if (!floorNode) return null;
+        const fKeyRaw = floorNode.properties?.id ?? floorNode.properties?.floorID ?? floorNode.properties?.name ?? '';
+        if (!fKeyRaw) return null;
+        const fid = `Floor:${String(fKeyRaw)}:${String(buildingKey)}`;
+        addNode(fid, { label: 'Floor', name: floorNode.properties?.name, nodeType: 'Floor', node: floorNode });
+        if (buildingNode) addLink(fid, bid, 'LOCATED_IN_BUILDING');
+        if (floorMap && !floorMap.has(fid)) floorMap.set(fid, floorNode);
+        return fid;
       };
       // Build S3 device id set to include only matched devices
       let s3Ids = new Set();
@@ -319,64 +373,83 @@ export function createGraphClient({ uri, username, password, database }) {
         ${tenant ? 'MATCH (t:Tenant {name:$tenant})' : ''}
         MATCH (b:Building)
         ${tenant ? 'WHERE (b)-[:BELONGS_TO_TENANT]->(t)' : ''}
-        OPTIONAL MATCH (fr:Floor)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
-        WITH b, fr
+        WITH DISTINCT b
+        OPTIONAL MATCH (b)<-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]-(fr:Floor)
+        WITH b, collect(DISTINCT fr) AS floorsRel
         OPTIONAL MATCH (fp:Floor)
         WHERE toString(fp.buildingID)=toString(b.id) OR toString(fp.buildingID)=toString(b.buildingID)
-        WITH b, coalesce(fr, fp) AS f
-        OPTIONAL MATCH (z:Zone)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(b)
-        WITH b, f, z
-        OPTIONAL MATCH (zf:Floor)
-        WHERE z IS NOT NULL AND (
-          (toString(z.floorID)=toString(zf.id) OR toString(z.floorID)=toString(zf.floorID))
-          AND (toString(z.buildingID)=toString(zf.buildingID) OR zf.buildingID IS NULL OR z.buildingID IS NULL)
-          AND (toString(z.tenantID)=toString(zf.tenantID) OR zf.tenantID IS NULL OR z.tenantID IS NULL)
-        )
-        RETURN b, f, z, zf
+        WITH b, floorsRel, collect(DISTINCT fp) AS floorsProp
+        WITH b, [f IN (coalesce(floorsRel, []) + coalesce(floorsProp, [])) WHERE f IS NOT NULL] AS floors
+        OPTIONAL MATCH (b)<-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]-(z:Zone)
+        OPTIONAL MATCH (z)-[:BELONGS_TO_FLOOR|PART_OF_FLOOR]->(zf:Floor)
+        RETURN b, floors, z, zf
       `;
       const { records, error } = await runQuery(q, tenant ? { tenant } : {});
       if (error) return { nodes: [], links: [], error };
       const logged = new Set();
       const includedDevices = new Set();
       for (const r of records) {
-        const b = r.get('b'); const f = r.get('f'); const z = r.get('z'); const zf = r.get('zf');
-        const bid = b ? `Building:${b.properties?.name}` : null;
-        // Use stable IDs for floor node identity: floorID/id + buildingID/id
-        const bKeyId = b ? (b.properties?.id ?? b.properties?.buildingID ?? b.properties?.name ?? '') : '';
-        const fKeyRaw = f ? (f.properties?.id ?? f.properties?.floorID ?? f.properties?.name ?? '') : (zf ? (zf.properties?.id ?? zf.properties?.floorID ?? zf.properties?.name ?? '') : '');
-        const fid = (f || zf) ? `Floor:${String(fKeyRaw)}:${String(bKeyId)}` : null;
-        const zid = z ? `Zone:${z.properties?.name}:${b?.properties?.name || ''}` : null;
-        if (b) {
-          const bName = b.properties?.name || String(b.properties?.buildingID || b.properties?.id || 'Building');
-          addNode(bid, { label: 'Building', name: bName, nodeType: 'Building', hasData: false, dataDevices: 0 });
+        const b = r.get('b');
+        if (!b) continue;
+        const z = r.get('z');
+        const zf = r.get('zf');
+        const floorsRaw = (r.get('floors') || []).filter(Boolean);
+        const bName = b.properties?.name || String(b.properties?.buildingID || b.properties?.id || 'Building');
+        const bid = `Building:${bName}`;
+        const bKeyId = b.properties?.id ?? b.properties?.buildingID ?? b.properties?.name ?? '';
+        addNode(bid, { label: 'Building', name: bName, nodeType: 'Building', hasData: false, dataDevices: 0 });
+        if (!buildingFloorsCache.has(bid) || (floorsRaw.length && (buildingFloorsCache.get(bid)?.size || 0) === 0)) {
+          const floorMap = buildingFloorsCache.get(bid) || new Map();
+          for (const floorNode of floorsRaw) {
+            ensureFloorNode(floorNode, b, bKeyId, bid, floorMap);
+          }
+          buildingFloorsCache.set(bid, floorMap);
         }
-        if (f) addNode(fid, { label: 'Floor', name: f.properties?.name, nodeType: 'Floor' });
-        else if (zf) addNode(fid, { label: 'Floor', name: zf.properties?.name, nodeType: 'Floor' });
+        const floorMap = buildingFloorsCache.get(bid) || new Map();
+        let zoneFloorFromRel = null;
+        if (zf) {
+          zoneFloorFromRel = ensureFloorNode(zf, b, bKeyId, bid, floorMap);
+        }
         if (z) {
           const rawRid = (z.properties?.roomId != null ? z.properties.roomId : (z.properties?.id != null ? z.properties.id : null));
           const roomId = rawRid != null ? String(rawRid) : null;
-          addNode(zid, { label: 'Zone', name: z.properties?.name, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null });
+          const zid = `Zone:${z.properties?.name || roomId}:${bName}`;
+          addNode(zid, { label: 'Zone', name: z.properties?.name || roomId, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null });
+          addLink(zid, bid, 'LOCATED_IN_BUILDING');
+          let floorIdForZone = zoneFloorFromRel;
+          if (!floorIdForZone && !zoneFloorFromRel && floorMap && floorMap.size) {
+            for (const [fidCandidate, floorNode] of floorMap.entries()) {
+              if (zoneMatchesFloorNode(z, floorNode)) {
+                floorIdForZone = fidCandidate;
+                break;
+              }
+            }
+          }
+          if (floorIdForZone) {
+            attachZoneFloor(zid, floorIdForZone, z.properties?.name || roomId);
+          }
         }
-        if ((f || zf) && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
-        if (z && fid) addLink(zid, fid, 'BELONGS_TO_FLOOR');
-        if (z && bid) addLink(zid, bid, 'LOCATED_IN_BUILDING');
       }
 
       // Second pass: include all devices present in S3, deriving building/floor/zone via rels OR properties
       const qDevices = `
         MATCH (d:Device)
         OPTIONAL MATCH (d)-[:LOCATED_IN_ZONE]->(z1:Zone)
+        OPTIONAL MATCH (z1)-[:BELONGS_TO_FLOOR|PART_OF_FLOOR]->(zf:Floor)
         OPTIONAL MATCH (d)-[:LOCATED_ON_FLOOR]->(f1:Floor)
         OPTIONAL MATCH (d)-[:IN_BUILDING]->(b1:Building)
-        // Derive by properties when rels are missing (relax tenant constraints)
+        WITH d, z1, coalesce(f1, zf) AS fRel, b1
         OPTIONAL MATCH (dz:Zone)
-        WHERE (toString(dz.id) = toString(d.zoneID) OR toString(dz.zoneID) = toString(d.zoneID))
+        WHERE z1 IS NULL AND (toString(dz.id) = toString(d.zoneID) OR toString(dz.zoneID) = toString(d.zoneID))
+        OPTIONAL MATCH (dz)-[:BELONGS_TO_FLOOR|PART_OF_FLOOR]->(dfz:Floor)
         OPTIONAL MATCH (df:Floor)
-        WHERE (toString(df.id) = toString(d.floorID) OR toString(df.floorID) = toString(d.floorID))
+        WHERE fRel IS NULL AND (toString(df.id) = toString(d.floorID) OR toString(df.floorID) = toString(d.floorID))
         OPTIONAL MATCH (db:Building)
-        WHERE (toString(db.id) = toString(d.buildingID) OR toString(db.buildingID) = toString(d.buildingID))
-        WITH d, coalesce(z1, dz) AS z, coalesce(f1, df) AS f, coalesce(b1, db) AS b
-        // If building still null, derive via z->b or f->b
+        WHERE b1 IS NULL AND (toString(db.id) = toString(d.buildingID) OR toString(db.buildingID) = toString(d.buildingID))
+        WITH d,
+             coalesce(z1, dz) AS z,
+             coalesce(fRel, dfz, df) AS f,
+             coalesce(b1, db) AS b
         OPTIONAL MATCH (z)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(bz2:Building)
         OPTIONAL MATCH (f)-[:LOCATED_IN_BUILDING|PART_OF_BUILDING]->(bf2:Building)
         WITH d, z, f, coalesce(b, bz2, bf2) AS b
@@ -409,7 +482,7 @@ export function createGraphClient({ uri, username, password, database }) {
         addNode(did, { label: 'Device', name: d.properties?.name, nodeType: 'Device', deviceType: d.properties?.type || null, cloudId });
         includedDevices.add(did);
         if (f && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
-        if (z && fid) addLink(zid, fid, 'BELONGS_TO_FLOOR');
+        if (z && fid) attachZoneFloor(zid, fid, z.properties?.name);
         if (z && bid) addLink(zid, bid, 'LOCATED_IN_BUILDING');
         if (z) addLink(did, zid, 'LOCATED_IN_ZONE');
         if (f) addLink(did, fid, 'LOCATED_ON_FLOOR');

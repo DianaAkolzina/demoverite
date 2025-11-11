@@ -13,6 +13,8 @@ neo4j/
 data/graph_snapshot*.json
 data/weather_buildings/
 data/tests/
+data/traces/
+data/pipeline_tmp/
 
 # Logs and caches
 *.log

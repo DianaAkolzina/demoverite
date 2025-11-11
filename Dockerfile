@@ -28,10 +28,6 @@ RUN pip install --upgrade pip \
 # Copy the rest of the app
 COPY . .
 
-# Run optional scripts only if present
-RUN test -f scripts/strip_comments.py && python3 scripts/strip_comments.py || true
-RUN test -f scripts/entrypoint.sh && chmod +x scripts/entrypoint.sh || true
-
 ENV NODE_ENV=production
 
 # Install Node deps after sources; ignore lifecycle scripts during install
@@ -56,4 +52,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:'+process.env.PORT+'/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 
-CMD ["scripts/entrypoint.sh"]
+CMD ["node","server/index.js"]

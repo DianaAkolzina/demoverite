@@ -4,57 +4,69 @@ Production‑ready building analytics assistant with RAG + tool calling, Highcha
 
 This project lets you query and visualize building metrics (CO2, VOC, lux, occupancy, energy, etc.) per room and over a selected time range.
 
-## Quick Start (Dev Controls)
+## Quick Start
 
-Prereqs:  
-- Node.js 18+ (or Docker)  
-- Python 3.10+ (for Chroma/utility scripts)  
-- Neo4j database (local or hosted)  
-- AWS credentials (optional, only if syncing telemetry from S3)  
-- OpenWeather API key (legacy/optional — only needed if you re-enable live weather fetches)
+Prerequisites
+- Node.js 18+
+- Python 3.10+ (for Neo4j utilities, Chroma indexing, and report generation)
+- Neo4j Aura (recommended) or a local Neo4j 5 instance
+- AWS credentials (optional — required only if you mirror telemetry or upload reports)
 
-1) Clone
+1. Clone the repo  
+   ```bash
+   git clone <repo-url>
+   cd avmsolutions
+   ```
+2. Create `.env` from the template and fill the compulsory values (Gemini, AWS, Neo4j, Chroma).  
+   ```bash
+   cp .env.example .env
+   ```
+3. Install dependencies  
+   ```bash
+   npm install
+   ```
+4. Mirror telemetry when you have S3 access (optional for offline mode)  
+   ```bash
+   npm run sync:s3
+   ```
+5. Seed Neo4j topology (idempotent)  
+   ```bash
+   npm run populate:neo4j
+   ```
+6. Index knowledge into Chroma once the vector service is reachable (optional)  
+   ```bash
+   npm run index:chroma
+   ```
+7. Start the server  
+   ```bash
+   npm start
+   ```
+   The UI listens on `http://localhost:3000`. Startup regenerates `data/graph_snapshot.json` plus per-tenant snapshots and reads telemetry from `CSVex_s3/`.
+
+### Dev Helper Script
+
+The repo includes a lightweight control script that mirrors the old “dev controls” workflow:
+
 ```bash
-git clone <repo-url>
-cd avmsolutions
+chmod +x scripts/dev.sh   # run once
+./scripts/dev.sh start    # start the Node server (background)
+./scripts/dev.sh status   # show PID / port usage
+./scripts/dev.sh logs     # tail logs/app.log
+./scripts/dev.sh stop     # stop the background server
 ```
 
-2) Configure `.env`
-- Neo4j (required): `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, `NEO4J_DATABASE`
-- S3 telemetry: `AWS_S3_BUCKET`, `AWS_S3_REGION`, optional `AWS_S3_PREFIX`, set `AWS_S3_ENABLED=1`
-- Chroma (optional): `CHROMA_URL`
+Additional subcommands:
 
-3) Start via dev controls
-```bash
-scripts/dev_controls.sh start
-```
-This ensures Chroma, indexes knowledge, mirrors S3 telemetry locally into `./CSVex_s3`, and starts the app on `http://localhost:3000`.
-Snapshots: the server writes graph snapshots to `./data/graph_snapshot.json` and per-tenant files `./data/graph_snapshot.<tenant>.json` (these are volume-mounted from `/app/data`).
-
-### Dev Controls Cheat-Sheet
-
-`scripts/dev_controls.sh` is the preferred entrypoint; use it instead of manually composing Docker services. Built-in subcommands:
-
-| Command | Purpose |
+| Command | Description |
 | --- | --- |
-| `start` | Ensures Chroma (optional), seeds Neo4j, backfills weather, syncs telemetry (if enabled), and starts the app. |
-| `stop` | Stops the running containers/processes. |
-| `restart` | Rebuilds the image, refreshes telemetry/weather, restarts the app. |
-| `sync-s3` | Mirrors the configured S3 bucket into `CSVex_s3/`. |
-| `status` | Calls `/api/status` to display datastore health. |
-| `logs` | Tails container/app logs. |
-| `chroma-logs` | Tails Chroma logs (if running). |
-| `ensure-chroma` | Launches the Chroma container in isolation. |
-| `graph-counts` | Summarises nodes/links via `/api/graph/full`. |
-| `rooms` | Lists rooms via `/api/rooms`. |
-| `clean` | Stops containers, removes them, and clears port-forward stubs (as recorded in `data/dev_ports.log`). |
-
-For quick graph snapshot refresh during development:
-```bash
-curl -X POST http://localhost:3000/api/graph/snapshot
-# or curl -X POST -d '{"tenant":"Acme"}' http://localhost:3000/api/graph/snapshot
-```
-
+| `sync-s3` | Mirrors telemetry from S3 (`npm run sync:s3`). |
+| `populate-neo4j` | Seeds Neo4j (only when you actually need to reseed). |
+| `index-chroma` | Rebuilds the Chroma vector store. |
+| `test` | Runs the deterministic building suite and the multi-building scope tests. |
+| `pipeline` | Executes the full regression pipeline (start → tests → PDF upload). |
+| `docker-build` / `docker-up` / `docker-down` / `docker-logs` | Wrap Docker image/container management (volumes for `./data`, `./CSVex_s3`, and `./knowledge` are mounted automatically so traces/CSV mirrors persist on the host). |
+| `clean` | Stops the app, removes the PID file, and tears down the Docker container if running. |
+   
 ### Running Without External Data Sources
 
 If you do **not** have access to production S3 buckets or wish to run the UI against the sample telemetry already checked into the repo:
@@ -68,16 +80,34 @@ If you do **not** have access to production S3 buckets or wish to run the UI aga
 
 With those defaults the UI will render dashboards using the bundled telemetry and the freshly cached weather data; no S3 sync is required.
 
-### Automated Bolton Test Pipeline
+### Automated Test Pipeline
 
-Run the end-to-end verification pipeline (build → start server → wait for LLM warmup → execute Bolton tests → render LaTeX/PDF → upload to S3) with:
+Run the full validation pipeline (start the app → wait for warmup → execute scripted regression suites → render LaTeX/PDF reports → push PDFs to S3) with:
 ```bash
-npm run pipeline:bolton
+npm run pipeline:regression
 ```
+It runs the deterministic building regression suites (`scripts/run_building_regression.js`) followed by the multi-building scope/device coverage tests (`scripts/test_scope_runs.js`). After each suite the pipeline captures new traces, generates a LaTeX report, compiles it to PDF, and uploads the PDF to `tests/<label>/` within your S3 prefix. The Node server is left running for manual follow-up.
+
 Requirements:
 - `pdflatex` available in `PATH` (TeX Live or similar) for PDF generation.
 - AWS credentials in the environment (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional `AWS_SESSION_TOKEN`).
-- `AWS_S3_BUCKET` (and optional `AWS_S3_REGION` / `AWS_S3_PREFIX`). The PDF is uploaded to `tests/` under the configured prefix.
+- `AWS_S3_BUCKET` (and optional `AWS_S3_REGION` / `AWS_S3_PREFIX`). PDFs are pushed to the same bucket that hosts the device telemetry mirror.
+
+### Targeted Regression Suites
+
+When you just want to replay the scripted chat suites without the warmup/PDF/upload workflow:
+
+1. Start the app and leave it running (`npm start`). The suites call `/api/chat`, so the server must already be listening on port `3000`.
+2. In a new terminal, run either (or both):
+   ```bash
+   npm run test:buildings  # scripts/run_building_regression.js
+   npm run test:scope      # scripts/test_scope_runs.js
+   ```
+
+`npm run test:buildings` generates building-specific questions (Bolton, 111 Piccadilly, 55 King Street) that cover scope summaries, histograms, per-room comparisons, CO₂-per-person ratios, forecasts, and other real metrics that exist in the CSV telemetry.  
+`npm run test:scope` focuses on manual scope/metric scenarios—including the Bolton First Floor “visible scope” questions and the Bolton Toilet NH₃ trend request—so regressions for those prompts show up instantly.  
+
+Both scripts write their JSON reports to `data/tests/` and each request saves a trace under `data/traces/` for manual inspection.
 
 ### Requirements Summary
 
@@ -87,6 +117,7 @@ Requirements:
 | OpenWeather    | ⚠️ Optional | Currently unused — synthetic backfill covers Sep–Oct offline. Provide a key only if you re-enable live fetches. |
 | AWS S3         | ⚠️ Optional | Only necessary when mirroring live telemetry. Sample CSVs in `CSVex_s3/` are enough for local development. |
 | Chroma         | ⚠️ Optional | Required for vector search. Skip by omitting `CHROMA_URL` or setting `CHROMA_SKIP_INDEX=1`. |
+| Python reranker| ⚠️ Optional | Needed only if `RERANK_ENABLED=1`. Install Python 3.9+ and set `RERANK_PYTHON_BIN` (or ensure `python3` / `python` is on `PATH`). |
 
 ## Architecture at a Glance
 
@@ -96,7 +127,7 @@ Requirements:
   - At startup the server synthesises hourly weather for every building between `WEATHER_BACKFILL_START` and `WEATHER_BACKFILL_END` (defaults: 2024‑09‑01 → 2024‑10‑31), writing the results to both `CSVex_s3/weather_buildings/` and `data/weather_buildings/`. Existing caches are reused, missing hours are regenerated, and buildings without coordinates fall back to Manchester defaults.
 
 2. **Local telemetry mirror**
-   - Device CSVs live in `CSVex_s3/`. When AWS variables are supplied, `scripts/dev_controls.sh sync-s3` mirrors production S3 into this directory; otherwise, the bundled CSVs keep dashboards functional in offline mode.
+  - Device CSVs live in `CSVex_s3/`. When AWS variables are supplied, `npm run sync:s3` mirrors production S3 into this directory; otherwise, the bundled CSVs keep dashboards functional in offline mode.
    - Device IDs are normalised so scope selections (building/floor/zone) consistently locate the correct telemetry file.
 
 3. **Agent workflow**
@@ -118,6 +149,7 @@ Requirements:
 - Chroma: `CHROMA_URL` (http URL)
 - Weather: `WEATHER_USE_SYNTHETIC` (default `1`), `WEATHER_BACKFILL_START`, `WEATHER_BACKFILL_END` (defaults: `2024-09-01` to `2024-10-31`), `WEATHER_DEFAULT_LAT`, `WEATHER_DEFAULT_LON`
 - (Legacy) `OPENWEATHER_API_KEY` is currently ignored unless live fetching is re-enabled.
+- Reranker (optional): `RERANK_ENABLED=1|0`, `RERANK_TOP` (default `20`), `RERANK_PYTHON_BIN` to point at your Python interpreter on Windows if `python3` isn’t available.
 
 LLM (optional):
 - `USE_LLM=true`, `LLM_PROVIDER=gemini`, `GEMINI_API_KEY=...`, `LLM_TEMPERATURE`, see `server/index.js`
@@ -138,9 +170,7 @@ Graph / Vector:
   - Set `CHROMA_URL` based on how you run:
     - Local host: `CHROMA_URL=http://localhost:8000`
     - Docker Compose (uses the `chroma` service name): `CHROMA_URL=http://chroma:8000`
-  - On startup, the server checks Chroma heartbeat and, if reachable, indexes knowledge/profiles via `scripts/index_chroma_http.py` (falls back to client indexer). To skip indexing, set `CHROMA_SKIP_INDEX=1`.
-  - Dev controls now default to a lightweight hashed embedding function to avoid long installs during `docker build`. If you prefer high-quality `sentence-transformers` embeddings, set `CHROMA_USE_SENTENCE_TRANSFORMER=1` and ensure the runtime image includes the dependency.
-  - Running `scripts/dev_controls.sh stop|clean` now records port snapshots under `data/dev_ports.log` and force-closes listeners on `3000`, `8000`, `7474`, and `7687` so repeated builds don’t leak Docker proxies.
+  - On startup, the server checks the Chroma heartbeat and, if reachable, runs `scripts/index_chroma.py` to refresh knowledge/profile embeddings (set `CHROMA_SKIP_INDEX=1` to skip). The script relies on SentenceTransformers; pre-download models if your environment blocks outbound network calls.
 
 Notes:
 - The app now REQUIRES Neo4j. Startup fails fast if Neo4j env is missing or the database is unreachable.
@@ -161,13 +191,13 @@ You can run directly if you have Node 18+ and Python for Chroma scripts:
 cp .env.example .env   # then edit Neo4j/AWS/Chroma
 NODE_ENV=production PORT=3000 node server/index.js
 ```
-For Chroma indexing from host, run: `python3 scripts/index_chroma.py` or `scripts/index_chroma_http.py` with `CHROMA_URL` set.
+For Chroma indexing from host, run: `npm run index:chroma` with `CHROMA_URL` set.
 
 ## Troubleshooting
 
 - S3 mirror not found or empty:
   - Ensure `.env` has `AWS_S3_BUCKET`, `AWS_S3_REGION`, and `AWS_S3_ENABLED=1`.
-  - Run `scripts/dev_controls.sh sync-s3` to populate `./CSVex_s3`.
+  - Run `npm run sync:s3` to populate `./CSVex_s3`.
 - Weather key missing:
   - Weather fetch is skipped; app still runs.
 - Empty charts:

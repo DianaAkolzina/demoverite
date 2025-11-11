@@ -70,6 +70,7 @@ o3: Ozone concentration, ppm.
 pm10: PM10, µg/m³.
 tvoc: Total volatile organic compounds index.
 raw_data: Raw JSON payload.
+pit: Passive Infrared Temperature channel; behaves like a binary PIR occupancy flag (0 = idle, 1 = motion) emitted alongside temperature.
 
 --- energy_clamp.csv ---
 ts: Timestamp.
@@ -78,4 +79,3 @@ powerFailure: Boolean flag for power failure.
 unit: Unit of measurement (A).
 raw_data: Raw payload.
 total_kwh: Cumulative energy consumption, kWh (if available).
-

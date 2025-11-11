@@ -1,9 +1,0 @@
-id,name,is_active
-1,Digispace Gateway,True
-2,People Counter,True
-3,Occupancy Sensors,True
-4,Control Devices,True
-5,Energy Clamps,True
-6,Air Quality Sensors,True
-7,Leak Detector,True
-8,Water Management,True

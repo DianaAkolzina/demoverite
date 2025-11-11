@@ -28,13 +28,26 @@ if (fs.existsSync(envPath)) {
 }
 
 const LLM_TEMPERATURE = Number(process.env.LLM_TEMPERATURE ?? 0.3);
-const LLM_MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 4096); // Increased default for richer replies
+const LLM_MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 8192); // Increased default for richer replies
 const LLM_DEBUG = (process.env.LLM_DEBUG === '1') || (process.env.LOG_LEVEL === 'debug');
 
-const USE_LLM = (process.env.USE_LLM || 'false').toLowerCase() === 'true';
+const USE_LLM = (process.env.USE_LLM || 'true').toLowerCase() === 'true';
 const LLM_PROVIDER = process.env.LLM_PROVIDER || 'gemini';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'models/gemini-2.5-flash';
+
+if (!USE_LLM) {
+  console.error('[startup] USE_LLM must be true. Set USE_LLM=true to enable the Gemini agent.');
+  process.exit(1);
+}
+if ((LLM_PROVIDER || '').toLowerCase() !== 'gemini') {
+  console.error('[startup] LLM_PROVIDER must be "gemini" to run this assistant.');
+  process.exit(1);
+}
+if (!GEMINI_API_KEY) {
+  console.error('[startup] GEMINI_API_KEY is required. Set it in your environment or .env file.');
+  process.exit(1);
+}
 
 
 const dataDir = path.join(root, 'data');
@@ -252,15 +265,10 @@ async function ensureDatastores() {
       console.warn('[startup] CHROMA_URL set but Chroma not reachable at', base, '- skipping indexing.');
     } else {
       try {
-        console.log('[startup] Indexing Chroma (HTTP)…');
-        await runCmd('python3', ['scripts/index_chroma_http.py']);
+        console.log('[startup] Indexing Chroma…');
+        await runCmd('python3', ['scripts/index_chroma.py']);
       } catch (e) {
-        console.error('[startup] Chroma HTTP indexing failed, trying client-based indexer:', String(e));
-        try {
-          await runCmd('python3', ['scripts/index_chroma.py']);
-        } catch (e2) {
-          console.error('[startup] Chroma indexing failed (continuing):', String(e2));
-        }
+        console.error('[startup] Chroma indexing failed (continuing):', String(e));
       }
     }
   }
@@ -566,7 +574,7 @@ function synthWeatherSample(lat, lon, ts, sourceMap = null) {
     humidity: Math.round(humidityBase),
     pressure: Math.round(pressure),
     wind_speed: Number(windSpeed.toFixed(1)),
-    wind_deg,
+    wind_deg: windDeg,
     clouds,
     weather_main,
     weather_desc
@@ -928,7 +936,9 @@ async function tryGeminiSDK(contents) {
 }
 
 async function callGemini(prompt, context) {
-  if (!USE_LLM || LLM_PROVIDER !== 'gemini' || !GEMINI_API_KEY) return null;
+  if (!USE_LLM) throw new Error('LLM disabled (set USE_LLM=true)');
+  if (LLM_PROVIDER !== 'gemini') throw new Error(`Unsupported LLM provider: ${LLM_PROVIDER}`);
+  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY missing');
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelIdBare(GEMINI_MODEL))}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
   const body = {
     contents: [
@@ -951,8 +961,10 @@ async function callGemini(prompt, context) {
   }
 }
 
-async function callGeminiChat(messages, context) {
-  if (!USE_LLM || LLM_PROVIDER !== 'gemini' || !GEMINI_API_KEY) return null;
+async function callGeminiChatOnce(messages, context) {
+  if (!USE_LLM) throw new Error('LLM disabled (set USE_LLM=true)');
+  if (LLM_PROVIDER !== 'gemini') throw new Error(`Unsupported LLM provider: ${LLM_PROVIDER}`);
+  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY missing');
   const contents = [];
   for (const m of messages.slice(-12)) {
     const role = m.role === 'assistant' || m.role === 'model' ? 'model' : 'user';
@@ -960,18 +972,41 @@ async function callGeminiChat(messages, context) {
   }
   contents.push({ role: 'user', parts: [{ text: `Context JSON (truncated):\n${JSON.stringify(context).slice(0, 6000)}` }] });
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelIdBare(GEMINI_MODEL))}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
-  try {
-    // Try SDK path first if installed
-    const sdkText = await tryGeminiSDK(contents);
-    if (sdkText && sdkText.trim()) return sdkText;
-    const res = await fetchWithRetry(endpoint, { method: 'POST', body: JSON.stringify({ contents, generationConfig: buildGenerationConfig() }), timeoutMs: 25000 });
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).join('\n') || '';
-    return text;
-  } catch (e) {
-    if (LLM_DEBUG) console.log('[LLM] callGeminiChat failed:', String(e));
-    return null;
+  // Try SDK path first if installed
+  const sdkText = await tryGeminiSDK(contents);
+  if (sdkText && sdkText.trim()) return sdkText;
+  const res = await fetchWithRetry(endpoint, { method: 'POST', body: JSON.stringify({ contents, generationConfig: buildGenerationConfig() }), timeoutMs: 25000 });
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).join('\n') || '';
+  return text;
+}
+
+async function callGeminiChat(messages, context) {
+  const maxAttempts = Math.max(1, Number(process.env.LLM_CHAT_RETRIES || 3));
+  const baseDelay = Math.max(250, Number(process.env.LLM_CHAT_BACKOFF_MS || 750));
+  let lastError = null;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      const reply = await callGeminiChatOnce(messages, context);
+      if (reply && reply.trim()) {
+        return reply;
+      }
+      lastError = new Error('Empty response from Gemini');
+    } catch (e) {
+      lastError = e;
+      if (LLM_DEBUG) console.log(`[LLM] callGeminiChat attempt ${attempt + 1} failed:`, String(e));
+    }
+
+    if (attempt < maxAttempts - 1) {
+      const delay = Math.min(10000, baseDelay * Math.pow(2, attempt));
+      if (LLM_DEBUG) console.log(`[LLM] retrying Gemini call in ${delay}ms (attempt ${attempt + 2}/${maxAttempts})`);
+      await wait(delay);
+    }
   }
+
+  if (LLM_DEBUG && lastError) console.log('[LLM] callGeminiChat exhausted retries:', String(lastError));
+  return null;
 }
 
 function buildHighchartsSeriesFromTable(table, valueKey, start, end) {
@@ -1267,6 +1302,26 @@ const server = http.createServer(async (req, res) => {
   const { pathname, query } = parsed;
   if (DEBUG_HTTP) {
     console.log(`[HTTP] ${req.method} ${pathname} ${Object.keys(query).length ? JSON.stringify(query) : ''}`);
+  }
+
+  if (pathname.startsWith('/data/')) {
+    const dataRoot = path.join(root, 'data');
+    const relPath = pathname.replace(/^\/+/, '');
+    const targetPath = path.join(root, relPath);
+    if (!targetPath.startsWith(dataRoot)) {
+      res.writeHead(403); res.end('Forbidden'); return;
+    }
+    try {
+      const stat = fs.statSync(targetPath);
+      if (!stat.isFile()) { res.writeHead(404); res.end('Not Found'); return; }
+      const stream = fs.createReadStream(targetPath);
+      stream.on('error', () => { res.writeHead(500); res.end('Read error'); });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      stream.pipe(res);
+    } catch {
+      res.writeHead(404); res.end('Not Found');
+    }
+    return;
   }
 
   if (pathname === '/api/rooms' && req.method === 'GET') {
@@ -1745,7 +1800,13 @@ const server = http.createServer(async (req, res) => {
       const field = String(query.field || '').trim();
       const start = query.start ? Number(query.start) : null;
       const end = query.end ? Number(query.end) : null;
-      const limit = Math.max(1, Math.min(5000, Number(query.limit) || 1000));
+      let limit = 1000;
+      if (query.limit != null) {
+        const rawLimit = Number(query.limit);
+        if (Number.isFinite(rawLimit)) {
+          limit = rawLimit <= 0 ? Infinity : Math.max(1, Math.min(20000, rawLimit));
+        }
+      }
       if (!field) return sendJson(res, 400, { error: 'field required' });
 
       // Weather support: if building provided and field prefixed with weather.

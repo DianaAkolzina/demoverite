@@ -5,15 +5,16 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.js",
-    "test:scenarios": "node scripts/test_scope_runs.js",
-    "check:neo4j": "node scripts/check_neo4j.js",
+    "test:buildings": "node scripts/run_building_regression.js",
+    "test:scope": "node scripts/test_scope_runs.js",
     "populate:neo4j": "node scripts/populate_neo4j.js",
     "sync:s3": "node scripts/s3_sync_telemetry.js",
     "docker:up": "docker build -t avmsolutions-analytics . && docker run -d --name avmsolutions-analytics -p 3000:3000 --env-file .env avmsolutions-analytics",
     "docker:down": "docker stop avmsolutions-analytics && docker rm avmsolutions-analytics",
     "docker:logs": "docker logs -f avmsolutions-analytics",
     "index:chroma": "python3 scripts/index_chroma.py",
-    "pipeline:bolton": "node scripts/pipeline_bolton_tests.js"
+    "pipeline:regression": "node scripts/pipeline_regression.js",
+    "upload:reports": "node scripts/upload_reports_to_s3.js"
   },
   "dependencies": {
     "node-fetch": "^3.3.2",

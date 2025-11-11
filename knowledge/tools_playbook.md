@@ -1,150 +1,48 @@
-# Tools Playbook (Authoritative)
 
-This document supersedes older references to generic "stat" or vague comparisons. Use these exact tool names and patterns. Follow scope and time window strictly.
+# Tools Playbook (Current)
 
-## Core Principles
-- Scope: Only use rooms in the current selection. If room is ALL, the server passes a `Rooms in scope:` list. Do not invent rooms.
-- Time window: Always use the selected Start/End (epoch ms). If the window yields no rows, adapt using `fetch_table_meta` and explain.
-- Charts: Prefer `dataRef` to reference a tool result (backend resolves dataRef). For short windows (< 20 days) or small datasets (<= 200 points per series), you MAY embed arrays directly; keep them compact to avoid truncation.
-- Rephrase knowledge: Summarize concisely; do not dump long passages.
+Use this playbook together with `knowledge/tools_reference.md`, which mirrors the live `toolDefs()` list. The reference tells you what each tool does; this file tells you when to reach for it.
 
-## Frequently Used Tools (Quick Guide)
+## Core Workflow
+1. Respect the server-provided scope and time window. Never invent a room/floor/building that is not in `selection`.
+2. Plan → execute → final. Run at least two concrete tool steps before finalizing. If a tool returns zero rows, call `fetch_table_meta`, adapt, and explain the gap.
+3. Every chart must rely on `series[].dataRef` that points at the tool you executed. Never embed raw arrays.
+4. Cite the tool outputs explicitly in the "Details" section so traces remain auditable.
 
-- `fetch_timeseries({ room, table, fields[], start?, end? })` → `[ { ts, field } ]`
-  - Use for a single metric line chart.
-  - Example chart:
-    - series: `[ { name: f, dataRef: { tool: 'fetch_timeseries', xField: 'ts', yField: f } } ]`
+## Timeseries, Buckets & Stats
+- `fetch_timeseries` for raw lines; `hourly_timeseries` for bucketed trends. When you need scatter or per-point ratios, pair with `pair_timeseries` or `compute_ratio`.
+- `stats`, `get_time_for_value`, `detect_spikes`, `data_gaps`, `distinct_values`, `weekday_exceedance`, `hour_of_day_stats` cover the bulk of summary/explainability questions.
+- When you need aligned multi-metric output, call `scope_multiline`, `grid_align_timeseries`, or `timeseries_regression_join` (which also returns regression + scatter helpers).
 
-- `compare_series_cross_room({ series:[{ room, table, field, name? }], start?, end? })` → `{ name: [ { ts, y } ] }`
-  - Use to compare one metric across multiple rooms (line chart).
-  - Build one series entry per room. dataRef example:
-    - `{ tool: 'compare_series_cross_room', field: '<series name>', xField: 'ts', yField: 'y' }`
+## Comparisons & Rankings
+- Cross-room: `compare_series_cross_room` (line chart), `compare_rooms_on_metric` (ranking bar), `compare_field_across_rooms`, `aggregate_*_across_rooms`.
+- Within one room: `compare_metrics_in_room`, `daypart_boxplot`, `ventilation_effectiveness`, `energy_high_when_empty`, `energy_iaq_linkage`.
+- Percentile/range requests across scope: `scope_daily_percentile` (line + summary bar) and `scope_heatmap` (room vs time heatmaps).
 
-- `pair_timeseries({ room, table1, field1, table2, field2, start?, end?, time_window_ms? })` → `[{ x, y, ts1, ts2, dt }]`
-  - Use for scatter plots (e.g., indoor `iaq.lux` vs outside `weather.temp`).
-  - Chart example:
-    - `{ "chart": {"type": "scatter"}, "series": [{ "name": "Lux vs Outside Temp", "dataRef": {"tool": "pair_timeseries", "xField": "x", "yField": "y"} }] }`
+## Occupancy, People & Energy Insight
+- `occupancy_people_insight` bundles dwell vs utilisation scatter, heatmap, and peak windows—use it for “busiest hour”, “utilisation vs people count”, or sanity checks.
+- `rooms_unused_since`, `current_occupied_rooms`, `occupancy_current_total`, `busiest_day_of_week`, `weekday_weekend_comparison` answer operational questions quickly.
+- Energy-focused prompts should include `energy_delta_kwh`, `energy_high_when_empty`, or `energy_iaq_linkage` depending on whether the user wants totals, waste detection, or IAQ vs kWh linkage.
 
-- `compare_rooms_on_metric({ rooms?, table, field, agg?, start?, end? })` → `[ { room, value } ]`
-  - Rank rooms by avg/sum/peak. Use bar/column with categories from `room`.
+## Weather & IAQ Context
+- Always involve `weather_fetch` or `building_temp_weather_corr` / `building_temp_weather_scatter` when weather is mentioned. Follow up with `correlate`, `correlate_cross_room`, or `correlate_weather_room` for quantifying relationships.
+- `weather_correlate` is reserved for weather-only comparisons; `building_temp_weather_corr` already blends indoor temperatures across the scope and pairs them with outside data.
 
-- `compare_metrics_in_room({ room, table, fields[], agg?, start?, end? })` → `[ { field, value } ]`
-  - Compare multiple fields within a room; use bar/column.
+## Forecasting & Trend Projection
+- Pick from `forecast_from_profile`, `forecast_hourly_linear`, `forecast_hourly_naive`, `forecast_moving_average`, `forecast_exponential_smoothing`, `forecast_seasonal_hourly`, or `forecast_polyfit` based on the question. Always mention the horizon and plot historical vs forecast as two series.
 
-- `stats({ room, table, field, start?, end? })` → `{ count, min, max, avg, sum }`
-  - Use for numeric summaries in the selected window.
+## Scope / Graph Utilities
+- Use `scope_list_buildings`, `scope_list_floors`, `scope_list_rooms`, `graph_rooms_by_scope`, or `graph_rooms_by_tenant` when the user asks “what do you see?”
+- For detector/device inventory, call `graph_zone_devices`, `graph_devices_by_scope`, `scope_schema_matrix`, or `scope_list_detectors`. These feed Markdown tables as well as context sentences.
 
-- `hour_of_day_stats({ room, table, field, start?, end? })` → per-hour bins
-  - Use for arrival/leave time patterns, busiest hours.
+## Diagnostics & Knowledge
+- `device_health_summary`, `common_metrics_in_scope`, `vector_search_docs`, `table_sample`, and `dump_room` cover troubleshooting, schema enumeration, and doc lookups. Use them sparingly but cite their output when the user explicitly asks for raw snippets.
 
-- `correlation_matrix({ room, table, fields[], start?, end? })` → `{ fields, matrix }`
-  - Use for pairwise correlations among metrics (summarize values; optional heatmap, no raw arrays).
+## Chart Patterns (dataRef shorthand)
+- **Line / area**: `fetch_timeseries`, `hourly_timeseries`, `scope_multiline`, `scope_daily_percentile.series`.
+- **Scatter**: `pair_timeseries`, `building_temp_weather_corr`, `timeseries_regression_join.scatter`, `occupancy_people_insight.scatter`.
+- **Heatmap**: `scope_heatmap`, `grid_align_timeseries.heatmap`, `occupancy_people_insight.heatmap`.
+- **Bar / ranking**: `compare_rooms_on_metric`, `compare_metrics_in_room`, `scope_daily_percentile.summary`, `daypart_boxplot.peaks`, `energy_high_when_empty`.
+- **Tabular**: `table_sample`, `scope_schema_matrix`, `device_health_summary`, `graph_zone_devices` (render as Markdown tables when textual output is clearer).
 
-- `fetch_table_meta({ room, table })` → `{ count, fields[], tsMin, tsMax }`
-  - If a tool returns no rows, query meta and adapt within available range, explaining the adaptation.
-
-## Graph / Scope Helpers
-
-- `graph_rooms_by_scope({ building?, floor? })` → `{ rooms: string[] }`
-  - Use to list rooms by building/floor when needed.
-
-- `scope_list_buildings()` / `scope_list_floors({ building })` / `scope_list_rooms({ building?, floor? })`
-  - Use to present available structures when the user asks.
-
-- `scope_list_detectors({ room })` → `[ detectorType ]`
-  - Summarize detectors in a room. Combine with fields from first-row schema for a clean list of metrics.
-
-- `graph_zone_devices({ room })` → `{ devices: [{ id, name, type, metrics[] }] }`
-  - Use when the user asks for device-level details.
-
-## Field & Table Selection
-
-- Map synonyms to fields: co2/co₂, temp/temperature, lux/light, occupancy/people/people_count, energy/value/total_kwh, odor/odour, nh3, h2s, pm25, pm10.
-- For IAQ fields, table is usually `iaq`. For energy metrics, `energy`. For occupancy, `people`. Use `fetch_table_meta` if unsure.
-
-## Chart Construction (prefer dataRef)
-
-Line chart (single metric):
-```
-{
-  "chart": {"type": "line"},
-  "xAxis": {"type": "datetime"},
-  "series": [{
-    "name": "Temperature",
-    "dataRef": {"tool": "fetch_timeseries", "xField": "ts", "yField": "temperature"}
-  }]
-}
-```
-
-Compare across rooms:
-```
-{
-  "chart": {"type": "line"},
-  "xAxis": {"type": "datetime"},
-  "series": [{
-    "name": "A_F1_cafe temperature",
-    "dataRef": {"tool": "compare_series_cross_room", "field": "A_F1_cafe temperature", "xField": "ts", "yField": "y"}
-  },{
-    "name": "A_F1_boardroom temperature",
-    "dataRef": {"tool": "compare_series_cross_room", "field": "A_F1_boardroom temperature", "xField": "ts", "yField": "y"}
-  }]
-}
-```
-
-## Do / Don’t
-
-- Do: Use the exact selected time window; explain if you adapt to available data.
-- Do: Use only rooms in the provided scope.
-- Do: Provide concise text; add a chart when it helps.
-- Don’t: Embed large data arrays that cause truncation. Prefer dataRef; for short windows you may embed small arrays.
-- Don’t: Dump entire knowledge documents; rephrase relevant points.
-
-## Full Tool Reference
-
-For a complete list of all available tools, arguments, expected outputs, and dataRef chart patterns, see `tools_reference.md` in this folder. This reference covers discovery, timeseries, aggregations, correlations, occupancy/operations, forecasting, graph/scope, and vector-search tools with copy‑paste examples.
-- `chart_query({ intent?, metric, rooms?, table?, granularity?, aggregateAcrossRooms?, compareRooms?, forecast?, start?, end? })` → `{ plan, chart }`
-  - Convert a natural request into a tool plan and a ready HighchartsOptions with dataRef. The runner will execute `plan` to populate chart series.
-- `chart_query({ intent?, metric, rooms?, table?, granularity?, aggregateAcrossRooms?, compareRooms?, forecast?, start?, end? })` → `{ plan, chart }`
-  - Converts natural text to a chart plan (tools + dataRef chart). The agent executes `plan` so series resolve.
-  - Supports raw/hourly/daily, per-room compare, combined daily, and scatter via `pair_timeseries`.
-- `histogram({ room, table, field, bins?, start?, end? })` → `[{ binStart, binEnd, count }]`
-  - Column chart: categories from binStart; y=count.
-
-- `latest_value({ room, table, field, start?, end? })` → `{ ts, value }`
-- `latest_per_room({ table, field, start?, end? })` → `{ [room]: { ts, value } }`
-- `compare_rooms_on_metric({ rooms?, table, field, agg?, start?, end? })` → `[{ room, value }]` (bar ranking)
-- `compare_metrics_in_room({ room, table, fields[], agg?, start?, end? })` → `[{ field, value }]` (bar composition)
-- `data_gaps({ room, table, field, max_gap_ms, start?, end? })` → `[{ from, to, gap }]`
-- `detect_spikes({ room, table, field, z?, window?, start?, end? })` → `[{ ts, value, z }]`
-- `correlation_matrix({ room, table, fields[], start?, end? })` → `{ fields, matrix }`
-- `weekday_weekend_comparison({ room, table, field, start?, end? })` → `{ weekdayAvg, weekendAvg }`
-- `energy_delta_kwh({ room, start?, end? })` → `{ delta_kwh, count }`
-Heatmap (Correlation Matrix):
-```
-{
-  "chart": {"type": "heatmap"},
-  "title": {"text": "Correlation Heatmap"},
-  "colorAxis": {"min": -1, "max": 1},
-  "series": [{
-    "name": "Correlation",
-    "dataRef": {"tool": "correlation_matrix", "format": "heatmap"}
-  }]
-}
-```
-
-Dual‑Axis Overlay (e.g., Room Lux + Outside Temperature):
-```
-{
-  "chart": {"type": "line"},
-  "xAxis": {"type": "datetime"},
-  "yAxis": [{"title": {"text": "Lux"}}, {"title": {"text": "Outside Temp"}, "opposite": true}],
-  "series": [{
-    "name": "Lab Lux",
-    "dataRef": {"tool": "fetch_timeseries", "xField": "ts", "yField": "lux"}
-  },{
-    "name": "Outside Temp",
-    "dataRef": {"tool": "weather_fetch", "xField": "ts", "yField": "temp"},
-    "yAxis": 1
-  }]
-}
-```
+Stick to this flow and the agent will stay compliant with the latest toolset.

@@ -88,12 +88,19 @@ export function buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir
     const meta = {};
     for (const line of yaml.split(/\r?\n/)) {
       const mm = line.match(/^([A-Za-z0-9_\-]+):\s*(.*)$/);
-      if (mm) meta[mm[1].trim()] = mm[2].trim();
+      if (mm) {
+        const key = mm[1].trim();
+        let value = mm[2].trim();
+        if (value.includes(',')) {
+          value = value.split(',').map((v) => v.trim()).filter(Boolean);
+        }
+        meta[key] = value;
+      }
     }
     return { meta, body: text.slice(m[0].length) };
   }
 
-  function chunkByHeadings(text, { maxLen = 1200 } = {}) {
+  function chunkByHeadings(text, { maxLen = 1200, minLen = 400 } = {}) {
     // Split on ATX headings and keep them with their section; fallback to fixed-size
     const parts = text.split(/^#{1,6}\s.+$/m);
     if (parts.length <= 1) {
@@ -118,7 +125,36 @@ export function buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir
       }
     }
     if (cur.length) chunks.push(cur.join('\n'));
-    return chunks;
+    // Merge undersized chunks with neighbors to preserve context
+    const merged = [];
+    for (const chunk of chunks) {
+      const trimmed = chunk.trim();
+      if (!trimmed) continue;
+      if (!merged.length) {
+        merged.push(trimmed);
+        continue;
+      }
+      if (trimmed.length < minLen) {
+        const prev = merged.pop();
+        if ((prev.length + trimmed.length + 2) <= maxLen * 1.2) {
+          merged.push(`${prev}\n\n${trimmed}`.trim());
+        } else {
+          merged.push(prev);
+          merged.push(trimmed);
+        }
+      } else {
+        merged.push(trimmed);
+      }
+    }
+    return merged;
+  }
+
+  function shouldExcludeDoc(meta = {}) {
+    const flag = String(meta.exclude || meta.flagged || '').toLowerCase();
+    if (flag === 'true' || flag === '1') return true;
+    const status = String(meta.status || '').toLowerCase();
+    if (status === 'deprecated' || status === 'exclude') return true;
+    return false;
   }
 
   // Knowledge (recursive)
@@ -129,6 +165,7 @@ export function buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir
       const category = path.dirname(rel) === '.' ? null : path.dirname(rel);
       const raw = fs.readFileSync(abs, 'utf8');
       const { meta: fm, body } = parseFrontMatter(raw);
+      if (shouldExcludeDoc(fm)) continue;
       const chunks = chunkByHeadings(body, { maxLen: 1400 });
       for (const c of chunks) {
         docs.push({ id: `k_${id++}`, text: c, meta: { type: 'knowledge', file: rel, category, ...fm } });

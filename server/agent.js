@@ -31,9 +31,228 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     '#fde047',
     '#6b7280'
   ];
+  const UI_LOCALE = process.env.UI_LOCALE || 'en-GB';
+  const UI_TIMEZONE = process.env.UI_TIMEZONE || 'Europe/London';
+  const dateTimeFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: UI_TIMEZONE
+  });
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DAYPART_WINDOWS = [
+  { id: '08-12', startHour: 8, endHour: 12 },
+  { id: '12-16', startHour: 12, endHour: 16 },
+  { id: '16-20', startHour: 16, endHour: 20 }
+];
+const PEOPLE_FALLBACK_FIELDS = ['line_periodic_data', 'line_total_data', 'people_count', 'count', 'value', 'dwell'];
+const DEFAULT_TIME_ZONE = 'Europe/London';
+  const tzFormatterCache = new Map();
+  const getTimeZoneFormatter = (timeZone = DEFAULT_TIME_ZONE) => {
+    const key = timeZone || DEFAULT_TIME_ZONE;
+    if (!tzFormatterCache.has(key)) {
+      tzFormatterCache.set(
+        key,
+        new Intl.DateTimeFormat('en-GB', {
+          timeZone: key,
+          hourCycle: 'h23',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        })
+      );
+    }
+    return tzFormatterCache.get(key);
+  };
+  const getTimeZoneParts = (ts, timeZone = DEFAULT_TIME_ZONE) => {
+    const formatter = getTimeZoneFormatter(timeZone);
+    const parts = formatter.formatToParts(ts);
+    const lookup = {};
+    for (const { type, value } of parts) {
+      lookup[type] = value;
+    }
+    const year = Number(lookup.year);
+    const month = Number(lookup.month);
+    const day = Number(lookup.day);
+    const hour = Number(lookup.hour);
+    const minute = Number(lookup.minute);
+    const second = Number(lookup.second);
+    const localUtc = Date.UTC(year, month - 1, day, hour, minute, second || 0, 0);
+    const offset = localUtc - ts;
+    return { year, month, day, hour, minute, second: second || 0, offset };
+  };
+  const alignTimestampToBucket = (ts, bucketMinutes = 5, timeZone = DEFAULT_TIME_ZONE) => {
+    if (!Number.isFinite(ts)) return ts;
+    const parts = getTimeZoneParts(ts, timeZone);
+    const totalMinutes = parts.hour * 60 + parts.minute;
+    const floored = Math.floor(totalMinutes / bucketMinutes) * bucketMinutes;
+    const floorHour = Math.floor(floored / 60);
+    const floorMinute = floored % 60;
+    const localUtc = Date.UTC(parts.year, parts.month - 1, parts.day, floorHour, floorMinute, 0, 0);
+    return localUtc - parts.offset;
+  };
+  const startOfDayLocal = (ts, timeZone = DEFAULT_TIME_ZONE) => {
+    if (!Number.isFinite(ts)) return null;
+    const parts = getTimeZoneParts(ts, timeZone);
+    const localUtc = Date.UTC(parts.year, parts.month - 1, parts.day, 0, 0, 0, 0);
+    return localUtc - parts.offset;
+  };
+  const percentileValue = (inputValues, percentile = 0.5) => {
+    if (!Array.isArray(inputValues) || !inputValues.length) return null;
+    const values = inputValues.filter((v) => Number.isFinite(v));
+    if (!values.length) return null;
+    const sorted = [...values].sort((a, b) => a - b);
+    if (percentile <= 0) return sorted[0];
+    if (percentile >= 1) return sorted[sorted.length - 1];
+    const position = (sorted.length - 1) * percentile;
+    const baseIndex = Math.floor(position);
+    const fraction = position - baseIndex;
+    if (baseIndex + 1 >= sorted.length) return sorted[baseIndex];
+    return sorted[baseIndex] + (sorted[baseIndex + 1] - sorted[baseIndex]) * fraction;
+  };
+const medianValue = (values) => percentileValue(values, 0.5);
+const coerceNumber = (value) => {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const coerceBooleanUsage = (value) => {
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (typeof value === 'number') return value > 0 ? 1 : 0;
+  if (typeof value === 'string') {
+    const norm = value.trim().toLowerCase();
+    if (!norm) return 0;
+    if (['1', 'true', 'yes', 'occupied', 'active'].includes(norm)) return 1;
+    if (['0', 'false', 'no', 'inactive'].includes(norm)) return 0;
+  }
+  return value ? 1 : 0;
+};
+const pearson = (xs = [], ys = []) => {
+  if (!Array.isArray(xs) || !Array.isArray(ys)) return { corr: null, n: 0 };
+  const pairs = [];
+  for (let i = 0; i < xs.length; i++) {
+    const x = xs[i];
+    const y = ys[i];
+    if (Number.isFinite(x) && Number.isFinite(y)) pairs.push({ x, y });
+  }
+  if (pairs.length < 2) return { corr: null, n: pairs.length };
+  let sumX = 0;
+  let sumY = 0;
+  let sumXX = 0;
+  let sumYY = 0;
+  let sumXY = 0;
+  for (const { x, y } of pairs) {
+    sumX += x;
+    sumY += y;
+    sumXX += x * x;
+    sumYY += y * y;
+    sumXY += x * y;
+  }
+  const n = pairs.length;
+  const numerator = n * sumXY - sumX * sumY;
+  const denom = Math.sqrt((n * sumXX - sumX * sumX) * (n * sumYY - sumY * sumY));
+  return { corr: denom ? numerator / denom : null, n };
+};
+const extractFieldValue = (row, fieldOrList) => {
+  if (!row) return null;
+  if (!fieldOrList) return null;
+  if (Array.isArray(fieldOrList)) {
+    for (const f of fieldOrList) {
+      const val = extractFieldValue(row, f);
+      if (val != null) return val;
+    }
+    return null;
+  }
+  const raw = row[fieldOrList];
+  return coerceNumber(raw);
+};
+  const computeBoxplot = (values) => {
+    const sorted = (values || []).filter(Number.isFinite).sort((a, b) => a - b);
+    if (!sorted.length) {
+      return { min: null, q1: null, median: null, q3: null, max: null, count: 0 };
+    }
+    return {
+      min: sorted[0],
+      q1: percentileValue(sorted, 0.25),
+      median: percentileValue(sorted, 0.5),
+      q3: percentileValue(sorted, 0.75),
+      max: sorted[sorted.length - 1],
+      count: sorted.length
+    };
+  };
+  const linearRegression = (points) => {
+    const valid = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+    const n = valid.length;
+    if (n < 2) return { slope: null, intercept: null, r2: null, n: 0 };
+    let sumX = 0;
+    let sumY = 0;
+    let sumXY = 0;
+    let sumXX = 0;
+    let sumYY = 0;
+    for (const { x, y } of valid) {
+      sumX += x;
+      sumY += y;
+      sumXY += x * y;
+      sumXX += x * x;
+      sumYY += y * y;
+    }
+    const denominator = n * sumXX - sumX * sumX;
+    if (denominator === 0) return { slope: null, intercept: null, r2: null, n };
+    const slope = (n * sumXY - sumX * sumY) / denominator;
+    const intercept = (sumY - slope * sumX) / n;
+    const numerator = (n * sumXY - sumX * sumY) ** 2;
+    const denomR = (n * sumXX - sumX * sumX) * (n * sumYY - sumY * sumY);
+    const r2 = denomR > 0 ? numerator / denomR : null;
+    return { slope, intercept, r2: Number.isFinite(r2) ? r2 : null, n };
+  };
+  const startOfDayUtc = (ts) => {
+    if (!Number.isFinite(ts)) return null;
+    const date = new Date(ts);
+    date.setUTCHours(0, 0, 0, 0);
+    return date.getTime();
+  };
+  const resolveDaypart = (ts, timeZone = DEFAULT_TIME_ZONE, windows = DAYPART_WINDOWS) => {
+    if (!Number.isFinite(ts)) return null;
+    const parts = getTimeZoneParts(ts, timeZone);
+    const hour = parts.hour;
+    for (const window of windows || []) {
+      if (hour >= window.startHour && hour < window.endHour) return window.id;
+    }
+    return null;
+  };
   const normalizeId = (val) => String(val ?? '').trim();
   const normalizeName = (val) => String(val ?? '').trim().toLowerCase();
+  const canonicalizeBuildingToken = (val) => {
+    const normalized = normalizeName(val);
+    return normalized.replace(/^building[\s:_-]*/, '');
+  };
+  const buildingMatchesSelection = (selection, candidate) => {
+    if (!selection) return true;
+    const normalizedSelection = normalizeName(selection);
+    const strippedSelection = canonicalizeBuildingToken(selection);
+    const values = [];
+    const push = (val) => {
+      const norm = normalizeName(val);
+      if (!norm) return;
+      values.push(norm, canonicalizeBuildingToken(val));
+    };
+    if (candidate && typeof candidate === 'object') {
+      push(candidate.name);
+      push(candidate.id);
+    } else {
+      push(candidate);
+    }
+    return values.some((val) => val === normalizedSelection || val === strippedSelection);
+  };
   const zoneCompositeKey = (zoneId, buildingId, floorId, tenantId) => [
     normalizeName(zoneId),
     normalizeName(buildingId),
@@ -153,7 +372,8 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     selectionRooms: [],
     selectionZones: [],
     scopeDeviceZones: {},
-    scopeLabels: {}
+    scopeLabels: {},
+    range: null
   };
 
   function setScopeContext(ctx = {}) {
@@ -161,8 +381,110 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
       selectionRooms: Array.isArray(ctx.selectionRooms) ? [...ctx.selectionRooms] : [],
       selectionZones: Array.isArray(ctx.selectionZones) ? [...ctx.selectionZones] : [],
       scopeDeviceZones: ctx.scopeDeviceZones && typeof ctx.scopeDeviceZones === 'object' ? { ...ctx.scopeDeviceZones } : {},
-      scopeLabels: ctx.scopeLabels && typeof ctx.scopeLabels === 'object' ? { ...ctx.scopeLabels } : {}
+      scopeLabels: ctx.scopeLabels && typeof ctx.scopeLabels === 'object' ? { ...ctx.scopeLabels } : {},
+      range: ctx.range && typeof ctx.range === 'object' ? { ...ctx.range } : null
     };
+  }
+
+  function gatherCandidateDevices(room, { includeSelection = true } = {}) {
+    const out = new Set();
+    const raw = String(room ?? '').trim();
+    const scopeMap = currentScopeContext.scopeDeviceZones || {};
+    const normalizedRoom = normalizeName(raw);
+    function pushIfValid(id) {
+      if (!id) return;
+      const val = String(id).trim();
+      if (!val) return;
+      if (val === 'ALL') return;
+      if (!deviceTablesAvailable(val)) return;
+      out.add(val);
+    }
+    if (!raw || raw === 'ALL') {
+      if (includeSelection && Array.isArray(currentScopeContext.selectionRooms)) {
+        currentScopeContext.selectionRooms.forEach(pushIfValid);
+      }
+      if (!out.size && snapshotIndex?.deviceMeta?.size) {
+        snapshotIndex.deviceMeta.forEach((meta) => pushIfValid(meta?.cloudId));
+      }
+      return Array.from(out);
+    }
+    if (deviceTablesAvailable(raw)) pushIfValid(raw);
+    const alias = friendlyLookup(raw);
+    if (alias) pushIfValid(alias);
+    for (const [deviceId, zoneName] of Object.entries(scopeMap)) {
+      if (!zoneName) continue;
+      if (normalizeName(zoneName) === normalizedRoom) pushIfValid(deviceId);
+    }
+    const snapZone = findSnapshotZone(raw, currentScopeContext.scopeLabels || {});
+    if (snapZone) {
+      const entries = buildDeviceEntriesFromSnapshotZone(snapZone);
+      entries.forEach((entry) => pushIfValid(entry.cloudId));
+    }
+    return Array.from(out);
+  }
+
+  function resolveDeviceForFields(room, preferredFields = [], candidates = []) {
+    const list = candidates.length ? candidates : gatherCandidateDevices(room);
+    if (!list.length) return room;
+    const desired = (preferredFields || []).map((f) => String(f || '').trim()).filter(Boolean);
+    if (!desired.length) return list[0];
+    for (const deviceId of list) {
+      try {
+        const tablesSets = availableFieldsByTable(deviceId);
+        const matches = desired.every((field) => {
+          const resolved = inferFieldName(field, tablesSets);
+          return !!resolved;
+        });
+        if (matches) return deviceId;
+      } catch {}
+    }
+    return list[0];
+  }
+
+  function fieldsForTool(tool, args = {}) {
+    const name = String(tool || '').toLowerCase();
+    switch (name) {
+      case 'pair_timeseries':
+        return [args.field1, args.field2];
+      case 'correlate':
+      case 'correlate_weather_room':
+        return [args.field1, args.field2];
+      case 'fetch_timeseries':
+        return Array.isArray(args.fields) ? args.fields : [];
+      case 'hourly_timeseries':
+      case 'daily_avg':
+      case 'stats':
+      case 'hour_of_day_stats':
+      case 'histogram':
+      case 'latest_value':
+      case 'latest_per_room':
+      case 'scope_daily_percentile':
+      case 'compare_metrics_in_room':
+        return [args.field];
+      case 'compare_rooms_on_metric':
+      case 'compare_series_cross_room':
+        return [args.field || args.metric];
+      default:
+        return [];
+    }
+  }
+
+  function prepareToolArgs(tool, args) {
+    if (!args) return;
+    const originalRoom = args.room;
+    const candidates = gatherCandidateDevices(originalRoom || (args.devices && args.devices[0]) || null);
+    if (!args.devices && candidates.length) args.devices = [...candidates];
+    const desiredFields = fieldsForTool(tool, args);
+    if (originalRoom && originalRoom !== 'ALL') {
+      const resolved = resolveDeviceForFields(originalRoom, desiredFields, candidates);
+      if (resolved) args.room = resolved;
+    } else if ((!originalRoom || originalRoom === 'ALL') && candidates.length) {
+      const resolved = resolveDeviceForFields(originalRoom, desiredFields, candidates);
+      if (resolved) args.room = resolved;
+    }
+    if (!args.scopeRoomLabel && originalRoom && originalRoom !== args.room) {
+      args.scopeRoomLabel = originalRoom;
+    }
   }
 
   function loadFriendlyToCloudMap() {
@@ -170,50 +492,77 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     const knownDeviceIds = new Set();
     const csvDir = path.join(repoRoot, 'CSVex_s3');
 
+    const registerAlias = (alias, deviceId) => {
+      if (!alias || !deviceId) return;
+      const raw = String(alias).trim();
+      if (!raw) return;
+      const lower = raw.toLowerCase();
+      const slug = lower.replace(/[^a-z0-9]/g, '');
+      for (const key of [raw, lower, slug]) {
+        if (!key) continue;
+        if (!map.has(key)) map.set(key, deviceId);
+      }
+    };
+
+    const registerDeviceId = (deviceId) => {
+      if (!deviceId) return;
+      const trimmed = String(deviceId).trim();
+      if (!trimmed) return;
+      knownDeviceIds.add(trimmed);
+      registerAlias(trimmed, trimmed);
+    };
+
+    const deviceFileExists = (deviceId) => {
+      if (!deviceId) return false;
+      try {
+        return fs.existsSync(path.join(csvDir, `${deviceId}.csv`));
+      } catch {
+        return false;
+      }
+    };
+
+    if (snapshotIndex) {
+      snapshotIndex.deviceMeta?.forEach((meta) => {
+        if (!meta) return;
+        registerDeviceId(meta.cloudId);
+        if (meta.node?.id) registerDeviceId(meta.node.id);
+        if (meta.name) registerAlias(meta.name, meta.cloudId);
+        const contextualAliases = new Set();
+        if (meta.zoneName) contextualAliases.add(meta.zoneName);
+        if (meta.zoneName && meta.floorName) contextualAliases.add(`${meta.zoneName} (${meta.floorName})`);
+        if (meta.zoneName && meta.buildingName) contextualAliases.add(`${meta.zoneName} (${meta.buildingName})`);
+        if (meta.zoneName && meta.floorName && meta.buildingName) {
+          contextualAliases.add(`${meta.zoneName} (${meta.floorName}, ${meta.buildingName})`);
+        }
+        contextualAliases.forEach((alias) => registerAlias(alias, meta.cloudId));
+      });
+
+      snapshotIndex.zoneById?.forEach((zone) => {
+        if (!zone || !Array.isArray(zone.devices) || !zone.devices.length) return;
+        const preferredDevice = zone.devices.find((id) => id && String(id).trim()) || null;
+        if (!preferredDevice) return;
+        registerDeviceId(preferredDevice);
+        registerAlias(zone.id, preferredDevice);
+        if (zone.roomId != null) registerAlias(String(zone.roomId), preferredDevice);
+        if (zone.name) registerAlias(zone.name, preferredDevice);
+        if (zone.name && zone.floorName) registerAlias(`${zone.name} (${zone.floorName})`, preferredDevice);
+        if (zone.name && zone.buildingName) registerAlias(`${zone.name} (${zone.buildingName})`, preferredDevice);
+        if (zone.name && zone.floorName && zone.buildingName) {
+          registerAlias(`${zone.name} (${zone.floorName}, ${zone.buildingName})`, preferredDevice);
+        }
+      });
+    }
+
     try {
-      const csvPath = path.join(repoRoot, 'data', 'graph_form', 'devices.csv');
-      if (fs.existsSync(csvPath)) {
-        const text = fs.readFileSync(csvPath, 'utf8');
-        const lines = text.split(/\r?\n/).filter((line) => line.trim().length);
-        if (lines.length) {
-          const headers = lines[0].split(',').map((h) => h.trim());
-          for (let i = 1; i < lines.length; i++) {
-            const parts = lines[i].split(',');
-            const row = {};
-            headers.forEach((h, idx) => {
-              row[h] = (parts[idx] || '').trim();
-            });
-
-            const cloudId = row.cloud_id || row.cloudId || row.cloudID || '';
-            if (!cloudId) continue;
-
-            const addAlias = (alias) => {
-              if (!alias) return;
-              const trimmed = String(alias).trim();
-              if (!trimmed) return;
-              if (!map.has(trimmed)) map.set(trimmed, cloudId);
-            };
-
-            addAlias(row.name);
-            addAlias(row.label);
-            addAlias(row.id);
-            addAlias(row.deviceId);
-            addAlias(row.device_id);
-            addAlias(row.deviceProfileID);
-            addAlias(row.deviceProfileId);
-            addAlias(row.numericId);
-            addAlias(row.numeric_id);
-            addAlias(row.cloud_id);
-
-            [cloudId, row.deviceId, row.device_id, row.numericId, row.numeric_id].forEach((id) => {
-              const key = String(id || '').trim();
-              if (key) knownDeviceIds.add(key);
-            });
-          }
+      if (fs.existsSync(csvDir)) {
+        const files = fs.readdirSync(csvDir).filter((f) => f.toLowerCase().endsWith('.csv'));
+        for (const file of files) {
+          const deviceId = file.replace(/\.csv$/i, '');
+          registerDeviceId(deviceId);
         }
       }
     } catch (err) {
-      if (DEBUG) log('failed to build friendly→cloud map:', String(err));
+      if (DEBUG) log('failed to scan CSV directory for aliases:', String(err));
     }
 
     try {
@@ -226,21 +575,15 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
             const list = Array.isArray(values) ? values : [values];
             const primary = list.find((v) => v && String(v).trim().length);
             if (!primary) continue;
-            if (!knownDeviceIds.has(primary) && !fs.existsSync(path.join(csvDir, `${primary}.csv`))) continue;
-
-            const aliasVariants = new Set([String(alias).trim(), String(alias).toLowerCase().trim()]);
-            for (const variant of aliasVariants) {
-              if (!variant) continue;
-              if (!map.has(variant)) map.set(variant, primary);
-            }
+            if (!knownDeviceIds.has(primary) && !deviceFileExists(primary)) continue;
+            registerAlias(alias, primary);
+            registerAlias(alias.toLowerCase(), primary);
             for (const extra of list) {
               if (!extra) continue;
               const key = String(extra).trim();
               if (!key) continue;
-              if (!knownDeviceIds.has(key) && !fs.existsSync(path.join(csvDir, `${key}.csv`))) continue;
-              if (!map.has(key)) map.set(key, primary);
-              const lowerKey = key.toLowerCase();
-              if (!map.has(lowerKey)) map.set(lowerKey, primary);
+              if (!knownDeviceIds.has(key) && !deviceFileExists(key)) continue;
+              registerAlias(key, primary);
             }
           }
         }
@@ -280,20 +623,12 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
             const zoneLabel = cellMatch[1].trim();
             const deviceId = cellMatch[2].trim();
             if (!deviceId) continue;
-            if (!knownDeviceIds.has(deviceId) && !fs.existsSync(path.join(csvDir, `${deviceId}.csv`))) continue;
+            if (!knownDeviceIds.has(deviceId) && !deviceFileExists(deviceId)) continue;
             const aliases = new Set([zoneLabel, deviceId]);
             if (currentFloor) aliases.add(`${zoneLabel} (${currentFloor})`);
             if (buildingName) aliases.add(`${zoneLabel} (${buildingName})`);
             if (currentFloor && buildingName) aliases.add(`${zoneLabel} (${currentFloor}, ${buildingName})`);
-            for (const alias of aliases) {
-              const key = String(alias || '').trim();
-              if (!key) continue;
-              if (!map.has(key)) map.set(key, deviceId);
-              const lowerKey = key.toLowerCase();
-              if (!map.has(lowerKey)) map.set(lowerKey, deviceId);
-              const slugKey = lowerKey.replace(/[^a-z0-9]/g, '');
-              if (!map.has(slugKey)) map.set(slugKey, deviceId);
-            }
+            for (const alias of aliases) registerAlias(alias, deviceId);
           }
         }
       }
@@ -574,6 +909,63 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     if (entry.zoneName) return `${entry.zoneName} — ${name}`;
     if (entry.buildingName) return `${entry.buildingName} — ${name}`;
     return name;
+  }
+
+  function normalizeFieldName(field) {
+    return String(field || '').trim().toLowerCase();
+  }
+
+  function inferDefaultTableForMetric(metric) {
+    if (!metric) return null;
+    const key = normalizeFieldName(metric);
+    if (!key) return null;
+    if (['co2', 'concentration', 'temperature', 'temp', 'humidity', 'lux', 'virusrisk', 'airchangerate', 'air_exchange_rate'].includes(key)) {
+      return 'iaq';
+    }
+    if (['people_count', 'occupants', 'occupancy', 'people'].includes(key)) {
+      return 'people';
+    }
+    if (['total_kwh', 'value', 'energy', 'kw', 'kwh'].includes(key)) {
+      return 'energy';
+    }
+    return null;
+  }
+
+  function detectUnavailableMetricResponse(question, selectionRooms, fallbackRoom) {
+    const q = String(question || '').toLowerCase();
+    if (!q) return null;
+    const requested = [];
+    if (/\bpit\b/.test(q)) requested.push('pit');
+    if (q.includes('pir') || q.includes('passive infrared')) requested.push('pir');
+    if (!requested.length) return null;
+    const available = aggregateAvailableFields(selectionRooms, fallbackRoom);
+    const missing = requested.filter((metric) => !available.has(metric));
+    if (!missing.length) return null;
+    const label = friendlySeriesLocation(selectionRooms?.[0] || fallbackRoom, selectionRooms?.[0] || fallbackRoom) || 'the selected scope';
+    const availableList = available.size
+      ? Array.from(available).slice(0, 12).map(humanizeMetricName).join(', ')
+      : 'no instrumented metrics';
+    const metricList = missing.map((m) => humanizeMetricName(m)).join(', ');
+    const content = `${metricList} is not logged for ${label}. Available metrics are: ${availableList}. PIR/PIT sensors behave like binary motion flags (1 = motion detected, 0 = idle); use people_count or occupancy feeds if you need utilization charts.`;
+    return { message: assistantMessage(content), chart: null, trace: [] };
+  }
+
+  function aggregateAvailableFields(selectionRooms = [], fallbackRoom = null) {
+    const cacheKey = JSON.stringify({ rooms: selectionRooms, fallback: fallbackRoom });
+    if (!aggregateAvailableFields._cache) aggregateAvailableFields._cache = new Map();
+    if (aggregateAvailableFields._cache.has(cacheKey)) return aggregateAvailableFields._cache.get(cacheKey);
+    const available = new Set();
+    const pushFields = (roomId) => {
+      if (!roomId) return;
+      fieldsForRoom(roomId).forEach((f) => {
+        const key = normalizeFieldName(f);
+        if (key && key !== 'ts') available.add(key);
+      });
+    };
+    (selectionRooms || []).forEach(pushFields);
+    if (!available.size && fallbackRoom && !isAllRooms(fallbackRoom)) pushFields(fallbackRoom);
+    aggregateAvailableFields._cache.set(cacheKey, available);
+    return available;
   }
 
   function resolveZoneEntry(label, { building, floor } = {}) {
@@ -970,9 +1362,13 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
 
   function formatLocal(ts) {
     if (!Number.isFinite(ts)) return 'n/a';
-    const d = new Date(ts);
-    if (Number.isNaN(d.getTime())) return 'n/a';
-    return d.toLocaleString();
+    try {
+      return dateTimeFormatter.format(new Date(ts));
+    } catch {
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return 'n/a';
+      return d.toLocaleString('en-GB', { hour12: false });
+    }
   }
 
   function describeRange(range) {
@@ -1037,7 +1433,14 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
         if (stats && Number.isFinite(stats.avg)) {
           const min = Number.isFinite(stats.min) ? stats.min.toFixed(2) : 'n/a';
           const max = Number.isFinite(stats.max) ? stats.max.toFixed(2) : 'n/a';
-          return `Average value ${stats.avg.toFixed(2)} with range ${min}–${max} across ${stats.count || 0} samples.`;
+          const minTs = stats.minTs ? formatLocal(stats.minTs) : null;
+          const maxTs = stats.maxTs ? formatLocal(stats.maxTs) : null;
+          const tsNote = [
+            minTs ? `min at ${minTs}` : null,
+            maxTs ? `max at ${maxTs}` : null
+          ].filter(Boolean).join(', ');
+          const tsSuffix = tsNote ? ` (${tsNote})` : '';
+          return `Average value ${stats.avg.toFixed(2)} with range ${min}–${max} across ${stats.count || 0} samples${tsSuffix}.`;
         }
       } else if (t.tool === 'detect_spikes') {
         const field = t.args?.field || 'the selected metric';
@@ -1055,6 +1458,36 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     return '';
   }
 
+  function traceHasData(trace) {
+    if (!Array.isArray(trace)) return false;
+    for (const entry of trace) {
+      const result = entry?.result;
+      if (!result) continue;
+      if (Array.isArray(result) && result.length) return true;
+      if (typeof result === 'object') {
+        if (Array.isArray(result.rows) && result.rows.length) return true;
+        if (Array.isArray(result.data) && result.data.length) return true;
+        if (Array.isArray(result.series) && result.series.some((s) => Array.isArray(s?.data) && s.data.length)) return true;
+        if (Array.isArray(result.groups) && result.groups.some((g) => Array.isArray(g?.devices) && g.devices.length)) return true;
+        if (Array.isArray(result.scatter) && result.scatter.length) return true;
+        if (Array.isArray(result.scatter_series) && result.scatter_series.length) return true;
+        if (typeof result.count === 'number' && result.count > 0) return true;
+        if (typeof result.n === 'number' && result.n > 0) return true;
+        if (typeof result.total === 'number' || typeof result.sum === 'number') return true;
+      }
+    }
+    return false;
+  }
+
+  function countTraceToolExecutions(trace) {
+    if (!Array.isArray(trace)) return 0;
+    let count = 0;
+    for (const entry of trace) {
+      if (entry && entry.tool && entry.tool !== 'plan') count += 1;
+    }
+    return count;
+  }
+
   const PLACEHOLDER_ANSWER_PATTERNS = [
     /^plotted\b/i,
     /^compared series/i,
@@ -1064,6 +1497,29 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     /^no data available/i,
     /^i analyzed the available data/i
   ];
+
+  function runDefinitionFallback(question) {
+    const q = String(question || '').toLowerCase();
+    if (!q) return null;
+    const answers = [];
+    if (q.includes('pir')) {
+      answers.push('Overview: PIR stands for Passive Infrared. PIR sensors passively watch for changes in infrared radiation (heat) within their field of view, so a rising PIR value simply means a person moved through the zone.');
+      answers.push('Details: When the sensor detects motion, it sets the PIR metric to 1 (motion detected) or a non-zero pulse; when no motion is detected the value returns to 0. Facilities commonly use PIR states to toggle lighting, drive HVAC setbacks, or feed occupancy dashboards.');
+      return { message: assistantMessage(answers.join(' ')), chart: null, trace: [] };
+    }
+    if (q.includes('co2')) {
+      answers.push('Overview: CO2 (carbon dioxide) is the gas people exhale; indoors it accumulates as occupancy increases.');
+      answers.push('Details: Because humans are the dominant source indoors, CO2 concentration—reported in parts per million (ppm)—is a direct indicator of how well the ventilation system is diluting exhaled air. Levels above ~1,000 ppm suggest the space needs additional outdoor air to keep occupants alert and comfortable.');
+      return { message: assistantMessage(answers.join(' ')), chart: null, trace: [] };
+    }
+    return null;
+  }
+
+  function isPlaceholderAnswer(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return true;
+    return PLACEHOLDER_ANSWER_PATTERNS.some((pattern) => pattern.test(raw));
+  }
 
   const MONTH_NAME_TO_INDEX = {
     january: 0,
@@ -1101,17 +1557,82 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     return formatted.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
   }
 
-  function humanizeMetricName(raw) {
-    if (!raw) return '';
-    const lower = String(raw).toLowerCase();
-    if (METRIC_UPPERCASE.has(lower)) return METRIC_UPPERCASE.get(lower);
-    const cleaned = String(raw).replace(/[_-]+/g, ' ').trim();
-    return cleaned.split(' ').map((part) => {
-      if (!part) return part;
-      if (part.length === 1) return part.toUpperCase();
-      return part[0].toUpperCase() + part.slice(1);
-    }).join(' ');
+  function formatTableValue(column, value) {
+    if (value === null || value === undefined || value === '') return '—';
+    if (column === 'ts') {
+      return Number.isFinite(value) ? formatLocal(value) : String(value);
+    }
+    if (typeof value === 'number') return formatNumericValue(value);
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    return String(value);
   }
+
+function humanizeMetricName(raw) {
+  if (!raw) return '';
+  const lower = String(raw).toLowerCase();
+  if (METRIC_UPPERCASE.has(lower)) return METRIC_UPPERCASE.get(lower);
+  const cleaned = String(raw).replace(/[_-]+/g, ' ').trim();
+  return cleaned.split(' ').map((part) => {
+    if (!part) return part;
+    if (part.length === 1) return part.toUpperCase();
+    return part[0].toUpperCase() + part.slice(1);
+  }).join(' ');
+}
+
+function summarizeCrossRoomResult(result, metricLabel = '') {
+  try {
+    const stats = [];
+    for (const [name, rows] of Object.entries(result || {})) {
+      if (!Array.isArray(rows) || !rows.length) continue;
+      const values = rows
+        .map((pt) => {
+          if (pt == null) return null;
+          if (typeof pt === 'number') return pt;
+          if (typeof pt === 'object') return Number(pt.y ?? pt.value ?? pt.avg ?? pt.data);
+          return null;
+        })
+        .filter((v) => Number.isFinite(v));
+      if (!values.length) continue;
+      const avg = values.reduce((a, b) => a + b, 0) / values.length;
+      const latest = values[values.length - 1];
+      stats.push({ name, avg, latest });
+    }
+    if (!stats.length) return '';
+    stats.sort((a, b) => b.avg - a.avg);
+    const top = stats[0];
+    const labelSuffix = metricLabel ? ` ${metricLabel}` : '';
+    if (stats.length === 1) {
+      const latestText = Number.isFinite(top.latest) ? ` (latest ${formatNumericValue(top.latest)})` : '';
+      return `${top.name} averaged ${formatNumericValue(top.avg)}${labelSuffix}${latestText}.`;
+    }
+    const bottom = stats[stats.length - 1];
+    const delta = Number.isFinite(top.avg - bottom.avg) ? top.avg - bottom.avg : null;
+    const deltaText = Number.isFinite(delta)
+      ? `, roughly ${formatNumericValue(delta)}${labelSuffix || ' units'} higher than ${bottom.name}`
+      : '';
+    return `${top.name} averaged ${formatNumericValue(top.avg)}${labelSuffix}${deltaText}.`;
+  } catch {
+    return '';
+  }
+}
+
+function summarizeFieldComparison(entries = []) {
+  try {
+    const filtered = (entries || [])
+      .filter((row) => row && row.field && Number.isFinite(Number(row.value)))
+      .map((row) => ({ field: humanizeMetricName(row.field), value: Number(row.value) }));
+    if (!filtered.length) return '';
+    filtered.sort((a, b) => b.value - a.value);
+    const top = filtered[0];
+    if (filtered.length === 1) {
+      return `${top.field} measured ${formatNumericValue(top.value)}.`;
+    }
+    const bottom = filtered[filtered.length - 1];
+    return `${top.field} was highest (${formatNumericValue(top.value)}), while ${bottom.field} was lowest at ${formatNumericValue(bottom.value)}.`;
+  } catch {
+    return '';
+  }
+}
 
   function friendlySeriesLocation(deviceId, defaultLabel = '') {
     if (!deviceId) return defaultLabel;
@@ -1136,6 +1657,16 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     if (metric && location) return `${metric} in ${location}`;
     if (metric) return metric;
     return location || defaultName || 'series';
+  }
+
+  function describeRangeWindow(range) {
+    if (!range || (!Number.isFinite(range?.start) && !Number.isFinite(range?.end))) return 'during the selected window';
+    const startText = Number.isFinite(range.start) ? formatLocal(range.start) : null;
+    const endText = Number.isFinite(range.end) ? formatLocal(range.end) : null;
+    if (startText && endText) return `from ${startText} to ${endText}`;
+    if (startText) return `after ${startText}`;
+    if (endText) return `up to ${endText}`;
+    return 'during the selected window';
   }
 
   function parseOrdinalDay(text) {
@@ -1542,10 +2073,227 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
   function questionRequiresChart(question) {
     const q = String(question || '').toLowerCase();
     if (!q) return false;
-    if (q.includes('plot') || q.includes('chart') || q.includes('graph') || q.includes('visualize') || q.includes('heatmap') || q.includes('scatter')) return true;
+    if (q.includes('plot') || q.includes('chart') || q.includes('graph')) return true;
     if (/(line|bar|column|area)\s+chart/.test(q)) return true;
     if (/show\s+(me\s+)?(the\s+)?(trend|timeseries|time series)/.test(q)) return true;
     return false;
+  }
+
+  function questionRequiresRoomRanking(question) {
+    const q = String(question || '').toLowerCase();
+    if (!q) return false;
+    if (/\bwhich\b.+\b(room|zone)\b.+\b(busiest|busy|most|highest|unused)\b/.test(q)) return true;
+    if (/\brooms?\b.+\b(busiest|busy|unused|most used|most people|most occupied)\b/.test(q)) return true;
+    if (q.includes('busiest room') || q.includes('room will be the busiest') || q.includes('rooms are being used the most')) return true;
+    if (q.includes('meeting rooms') && (q.includes('used the most') || q.includes('busiest'))) return true;
+    if (q.includes('rooms not been used') || q.includes('unused rooms')) return true;
+    return false;
+  }
+
+  function buildAnalysisDirectives(routing = {}) {
+    const intents = routing.intents || {};
+    const metrics = routing.metrics || [];
+    const chartHint = routing.chartHint || null;
+    const lines = [];
+
+    if (intents.comparison) {
+      lines.push('- Comparison focus detected: call compare_series_cross_room or compare_rooms_on_metric to contrast rooms/zones, and describe which leads/lags.');
+    }
+    if (intents.correlation) {
+      lines.push('- Correlation intent: call correlate or correlate_cross_room to quantify relationships and mention the coefficient.');
+    }
+    if (Array.isArray(routing.namedRooms) && routing.namedRooms.length) {
+      lines.push(`- User explicitly mentioned: ${routing.namedRooms.join(', ')}. Prioritize these rooms in your comparisons and cite their values.`);
+    }
+    if (routing.chartHintStrict && chartHint) {
+      lines.push(`- The user explicitly asked for a ${chartHint} chart; do not substitute another chart type.`);
+    }
+    if (intents.histogram || chartHint === 'histogram') {
+      lines.push('- Histogram requested: call histogram (or field_histogram) and return a column chart showing distribution, noting the dominant bin.');
+    }
+    if (intents.scatter || chartHint === 'scatter') {
+      lines.push('- Scatter/VS intent: call pair_timeseries (or building_temp_weather_scatter) to generate paired points and render a scatter plot.');
+    }
+    if (intents.heatmap || chartHint === 'heatmap') {
+      lines.push('- Heatmap requested: use scope_heatmap or correlation_matrix to produce a heatmap-style chart.');
+    }
+    if (intents.aggregate) {
+      lines.push('- Aggregation requested: compute stats (stats/compare_rooms_on_metric/compare_metrics_in_room) and cite min/avg/max values.');
+    }
+    if (intents.table) {
+      lines.push('- Tabular data requested: call table_sample (or latest_value) and return a Markdown table with headers.');
+    }
+    if (intents.forecast) {
+      lines.push('- Forecast intent: call a forecast_* tool and describe the projected trend and range.');
+    }
+    if (intents.anomaly) {
+      lines.push('- Anomaly intent: call detect_spikes or stats to highlight outliers.');
+    }
+    if (intents.weather || metrics.includes('weather')) {
+      lines.push('- Weather mentioned: include weather_fetch or building_temp_weather_corr so indoor vs outdoor context is provided.');
+    }
+    if (intents.energy || metrics.includes('energy')) {
+      lines.push('- Energy metric detected: incorporate stats or compare_rooms_on_metric over energy/total_kwh.');
+    }
+    if (intents.occupancy || metrics.includes('occupancy')) {
+      lines.push('- Occupancy metric detected: use stats/compare_rooms_on_metric on people_count to show utilization.');
+    }
+    if (chartHint === 'bar') {
+      lines.push('- Bar/column chart requested: compare aggregate values (e.g., stats or compare_rooms_on_metric) and plot them as a column chart.');
+    } else if (chartHint === 'line') {
+      lines.push('- Line chart intent: fetch a timeseries (fetch_timeseries/hourly_timeseries) and show the trend over time.');
+    } else if (intents.requiresChart && chartHint === null) {
+      lines.push('- A chart was requested; choose the most expressive option (e.g., area for cumulative energy, column for rankings, heatmap for matrices) instead of defaulting to a plain line chart.');
+    }
+    if (intents.wantsLatest) {
+      lines.push('- Provide the latest value via latest_value or stats before deeper analysis.');
+    }
+
+    return lines.length ? `\nDirected Analysis Requirements:\n${lines.join('\n')}\n` : '';
+  }
+
+  function questionRequiresRoomComparison(question) {
+    const q = String(question || '').toLowerCase();
+    if (!q) return false;
+    if (q.includes('compare') && (q.includes('room') || q.includes('zone'))) return true;
+    if (/\bvs\b/.test(q) || q.includes(' versus ') || q.includes(' vs ')) return true;
+    if (q.includes('difference between') && (q.includes('room') || q.includes('suite') || q.includes('zone'))) return true;
+    return false;
+  }
+
+  function normalizeExplicitRoomLabel(label) {
+    if (!label) return null;
+    const cleaned = String(label)
+      .replace(/["']/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!cleaned) return null;
+    return cleaned
+      .split(' ')
+      .map((word, idx) => {
+        if (!word) return '';
+        if (/^\d/.test(word)) return word;
+        return idx === 0
+          ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          : word.toLowerCase();
+      })
+      .join(' ');
+  }
+
+  function extractQuestionRooms(question) {
+    const q = String(question || '');
+    if (!q.trim()) return [];
+    const matches = new Set();
+    const add = (value) => {
+      const label = normalizeExplicitRoomLabel(value);
+      if (label) matches.add(label);
+    };
+
+    const betweenRegex = /\bbetween\s+([^,.;!?]+?)\s+and\s+([^,.;!?]+?)(?=[,.;!?]|$)/gi;
+    let pair;
+    while ((pair = betweenRegex.exec(q)) !== null) {
+      add(pair[1]);
+      add(pair[2]);
+    }
+
+    const patterns = [
+      /\b(?:suite|room|zone|office|studio)\s+[0-9]+(?:\.[0-9]+)?\b/gi,
+      /\b(?:suite|room|zone|office|studio)\s+[A-Za-z0-9]+(?:[\.\-][A-Za-z0-9]+)?\b/gi,
+      /\bmeeting\s+room\s+[A-Za-z0-9]+\b/gi,
+      /\bsuite\s+[A-Za-z]+\b/gi
+    ];
+    for (const re of patterns) {
+      let m;
+      while ((m = re.exec(q)) !== null) {
+        add(m[0]);
+      }
+    }
+    return Array.from(matches).slice(0, 6);
+  }
+
+  function runEmergencyAnalysis({ question, selectionRooms, room, range }) {
+    try {
+      const rr = range || {};
+      const targetRoom = (selectionRooms && selectionRooms.length)
+        ? selectionRooms[0]
+        : (!isAllRooms(room) && room ? room : null);
+      if (!targetRoom) return null;
+      const tablesSets = availableFieldsByTable(targetRoom);
+      const fields = parseFieldsFromQuestion(question, tablesSets);
+      let field = fields[0];
+      if (!field) {
+        const qLower = String(question || '').toLowerCase();
+        if (qLower.includes('co2') || qLower.includes('co₂')) field = 'co2';
+        else if (qLower.includes('occupancy') || qLower.includes('people')) field = 'people_count';
+        else if (qLower.includes('humidity')) field = 'humidity';
+        else if (qLower.includes('lux') || qLower.includes('light')) field = 'lux';
+        else field = inferFieldName(question, tablesSets) || 'temperature';
+      }
+      const binding = resolveFieldBinding(field, selectionRooms, targetRoom) || resolveFieldBinding(field, [targetRoom], targetRoom);
+      if (!binding || !binding.fieldName) return null;
+      const fetchArgs = {
+        room: binding.room || targetRoom,
+        table: binding.table || resolveTable(binding.room || targetRoom, field === 'people_count' ? 'people' : 'iaq'),
+        fields: [binding.fieldName],
+        start: Number.isFinite(rr.start) ? rr.start : undefined,
+        end: Number.isFinite(rr.end) ? rr.end : undefined,
+        limit: 500
+      };
+      const friendlyRoom = friendlySeriesLocation(fetchArgs.room, deviceFriendlyName(fetchArgs.room));
+      const metricLabel = humanizeMetricName(binding.fieldName);
+      const planSteps = [
+        { index: 1, text: `Collect ${metricLabel} samples for ${friendlyRoom || 'the selected scope'} using fetch_timeseries.` },
+        { index: 2, text: `Summarize ${metricLabel} min/avg/max for ${friendlyRoom || 'the selected scope'}.` }
+      ];
+      const emergencyTrace = [{ tool: 'plan', args: { steps: planSteps }, result: null }];
+      const rows = tools.fetch_timeseries(fetchArgs);
+      if (!Array.isArray(rows) || !rows.length) return null;
+      const numericValues = [];
+      let min = Infinity;
+      let max = -Infinity;
+      let sum = 0;
+      let peakTs = null;
+      for (const row of rows) {
+        const value = Number(row[binding.fieldName]);
+        if (!Number.isFinite(value)) continue;
+        numericValues.push(value);
+        sum += value;
+        if (value < min) min = value;
+        if (value > max) {
+          max = value;
+          peakTs = row.ts;
+        }
+      }
+      if (!numericValues.length) return null;
+      const avg = sum / numericValues.length;
+      const chart = {
+        chart: { type: 'line' },
+        title: { text: `${humanizeMetricName(binding.fieldName)} trend` },
+        xAxis: { type: 'datetime' },
+        yAxis: { title: { text: humanizeMetricName(binding.fieldName) } },
+        series: [{
+          name: `${friendlyRoom} ${humanizeMetricName(binding.fieldName)}`,
+          dataRef: { tool: 'fetch_timeseries', room: fetchArgs.room, table: fetchArgs.table, xField: 'ts', yField: binding.fieldName }
+        }]
+      };
+      const summaryRange = describeRangeWindow(rr);
+      const overview = `Overview: ${humanizeMetricName(binding.fieldName)} ranged from ${formatNumericValue(min)} to ${formatNumericValue(max)} ${summaryRange}.`;
+      const details = [
+        `Details: analyzed ${numericValues.length} samples for ${friendlyRoom} via fetch_timeseries.`,
+        `Average ${humanizeMetricName(binding.fieldName)} was ${formatNumericValue(avg)}; peak ${formatNumericValue(max)} at ${peakTs ? formatLocal(peakTs) : 'n/a'}.`
+      ];
+      const answer = `${overview} ${details.join(' ')}`.trim();
+      emergencyTrace.push({ tool: 'fetch_timeseries', args: fetchArgs, result: rows });
+      ensureChartData(chart, { question, room: fetchArgs.room, selectionRooms, range: rr, trace: emergencyTrace });
+      return {
+        message: assistantMessage(answer),
+        chart,
+        trace: emergencyTrace
+      };
+    } catch (err) {
+      log('Emergency analysis failed:', String(err));
+      return null;
+    }
   }
 
   function inferDeviceFromQuestion(question) {
@@ -1588,6 +2336,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
       parts.push(trimmed);
     };
 
+    const hasData = traceHasData(trace);
     const timeseriesInsights = deriveTimeseriesInsights({ trace, question, range });
     timeseriesInsights.forEach(addPart);
 
@@ -1610,6 +2359,11 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
       addPart(notes.filter(Boolean).join(' '));
     }
 
+    if (!hasData) {
+      parts.length = 0;
+      addPart('No telemetry data was available for the selected scope and time window; adjust the range or choose a different scope.');
+    }
+
     if (!parts.length) {
       addPart('I analyzed the available data for the selected scope and time window.');
     }
@@ -1622,6 +2376,42 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
       }
     }
     return answer;
+  }
+
+  function formatPlanSummary(planStatus = []) {
+    if (!Array.isArray(planStatus) || !planStatus.length) return '';
+    return planStatus
+      .map((step, idx) => {
+        if (!step) return null;
+        const marker = step.done ? 'x' : ' ';
+        const label = step.text || step.description || step.goal || '';
+        const index = step.index ?? step.id ?? idx + 1;
+        return `[${marker}] Step ${index}: ${label}`;
+      })
+      .filter(Boolean)
+      .join(' | ');
+  }
+
+  function enforceOverviewDetails(answer, { range = null, trace = [], planStatus = [] } = {}) {
+    let out = String(answer || '').trim();
+    if (!out) out = 'No findings were produced for the selected scope.';
+    const rangeText = describeRangeWindow(range);
+    if (!/^overview:/i.test(out)) {
+      const suffix = rangeText ? ` (${rangeText})` : '';
+      out = `Overview: ${out}${suffix}`;
+    }
+    if (!/Details:/i.test(out)) {
+      const detailParts = [];
+      const insight = traceInsight(trace);
+      if (insight) detailParts.push(insight);
+      const planSummary = formatPlanSummary(planStatus);
+      if (planSummary) detailParts.push(`Plan status: ${planSummary}`);
+      if (!detailParts.length) {
+        detailParts.push('Derived from the executed tools for the current selection.');
+      }
+      out += `\nDetails: ${detailParts.join(' ')}`;
+    }
+    return out;
   }
 
   function summarizeDeviceMetrics(deviceId) {
@@ -1788,60 +2578,82 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
       zoneMap.get(zoneName).push(info);
     }
 
+    const normalizeLabel = (val) => String(val || '').trim().toLowerCase();
+    if (buildingLabel) {
+      const buildingNorm = normalizeLabel(buildingLabel);
+      for (const key of Array.from(grouped.keys())) {
+        if (normalizeLabel(key) !== buildingNorm) grouped.delete(key);
+      }
+    }
+
     const sortByName = (arr) => arr.sort((a, b) => String(a).localeCompare(String(b)));
 
     const buildingNames = sortByName(Array.from(grouped.keys()));
-    const lines = [];
-    lines.push('Scope and time window:');
-    if (tenantLabel) lines.push(`Tenant: ${tenantLabel}`);
-    if (buildingLabel && !buildingNames.includes(buildingLabel)) lines.push(`Building (selected): ${buildingLabel}`);
-    if (floorLabel) lines.push(`Floor (selected): ${floorLabel}`);
-    if (zoneLabel) lines.push(`Zone (selected): ${zoneLabel}`);
+    const formatLines = [];
+    formatLines.push('Scope:');
+    if (tenantLabel) formatLines.push(`Tenant: ${tenantLabel}`);
+    if (buildingLabel && !buildingNames.includes(buildingLabel)) formatLines.push(`Building (selected): ${buildingLabel}`);
+    if (floorLabel) formatLines.push(`Floor (selected): ${floorLabel}`);
+    if (zoneLabel) formatLines.push(`Zone (selected): ${zoneLabel}`);
+    if (formatLines[formatLines.length - 1] !== 'Scope:') formatLines.push('');
 
     for (const buildingName of buildingNames) {
-      lines.push(`- ${buildingName}`);
+      formatLines.push(buildingName);
       const floorMap = grouped.get(buildingName);
+      if (floorLabel) {
+        const floorNorm = normalizeLabel(floorLabel);
+        for (const key of Array.from(floorMap.keys())) {
+          if (normalizeLabel(key) !== floorNorm) floorMap.delete(key);
+        }
+      }
       const floorNames = sortByName(Array.from(floorMap.keys()));
       for (const floorName of floorNames) {
-        lines.push(`  - ${floorName}`);
+        formatLines.push(`  ${floorName}`);
         const zoneMap = floorMap.get(floorName);
+        if (zoneLabel) {
+          const zoneNorm = normalizeLabel(zoneLabel);
+          for (const key of Array.from(zoneMap.keys())) {
+            if (normalizeLabel(key) !== zoneNorm) zoneMap.delete(key);
+          }
+        }
         const zoneNames = sortByName(Array.from(zoneMap.keys()));
         for (const zoneName of zoneNames) {
-          lines.push(`    - ${zoneName}`);
+          formatLines.push(`    ${zoneName}`);
           const devices = zoneMap.get(zoneName).slice(0, 8);
           for (const device of devices) {
             const typeSuffix = device.type ? ` [${device.type}]` : '';
-            const metricsText = device.metrics.length ? ` metrics: ${device.metrics.slice(0, 8).join(', ')}` : '';
-            lines.push(`      - ${device.name}${typeSuffix} (${device.shortId})${metricsText}`);
+            const metricsPreview = device.metrics.length ? device.metrics.slice(0, 12).join(', ') : 'n/a';
+            formatLines.push(`      ${device.name}${typeSuffix} (${device.shortId}) — metrics: ${metricsPreview}`);
           }
           if (zoneMap.get(zoneName).length > devices.length) {
-            lines.push(`      - … ${zoneMap.get(zoneName).length - devices.length} more devices`);
+            formatLines.push(`      … ${zoneMap.get(zoneName).length - devices.length} more devices`);
           }
         }
+        formatLines.push('');
       }
     }
 
     if (!deviceMap.size) {
-      lines.push('- No devices resolved for the current scope (CSV data missing or mapping incomplete).');
+      formatLines.push('No devices resolved for the current scope (CSV data missing or mapping incomplete).');
+      formatLines.push('');
     }
 
-    lines.push('');
-    lines.push('Time window:');
+    formatLines.push('Time window:');
     if (rr.start != null && rr.end != null) {
-      lines.push(`- Local: ${formatLocal(rr.start)} → ${formatLocal(rr.end)}`);
-      lines.push(`- UTC: ${formatUtc(rr.start)} → ${formatUtc(rr.end)}`);
+      formatLines.push(`- Local: ${formatLocal(rr.start)} → ${formatLocal(rr.end)}`);
+      formatLines.push(`- UTC: ${formatUtc(rr.start)} → ${formatUtc(rr.end)}`);
     } else if (rr.start != null) {
-      lines.push(`- Local start: ${formatLocal(rr.start)}`);
-      lines.push(`- UTC start: ${formatUtc(rr.start)}`);
+      formatLines.push(`- Local start: ${formatLocal(rr.start)}`);
+      formatLines.push(`- UTC start: ${formatUtc(rr.start)}`);
     } else if (rr.end != null) {
-      lines.push(`- Local end: ${formatLocal(rr.end)}`);
-      lines.push(`- UTC end: ${formatUtc(rr.end)}`);
+      formatLines.push(`- Local end: ${formatLocal(rr.end)}`);
+      formatLines.push(`- UTC end: ${formatUtc(rr.end)}`);
     } else {
-      lines.push('- Local: not set');
+      formatLines.push('- Local: not set');
     }
-    lines.push(`- Epoch (ms): start=${rr.start ?? 'none'}, end=${rr.end ?? 'none'}`);
+    formatLines.push(`- Epoch (ms): start=${rr.start ?? 'none'}, end=${rr.end ?? 'none'}`);
 
-    return lines.join('\n');
+    return formatLines.join('\n');
   }
 
   function getCsvStats(deviceId) {
@@ -1984,229 +2796,11 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
   }
 
   function loadGraphFormHierarchy() {
-    try {
-      const rootDir = path.join(path.dirname(dataDir));
-      const baseDir = path.join(rootDir, 'data', 'graph_form');
-      if (!fs.existsSync(baseDir)) return null;
+  // GraphForm exports are deprecated; rely solely on the live Neo4j snapshot.
+  return null;
+}
 
-      const readCsv = (file) => {
-        const full = path.join(baseDir, file);
-        if (!fs.existsSync(full)) return [];
-        const text = fs.readFileSync(full, 'utf8');
-        const lines = text.split(/\r?\n/).filter((line) => line.trim().length);
-        if (!lines.length) return [];
-        const headers = lines[0].split(',').map((h) => h.trim());
-        const rows = [];
-        for (let i = 1; i < lines.length; i++) {
-          const rawLine = lines[i];
-          if (!rawLine) continue;
-          const parts = rawLine.split(',');
-          const rec = {};
-          headers.forEach((h, idx) => {
-            const val = parts[idx] != null ? parts[idx].trim() : '';
-            rec[h] = val;
-          });
-          rows.push(rec);
-        }
-        return rows;
-      };
-
-      const canon = (val) => normalizeName(val).replace(/[^a-z0-9]/g, '');
-
-      const buildingRows = readCsv('buildings.csv');
-      const floorRows = readCsv('floors.csv');
-      const zoneRows = readCsv('zones.csv');
-      const deviceRows = readCsv('devices.csv');
-
-      const buildingById = new Map();
-      const buildingIndexById = new Map();
-      const buildingIndexByTenant = new Map();
-      for (const b of buildingRows) {
-        const id = normalizeId(b.id || b.ID || b.buildingID);
-        if (!id) continue;
-        const tenantId = normalizeId(b.tenantID);
-        const entry = {
-          id,
-          name: b.name || `Building ${id}`,
-          tenantId,
-          raw: b
-        };
-        if (!buildingById.has(id)) buildingById.set(id, entry);
-        if (!buildingIndexById.has(id)) buildingIndexById.set(id, []);
-        buildingIndexById.get(id).push(entry);
-        buildingIndexByTenant.set(`${tenantId}::${id}`, entry);
-      }
-
-      const findBuilding = (buildingId, tenantId) => {
-        const id = normalizeId(buildingId);
-        if (!id) return null;
-        const tenantKey = `${normalizeId(tenantId)}::${id}`;
-        if (buildingIndexByTenant.has(tenantKey)) return buildingIndexByTenant.get(tenantKey);
-        const candidates = buildingIndexById.get(id) || [];
-        return candidates[0] || null;
-      };
-
-      const floorById = new Map();
-      const floorIndexById = new Map();
-      const floorIndexByTenant = new Map();
-      const floorNameIndex = new Map();
-      for (const f of floorRows) {
-        const id = normalizeId(f.id || f.ID || f.floorID);
-        if (!id) continue;
-        const buildingId = normalizeId(f.buildingID);
-        const tenantId = normalizeId(f.tenantID);
-        const building = findBuilding(buildingId, tenantId);
-        const entry = {
-          id,
-          name: f.name || `Floor ${id}`,
-          buildingId,
-          buildingName: building?.name || null,
-          tenantId,
-          raw: f
-        };
-        if (!floorById.has(id)) floorById.set(id, entry);
-        if (!floorIndexById.has(id)) floorIndexById.set(id, []);
-        floorIndexById.get(id).push(entry);
-        floorIndexByTenant.set(`${tenantId}::${id}`, entry);
-
-        const keys = new Set();
-        keys.add(`${buildingId}::${normalizeName(entry.name)}`);
-        if (entry.buildingName) keys.add(`${normalizeName(entry.buildingName)}::${normalizeName(entry.name)}`);
-        for (const key of keys) {
-          if (!floorNameIndex.has(key)) floorNameIndex.set(key, []);
-          floorNameIndex.get(key).push(entry);
-        }
-      }
-
-      const findFloor = (floorId, tenantId, buildingId) => {
-        const id = normalizeId(floorId);
-        if (!id) return null;
-        const tenantKey = `${normalizeId(tenantId)}::${id}`;
-        if (floorIndexByTenant.has(tenantKey)) return floorIndexByTenant.get(tenantKey);
-        const candidates = floorIndexById.get(id) || [];
-        if (candidates.length === 1) return candidates[0];
-        const byBuilding = candidates.filter((c) => normalizeId(c.buildingId) === normalizeId(buildingId));
-        if (byBuilding.length) return byBuilding[0];
-        return candidates[0] || null;
-      };
-
-      const zoneById = new Map();
-      const zoneIndexById = new Map();
-      const zoneNameIndex = new Map();
-      for (const z of zoneRows) {
-        const id = normalizeId(z.id || z.ID || z.zoneID);
-        if (!id) continue;
-        const floorId = normalizeId(z.floorID);
-        const buildingId = normalizeId(z.buildingID);
-        const tenantId = normalizeId(z.tenantID);
-        const building = findBuilding(buildingId, tenantId);
-        const floor = findFloor(floorId, tenantId, buildingId);
-        const entry = {
-          id,
-          name: z.name || `Zone ${id}`,
-          floorId,
-          floorName: floor?.name || null,
-          buildingId,
-          buildingName: building?.name || null,
-          tenantId,
-          zoneKey: zoneCompositeKey(id, buildingId, floorId, tenantId),
-          raw: z
-        };
-        if (!zoneById.has(id)) zoneById.set(id, entry);
-        if (!zoneIndexById.has(id)) zoneIndexById.set(id, []);
-        zoneIndexById.get(id).push(entry);
-
-        const zoneName = normalizeName(entry.name);
-        const keys = new Set();
-        keys.add(`${buildingId}::${floorId}::${zoneName}`);
-        keys.add(`${buildingId}::${zoneName}`);
-        if (entry.buildingName && entry.floorName) keys.add(`${normalizeName(entry.buildingName)}::${normalizeName(entry.floorName)}::${zoneName}`);
-        if (entry.buildingName) keys.add(`${normalizeName(entry.buildingName)}::${zoneName}`);
-        keys.add(zoneName);
-        for (const key of keys) {
-          if (!zoneNameIndex.has(key)) zoneNameIndex.set(key, []);
-          zoneNameIndex.get(key).push(entry);
-        }
-      }
-
-      const deviceByKey = new Map();
-      const zoneDevices = new Map();
-
-      const addDeviceKey = (key, entry) => {
-        if (!key) return;
-        deviceByKey.set(canon(key), entry);
-        deviceByKey.set(normalizeName(key), entry);
-      };
-
-      for (const d of deviceRows) {
-        const cloudId = normalizeId(d.cloud_id || d.cloudId || d.cloudID);
-        if (!cloudId) continue;
-        const deviceId = normalizeId(d.deviceId || d.deviceID);
-        const numericId = normalizeId(d.id || d.ID);
-        const tenantId = normalizeId(d.tenantID);
-        let zoneId = normalizeId(d.zoneID || d.zoneId);
-        let floorId = normalizeId(d.floorID || d.floorId);
-        let buildingId = normalizeId(d.buildingID || d.buildingId);
-
-        const zoneCandidates = zoneId ? (zoneIndexById.get(zoneId) || []) : [];
-        const zoneMatch = zoneCandidates.find((z) => (!tenantId || z.tenantId === tenantId) && (!buildingId || z.buildingId === buildingId)) || zoneCandidates[0] || null;
-
-        if (!floorId && zoneMatch) floorId = zoneMatch.floorId || floorId;
-        if (!buildingId && zoneMatch) buildingId = zoneMatch.buildingId || buildingId;
-
-        const floor = findFloor(floorId, tenantId || zoneMatch?.tenantId, buildingId || zoneMatch?.buildingId);
-        const building = findBuilding(buildingId, tenantId || zoneMatch?.tenantId);
-
-        const entry = {
-          primaryId: cloudId || deviceId || numericId,
-          cloudId: cloudId || null,
-          deviceId: deviceId || null,
-          numericId: numericId || null,
-          name: d.name || d.label || d.deviceName || d.cloud_id || cloudId || deviceId || numericId,
-          type: d.type || d.deviceType || d.label || null,
-          zoneId: zoneMatch?.id || zoneId || null,
-          zoneName: zoneMatch?.name || null,
-          floorId: floor?.id || zoneMatch?.floorId || floorId || null,
-          floorName: floor?.name || zoneMatch?.floorName || null,
-          buildingId: building?.id || zoneMatch?.buildingId || buildingId || null,
-          buildingName: building?.name || zoneMatch?.buildingName || null,
-          tenantId: tenantId || zoneMatch?.tenantId || floor?.tenantId || building?.tenantId || null,
-          zoneKey: zoneMatch?.zoneKey || zoneCompositeKey(zoneId, buildingId, floorId, tenantId),
-          raw: d
-        };
-
-        addDeviceKey(entry.primaryId, entry);
-        addDeviceKey(entry.cloudId, entry);
-        addDeviceKey(entry.deviceId, entry);
-        addDeviceKey(entry.numericId, entry);
-
-        const fullKey = entry.zoneKey;
-        if (fullKey) {
-          if (!zoneDevices.has(fullKey)) zoneDevices.set(fullKey, []);
-          zoneDevices.get(fullKey).push(entry);
-        }
-        if (entry.zoneId) {
-          if (!zoneDevices.has(entry.zoneId)) zoneDevices.set(entry.zoneId, []);
-          zoneDevices.get(entry.zoneId).push(entry);
-        }
-      }
-
-      return {
-        buildingById,
-        floorById,
-        zoneById,
-        zoneNameIndex,
-        floorNameIndex,
-        deviceByKey,
-        zoneDevices,
-        zoneIndexById
-      };
-    } catch (err) {
-      if (DEBUG) log('graph_form hierarchy load failed:', String(err));
-      return null;
-    }
-  }
-  function buildSnapshotIndex() {
+function buildSnapshotIndex() {
     try {
       const snap = loadGraphSnapshot();
       if (!snap || !Array.isArray(snap.nodes) || !Array.isArray(snap.links)) return null;
@@ -2220,6 +2814,94 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
       const floorInfos = new Map();
       const buildingInfos = new Map();
       const deviceInfos = new Map();
+      const pickSingleId = (inputSet, infoMap, contextLabel) => {
+        if (!inputSet || !inputSet.size) return null;
+        if (inputSet.size === 1) return inputSet.values().next().value;
+        const entries = Array.from(inputSet);
+        entries.sort((a, b) => {
+          const nameA = infoMap?.get?.(a)?.name || '';
+          const nameB = infoMap?.get?.(b)?.name || '';
+          return nameA.localeCompare(nameB);
+        });
+        const chosen = entries[0];
+        inputSet.clear();
+        inputSet.add(chosen);
+        console.warn(`[graph][snapshot] ${contextLabel} had multiple attachments; defaulting to ${chosen}`);
+        return chosen;
+      };
+      const resolveGraphFormZone = (zone) => {
+        if (!graphHierarchy || !zone) return null;
+        const roomId = normalizeId(zone.roomId);
+        if (roomId && graphHierarchy.zoneById?.has(roomId)) {
+          return graphHierarchy.zoneById.get(roomId);
+        }
+        const zoneName = normalizeName(zone.name);
+        if (!zoneName) return null;
+        const matches = graphHierarchy.zoneNameIndex?.get(zoneName) || [];
+        if (!matches.length) return null;
+        if (zone.buildingIds?.size) {
+          const buildingNameSet = new Set(
+            Array.from(zone.buildingIds)
+              .map((buildingId) => {
+                const building = buildingInfos.get(buildingId);
+                return building?.name ? normalizeName(building.name) : null;
+              })
+              .filter(Boolean)
+          );
+          const filtered = matches.filter((entry) => {
+            const entryName = entry.buildingName ? normalizeName(entry.buildingName) : null;
+            if (!entryName || !buildingNameSet.size) return true;
+            return buildingNameSet.has(entryName);
+          });
+          if (filtered.length === 1) return filtered[0];
+          if (filtered.length > 1) return filtered[0];
+        }
+        return matches[0] || null;
+      };
+      const matchesFloorCandidate = (floorId, targetFloorName, targetBuildingName) => {
+        const floor = floorInfos.get(floorId);
+        if (!floor) return false;
+        if (targetFloorName) {
+          const name = floor.name ? normalizeName(floor.name) : null;
+          if (!name || name !== targetFloorName) return false;
+        }
+        if (targetBuildingName) {
+          const hasMatch = Array.from(floor.buildingIds || []).some((buildingId) => {
+            const building = buildingInfos.get(buildingId);
+            if (!building?.name) return false;
+            return normalizeName(building.name) === targetBuildingName;
+          });
+          if (!hasMatch) return false;
+        }
+        return true;
+      };
+      const preferGraphFormAttachmentsForZone = (zone) => {
+        if (!graphHierarchy || !zone) return;
+        const zoneEntry = resolveGraphFormZone(zone);
+        if (!zoneEntry) return;
+        const targetFloorName = zoneEntry.floorName ? normalizeName(zoneEntry.floorName) : null;
+        const targetBuildingName = zoneEntry.buildingName ? normalizeName(zoneEntry.buildingName) : null;
+        if (targetBuildingName && zone.buildingIds && zone.buildingIds.size > 1) {
+          const matches = Array.from(zone.buildingIds).filter((buildingId) => {
+            const building = buildingInfos.get(buildingId);
+            if (!building?.name) return false;
+            return normalizeName(building.name) === targetBuildingName;
+          });
+          if (matches.length === 1) {
+            zone.buildingIds.clear();
+            zone.buildingIds.add(matches[0]);
+          }
+        }
+        if (targetFloorName && zone.floorIds && zone.floorIds.size > 1) {
+          const matches = Array.from(zone.floorIds).filter((floorId) =>
+            matchesFloorCandidate(floorId, targetFloorName, targetBuildingName)
+          );
+          if (matches.length === 1) {
+            zone.floorIds.clear();
+            zone.floorIds.add(matches[0]);
+          }
+        }
+      };
       for (const node of snap.nodes) {
         const type = typeOf(node);
         if (type === 'Zone') {
@@ -2339,6 +3021,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
             if (building.floorIds.has(id)) floor.buildingIds.add(buildingId);
           }
         }
+        pickSingleId(floor.buildingIds, buildingInfos, `Floor ${id} building`);
       });
       zoneInfos.forEach((zone) => {
         if (!zone.buildingIds.size) {
@@ -2349,6 +3032,9 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
             }
           });
         }
+        preferGraphFormAttachmentsForZone(zone);
+        pickSingleId(zone.floorIds, floorInfos, `Zone ${zone.id} floor`);
+        pickSingleId(zone.buildingIds, buildingInfos, `Zone ${zone.id} building`);
       });
       const zoneRecords = new Map();
       const zoneByName = new Map();
@@ -2479,6 +3165,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
       { name: 'pair_timeseries', args: { room: 'string', table1: 'string', field1: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Pair two fields by nearest timestamps within a time window (default ±30min). Returns [{x, y, ts1, ts2, dt}] for scatter plots' },
       { name: 'compute_ratio', args: { room: 'string', table1: 'string', field1: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?', zero_if_denominator_zero: 'boolean?' }, desc: 'Compute ratio of field1/field2 with time-window matching. Returns [{ts, ratio}]. If zero_if_denominator_zero=true, returns 0 when denominator is 0, otherwise skips that point' },
       { name: 'stats', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Compute count,min,max,avg,sum' },
+      { name: 'get_time_for_value', args: { room: 'string?', table: 'string?', field: 'string?', metric: 'string?', value: 'number?', mode: 'string?', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Locate the timestamp for a metric value (or its min/max when value omitted). Returns { ts, value, mode }' },
       { name: 'correlate', args: { room: 'string', table1: 'string', field1: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Pearson correlation between two fields from room tables. Uses time-window matching (default ±30min) to handle different sampling rates' },
       { name: 'correlate_cross_room', args: { room1: 'string', table1: 'string', field1: 'string', room2: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Correlate metrics between different rooms with time-window matching' },
       { name: 'correlate_weather_room', args: { room: 'string', table: 'string', field_room: 'string', field_weather: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Correlate room metric with weather metric (temp, humidity, wind_speed, clouds, etc)' },
@@ -2526,6 +3213,18 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
       { name: 'compare_field_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Compute per-room value (avg/sum/peak) for ranking and comparison' },
       { name: 'scope_heatmap', args: { rooms: 'string[]', table: 'string', field: 'string', start: 'number?', end: 'number?', bucket_minutes: 'number?', agg: 'string?' }, desc: 'Build a room-by-time heatmap for the given metric. Returns { rooms, timestamps, data, summary } where data items map to [x=time index, y=room index, value]' },
       { name: 'compare_rooms_on_metric', args: { rooms: 'string[]?', table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Rank rooms by metric aggregate within selection (uses selectionRooms if rooms omitted). Returns [{room, value}] sorted desc.' },
+      { name: 'scope_daily_percentile', args: { rooms: 'string[]?', table: 'string?', value_field: 'string?', occupancy_field: 'string?', percentile: 'number?', days: 'number?', start: 'number?', end: 'number?' }, desc: 'Per-room daily percentile/median stats for a multi-room scope. Returns { series: { \"Room Name\": [{ts,p95,occupied_median}] }, summary: [{room,label,avg_p95,worst_p95,occupied_median}] } for charting rankings and multi-series lines.' },
+      { name: 'timeseries_regression_join', args: { metrics: '[{room:string,field:string,table?:string,mode?:"avg"|"sum"|"delta",alias?:string}]', regressions: '[{name?:string,x:string,y:string}]', start: 'number?', end: 'number?', bucket_minutes: 'number?', forward_fill_minutes: 'number?', timeZone: 'string?' }, desc: 'Align/aggregate multiple metrics (e.g., IAQ vs dwell) and compute regression stats plus scatter-ready arrays.' },
+      { name: 'occupancy_people_insight', args: { occupancy_room: 'string', people_room: 'string', occupancy_field: 'string?', people_fields: 'string[]?', bucket_minutes: 'number?', start: 'number?', end: 'number?', timeZone: 'string?' }, desc: '15-minute utilisation vs people counter analysis with heatmaps, peak windows, and regression scatter.' },
+      { name: 'odor_event_monitor', args: { odor_room: 'string', odor_fields: 'string[]?', people_room: 'string?', people_fields: 'string[]?', window_minutes: 'number?', threshold: 'number?', min_duration_minutes: 'number?', context_minutes: 'number?', start: 'number?', end: 'number?', timeZone: 'string?' }, desc: 'Rolling z-score detection for odor sensors with per-day counts and optional entrance-flow medians.' },
+      { name: 'scope_schema_matrix', args: { rooms: 'string[]?', include_tables: 'boolean?' }, desc: 'Enumerate scoped devices with the metrics/tables they expose so you can build schema maps or availability matrices.' },
+      { name: 'grid_align_timeseries', args: { series: '[{room:string,table?:string,field:string,alias?:string}]', start: 'number?', end: 'number?', bucket_minutes: 'number?', forward_fill_minutes: 'number?', timeZone: 'string?' }, desc: 'Align multiple metrics on a shared time grid (default 5-minute Europe/London) with forward-fill tolerance and completeness stats for heatmaps.' },
+      { name: 'ventilation_effectiveness', args: { rooms: 'string[]?', start: 'number?', end: 'number?', value_field: 'string?', air_field: 'string?', percentile: 'number?' }, desc: 'Joins daily airExchangeRate with CO₂ percentiles per room/day, returning scatter points plus regression (slope/intercept/R²).' },
+      { name: 'daypart_boxplot', args: { rooms: 'string[]', field: 'string', occupancy_field: 'string?', table: 'string?', start: 'number?', end: 'number?', timeZone: 'string?' }, desc: 'Build boxplot quartiles for 08-12 / 12-16 / 16-20 windows and companion occupancy medians for dual-axis overlays.' },
+      { name: 'energy_iaq_linkage', args: { links: '[{name:string,energyRooms:string[],iaqRoom:string}]', start: 'number?', end: 'number?', bucket: '\"hourly\"|\"daily\"?', iaq_fields: 'string[]?' }, desc: 'Aggregates SmallPower/Lighting meters and IAQ sensors per area, returning aligned hourly/daily datasets for dual-axis panels.' },
+      { name: 'device_health_summary', args: { rooms: 'string[]?', lookback_days: 'number?' }, desc: 'Summarise IAQ device health (latest battery/RSSI/voltage, sparklines, missingness alerts) for dashboards.' },
+      { name: 'weekday_weekend_pm_profile', args: { rooms: 'string[]', field: 'string?', bucket_minutes: 'number?', start: 'number?', end: 'number?', timeZone: 'string?' }, desc: 'Compare weekday vs weekend diurnal PM profiles (median per 30-min bin) and report uplift percentages.' },
+      { name: 'table_sample', args: { room: 'string', table: 'string', fields: 'string[]?', limit: 'number?', order: '"asc" | "desc"?', start: 'number?', end: 'number?' }, desc: 'Return up to N rows from a room table (ts + selected fields) respecting an optional time window. Useful for table extracts.' },
       { name: 'compare_metrics_in_room', args: { room: 'string', table: 'string', fields: 'string[]', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Compare multiple metrics within one room; returns [{field, value}]' },
       { name: 'common_metrics_in_scope', args: { rooms: 'string[]?' }, desc: 'List metrics common to all scoped rooms (intersection of first-row keys excluding ts)' },
       { name: 'correlation_matrix', args: { room: 'string', table: 'string', fields: 'string[]', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Pairwise Pearson correlation among fields within a room/table over the window' }
@@ -2840,7 +3539,10 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
   function pickChartTypeForField(field, question = '') {
     const key = String(field || '').toLowerCase();
     const q = String(question || '').toLowerCase();
-    if (/people|occup|count/.test(key) || /occupancy|headcount|people/.test(q)) return 'column';
+    const wantsComparison = /\b(compare|versus|vs|diff|difference|busiest|rank)\b/.test(q);
+    if (/people|occup|count/.test(key) || /occupancy|headcount|people/.test(q)) {
+      return wantsComparison ? 'spline' : 'column';
+    }
     if (/pm|particle/.test(key)) return 'areaspline';
     if (/humidity/.test(key)) return 'areaspline';
     if (/temperature|temp/.test(key)) return 'spline';
@@ -2972,24 +3674,6 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     return null;
   }
 
-  function pearson(xs, ys) {
-    const n = Math.min(xs.length, ys.length);
-    if (n < 3) return NaN;
-    let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, k = 0;
-    for (let i = 0; i < n; i++) {
-      const x = xs[i];
-      const y = ys[i];
-      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-      sx += x; sy += y; sxx += x*x; syy += y*y; sxy += x*y; k++;
-    }
-    if (k < 3) return NaN;
-    const cov = (sxy - (sx*sy)/k) / k;
-    const vx = (sxx - (sx*sx)/k) / k;
-    const vy = (syy - (sy*sy)/k) / k;
-    const denom = Math.sqrt(vx*vy);
-    return denom > 0 ? cov/denom : NaN;
-  }
-
   function withinRange(ts, start, end) { 
     return (!start || ts >= start) && (!end || ts <= end); 
   }
@@ -2999,7 +3683,24 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     d.setMinutes(0,0,0); 
     return d.getTime(); 
   }
+  function devicesMatchingQuestion(text, scopeDeviceZones = {}, limit = Infinity) {
+    const matches = [];
+    const ql = String(text || '').toLowerCase();
+    if (!ql) return matches;
+    for (const [deviceId, zoneName] of Object.entries(scopeDeviceZones || {})) {
+      if (!zoneName) continue;
+      if (ql.includes(String(zoneName).toLowerCase())) {
+        matches.push(deviceId);
+        if (matches.length >= limit) break;
+      }
+    }
+    return matches;
+  }
+
   function inferRoomFromText(text) {
+    const ctx = currentScopeContext || {};
+    const scopeMatches = devicesMatchingQuestion(text, ctx.scopeDeviceZones, 1);
+    if (scopeMatches.length) return scopeMatches[0];
     try {
       const rooms = listRooms();
       const tl = String(text || '').toLowerCase();
@@ -3049,6 +3750,32 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     const k2 = keys.find(k => norm(k) === core) || keys.find(k => norm(k).endsWith(core)) || keys.find(k => norm(k).includes(core));
     if (k2) return k2;
     return keys.length === 1 ? keys[0] : name;
+  }
+
+  function findRoomWithTable(tableName, selectionRooms = [], fallbackRoom = null) {
+    const tryDevice = (deviceId) => {
+      if (!deviceId) return null;
+      const normalized = normalizeRoomId(deviceId) || String(deviceId);
+      const tables = loadRoomTables(normalized);
+      if (!tables || !Object.keys(tables).length) return null;
+      const resolved = resolveTable(normalized, tableName || 'iaq');
+      return tables[resolved] ? normalized : null;
+    };
+    if (Array.isArray(selectionRooms)) {
+      for (const id of selectionRooms) {
+        const match = tryDevice(id);
+        if (match) return match;
+      }
+    }
+    if (fallbackRoom) {
+      const match = tryDevice(fallbackRoom);
+      if (match) return match;
+    }
+    if (Array.isArray(selectionRooms) && selectionRooms.length) {
+      const match = tryDevice(selectionRooms[0]);
+      if (match) return match;
+    }
+    return tryDevice(fallbackRoom) || null;
   }
 
   function resolveFieldBinding(field, selectionRooms = [], preferredRoom = null) {
@@ -3140,9 +3867,9 @@ function parseFieldsFromQuestion(question, availableSets) {
       if (f && !fields.includes(f)) fields.push(f);
     }
   } catch {}
-    // 1) explicit "x vs y"
-    if (q.includes(' vs ')) {
-      const parts = question.split(/\s+vs\s+/i).map(s => s.trim());
+    // 1) explicit "x vs y" or "x against y"
+    if (q.includes(' vs ') || q.includes(' against ')) {
+      const parts = question.split(/\s+(?:vs|against)\s+/i).map(s => s.trim());
       if (parts.length >= 2) {
         const f1 = inferFieldName(parts[0], availableSets);
         const f2 = inferFieldName(parts[1], availableSets);
@@ -3173,11 +3900,152 @@ function parseFieldsFromQuestion(question, availableSets) {
     return fields;
   }
 
+  function extractTimestampFromQuestion(question) {
+    if (!question) return null;
+    const text = String(question);
+    const isoPattern = /(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/;
+    const altPattern = /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/;
+    const m = text.match(isoPattern) || text.match(altPattern);
+    if (!m) return null;
+    const parts = m.slice(1).map((val) => (val == null ? null : Number(val)));
+    let year, month, day, hour = 0, minute = 0, second = 0;
+    if (m === text.match(altPattern)) {
+      [month, day, year, hour, minute, second] = parts;
+    } else {
+      [year, month, day, hour, minute, second] = parts;
+    }
+    if (!year || !month || !day) return null;
+    const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour || 0).padStart(2, '0')}:${String(minute || 0).padStart(2, '0')}:${String(second || 0).padStart(2, '0')}`;
+    const ts = Date.parse(iso);
+    return Number.isFinite(ts) ? ts : null;
+  }
+
+  function resolveRoomForQuestion(question, fallbackRoom, selectionRooms = [], scopeDeviceZones = {}) {
+    const matches = devicesMatchingQuestion(question, scopeDeviceZones, 1);
+    if (matches.length) return matches[0];
+    const inferred = inferRoomFromText(question);
+    if (inferred) return inferred;
+    if (Array.isArray(selectionRooms) && selectionRooms.length === 1) return selectionRooms[0];
+    if (!isAllRooms(fallbackRoom) && fallbackRoom) return fallbackRoom;
+    return (selectionRooms && selectionRooms.length) ? selectionRooms[0] : null;
+  }
+
+  function describeTimeDelta(baseTs, targetTs) {
+    if (!Number.isFinite(baseTs) || !Number.isFinite(targetTs)) return '';
+    const delta = baseTs - targetTs;
+    if (delta === 0) return 'exact match';
+    const abs = Math.abs(delta);
+    const minutes = Math.round(abs / 60000);
+    if (minutes === 0) return delta > 0 ? 'seconds after' : 'seconds before';
+    const hours = minutes >= 60 ? (minutes / 60).toFixed(minutes % 60 === 0 ? 0 : 1) + ' h' : `${minutes} min`;
+    return `${hours} ${delta > 0 ? 'after' : 'before'}`;
+  }
+
+  function tryAnswerPointQuery({ question, timestamp, room, selectionRooms = [], scopeDeviceZones = {}, range }) {
+    if (!timestamp) return null;
+    let resolvedRoom = resolveRoomForQuestion(question, room, selectionRooms, scopeDeviceZones);
+    if (!resolvedRoom || isAllRooms(resolvedRoom)) {
+      resolvedRoom = (selectionRooms && selectionRooms.length) ? selectionRooms[0] : null;
+    }
+    if (!resolvedRoom) return null;
+    const available = availableFieldsByTable(resolvedRoom);
+    let fields = parseFieldsFromQuestion(question, available);
+    if (!fields.length) {
+      const lower = String(question || '').toLowerCase();
+      if (lower.includes('humidity') || lower.includes('dew')) fields = ['humidity'];
+      else if (lower.includes('co2')) fields = ['co2'];
+      else if (lower.includes('temperature') || lower.includes('temp')) fields = ['temperature'];
+      else if (lower.includes('lux') || lower.includes('light')) fields = ['lux'];
+      else if (lower.includes('nh3')) fields = ['nh3'];
+      else if (lower.includes('h2s')) fields = ['h2s'];
+      else if (lower.includes('energy') || lower.includes('kwh') || lower.includes('power')) fields = ['total_kwh'];
+    }
+    if (!fields.length) {
+      const tables = loadRoomTables(resolvedRoom);
+      const firstTable = Object.values(tables).find((rows) => Array.isArray(rows) && rows.length);
+      if (firstTable && firstTable.length) {
+        const keys = Object.keys(firstTable[0] || {}).filter((k) => k !== 'ts');
+        if (keys.length) fields = [keys[0]];
+      }
+    }
+    if (!fields.length) return null;
+    const fieldHint = fields[0];
+    const binding = resolveFieldBinding(fieldHint, selectionRooms, resolvedRoom) || resolveFieldBinding(fieldHint, [resolvedRoom], resolvedRoom);
+    if (!binding || !binding.fieldName) return null;
+    const fieldName = binding.fieldName;
+    const tableName = binding.table || resolveTable(binding.room || resolvedRoom, fieldName === 'total_kwh' ? 'energy' : 'iaq');
+    const windowMs = 15 * 60 * 1000;
+    const fetchArgs = {
+      room: binding.room || resolvedRoom,
+      table: tableName,
+      fields: [fieldName],
+      start: timestamp - windowMs,
+      end: timestamp + windowMs,
+      limit: 20
+    };
+    const rows = tools.fetch_timeseries(fetchArgs);
+    const trace = [{ tool: 'fetch_timeseries', args: fetchArgs, result: rows }];
+    if (!Array.isArray(rows) || !rows.length) {
+      return {
+        message: assistantMessage(`No ${humanizeMetricName(fieldName)} readings near ${formatLocal(timestamp)}.`),
+        chart: null,
+        trace
+      };
+    }
+    let nearest = null;
+    for (const row of rows) {
+      const value = row[fieldName];
+      if (value == null) continue;
+      const dist = Math.abs((row.ts ?? 0) - timestamp);
+      if (!nearest || dist < nearest.dist) nearest = { row, dist };
+    }
+    if (!nearest) {
+      return {
+        message: assistantMessage(`Samples near ${formatLocal(timestamp)} lacked ${humanizeMetricName(fieldName)} values.`),
+        chart: null,
+        trace
+      };
+    }
+    const offsetLabel = describeTimeDelta(nearest.row.ts, timestamp);
+    const answerText = `${humanizeMetricName(fieldName)} in ${deviceFriendlyName(binding.room || resolvedRoom)} was ${formatNumericValue(Number(nearest.row[fieldName]))} at ${formatLocal(nearest.row.ts)} (${offsetLabel} relative to the requested ${formatLocal(timestamp)}).`;
+    const chart = {
+      chart: { type: 'line' },
+      title: { text: `${humanizeMetricName(fieldName)} near ${formatLocal(timestamp)}` },
+      xAxis: { type: 'datetime' },
+      yAxis: { title: { text: humanizeMetricName(fieldName) } },
+      series: [{
+        name: humanizeMetricName(fieldName),
+        dataRef: { tool: 'fetch_timeseries', xField: 'ts', yField: fieldName }
+      }]
+    };
+    const validChart = validateChart(cloneChart(chart), trace);
+    return {
+      message: assistantMessage(answerText),
+      chart: validChart ? chart : null,
+      trace
+    };
+  }
+  
+
   // Lightweight intent classifier tolerant to varied phrasing
   function classifyIntent(question) {
     const q = String(question || '').toLowerCase();
     const has = (...words) => words.some(w => q.includes(w));
     const typeRegex = /(boardroom|meeting|lab|laboratory|toilet|restroom|bathroom|wc|cafe|cafeteria|kitchen)/i;
+    const metricsRegex = /(temperature|temp|humidity|co2|concentration|occupancy|people|lux|energy|kwh|power|voc|pm|pressure|water|leak|battery|h2s|nh3)/;
+    const mentionsTable = /\btable\b|\btabular\b|\brows\b|\breadings\b|\bentries\b|\bextract\b|\bsample\b/.test(q);
+    const mentionsData = has('iaq','data','reading','entries','sensor','log','logs');
+    const wantsTableSample = mentionsTable && mentionsData;
+    const wantsTableMeta = ((/\bfirst\b|\bearliest\b|\boldest\b/.test(q) && /\bdate\b|\btimestamp\b|\breading\b/.test(q)) ||
+      (/\blast\b|\blatest\b/.test(q) && /\bdate\b|\btimestamp\b/.test(q)));
+    const mentionsRooms = /\brooms?\b/.test(q);
+    const mentionsZones = /\bzones?\b/.test(q);
+    const mentionsBetween = /\bbetween\b/.test(q);
+    const compareAcrossZones = /\bcompare\b/.test(q) && (
+      (mentionsBetween && (mentionsRooms || mentionsZones)) ||
+      has('across rooms','across zones','between rooms','between zones','rooms on this floor','zones on this floor','zones in this building','rooms in this building')
+    );
+    const mentionsWeather = /\bweather\b|\boutdoor\b|\boutside\b/.test(q) || has('outside temperature') || has('outside temp') || has('external temperature');
     return {
       selectionTime: has('what selection','what scope and time','what selection and time','what time period are you analys','current range','current window','what scope do you see','selection and time','selection and time frame','selection and time period','what selection and time'),
       metricsEachRoom: (
@@ -3195,12 +4063,25 @@ function parseFieldsFromQuestion(question, availableSets) {
         )
       ),
       devicesInRoom: has('what detectors','what devices','what sensors') && !has('each','every'),
-      plotAcrossRooms: (has('plot','chart','visualize') && (has('across all rooms','on this floor','on this building'))) || has('compare across rooms','timeseries across rooms'),
-      rankRooms: (has('highest','top','most') && (has('avg','average','mean','peak') || true) && (has('on this floor') || has('on this building'))),
-      plotSingle: has('plot','chart','visualize') && !has('across all rooms','on this floor','on this building'),
-      correlation: has('correlation','correlate','matrix')
+      plotAcrossRooms: (has('plot','chart','visualize') && (has('across all rooms','on this floor','on this building'))) || has('compare across rooms','timeseries across rooms') || compareAcrossZones,
+      rankRooms: (
+        (has('highest','top','most','rank') && (has('avg','average','mean','peak','sum','total') || true) && (has('on this floor') || has('on this building') || has('rooms'))) ||
+        /\brank\b.*\brooms\b/.test(q) ||
+        compareAcrossZones
+      ),
+      plotSingle: has('plot','chart','visualize') && !has('across all rooms','on this floor','on this building') && !compareAcrossZones,
+      correlation: has('correlation','correlate','matrix'),
+      histogram: has('histogram','distribution','frequency','bins','bucket','spread'),
+      compareMetricsRoom: (
+        has('compare') &&
+        metricsRegex.test(q) &&
+        !has('across all rooms','across the rooms','on this floor','on this building','between rooms','between zones')
+      ),
+      tableSample: wantsTableSample,
+      tableMeta: wantsTableMeta
       ,
-      compareTypes: (q.includes('compare') && /\b(and|vs|versus)\b/i.test(q) && typeRegex.test(q))
+      compareTypes: (q.includes('compare') && /\b(and|vs|versus)\b/i.test(q) && typeRegex.test(q)),
+      weatherQuestion: mentionsWeather
     };
   }
 
@@ -3211,6 +4092,15 @@ function parseFieldsFromQuestion(question, availableSets) {
     for (const [t, set] of Object.entries(availableSets)) if (set.has(field)) { table = t; break; }
     if (!table) table = (field === 'value' || field === 'total_kwh') ? 'energy' : 'iaq';
     return { field, table };
+  }
+
+  function inferTableNameFromQuestion(question) {
+    const q = String(question || '').toLowerCase();
+    if (/\benergy\b|\bkwh\b|\bpower\b|\bkw\b/.test(q)) return 'energy';
+    if (/\bpeople\b|\boccupancy\b|\bcount\b|\bdwell\b|\bheatmap\b/.test(q)) return 'people';
+    if (/\bwater\b|\bleak\b/.test(q)) return 'water';
+    if (/\bweather\b/.test(q)) return 'weather';
+    return 'iaq';
   }
 
   function resolveToolName(name) {
@@ -3245,16 +4135,316 @@ function parseFieldsFromQuestion(question, availableSets) {
       ['correlationmatrix','correlation_matrix'],
       ['vector_search','vector_search_docs'],
       ['search_docs','vector_search_docs']
+      ,
+      ['time_for_value','get_time_for_value'],
+      ['timestamp_for_value','get_time_for_value'],
+      ['find_value_time','get_time_for_value'],
+      ['get_timeseries_data','fetch_timeseries'],
+      ['get_sensor_data','fetch_timeseries'],
+      ['fetch_sensor_data','fetch_timeseries'],
+      ['sensor_timeseries','fetch_timeseries'],
+      ['pull_timeseries','fetch_timeseries']
     ]);
     return map.get(t) || name;
   }
 
-  function wantsChart(question) {
-    const q = String(question || '').toLowerCase();
-    return (
-      q.includes('plot') || q.includes('chart') || q.includes('visual') || q.includes('trend') ||
-      q.includes('over time') || q.includes('history') || q.includes('vs') || q.includes('correlation')
-    );
+  function ensureChartData(chartObj, { question, room, selectionRooms = [], range = {}, trace = [], scopeLabels = {} } = {}) {
+    if (!chartObj || !Array.isArray(chartObj.series)) return;
+    const missingToolCalls = [];
+    const rr = range || {};
+    const roomsList = Array.isArray(selectionRooms) ? selectionRooms : [];
+
+    for (const series of chartObj.series) {
+      if (!series || !series.dataRef) continue;
+      const ref = series.dataRef;
+      const toolName = ref.tool;
+      if (!toolName) continue;
+
+      const alreadyPresent = trace.some((t) => t && t.tool === toolName && (!ref.room || (t.args && String(t.args.room) === String(ref.room))));
+      if (alreadyPresent) continue;
+
+      try {
+        let args = null;
+        if (toolName === 'fetch_timeseries') {
+          const primaryDevice = roomsList.find(Boolean);
+          const preferredRoom = ref.room || primaryDevice || (isAllRooms(room) ? null : room);
+          const binding = resolveFieldBinding(ref.yField || ref.field, selectionRooms, preferredRoom) || null;
+          const roomForRef = binding?.room || preferredRoom || (inferRoomFromText(series.name) || inferRoomFromText(question) || room);
+          const fieldName = binding?.fieldName || ref.yField || ref.field;
+          if (!roomForRef || !fieldName) continue;
+          const tableName = binding?.table || resolveTable(roomForRef, 'iaq');
+          args = {
+            room: roomForRef,
+            table: tableName,
+            fields: [fieldName],
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined
+          };
+          if (fieldName && ref.yField && fieldName !== ref.yField) ref.yField = fieldName;
+          ref.room = roomForRef;
+        } else if (toolName === 'pair_timeseries') {
+          const primaryDevice = roomsList.find(Boolean) || null;
+          const tablesSets = availableFieldsByTable(primaryDevice || room || '');
+          let f1 = ref.field1;
+          let f2 = ref.field2;
+          if ((!f1 || !f2) && series && typeof series.name === 'string') {
+            const parts = series.name.split(/\s+vs\s+|\s+and\s+/i).map((s) => s.trim()).filter(Boolean);
+            if (parts.length >= 2) {
+              f1 = f1 || inferFieldName(parts[0], tablesSets) || parts[0];
+              f2 = f2 || inferFieldName(parts[1], tablesSets) || parts[1];
+            }
+          }
+          f1 = f1 || ref.yField || inferFieldName(question, tablesSets) || 'temperature';
+          f2 = f2 || inferFieldName(question, tablesSets) || 'humidity';
+          const preferredRoom = ref.room || primaryDevice || (isAllRooms(room) ? null : room);
+          const binding1 = resolveFieldBinding(f1, selectionRooms, preferredRoom);
+          const roomForRef = binding1?.room || preferredRoom || inferRoomFromText(series.name) || inferRoomFromText(question) || room;
+          if (!roomForRef) continue;
+          const binding2 = resolveFieldBinding(f2, selectionRooms, roomForRef) || resolveFieldBinding(f2, selectionRooms, preferredRoom);
+          const table1 = binding1?.table || resolveTable(roomForRef, 'iaq');
+          const table2 = (binding2 && binding2.room === roomForRef) ? binding2.table : resolveTable(roomForRef, table1);
+          const field1Name = binding1?.fieldName || f1;
+          const field2Name = (binding2 && binding2.fieldName) || f2;
+          if (!field1Name || !field2Name) continue;
+          args = {
+            room: roomForRef,
+            table1,
+            field1: field1Name,
+            table2,
+            field2: field2Name,
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined
+          };
+          ref.field1 = field1Name;
+          ref.field2 = field2Name;
+          ref.room = roomForRef;
+        } else if (toolName === 'histogram') {
+          const primaryDevice = roomsList.find(Boolean) || null;
+          const binding = resolveFieldBinding(ref.field, selectionRooms, ref.room || primaryDevice || (isAllRooms(room) ? null : room));
+          const roomForRef = binding?.room || ref.room || primaryDevice || (inferRoomFromText(series.name) || inferRoomFromText(question) || room);
+          const fieldName = binding?.fieldName || ref.field;
+          if (!roomForRef || !fieldName) continue;
+          const tableName = binding?.table || resolveTable(roomForRef, 'iaq');
+          args = {
+            room: roomForRef,
+            table: tableName,
+            field: fieldName,
+            bins: ref.bins || 12,
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined
+          };
+          ref.field = fieldName;
+          ref.room = roomForRef;
+        } else if (toolName === 'hourly_timeseries' || toolName === 'daily_avg') {
+          const primaryDevice = roomsList.find(Boolean) || null;
+          const preferredRoom = ref.room || primaryDevice || (isAllRooms(room) ? null : room);
+          const fieldHint = ref.field || ref.yField || ref.metric || inferFieldName(series?.name || question, availableFieldsByTable(preferredRoom || room || '')) || 'temperature';
+          const binding = resolveFieldBinding(fieldHint, selectionRooms, preferredRoom) || resolveFieldBinding(fieldHint, selectionRooms, null) || resolveFieldBinding('temperature', selectionRooms, preferredRoom);
+          if (!binding) continue;
+          const roomForRef = binding.room;
+          const tableName = binding.table || resolveTable(roomForRef, 'iaq');
+          const fieldName = binding.fieldName || fieldHint;
+          args = {
+            room: roomForRef,
+            table: tableName,
+            field: fieldName,
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined
+          };
+          ref.field = fieldName;
+          ref.room = roomForRef;
+        } else if (toolName === 'compare_metrics_in_room') {
+          const preferredRoom = ref.room || (isAllRooms(room) ? (roomsList[0] || null) : room) || roomsList[0] || null;
+          if (!preferredRoom) continue;
+          const axisEntries = [];
+          const axes = Array.isArray(chartObj?.xAxis) ? chartObj.xAxis : (chartObj?.xAxis ? [chartObj.xAxis] : []);
+          for (const ax of axes) {
+            if (Array.isArray(ax?.categories)) axisEntries.push(...ax.categories.map(String));
+          }
+          const inferredFields = axisEntries.length ? axisEntries : [];
+          const manualFields = Array.isArray(ref.fields) ? ref.fields : [];
+          let fields = manualFields.length ? manualFields : inferredFields;
+          if (!fields.length && typeof series?.name === 'string') {
+            fields = series.name.split(/[+,/&]/).map((s) => s.trim()).filter(Boolean);
+          }
+          if (!fields.length) fields = pickFieldsForRoom(preferredRoom, 4);
+          if (!fields.length) continue;
+          const binding = resolveFieldBinding(fields[0], selectionRooms, preferredRoom) || resolveFieldBinding(fields[0], [preferredRoom], preferredRoom);
+          const tableName = binding?.table || ref.table || resolveTable(preferredRoom, 'iaq');
+          const normalizedFields = fields.map((f) => {
+            const b = resolveFieldBinding(f, selectionRooms, preferredRoom) || resolveFieldBinding(f, [preferredRoom], preferredRoom);
+            return b?.fieldName || f;
+          });
+          args = {
+            room: preferredRoom,
+            table: tableName,
+            fields: normalizedFields,
+            agg: ref.agg || 'avg',
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined
+          };
+          ref.room = preferredRoom;
+          ref.fields = normalizedFields;
+        } else if (toolName === 'compare_rooms_on_metric') {
+          const roomsForCompare = Array.isArray(ref.rooms) && ref.rooms.length
+            ? ref.rooms
+            : (roomsList.length ? roomsList.slice(0, 12) : (isAllRooms(room) ? listRooms().slice(0, 8) : [room].filter(Boolean)));
+          if (!roomsForCompare.length) continue;
+          const tablesSets = availableFieldsByTable(roomsForCompare[0]);
+          const fieldCandidate = ref.field || ref.metric || inferFieldName(series?.name || question, tablesSets) || 'temperature';
+          const binding = resolveFieldBinding(fieldCandidate, roomsForCompare, roomsForCompare[0]) || resolveFieldBinding(fieldCandidate, selectionRooms, roomsForCompare[0]);
+          const tableName = binding?.table || ref.table || resolveTable(roomsForCompare[0], fieldCandidate === 'total_kwh' ? 'energy' : 'iaq');
+          const fieldName = binding?.fieldName || fieldCandidate;
+          args = {
+            rooms: roomsForCompare,
+            table: tableName,
+            field: fieldName,
+            agg: ref.agg || 'avg',
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined
+          };
+          ref.field = fieldName;
+          ref.rooms = roomsForCompare;
+          ref.table = tableName;
+        } else if (toolName === 'correlation_matrix') {
+          const targetRoom = ref.room || (isAllRooms(room) ? (roomsList[0] || null) : room) || null;
+          if (!targetRoom) continue;
+          const axes = Array.isArray(chartObj?.xAxis) ? chartObj.xAxis : (chartObj?.xAxis ? [chartObj.xAxis] : []);
+          let categories = [];
+          for (const ax of axes) {
+            if (Array.isArray(ax?.categories) && ax.categories.length) { categories = ax.categories.map(String); break; }
+          }
+          const fieldList = Array.isArray(ref.fields) && ref.fields.length ? ref.fields : categories;
+          const defaultFields = fieldList.length ? fieldList : ['temperature', 'humidity', 'co2'];
+          const normalizedFields = defaultFields.map((f) => {
+            const binding = resolveFieldBinding(f, selectionRooms, targetRoom) || resolveFieldBinding(f, [targetRoom], targetRoom);
+            return binding?.fieldName || f;
+          });
+          args = {
+            room: targetRoom,
+            table: ref.table || resolveTable(targetRoom, 'iaq'),
+            fields: normalizedFields,
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined
+          };
+          ref.room = targetRoom;
+          ref.fields = normalizedFields;
+        } else if (toolName === 'hour_of_day_stats') {
+          const preferredRoom = ref.room || (isAllRooms(room) ? roomsList[0] || null : room) || roomsList[0] || null;
+          if (!preferredRoom) continue;
+          const binding = resolveFieldBinding(ref.field || ref.metric || inferFieldName(question, availableFieldsByTable(preferredRoom)), selectionRooms, preferredRoom) ||
+                          resolveFieldBinding('occupancy', selectionRooms, preferredRoom) ||
+                          resolveFieldBinding('people_count', selectionRooms, preferredRoom) ||
+                          resolveFieldBinding('co2', selectionRooms, preferredRoom);
+          if (!binding) continue;
+          args = {
+            room: preferredRoom,
+            table: binding.table || resolveTable(preferredRoom, 'iaq'),
+            field: binding.fieldName,
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined
+          };
+          ref.room = preferredRoom;
+          ref.field = binding.fieldName;
+        } else if (toolName === 'scope_heatmap') {
+          const roomsForHeatmap = Array.isArray(ref.rooms) && ref.rooms.length
+            ? ref.rooms
+            : (roomsList.length ? roomsList.slice(0, 20) : selectionRooms.slice(0, 20));
+          if (!roomsForHeatmap.length) continue;
+          const fieldCandidate = ref.field || ref.metric || (question && /co2|carbon/i.test(question) ? 'co2' : (/temperature|temp/i.test(question) ? 'temperature' : (/humidity/i.test(question) ? 'humidity' : (/occupancy|people/i.test(question) ? 'occupancy' : 'people_count'))));
+          const binding = resolveFieldBinding(fieldCandidate, roomsForHeatmap, roomsForHeatmap[0]) || resolveFieldBinding(fieldCandidate, selectionRooms, roomsForHeatmap[0]);
+          const tableName = binding?.table || ref.table || resolveTable(roomsForHeatmap[0], fieldCandidate === 'total_kwh' ? 'energy' : (/water/i.test(fieldCandidate) ? 'water' : 'iaq'));
+          const fieldName = binding?.fieldName || fieldCandidate;
+          args = {
+            rooms: roomsForHeatmap,
+            table: tableName,
+            field: fieldName,
+            bucket_minutes: ref.bucket_minutes || 60,
+            agg: ref.agg || 'avg',
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined
+          };
+          ref.rooms = roomsForHeatmap;
+          ref.field = fieldName;
+          ref.table = tableName;
+        } else if (toolName && toolName.startsWith('forecast_')) {
+          const preferredRoom = ref.room || (isAllRooms(room) ? (roomsList[0] || null) : room) || roomsList[0] || null;
+          if (!preferredRoom) continue;
+          const tablesSets = availableFieldsByTable(preferredRoom);
+          const fieldCandidate = ref.field || inferFieldName(question, tablesSets) || inferFieldName(series?.name, tablesSets) || 'temperature';
+          const binding = resolveFieldBinding(fieldCandidate, selectionRooms, preferredRoom) || resolveFieldBinding(fieldCandidate, [preferredRoom], preferredRoom) || resolveFieldBinding('temperature', selectionRooms, preferredRoom);
+          if (!binding) continue;
+          const tableName = binding.table || resolveTable(preferredRoom, fieldCandidate === 'total_kwh' ? 'energy' : 'iaq');
+          const fieldName = binding.fieldName || fieldCandidate;
+          args = {
+            room: preferredRoom,
+            table: tableName,
+            field: fieldName,
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined
+          };
+          if (ref.horizon_hours) args.horizon_hours = ref.horizon_hours;
+          if (ref.days) args.days = ref.days;
+          if (ref.alpha) args.alpha = ref.alpha;
+          if (ref.window) args.window = ref.window;
+          if (ref.degree) args.degree = ref.degree;
+          ref.room = preferredRoom;
+          ref.field = fieldName;
+          ref.table = tableName;
+        } else if (toolName === 'compare_series_cross_room') {
+          const roomsForCompare = roomsList.length ? roomsList.slice(0, 8) : (room && !isAllRooms(room) ? [room] : listRooms().slice(0, 4));
+          const tablesSetsAny = roomsForCompare.length ? availableFieldsByTable(roomsForCompare[0]) : {};
+          let field = ref.yField || ref.field || inferFieldName(series.name, tablesSetsAny) || inferFieldName(question, tablesSetsAny) || 'temperature';
+          const seriesArgs = [];
+          for (const r of roomsForCompare) {
+            const binding = resolveFieldBinding(field, [r], r);
+            if (!binding) continue;
+            const label = friendlySeriesLocation(binding.room, binding.room);
+            seriesArgs.push({
+              room: binding.room,
+              table: binding.table,
+              field: binding.fieldName,
+              name: `${label} ${humanizeMetricName(binding.fieldName)}`
+            });
+          }
+          if (!seriesArgs.length) continue;
+          args = {
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined,
+            series: seriesArgs
+          };
+          ref.field = field;
+        } else if (toolName === 'weather_fetch') {
+          const fields = Array.isArray(ref.fields) && ref.fields.length ? ref.fields : ['temp', 'humidity'];
+          const buildingHint = (scopeLabels && scopeLabels.building) || inferBuildingFromContext();
+          args = {
+            building: buildingHint || undefined,
+            room: (roomsList.length ? roomsList[0] : undefined),
+            fields,
+            start: rr.start ?? undefined,
+            end: rr.end ?? undefined
+          };
+        }
+
+        if (args) {
+          missingToolCalls.push({ tool: toolName, args });
+        }
+      } catch (err) {
+        log('ensureChartData failed to prepare tool', toolName, err?.message || String(err));
+      }
+    }
+
+    for (const call of missingToolCalls) {
+      if (tools[call.tool]) {
+        try {
+          const result = tools[call.tool](call.args);
+          trace.push({ tool: call.tool, args: call.args, result });
+          log(`Auto-ran missing tool for chart: ${call.tool}`, call.args);
+        } catch (err) {
+          log(`ensureChartData tool ${call.tool} failed:`, String(err));
+        }
+      }
+    }
   }
   
   const FIELD_SYNONYMS = {
@@ -3263,7 +4453,7 @@ function parseFieldsFromQuestion(question, availableSets) {
     virusrisk: ['virus_risk', 'virusrisk', 'risk'],
     total_kwh: ['totalkwh', 'kwh_total', 'energy_total', 'total_energy'],
     humidity: ['hum', 'rh', 'relativehumidity', 'humid'],
-    co2: ['co2ppm', 'carbondioxide', 'co2_level'],
+    co2: ['co2ppm', 'carbondioxide', 'co2_level', 'concentration'],
     lux: ['illuminance', 'light', 'lightlevel'],
     pm1: ['pm_1', 'particulate1'],
     pm25: ['pm_2_5', 'pm2.5', 'particulate25'],
@@ -3436,6 +4626,15 @@ function parseFieldsFromQuestion(question, availableSets) {
       const first = (t[table] || [])[0] || {};
       return Object.keys(first);
     },
+    
+    scope_summary() {
+      return {
+        rooms: Array.isArray(currentScopeContext.selectionRooms) ? [...currentScopeContext.selectionRooms] : [],
+        zones: Array.isArray(currentScopeContext.selectionZones) ? [...currentScopeContext.selectionZones] : [],
+        labels: currentScopeContext.scopeLabels ? { ...currentScopeContext.scopeLabels } : {},
+        range: currentScopeContext.range ? { ...currentScopeContext.range } : null
+      };
+    },
 
     // Multi-line plotting across a scope (tenant/building/floor/zone)
     // Returns { series: [ { name, zone, building, deviceId, data:[[ts,value],...] } ], meta: { devices, metric } }
@@ -3599,14 +4798,15 @@ function parseFieldsFromQuestion(question, availableSets) {
       const tab = resolveTable(room, table);
       const arr = t[tab] || [];
       let count = 0, min = Infinity, max = -Infinity, sum = 0;
+      let minTs = null, maxTs = null;
       for (const r of arr) {
         if (!withinRange(r.ts, start, end)) continue;
         const v = Number(r[field]);
         if (!Number.isFinite(v)) continue;
         count++; 
         sum += v; 
-        if (v < min) min = v; 
-        if (v > max) max = v;
+        if (v < min) { min = v; minTs = r.ts ?? null; }
+        if (v > max) { max = v; maxTs = r.ts ?? null; }
       }
       const avg = count ? sum / count : NaN;
       return { 
@@ -3614,8 +4814,81 @@ function parseFieldsFromQuestion(question, availableSets) {
         min: isFinite(min) ? min : null, 
         max: isFinite(max) ? max : null, 
         avg: isFinite(avg) ? avg : null, 
-        sum 
+        sum,
+        minTs: minTs ?? null,
+        maxTs: maxTs ?? null
       };
+    },
+    
+    get_time_for_value({
+      room,
+      table = null,
+      field = null,
+      metric = null,
+      value = null,
+      mode = null,
+      agg = null,
+      start = null,
+      end = null
+    }) {
+      let targetRoom = room;
+      if (!targetRoom || isAllRooms(targetRoom)) {
+        targetRoom = Array.isArray(currentScopeContext.selectionRooms) && currentScopeContext.selectionRooms.length
+          ? currentScopeContext.selectionRooms[0]
+          : targetRoom;
+      }
+      if (!targetRoom) return { error: 'room required', field, value, mode: mode || agg || null, ts: null };
+      const resolvedField = field || metric || 'temperature';
+      const tab = resolveTable(targetRoom, table || (resolvedField === 'people_count' ? 'people' : 'iaq'));
+      const rows = (loadRoomTables(targetRoom)[tab] || []).filter((r) => withinRange(r.ts, start, end));
+      if (!rows.length) return { error: 'no_data', field: resolvedField, value: null, ts: null };
+      const modeKey = String(mode || agg || (value == null ? 'max' : 'value')).toLowerCase();
+      let bestRow = null;
+      let bestDiff = Infinity;
+      if (value == null && (modeKey === 'max' || modeKey === 'min')) {
+        const comparator = modeKey === 'max'
+          ? (curr, candidate) => candidate > curr
+          : (curr, candidate) => candidate < curr;
+        let extreme = modeKey === 'max' ? -Infinity : Infinity;
+        for (const row of rows) {
+          const v = Number(row[resolvedField]);
+          if (!Number.isFinite(v)) continue;
+          if (comparator(extreme, v)) {
+            extreme = v;
+            bestRow = row;
+          }
+        }
+        if (bestRow) {
+          return {
+            mode: modeKey,
+            field: resolvedField,
+            value: Number(bestRow[resolvedField]),
+            ts: bestRow.ts ?? null
+          };
+        }
+      } else {
+        const target = Number(value);
+        if (!Number.isFinite(target)) return { error: 'value required', field: resolvedField, value: null, ts: null };
+        for (const row of rows) {
+          const v = Number(row[resolvedField]);
+          if (!Number.isFinite(v)) continue;
+          const diff = Math.abs(v - target);
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            bestRow = row;
+          }
+          if (diff === 0) break;
+        }
+        if (bestRow) {
+          return {
+            mode: modeKey || 'value',
+            field: resolvedField,
+            value: Number(bestRow[resolvedField]),
+            ts: bestRow.ts ?? null
+          };
+        }
+      }
+      return { error: 'value_not_found', field: resolvedField, value, ts: null };
     },
     
     correlate({ room, table1, field1, table2, field2, start = null, end = null, time_window_ms = 30 * 60 * 1000 }) {
@@ -4195,6 +5468,1306 @@ function parseFieldsFromQuestion(question, availableSets) {
       out.sort((a,b)=> (b.value ?? -Infinity) - (a.value ?? -Infinity));
       return out;
     },
+    
+    scope_daily_percentile({
+      rooms = null,
+      table = 'telemetry',
+      value_field = 'co2',
+      occupancy_field = 'occupants',
+      percentile = 0.95,
+      days = 14,
+      start = null,
+      end = null
+    }) {
+      const targetRooms = Array.isArray(rooms) && rooms.length
+        ? rooms
+        : (Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : []);
+      if (!targetRooms.length) {
+        throw new Error('scope_daily_percentile requires at least one room.');
+      }
+      const pct = Number.isFinite(percentile) && percentile > 0 && percentile < 1 ? Number(percentile) : 0.95;
+      const dayWindow = Number.isFinite(days) && days > 0 ? Number(days) : 14;
+      let windowEnd = Number.isFinite(end) ? Number(end) : (currentScopeContext.range?.end ?? Date.now());
+      if (!Number.isFinite(windowEnd)) windowEnd = Date.now();
+      let windowStart = Number.isFinite(start) ? Number(start) : (currentScopeContext.range?.start ?? (windowEnd - dayWindow * DAY_MS));
+      const minStart = windowEnd - dayWindow * DAY_MS;
+      if (!Number.isFinite(windowStart)) windowStart = minStart;
+      if (!Number.isFinite(start)) windowStart = Math.max(windowStart, minStart);
+
+      const seriesStore = {};
+      const summary = [];
+      const usedLabels = new Set();
+      const labelForRoom = (roomId) => {
+        const base = friendlySeriesLocation(roomId, roomId) || String(roomId);
+        let candidate = base;
+        let suffix = 2;
+        while (usedLabels.has(candidate)) {
+          candidate = `${base} (${suffix++})`;
+        }
+        usedLabels.add(candidate);
+        return candidate;
+      };
+
+      for (const roomId of targetRooms) {
+        const normalizedRoom = normalizeRoomId(roomId) || String(roomId);
+        const tables = loadRoomTables(normalizedRoom);
+        const tab = resolveTable(normalizedRoom, table);
+        const rows = (tables[tab] || []).filter((row) => withinRange(row.ts, windowStart, windowEnd));
+        const label = labelForRoom(normalizedRoom);
+        if (!rows.length) {
+          summary.push({
+            room: normalizedRoom,
+            label,
+            avg_p95: null,
+            worst_p95: null,
+            occupied_median: null,
+            days: 0,
+            samples: 0
+          });
+          continue;
+        }
+        const resolvedValueField = resolveField(rows, value_field);
+        const resolvedOccField = occupancy_field ? resolveField(rows, occupancy_field) : null;
+        const buckets = new Map();
+        let samples = 0;
+        for (const row of rows) {
+          if (!Number.isFinite(row.ts)) continue;
+          const val = Number(row[resolvedValueField]);
+          if (!Number.isFinite(val)) continue;
+          samples += 1;
+          const dayKey = startOfDayLocal(row.ts);
+          if (dayKey == null) continue;
+          if (!buckets.has(dayKey)) buckets.set(dayKey, { values: [], occupiedValues: [] });
+          const bucket = buckets.get(dayKey);
+          bucket.values.push(val);
+          if (resolvedOccField) {
+            const occVal = Number(row[resolvedOccField]);
+            if (Number.isFinite(occVal) && occVal > 0) bucket.occupiedValues.push(val);
+          }
+        }
+        const dailySeries = [];
+        for (const [dayKey, bucket] of Array.from(buckets.entries()).sort((a, b) => a[0] - b[0])) {
+          if (!bucket.values.length) continue;
+          const p95 = percentileValue(bucket.values, pct);
+          if (p95 == null) continue;
+          const occMedian = bucket.occupiedValues.length ? medianValue(bucket.occupiedValues) : null;
+          dailySeries.push({ ts: dayKey, p95, occupied_median: occMedian });
+        }
+        if (dailySeries.length) {
+          seriesStore[label] = dailySeries;
+        }
+        const p95Values = dailySeries.map((p) => p.p95).filter((v) => Number.isFinite(v));
+        const occupiedMedians = dailySeries.map((p) => p.occupied_median).filter((v) => Number.isFinite(v));
+        const avgP95 = p95Values.length ? p95Values.reduce((a, b) => a + b, 0) / p95Values.length : null;
+        const worstP95 = p95Values.length ? Math.max(...p95Values) : null;
+        const occupiedMedianOverall = occupiedMedians.length ? medianValue(occupiedMedians) : null;
+        summary.push({
+          room: normalizedRoom,
+          label,
+          avg_p95: avgP95,
+          worst_p95: worstP95,
+          occupied_median: occupiedMedianOverall,
+          days: dailySeries.length,
+          samples
+        });
+      }
+
+      summary.sort((a, b) => (b.worst_p95 ?? -Infinity) - (a.worst_p95 ?? -Infinity));
+
+      return {
+        series: seriesStore,
+        summary,
+        percentile: pct,
+        value_field,
+        occupancy_field,
+        start: windowStart,
+        end: windowEnd
+      };
+    },
+
+    timeseries_regression_join({
+      metrics = [],
+      regressions = [],
+      bucket_minutes = 60,
+      start = null,
+      end = null,
+      timeZone = DEFAULT_TIME_ZONE,
+      forward_fill_minutes = 60
+    }) {
+      if (!Array.isArray(metrics) || !metrics.length) {
+        throw new Error('timeseries_regression_join requires at least one metric definition.');
+      }
+      const bucketMs = Math.max(1, bucket_minutes || 60) * 60 * 1000;
+      const ffMs = Math.max(0, forward_fill_minutes || bucket_minutes || 60) * 60 * 1000;
+      const contextRange = currentScopeContext.range || {};
+      let windowStart = Number.isFinite(start) ? Number(start) : contextRange.start;
+      let windowEnd = Number.isFinite(end) ? Number(end) : contextRange.end;
+      if (!Number.isFinite(windowStart) || !Number.isFinite(windowEnd)) {
+        let minTs = Infinity;
+        let maxTs = -Infinity;
+        for (const metric of metrics) {
+          const normalizedRoom = normalizeRoomId(metric.room) || metric.room;
+          if (!normalizedRoom) continue;
+          const tables = loadRoomTables(normalizedRoom);
+          const tableName = resolveTable(normalizedRoom, metric.table || 'telemetry');
+          const rows = (tables[tableName] || []).filter((row) => Number.isFinite(row.ts));
+          if (!rows.length) continue;
+          minTs = Math.min(minTs, rows[0].ts);
+          maxTs = Math.max(maxTs, rows[rows.length - 1].ts);
+        }
+        if (!Number.isFinite(windowStart)) windowStart = minTs;
+        if (!Number.isFinite(windowEnd)) windowEnd = maxTs;
+      }
+      if (!Number.isFinite(windowStart) || !Number.isFinite(windowEnd)) {
+        throw new Error('Unable to determine time window for timeseries_regression_join.');
+      }
+      const alignedStart = alignTimestampToBucket(windowStart, bucket_minutes, timeZone);
+      const alignedEnd = alignTimestampToBucket(windowEnd + bucketMs - 1, bucket_minutes, timeZone);
+      const bucketCount = Math.max(1, Math.floor((alignedEnd - alignedStart) / bucketMs) + 1);
+      const buckets = [];
+      for (let idx = 0; idx < bucketCount; idx++) buckets.push(alignedStart + idx * bucketMs);
+
+      const aliasMeta = {};
+      const valueSeries = {};
+
+      const assignAlias = (metric, idx) => {
+        const base =
+          metric.alias ||
+          friendlySeriesLocation(metric.room, metric.room) + (metric.field ? ` ${metric.field}` : '') ||
+          `series_${idx + 1}`;
+        let alias = base;
+        let suffix = 2;
+        while (aliasMeta[alias]) {
+          alias = `${base} (${suffix++})`;
+        }
+        return alias;
+      };
+
+      metrics.forEach((metric, idx) => {
+        const normalizedRoom = normalizeRoomId(metric.room) || metric.room;
+        if (!normalizedRoom) return;
+        const alias = assignAlias(metric, idx);
+        const tables = loadRoomTables(normalizedRoom);
+        const tableName = resolveTable(normalizedRoom, metric.table || 'telemetry');
+        const rows = (tables[tableName] || []).filter((row) =>
+          withinRange(row.ts, alignedStart - ffMs, alignedEnd + bucketMs + ffMs)
+        );
+        if (!rows.length) {
+          valueSeries[alias] = buckets.map((ts) => ({ ts, value: null }));
+          aliasMeta[alias] = { room: normalizedRoom, field: metric.field, table: tableName };
+          return;
+        }
+        rows.sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+        const mode = metric.mode || 'avg';
+        const resolvedField = metric.fields || metric.field || PEOPLE_FALLBACK_FIELDS;
+        const acc = new Map();
+        let prevValue = null;
+        let prevTs = null;
+        for (const row of rows) {
+          const ts = row.ts;
+          if (!Number.isFinite(ts)) continue;
+          const raw = extractFieldValue(row, resolvedField);
+          if (!Number.isFinite(raw)) continue;
+          let val = raw;
+          if (mode === 'delta') {
+            if (prevValue == null) {
+              prevValue = raw;
+              prevTs = ts;
+              continue;
+            }
+            const delta = raw - prevValue;
+            prevValue = raw;
+            prevTs = ts;
+            if (delta < 0) continue;
+            val = delta;
+          }
+          const bucketTs = alignTimestampToBucket(ts, bucket_minutes, timeZone);
+          if (bucketTs < alignedStart || bucketTs > alignedEnd) continue;
+          const entry = acc.get(bucketTs) || { sum: 0, count: 0 };
+          entry.sum += val;
+          entry.count += 1;
+          acc.set(bucketTs, entry);
+        }
+        const aliasSeries = buckets.map((ts) => {
+          const entry = acc.get(ts);
+          if (!entry || !entry.count) return { ts, value: null };
+          const value = mode === 'sum' || mode === 'delta' ? entry.sum : entry.sum / entry.count;
+          return { ts, value };
+        });
+        valueSeries[alias] = aliasSeries;
+        aliasMeta[alias] = { room: normalizedRoom, field: metric.field || resolvedField, table: tableName };
+      });
+
+      const regressionResults = [];
+      const scatterSeries = {};
+      for (const reg of regressions || []) {
+        const name = reg.name || `${reg.y || 'y'} vs ${reg.x || 'x'}`;
+        const xSeries = valueSeries[reg.x] || [];
+        const ySeries = valueSeries[reg.y] || [];
+        const seriesPoints = [];
+        const map = new Map();
+        xSeries.forEach((entry) => {
+          if (Number.isFinite(entry.value)) map.set(entry.ts, { ts: entry.ts, x: entry.value });
+        });
+        ySeries.forEach((entry) => {
+          if (!Number.isFinite(entry.value)) return;
+          const existing = map.get(entry.ts);
+          if (!existing || !Number.isFinite(existing.x)) return;
+          existing.y = entry.value;
+          seriesPoints.push(existing);
+        });
+        const regression = linearRegression(
+          seriesPoints.map((p) => p.x),
+          seriesPoints.map((p) => p.y)
+        );
+        regressionResults.push({
+          name,
+          xAlias: reg.x,
+          yAlias: reg.y,
+          slope: regression.slope,
+          intercept: regression.intercept,
+          r2: regression.r2,
+          n: regression.n,
+          points: seriesPoints
+        });
+        scatterSeries[name] = seriesPoints.map((p) => [p.x, p.y]);
+      }
+
+      return {
+        start: alignedStart,
+        end: alignedEnd,
+        bucket_minutes,
+        timeZone,
+        series: valueSeries,
+        regressions: regressionResults,
+        scatter: scatterSeries,
+        aliases: aliasMeta
+      };
+    },
+
+    occupancy_people_insight({
+      occupancy_room,
+      occupancy_field = 'is_used',
+      people_room,
+      people_fields = PEOPLE_FALLBACK_FIELDS,
+      bucket_minutes = 15,
+      start = null,
+      end = null,
+      timeZone = DEFAULT_TIME_ZONE,
+      peak_windows = [
+        { label: '08-10', startHour: 8, endHour: 10 },
+        { label: '12-14', startHour: 12, endHour: 14 },
+        { label: '16-18', startHour: 16, endHour: 18 }
+      ]
+    }) {
+      if (!occupancy_room || !people_room) {
+        throw new Error('occupancy_people_insight requires both occupancy_room and people_room.');
+      }
+      const bucketMs = Math.max(1, bucket_minutes || 15) * 60 * 1000;
+      const contextRange = currentScopeContext.range || {};
+      const windowStart = Number.isFinite(start) ? Number(start) : contextRange.start;
+      const windowEnd = Number.isFinite(end) ? Number(end) : contextRange.end;
+      const normalizedOcc = normalizeRoomId(occupancy_room) || occupancy_room;
+      const normalizedPeople = normalizeRoomId(people_room) || people_room;
+      const occupancyTables = loadRoomTables(normalizedOcc);
+      const peopleTables = loadRoomTables(normalizedPeople);
+      const occRows = (occupancyTables.telemetry || occupancyTables.occupancy || occupancyTables.people || [])
+        .filter((row) => withinRange(row.ts, windowStart, windowEnd));
+      const peopleRows = (peopleTables.people || peopleTables.telemetry || [])
+        .filter((row) => withinRange(row.ts, windowStart, windowEnd));
+      const occupancyBuckets = new Map();
+      for (const row of occRows) {
+        if (!Number.isFinite(row.ts)) continue;
+        const bucketTs = alignTimestampToBucket(row.ts, bucket_minutes, timeZone);
+        const entry = occupancyBuckets.get(bucketTs) || { sum: 0, count: 0 };
+        entry.sum += coerceBooleanUsage(row[occupancy_field]);
+        entry.count += 1;
+        occupancyBuckets.set(bucketTs, entry);
+      }
+      const peopleBuckets = new Map();
+      for (const row of peopleRows) {
+        if (!Number.isFinite(row.ts)) continue;
+        const bucketTs = alignTimestampToBucket(row.ts, bucket_minutes, timeZone);
+        const val = extractFieldValue(row, people_fields);
+        if (!Number.isFinite(val)) continue;
+        const entry = peopleBuckets.get(bucketTs) || { sum: 0, count: 0 };
+        entry.sum += val;
+        entry.count += 1;
+        peopleBuckets.set(bucketTs, entry);
+      }
+      const allBucketKeys = Array.from(new Set([...occupancyBuckets.keys(), ...peopleBuckets.keys()])).sort((a, b) => a - b);
+      const combinedBuckets = allBucketKeys.map((ts) => {
+        const occ = occupancyBuckets.get(ts);
+        const ppl = peopleBuckets.get(ts);
+        return {
+          ts,
+          utilisation: occ && occ.count ? occ.sum / occ.count : null,
+          people: ppl && ppl.count ? ppl.sum / ppl.count : null
+        };
+      });
+
+      const heatmapData = [];
+      const dayHourMap = new Map();
+      combinedBuckets.forEach(({ ts, utilisation }) => {
+        if (!Number.isFinite(ts) || utilisation == null) return;
+        const parts = getTimeZoneParts(ts, timeZone);
+        const day = new Date(ts + parts.offset).getUTCDay();
+        const hour = parts.hour;
+        const key = `${day}:${hour}`;
+        const entry = dayHourMap.get(key) || { sum: 0, count: 0 };
+        entry.sum += utilisation;
+        entry.count += 1;
+        dayHourMap.set(key, entry);
+      });
+      for (const [key, entry] of dayHourMap.entries()) {
+        const [dayStr, hourStr] = key.split(':');
+        heatmapData.push({
+          day: Number(dayStr),
+          hour: Number(hourStr),
+          value: entry.count ? entry.sum / entry.count : null
+        });
+      }
+
+      const peakSummaries = peak_windows.map((window) => {
+        const stats = { label: window.label || `${window.startHour}-${window.endHour}`, sum: 0, count: 0 };
+        combinedBuckets.forEach(({ ts, people }) => {
+          if (people == null) return;
+          const parts = getTimeZoneParts(ts, timeZone);
+          if (parts.hour >= window.startHour && parts.hour < window.endHour) {
+            stats.sum += people;
+            stats.count += 1;
+          }
+        });
+        stats.avg = stats.count ? stats.sum / stats.count : null;
+        return stats;
+      });
+
+      const scatter = combinedBuckets
+        .filter((row) => row.people != null && row.utilisation != null)
+        .map((row) => ({ ts: row.ts, x: row.people, y: row.utilisation }));
+      const regression = linearRegression(
+        scatter.map((p) => p.x),
+        scatter.map((p) => p.y)
+      );
+
+      return {
+        buckets: combinedBuckets,
+        heatmap: {
+          data: heatmapData,
+          days: [0, 1, 2, 3, 4, 5, 6],
+          hours: Array.from({ length: 24 }, (_, i) => i),
+          timeZone
+        },
+        peaks: peakSummaries,
+        scatter,
+        regression
+      };
+    },
+
+    odor_event_monitor({
+      odor_room,
+      odor_fields = ['h2s', 'nh3'],
+      people_room,
+      people_fields = PEOPLE_FALLBACK_FIELDS,
+      window_minutes = 60,
+      threshold = 3,
+      min_duration_minutes = 10,
+      context_minutes = 30,
+      start = null,
+      end = null,
+      timeZone = DEFAULT_TIME_ZONE
+    }) {
+      if (!odor_room) throw new Error('odor_event_monitor requires odor_room.');
+      const normalizedOdor = normalizeRoomId(odor_room) || odor_room;
+      const normalizedPeople = people_room ? (normalizeRoomId(people_room) || people_room) : null;
+      const tables = loadRoomTables(normalizedOdor);
+      const rows = (tables.telemetry || [])
+        .filter((row) => withinRange(row.ts, start ?? currentScopeContext.range?.start, end ?? currentScopeContext.range?.end))
+        .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+      const windowMs = Math.max(1, window_minutes || 60) * 60 * 1000;
+      const minDurationMs = Math.max(1, min_duration_minutes || 10) * 60 * 1000;
+      const statsByField = new Map();
+      const ensureFieldStats = (field) => {
+        if (!statsByField.has(field)) {
+          statsByField.set(field, { values: [], sum: 0, sumSq: 0 });
+        }
+        return statsByField.get(field);
+      };
+      const pushValue = (field, sample) => {
+        const stats = ensureFieldStats(field);
+        stats.values.push(sample);
+        stats.sum += sample.value;
+        stats.sumSq += sample.value * sample.value;
+      };
+      const pruneValues = (field, currentTs) => {
+        const stats = ensureFieldStats(field);
+        while (stats.values.length && currentTs - stats.values[0].ts > windowMs) {
+          const removed = stats.values.shift();
+          stats.sum -= removed.value;
+          stats.sumSq -= removed.value * removed.value;
+        }
+      };
+      const zScore = (field, currentValue, currentTs) => {
+        const stats = ensureFieldStats(field);
+        pruneValues(field, currentTs);
+        if (stats.values.length < 2) return 0;
+        const mean = stats.sum / stats.values.length;
+        const variance = stats.sumSq / stats.values.length - mean * mean;
+        const sd = variance > 0 ? Math.sqrt(variance) : 0;
+        if (!sd) return 0;
+        return (currentValue - mean) / sd;
+      };
+
+      const timeSeries = [];
+      let eventState = null;
+      const events = [];
+      const dailyCounts = new Map();
+      for (const row of rows) {
+        if (!Number.isFinite(row.ts)) continue;
+        const entry = { ts: row.ts, values: {}, z: {} };
+        let maxZ = -Infinity;
+        let peakField = null;
+        for (const field of odor_fields) {
+          const val = coerceNumber(row[field]);
+          if (!Number.isFinite(val)) continue;
+          pushValue(field, { ts: row.ts, value: val });
+          const z = zScore(field, val, row.ts);
+          entry.values[field] = val;
+          entry.z[field] = z;
+          if (z > maxZ) {
+            maxZ = z;
+            peakField = field;
+          }
+        }
+        timeSeries.push(entry);
+        const active = maxZ >= threshold;
+        if (active && !eventState) {
+          eventState = { start: row.ts, end: row.ts, maxZ, field: peakField };
+        } else if (active && eventState) {
+          eventState.end = row.ts;
+          if (maxZ > eventState.maxZ) {
+            eventState.maxZ = maxZ;
+            eventState.field = peakField;
+          }
+        } else if (!active && eventState) {
+          const duration = eventState.end - eventState.start;
+          if (duration >= minDurationMs) {
+            events.push({ ...eventState });
+            const dayKey = startOfDayLocal(eventState.start, timeZone);
+            dailyCounts.set(dayKey, (dailyCounts.get(dayKey) || 0) + 1);
+          }
+          eventState = null;
+        }
+      }
+      if (eventState) {
+        const duration = eventState.end - eventState.start;
+        if (duration >= minDurationMs) {
+          events.push({ ...eventState });
+          const dayKey = startOfDayLocal(eventState.start, timeZone);
+          dailyCounts.set(dayKey, (dailyCounts.get(dayKey) || 0) + 1);
+        }
+      }
+
+      const flowSummaries = [];
+      if (normalizedPeople) {
+        const flowTables = loadRoomTables(normalizedPeople);
+        const flowRows = (flowTables.people || flowTables.telemetry || [])
+          .filter((row) => Number.isFinite(row.ts))
+          .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+        const ctxMs = Math.max(5, context_minutes || 30) * 60 * 1000;
+        for (const event of events) {
+          const startWindow = event.start - ctxMs;
+          const endWindow = event.end + ctxMs;
+          const values = [];
+          for (const row of flowRows) {
+            if (row.ts < startWindow) continue;
+            if (row.ts > endWindow) break;
+            const val = extractFieldValue(row, people_fields);
+            if (Number.isFinite(val)) values.push(val);
+          }
+          values.sort((a, b) => a - b);
+          const median = values.length
+            ? values.length % 2
+              ? values[(values.length - 1) / 2]
+              : (values[values.length / 2 - 1] + values[values.length / 2]) / 2
+            : null;
+          flowSummaries.push({
+            start: event.start,
+            end: event.end,
+            medianFlow: median,
+            samples: values.length
+          });
+        }
+      }
+
+      return {
+        events,
+        daily_counts: Array.from(dailyCounts.entries()).map(([ts, count]) => ({ ts, count })),
+        series: timeSeries,
+        flowDuringEvents: flowSummaries,
+        parameters: { threshold, window_minutes, min_duration_minutes }
+      };
+    },
+
+    scope_schema_matrix({ rooms = null, include_tables = false }) {
+      const targetRooms = Array.isArray(rooms) && rooms.length
+        ? rooms
+        : (Array.isArray(currentScopeContext.selectionRooms) && currentScopeContext.selectionRooms.length
+            ? currentScopeContext.selectionRooms
+            : listRooms());
+      if (!targetRooms.length) throw new Error('scope_schema_matrix requires at least one room.');
+      const metricsSet = new Set(['co2', 'pm25', 'pm10', 'airExchangeRate', 'virusRisk', 'voc', 'mold', 'radonShortTermAvg', 'temperature', 'humidity', 'lux', 'battery', 'rssi', 'occupants', 'occupantsLower', 'occupantsUpper']);
+      const rows = [];
+      for (const roomId of targetRooms) {
+        const normalizedRoom = normalizeRoomId(roomId) || String(roomId);
+        const tables = loadRoomTables(normalizedRoom);
+        const fieldMap = {};
+        const tableDetails = {};
+        for (const [tableName, entries] of Object.entries(tables || {})) {
+          if (!Array.isArray(entries) || !entries.length) continue;
+          const sampleSize = Math.min(entries.length, 3000);
+          const sampleRows = entries.slice(-sampleSize);
+          const fieldsSet = new Set();
+          for (const row of sampleRows) {
+            if (!row || typeof row !== 'object') continue;
+            for (const key of Object.keys(row)) {
+              if (key && key !== 'ts') fieldsSet.add(key);
+            }
+          }
+          if (!fieldsSet.size) continue;
+          const fields = Array.from(fieldsSet);
+          tableDetails[tableName] = fields;
+          for (const field of fields) {
+            const key = field.trim();
+            if (!key) continue;
+            metricsSet.add(key);
+            fieldMap[key] = { table: tableName, present: true };
+          }
+        }
+        const hier = lookupDeviceHierarchy(normalizedRoom) || {};
+        const label = friendlySeriesLocation(normalizedRoom, hier.name || normalizedRoom);
+        const deviceEntry = {
+          room: normalizedRoom,
+          label,
+          deviceName: hier.name || normalizedRoom,
+          building: hier.buildingName || currentScopeContext.scopeLabels?.building || null,
+          floor: hier.floorName || currentScopeContext.scopeLabels?.floor || null,
+          zone: hier.zoneName || currentScopeContext.scopeLabels?.room || null,
+          metrics: fieldMap,
+          missingMetrics: [],
+          tables: include_tables ? tableDetails : undefined
+        };
+        rows.push(deviceEntry);
+      }
+      const orderedMetrics = Array.from(metricsSet).filter(Boolean).sort();
+      for (const row of rows) {
+        const missing = [];
+        for (const metric of orderedMetrics) {
+          if (!row.metrics[metric]) missing.push(metric);
+        }
+        row.missingMetrics = missing;
+      }
+      return { metrics: orderedMetrics, devices: rows };
+    },
+
+    grid_align_timeseries({
+      series = [],
+      start = null,
+      end = null,
+      bucket_minutes = 5,
+      forward_fill_minutes = 15,
+      timeZone = DEFAULT_TIME_ZONE
+    }) {
+      if (!Array.isArray(series) || !series.length) {
+        throw new Error('grid_align_timeseries requires at least one series definition.');
+      }
+      const bucketMs = Math.max(1, bucket_minutes || 5) * 60 * 1000;
+      const forwardFillMs = Math.max(0, forward_fill_minutes || 0) * 60 * 1000;
+      const contextRange = currentScopeContext.range || {};
+      let windowStart = Number.isFinite(start) ? Number(start) : contextRange.start;
+      let windowEnd = Number.isFinite(end) ? Number(end) : contextRange.end;
+      if (!Number.isFinite(windowStart) || !Number.isFinite(windowEnd)) {
+        // derive from available data if range missing
+        let minTs = Infinity;
+        let maxTs = -Infinity;
+        for (const entry of series) {
+          const room = entry?.room;
+          if (!room) continue;
+          const normalizedRoom = normalizeRoomId(room) || room;
+          const tables = loadRoomTables(normalizedRoom);
+          const tableName = resolveTable(normalizedRoom, entry.table || 'telemetry');
+          const rows = (tables[tableName] || []).filter((row) => Number.isFinite(row.ts));
+          if (!rows.length) continue;
+          minTs = Math.min(minTs, rows[0].ts);
+          maxTs = Math.max(maxTs, rows[rows.length - 1].ts);
+        }
+        if (Number.isFinite(minTs) && !Number.isFinite(windowStart)) windowStart = minTs;
+        if (Number.isFinite(maxTs) && !Number.isFinite(windowEnd)) windowEnd = maxTs;
+      }
+      if (!Number.isFinite(windowStart) || !Number.isFinite(windowEnd)) {
+        throw new Error('Unable to infer start/end for grid_align_timeseries.');
+      }
+      const alignedStart = alignTimestampToBucket(windowStart, bucket_minutes, timeZone);
+      const alignedEnd = alignTimestampToBucket(windowEnd + bucketMs - 1, bucket_minutes, timeZone);
+      const bucketCount = Math.max(1, Math.floor((alignedEnd - alignedStart) / bucketMs) + 1);
+      const buckets = [];
+      for (let i = 0; i < bucketCount; i++) buckets.push(alignedStart + i * bucketMs);
+
+      const aliasMeta = {};
+      const completeness = {};
+      const rows = buckets.map((ts) => ({ ts }));
+
+      const assignAlias = (entry, index) => {
+        if (entry.alias) return entry.alias;
+        const base = `${friendlySeriesLocation(entry.room, entry.room)} ${entry.field || ''}`.trim() || `series_${index + 1}`;
+        let name = base;
+        let suffix = 2;
+        while (aliasMeta[name]) {
+          name = `${base} (${suffix++})`;
+        }
+        return name;
+      };
+
+      series.forEach((entry, idx) => {
+        const room = entry?.room;
+        const field = entry?.field;
+        if (!room || !field) return;
+        const normalizedRoom = normalizeRoomId(room) || room;
+        const table = resolveTable(normalizedRoom, entry.table || 'telemetry');
+        const alias = assignAlias(entry, idx);
+        aliasMeta[alias] = { room: normalizedRoom, table, field };
+        const tables = loadRoomTables(normalizedRoom);
+        const rowsRaw = (tables[table] || []).filter((row) => withinRange(row.ts, alignedStart, alignedEnd + bucketMs));
+        if (!rowsRaw.length) {
+          completeness[alias] = { samples: 0, expected: bucketCount, completeness: 0 };
+          return;
+        }
+        const resolvedField = resolveField(rowsRaw, field);
+        let pointer = 0;
+        let lastValue = null;
+        let lastTs = null;
+        let filled = 0;
+        for (const bucketTs of buckets) {
+          const bucketIndex = Math.round((bucketTs - alignedStart) / bucketMs);
+          const targetRow = rows[bucketIndex];
+          while (pointer < rowsRaw.length && rowsRaw[pointer].ts <= bucketTs) {
+            const candidate = Number(rowsRaw[pointer][resolvedField]);
+            if (Number.isFinite(candidate)) {
+              lastValue = candidate;
+              lastTs = rowsRaw[pointer].ts;
+            }
+            pointer += 1;
+          }
+          const withinTolerance = Number.isFinite(lastTs) && bucketTs - lastTs <= forwardFillMs;
+          if (withinTolerance && Number.isFinite(lastValue)) {
+            targetRow[alias] = lastValue;
+            filled += 1;
+          } else {
+            targetRow[alias] = null;
+          }
+        }
+        completeness[alias] = {
+          samples: filled,
+          expected: bucketCount,
+          completeness: bucketCount ? filled / bucketCount : 0
+        };
+      });
+
+      const aliasList = Object.keys(aliasMeta);
+      const heatmapData = [];
+      rows.forEach((row, xIdx) => {
+        aliasList.forEach((alias, yIdx) => {
+          const val = row[alias];
+          heatmapData.push({
+            x: xIdx,
+            y: yIdx,
+            ts: row.ts,
+            alias,
+            value: Number.isFinite(val) ? 1 : 0
+          });
+        });
+      });
+
+      return {
+        start: alignedStart,
+        end: alignedEnd,
+        bucket_minutes,
+        timeZone,
+        rows,
+        completeness,
+        aliases: aliasMeta,
+        heatmap: {
+          aliases: aliasList,
+          timestamps: rows.map((row) => row.ts),
+          data: heatmapData
+        }
+      };
+    },
+
+    ventilation_effectiveness({
+      rooms = null,
+      start = null,
+      end = null,
+      value_field = 'co2',
+      air_field = 'airExchangeRate',
+      percentile = 0.95
+    }) {
+      const targetRooms = Array.isArray(rooms) && rooms.length
+        ? rooms
+        : (Array.isArray(currentScopeContext.selectionRooms) && currentScopeContext.selectionRooms.length
+            ? currentScopeContext.selectionRooms
+            : listRooms());
+      if (!targetRooms.length) throw new Error('ventilation_effectiveness requires at least one room.');
+      const percentileResult = tools.scope_daily_percentile({
+        rooms: targetRooms,
+        start,
+        end,
+        value_field,
+        percentile
+      });
+      const airByRoom = new Map();
+      for (const roomId of targetRooms) {
+        const normalizedRoom = normalizeRoomId(roomId) || roomId;
+        const tables = loadRoomTables(normalizedRoom);
+        const table = resolveTable(normalizedRoom, 'telemetry');
+        const rowsRaw = (tables[table] || []).filter((row) => withinRange(row.ts, percentileResult.start, percentileResult.end));
+        if (!rowsRaw.length) continue;
+        const resolvedField = resolveField(rowsRaw, air_field);
+        const daily = new Map();
+        for (const row of rowsRaw) {
+          const value = Number(row[resolvedField]);
+          if (!Number.isFinite(value)) continue;
+          const dayKey = startOfDayLocal(row.ts);
+          if (!daily.has(dayKey)) daily.set(dayKey, { sum: 0, n: 0 });
+          const bucket = daily.get(dayKey);
+          bucket.sum += value;
+          bucket.n += 1;
+        }
+        airByRoom.set(
+          normalizedRoom,
+          new Map(Array.from(daily.entries()).map(([k, v]) => [k, v.n ? v.sum / v.n : null]))
+        );
+      }
+      const roomsOut = [];
+      for (const summaryRow of percentileResult.summary) {
+        const roomKey = summaryRow.room;
+        const label = summaryRow.label || friendlySeriesLocation(roomKey, roomKey);
+        const daySeries = percentileResult.series[label] || percentileResult.series[roomKey] || [];
+        const airSeries = airByRoom.get(roomKey) || new Map();
+        const points = [];
+        for (const entry of daySeries) {
+          const airValue = airSeries.get(entry.ts);
+          if (!Number.isFinite(airValue) || !Number.isFinite(entry.p95)) continue;
+          points.push({ ts: entry.ts, x: airValue, y: entry.p95 });
+        }
+        const regression = linearRegression(points);
+        roomsOut.push({
+          room: roomKey,
+          label,
+          points,
+          regression
+        });
+      }
+      roomsOut.sort((a, b) => {
+        const aR2 = Number.isFinite(a.regression.r2) ? a.regression.r2 : -Infinity;
+        const bR2 = Number.isFinite(b.regression.r2) ? b.regression.r2 : -Infinity;
+        return bR2 - aR2;
+      });
+      const scatterSeries = roomsOut.map((entry) => ({
+        name: entry.label,
+        data: entry.points.map((p) => [p.x, p.y]),
+        regression: entry.regression,
+        room: entry.room
+      }));
+      return {
+        rooms: roomsOut,
+        series: scatterSeries,
+        percentile: percentileResult.percentile,
+        start: percentileResult.start,
+        end: percentileResult.end,
+        value_field,
+        air_field
+      };
+    },
+
+    daypart_boxplot({
+      rooms,
+      field,
+      occupancy_field = 'occupants',
+      table = 'telemetry',
+      start = null,
+      end = null,
+      timeZone = DEFAULT_TIME_ZONE
+    }) {
+      if (!Array.isArray(rooms) || !rooms.length) {
+        throw new Error('daypart_boxplot requires an explicit list of rooms.');
+      }
+      if (!field) throw new Error('daypart_boxplot requires a metric field.');
+      const contextRange = currentScopeContext.range || {};
+      const windowStart = Number.isFinite(start) ? Number(start) : contextRange.start;
+      const windowEnd = Number.isFinite(end) ? Number(end) : contextRange.end;
+      const results = [];
+      for (const roomId of rooms) {
+        const normalizedRoom = normalizeRoomId(roomId) || roomId;
+        const tables = loadRoomTables(normalizedRoom);
+        const tableName = resolveTable(normalizedRoom, table || 'telemetry');
+        const rowsRaw = (tables[tableName] || []).filter((row) => withinRange(row.ts, windowStart, windowEnd));
+        if (!rowsRaw.length) {
+          results.push({
+            room: normalizedRoom,
+            label: friendlySeriesLocation(normalizedRoom, normalizedRoom),
+            boxplots: {},
+            occupancy: {}
+          });
+          continue;
+        }
+        const valueField = resolveField(rowsRaw, field);
+        const occField = occupancy_field ? resolveField(rowsRaw, occupancy_field) : null;
+        const buckets = new Map();
+        const occBuckets = new Map();
+        for (const row of rowsRaw) {
+          const bucket = resolveDaypart(row.ts, timeZone, DAYPART_WINDOWS);
+          if (!bucket) continue;
+          const val = Number(row[valueField]);
+          if (Number.isFinite(val)) {
+            if (!buckets.has(bucket)) buckets.set(bucket, []);
+            buckets.get(bucket).push(val);
+          }
+          if (occField) {
+            const occVal = Number(row[occField]);
+            if (Number.isFinite(occVal)) {
+              if (!occBuckets.has(bucket)) occBuckets.set(bucket, []);
+              occBuckets.get(bucket).push(occVal);
+            }
+          }
+        }
+        const boxplots = {};
+        DAYPART_WINDOWS.forEach((windowDef) => {
+          const id = windowDef.id;
+          boxplots[id] = computeBoxplot(buckets.get(id) || []);
+        });
+        const occupancySummary = {};
+        DAYPART_WINDOWS.forEach((windowDef) => {
+          const id = windowDef.id;
+          const vals = occBuckets.get(id) || [];
+          occupancySummary[id] = {
+            median: vals.length ? medianValue(vals) : null,
+            avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
+            count: vals.length
+          };
+        });
+        const boxplotSeries = DAYPART_WINDOWS.map((windowDef, idx) => {
+          const stats = boxplots[windowDef.id] || {};
+          return [
+            idx,
+            Number.isFinite(stats.min) ? stats.min : null,
+            Number.isFinite(stats.q1) ? stats.q1 : null,
+            Number.isFinite(stats.median) ? stats.median : null,
+            Number.isFinite(stats.q3) ? stats.q3 : null,
+            Number.isFinite(stats.max) ? stats.max : null
+          ];
+        });
+        const occupancyPoints = DAYPART_WINDOWS.map((windowDef, idx) => ({
+          idx,
+          daypart: windowDef.id,
+          median: Number.isFinite(occupancySummary[windowDef.id]?.median) ? occupancySummary[windowDef.id].median : null
+        }));
+        results.push({
+          room: normalizedRoom,
+          label: friendlySeriesLocation(normalizedRoom, normalizedRoom),
+          boxplots,
+          occupancy: occupancySummary,
+          series: {
+            boxplot: boxplotSeries,
+            occupancy: occupancyPoints
+          }
+        });
+      }
+      return {
+        rooms: results,
+        dayparts: DAYPART_WINDOWS.map((w) => w.id),
+        field,
+        occupancy_field,
+        timeZone,
+        start: windowStart ?? null,
+        end: windowEnd ?? null
+      };
+    },
+
+    energy_iaq_linkage({
+      links = [],
+      start = null,
+      end = null,
+      bucket = 'daily',
+      iaq_fields = ['co2', 'virusRisk'],
+      timeZone = DEFAULT_TIME_ZONE,
+      detrend = false
+    }) {
+      if (!Array.isArray(links) || !links.length) {
+        throw new Error('energy_iaq_linkage requires at least one link definition.');
+      }
+      const bucketMinutes = bucket === 'hourly' ? 60 : 24 * 60;
+      const bucketMs = bucketMinutes * 60 * 1000;
+      const bucketFn = bucket === 'hourly'
+        ? (ts) => alignTimestampToBucket(ts, bucketMinutes, timeZone)
+        : (ts) => startOfDayLocal(ts, timeZone);
+      const contextRange = currentScopeContext.range || {};
+      const windowStart = Number.isFinite(start) ? Number(start) : contextRange.start;
+      const windowEnd = Number.isFinite(end) ? Number(end) : contextRange.end;
+
+      const aggregateEnergy = (room) => {
+        const normalizedRoom = normalizeRoomId(room) || room;
+        const tables = loadRoomTables(normalizedRoom);
+        const tableName = resolveTable(normalizedRoom, 'energy');
+        const rowsRaw = (tables[tableName] || []).filter((row) => withinRange(row.ts, windowStart, windowEnd));
+        if (!rowsRaw.length) return [];
+        const sorted = [...rowsRaw].sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+        let prevTotal = null;
+        const deltas = [];
+        for (const row of sorted) {
+          const ts = row.ts;
+          if (!Number.isFinite(ts)) continue;
+          let delta = null;
+          if (Number.isFinite(row.value)) {
+            delta = row.value;
+          } else if (Number.isFinite(row.total_kwh)) {
+            const current = Number(row.total_kwh);
+            if (prevTotal != null) {
+              const diff = current - prevTotal;
+              if (diff >= 0) delta = diff;
+            }
+            prevTotal = current;
+          }
+          if (Number.isFinite(delta)) deltas.push({ ts, value: delta });
+        }
+        return deltas;
+      };
+
+      const aggregateIaq = (room) => {
+        const normalizedRoom = normalizeRoomId(room) || room;
+        const tables = loadRoomTables(normalizedRoom);
+        const tableName = resolveTable(normalizedRoom, 'telemetry');
+        const rowsRaw = (tables[tableName] || []).filter((row) => withinRange(row.ts, windowStart, windowEnd));
+        if (!rowsRaw.length) return [];
+        return rowsRaw;
+      };
+
+      const linkResults = [];
+      for (const link of links) {
+        const energyRooms = Array.isArray(link.energyRooms) ? link.energyRooms : [];
+        const iaqRoom = link.iaqRoom;
+        if (!energyRooms.length || !iaqRoom) continue;
+        const bucketTotals = new Map();
+        for (const room of energyRooms) {
+          const deltas = aggregateEnergy(room);
+          for (const { ts, value } of deltas) {
+            const key = bucketFn(ts);
+            if (!bucketTotals.has(key)) bucketTotals.set(key, 0);
+            bucketTotals.set(key, bucketTotals.get(key) + value);
+          }
+        }
+        const iaqRows = aggregateIaq(iaqRoom);
+        const iaqByBucket = new Map();
+        for (const row of iaqRows) {
+          const key = bucketFn(row.ts);
+          if (!iaqByBucket.has(key)) iaqByBucket.set(key, {});
+          const bucketMetrics = iaqByBucket.get(key);
+          for (const metric of iaq_fields || []) {
+            const resolved = resolveField([row], metric);
+            const val = Number(row[resolved]);
+            if (!Number.isFinite(val)) continue;
+            if (!bucketMetrics[metric]) bucketMetrics[metric] = { sum: 0, n: 0 };
+            bucketMetrics[metric].sum += val;
+            bucketMetrics[metric].n += 1;
+          }
+        }
+        const mergedBuckets = Array.from(new Set([...bucketTotals.keys(), ...iaqByBucket.keys()])).sort((a, b) => a - b);
+        const rowsAligned = mergedBuckets.map((ts) => {
+          const iaqEntry = {};
+          for (const metric of iaq_fields || []) {
+            const aggregate = iaqByBucket.get(ts)?.[metric];
+            iaqEntry[metric] = aggregate && aggregate.n ? aggregate.sum / aggregate.n : null;
+          }
+          return {
+            ts,
+            energy_kwh: bucketTotals.get(ts) || 0,
+            iaq: iaqEntry
+          };
+        });
+        const energySeries = rowsAligned.map((row) => [row.ts, row.energy_kwh]);
+        const iaqSeries = {};
+        for (const metric of iaq_fields || []) {
+          iaqSeries[metric] = rowsAligned.map((row) => [row.ts, row.iaq?.[metric] ?? null]);
+        }
+        let detrendedRows = rowsAligned;
+        if (detrend) {
+          const baselineEnergy = new Map();
+          const baselineIaq = new Map();
+          const getKey = (ts) => {
+            const parts = getTimeZoneParts(ts, timeZone);
+            if (bucket === 'hourly') return `${parts.day}:${parts.hour}`;
+            return `${parts.year}-${parts.month}-${parts.day}`;
+          };
+          for (const row of rowsAligned) {
+            const key = getKey(row.ts);
+            const baseline = baselineEnergy.get(key) || { sum: 0, count: 0 };
+            baseline.sum += row.energy_kwh;
+            baseline.count += 1;
+            baselineEnergy.set(key, baseline);
+            for (const metric of iaq_fields || []) {
+              const mapKey = `${metric}:${key}`;
+              const base = baselineIaq.get(mapKey) || { sum: 0, count: 0 };
+              const val = row.iaq?.[metric];
+              if (Number.isFinite(val)) {
+                base.sum += val;
+                base.count += 1;
+                baselineIaq.set(mapKey, base);
+              }
+            }
+          }
+          detrendedRows = rowsAligned.map((row) => {
+            const key = getKey(row.ts);
+            const energyBaseline = baselineEnergy.get(key);
+            const energyMean = energyBaseline && energyBaseline.count ? energyBaseline.sum / energyBaseline.count : 0;
+            const iaqEntry = {};
+            for (const metric of iaq_fields || []) {
+              const mapKey = `${metric}:${key}`;
+              const base = baselineIaq.get(mapKey);
+              const mean = base && base.count ? base.sum / base.count : 0;
+              const val = row.iaq?.[metric];
+              iaqEntry[metric] = Number.isFinite(val) ? val - mean : null;
+            }
+            return {
+              ts: row.ts,
+              energy_kwh: row.energy_kwh - energyMean,
+              iaq: iaqEntry
+            };
+          });
+        }
+        const correlations = {};
+        const scatterMatrix = [];
+        for (const row of rowsAligned) {
+          const entry = { ts: row.ts, energy_kwh: row.energy_kwh };
+          for (const metric of iaq_fields || []) {
+            entry[metric] = row.iaq?.[metric] ?? null;
+          }
+          scatterMatrix.push(entry);
+        }
+        for (const metric of iaq_fields || []) {
+          const seriesRows = (detrend ? detrendedRows : rowsAligned).filter(
+            (row) => Number.isFinite(row.energy_kwh) && Number.isFinite(row.iaq?.[metric])
+          );
+          const energyVals = seriesRows.map((row) => row.energy_kwh);
+          const iaqVals = seriesRows.map((row) => row.iaq?.[metric]);
+          const { corr, n } = pearson(energyVals, iaqVals);
+          correlations[metric] = { corr, n };
+        }
+        linkResults.push({
+          name: link.name || friendlySeriesLocation(iaqRoom, iaqRoom),
+          energyRooms,
+          iaqRoom,
+          rows: rowsAligned,
+          rows_detrended: detrendedRows,
+          series: {
+            energy: energySeries,
+            iaq: iaqSeries
+          },
+          correlations,
+          scatterMatrix
+        });
+      }
+      return {
+        bucket,
+        bucket_minutes,
+        timeZone,
+        start: windowStart ?? null,
+        end: windowEnd ?? null,
+        iaq_fields,
+        detrended: detrend,
+        links: linkResults
+      };
+    },
+
+    device_health_summary({
+      rooms = null,
+      lookback_days = 7,
+      timeZone = DEFAULT_TIME_ZONE
+    }) {
+      const targetRooms = Array.isArray(rooms) && rooms.length
+        ? rooms
+        : (Array.isArray(currentScopeContext.selectionRooms) && currentScopeContext.selectionRooms.length
+            ? currentScopeContext.selectionRooms
+            : listRooms());
+      if (!targetRooms.length) throw new Error('device_health_summary requires at least one room.');
+      const lookbackMs = Math.max(1, lookback_days || 7) * DAY_MS;
+      const cutoff = Date.now() - lookbackMs;
+      const summaries = [];
+      for (const roomId of targetRooms) {
+        const normalizedRoom = normalizeRoomId(roomId) || roomId;
+        const tables = loadRoomTables(normalizedRoom);
+        const tableName = resolveTable(normalizedRoom, 'telemetry');
+        const rows = (tables[tableName] || []).filter((row) => Number.isFinite(row.ts));
+        if (!rows.length) continue;
+        const sorted = [...rows].sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+        const latest = sorted[sorted.length - 1];
+        const batteryField = resolveField(sorted, 'battery');
+        const rssiField = resolveField(sorted, 'rssi');
+        const voltageField = resolveField(sorted, 'supplyVoltage') || resolveField(sorted, 'supply_voltage');
+        const batteryLatest = Number(latest[batteryField]);
+        const rssiLatest = Number(latest[rssiField]);
+        const voltageLatest = Number(latest[voltageField]);
+        const sparklineBattery = [];
+        const sparklineRssi = [];
+        const step = Math.max(1, Math.floor(sorted.length / 120));
+        const missingFields = ['co2', 'pm25', 'pm10', 'temperature', 'humidity', 'voc', 'h2s', 'nh3'];
+        const missingResolvers = {};
+        missingFields.forEach((field) => {
+          const resolved = resolveField(sorted, field);
+          if (resolved) missingResolvers[field] = resolved;
+        });
+        const missingByField = new Map();
+        const addMissing = (field, dayKey, isMissing) => {
+          const map = missingByField.get(field) || new Map();
+          const stats = map.get(dayKey) || { total: 0, missing: 0 };
+          stats.total += 1;
+          if (isMissing) stats.missing += 1;
+          map.set(dayKey, stats);
+          missingByField.set(field, map);
+        };
+        for (const row of sorted) {
+          const dayKey = startOfDayLocal(row.ts, timeZone);
+          for (const [field, resolved] of Object.entries(missingResolvers)) {
+            addMissing(field, dayKey, row[resolved] == null || row[resolved] === '');
+          }
+        }
+        for (let i = Math.max(0, sorted.length - 1); i >= 0; i -= step) {
+          const row = sorted[i];
+          if (row.ts < cutoff) break;
+          const bVal = Number(row[batteryField]);
+          const rVal = Number(row[rssiField]);
+          if (Number.isFinite(bVal)) sparklineBattery.push({ ts: row.ts, value: bVal });
+          if (Number.isFinite(rVal)) sparklineRssi.push({ ts: row.ts, value: rVal });
+        }
+        sparklineBattery.reverse();
+        sparklineRssi.reverse();
+        const label = friendlySeriesLocation(normalizedRoom, normalizedRoom);
+        const missingness = {};
+        const missingAlerts = [];
+        for (const [field, dayMap] of missingByField.entries()) {
+          const series = Array.from(dayMap.entries())
+            .map(([ts, stats]) => ({
+              ts,
+              missing_pct: stats.total ? stats.missing / stats.total : 0
+            }))
+            .sort((a, b) => a.ts - b.ts);
+          missingness[field] = series;
+          if (series.some((entry) => entry.missing_pct > 0.1)) {
+            missingAlerts.push(`${field} missingness >10%`);
+          }
+        }
+        const deviceAlerts = [];
+        if (Number.isFinite(batteryLatest) && batteryLatest < 20) deviceAlerts.push('battery_low');
+        if (Number.isFinite(rssiLatest) && rssiLatest < -80) deviceAlerts.push('rssi_weak');
+        if (Number.isFinite(voltageLatest) && voltageLatest < 3.0) deviceAlerts.push('voltage_low');
+        deviceAlerts.push(...missingAlerts);
+        summaries.push({
+          room: normalizedRoom,
+          label,
+          latestTs: latest.ts,
+          battery: {
+            value: Number.isFinite(batteryLatest) ? batteryLatest : null,
+            sparkline: sparklineBattery,
+            needsService: Number.isFinite(batteryLatest) ? batteryLatest < 20 : false
+          },
+          rssi: {
+            value: Number.isFinite(rssiLatest) ? rssiLatest : null,
+            sparkline: sparklineRssi,
+            weakSignal: Number.isFinite(rssiLatest) ? rssiLatest < -80 : false
+          },
+          supplyVoltage: {
+            value: Number.isFinite(voltageLatest) ? voltageLatest : null,
+            low: Number.isFinite(voltageLatest) ? voltageLatest < 3.0 : false
+          },
+          missingness,
+          alerts: deviceAlerts
+        });
+      }
+      const alerts = summaries
+        .filter((device) => device.alerts.length)
+        .map((device) => ({ room: device.room, label: device.label, issues: device.alerts }));
+      return {
+        lookback_days,
+        battery_threshold: 20,
+        rssi_threshold: -80,
+        devices: summaries,
+        alerts
+      };
+    },
+
+    weekday_weekend_pm_profile({
+      rooms = [],
+      field = 'pm25',
+      bucket_minutes = 30,
+      start = null,
+      end = null,
+      timeZone = DEFAULT_TIME_ZONE
+    }) {
+      if (!Array.isArray(rooms) || !rooms.length) {
+        throw new Error('weekday_weekend_pm_profile requires at least one room.');
+      }
+      const profiles = [];
+      for (const roomId of rooms) {
+        const normalizedRoom = normalizeRoomId(roomId) || roomId;
+        const tables = loadRoomTables(normalizedRoom);
+        const tableName = resolveTable(normalizedRoom, 'telemetry');
+        const rows = (tables[tableName] || [])
+          .filter((row) => withinRange(row.ts, start ?? currentScopeContext.range?.start, end ?? currentScopeContext.range?.end))
+          .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+        if (!rows.length) continue;
+        const weekdayBuckets = new Map();
+        const weekendBuckets = new Map();
+        for (const row of rows) {
+          if (!Number.isFinite(row.ts)) continue;
+          const val = coerceNumber(row[field]);
+          if (!Number.isFinite(val)) continue;
+          const parts = getTimeZoneParts(row.ts, timeZone);
+          const minutes = parts.hour * 60 + parts.minute;
+          const key = Math.floor(minutes / bucket_minutes) * bucket_minutes;
+          const target = (parts.day === 0 || parts.day === 6) ? weekendBuckets : weekdayBuckets;
+          if (!target.has(key)) target.set(key, []);
+          target.get(key).push(val);
+        }
+        const toSeries = (map) => Array.from(map.entries())
+          .sort((a, b) => a[0] - b[0])
+          .map(([minutes, values]) => ({
+            minutes,
+            median: medianValue(values)
+          }));
+        const weekdaySeries = toSeries(weekdayBuckets);
+        const weekendSeries = toSeries(weekendBuckets);
+        const weekdayMap = new Map(weekdaySeries.map((entry) => [entry.minutes, entry.median]));
+        const uplift = weekendSeries
+          .map(({ minutes, median }) => {
+            const base = weekdayMap.get(minutes);
+            if (!Number.isFinite(base) || !Number.isFinite(median) || base === 0) {
+              return { minutes, uplift: null };
+            }
+            return { minutes, uplift: (median - base) / Math.abs(base) };
+          })
+          .filter((entry) => entry.uplift != null);
+        profiles.push({
+          room: normalizedRoom,
+          label: friendlySeriesLocation(normalizedRoom, normalizedRoom),
+          weekday: weekdaySeries,
+          weekend: weekendSeries,
+          uplift
+        });
+      }
+      return {
+        bucket_minutes,
+        profiles
+      };
+    },
 
     compare_metrics_in_room({ room, table, fields = [], agg = 'avg', start = null, end = null }) {
       const t = loadRoomTables(room);
@@ -4212,6 +6785,48 @@ function parseFieldsFromQuestion(question, availableSets) {
       }
       out.sort((a,b)=> (b.value ?? -Infinity) - (a.value ?? -Infinity));
       return out;
+    },
+
+    table_sample({ room, table = 'iaq', fields = null, limit = 15, order = 'desc', start = null, end = null }) {
+      if (!room) return [];
+      const candidates = gatherCandidateDevices(room);
+      const preferredFields = Array.isArray(fields) ? fields : [];
+      const targetRoom = candidates.length ? resolveDeviceForFields(room, preferredFields, candidates) : (normalizeRoomId(room) || String(room));
+      const t = loadRoomTables(targetRoom);
+      const tab = resolveTable(targetRoom, table);
+      const arr = (t[tab] || []).filter(row => withinRange(row.ts, start, end));
+      if (!arr.length) return [];
+      const sorted = [...arr].sort((a, b) => {
+        const tsA = a.ts ?? 0;
+        const tsB = b.ts ?? 0;
+        return order === 'asc' ? tsA - tsB : tsB - tsA;
+      });
+      const cap = Math.max(1, Math.min(100, limit || 15));
+      const slice = sorted.slice(0, cap);
+      const resolvedFields = [];
+      if (Array.isArray(fields) && fields.length) {
+        for (const field of fields) {
+          if (!field) continue;
+          const resolved = resolveField(slice, field);
+          if (resolved && resolved !== 'ts' && !resolvedFields.includes(resolved)) {
+            resolvedFields.push(resolved);
+          }
+        }
+      }
+      if (!resolvedFields.length) {
+        const sampleRow = slice.find((row) => row && typeof row === 'object') || {};
+        for (const key of Object.keys(sampleRow)) {
+          if (key === 'ts') continue;
+          resolvedFields.push(key);
+          if (resolvedFields.length >= 6) break;
+        }
+      }
+      const columns = ['ts', ...resolvedFields.filter((f) => f && f !== 'ts')];
+      return slice.map((row) => {
+        const entry = { ts: row.ts ?? null };
+        for (const col of columns.slice(1)) entry[col] = row[col] ?? null;
+        return entry;
+      });
     },
 
     common_metrics_in_scope({ rooms = null }) {
@@ -4315,7 +6930,6 @@ function parseFieldsFromQuestion(question, availableSets) {
       try {
         const snap = loadGraphSnapshot();
         if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
-          const buildingName = building && /Building\s+/i.test(building) ? building : (building ? `Building ${building}` : null);
           const floors = new Map();
           const nodesById = new Map(snap.nodes.map(n => [n.id, n]));
           const hasRel = (from, to, rel) => snap.links.some(l => l.source===from && l.target===to && (!rel || l.rel===rel));
@@ -4335,7 +6949,7 @@ function parseFieldsFromQuestion(question, availableSets) {
               const bid = bLink ? bLink.target : null;
               bNode = bid ? nodesById.get(bid) : null;
             }
-            const bOk = buildingName ? (bNode && bNode.name === buildingName) : true;
+            const bOk = building ? buildingMatchesSelection(building, bNode) : true;
             const fOk = floor ? (fNode && (fNode.name === floor || fNode.name.endsWith(` ${String(floor).replace(/^F/, '')}`))) : true;
             if (bOk && fOk) {
               if (n.roomId) rooms.push(n.roomId);
@@ -4376,7 +6990,6 @@ function parseFieldsFromQuestion(question, availableSets) {
     scope_list_floors({ building }) {
       const snap = loadGraphSnapshot();
       if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
-        const targetB = building && /Building\s+/i.test(building) ? building : (building ? `Building ${building}` : null);
         const floorNames = new Set();
         for (const n of snap.nodes) {
           if ((n.nodeType||n.label) !== 'Floor') continue;
@@ -4384,7 +6997,7 @@ function parseFieldsFromQuestion(question, availableSets) {
           const bLink = snap.links.find(l => l.source===fid && l.rel==='LOCATED_IN_BUILDING');
           const bid = bLink ? bLink.target : null;
           const bNode = bid ? snap.nodes.find(nn => nn.id===bid) : null;
-          if (targetB && (!bNode || bNode.name !== targetB)) continue;
+          if (building && (!bNode || !buildingMatchesSelection(building, bNode))) continue;
           floorNames.add(n.name);
         }
         return Array.from(floorNames).sort((a,b)=> Number(a.replace(/\D+/g,'')) - Number(b.replace(/\D+/g,'')));
@@ -5117,6 +7730,25 @@ function parseFieldsFromQuestion(question, availableSets) {
           j = bestIdx;
         }
       }
+
+      if (!out.length) {
+        // Fallback: align by exact timestamp when both series share the same cadence
+        const mapB = new Map();
+        for (const row of bf) {
+          const ts = Number(row.ts);
+          const val = Number(row[field2]);
+          if (Number.isFinite(ts) && Number.isFinite(val)) mapB.set(ts, val);
+        }
+        for (const ra of af) {
+          const ts = Number(ra.ts);
+          const xa = Number(ra[field1]);
+          if (!Number.isFinite(ts) || !Number.isFinite(xa)) continue;
+          if (!mapB.has(ts)) continue;
+          const yb = mapB.get(ts);
+          out.push({ x: xa, y: yb, ts1: ts, ts2: ts, dt: 0 });
+        }
+      }
+
       return out;
     },
 
@@ -5387,10 +8019,10 @@ function parseFieldsFromQuestion(question, availableSets) {
 	    return null;
 	  }
 	
-	  function summarizeZones(selectionRooms = [], selectionZones = [], scopeDeviceZones = {}, context = {}) {
-	    const zoneDisplaySet = new Map();
-	    const addZone = (zoneKey, deviceId = null) => {
-	      const label = resolveZoneLabelDisplay(zoneKey, context);
+  function summarizeZones(selectionRooms = [], selectionZones = [], scopeDeviceZones = {}, context = {}) {
+    const zoneDisplaySet = new Map();
+    const addZone = (zoneKey, deviceId = null) => {
+      const label = resolveZoneLabelDisplay(zoneKey, context);
 	      if (!label) return;
 	      if (!zoneDisplaySet.has(label)) zoneDisplaySet.set(label, new Set());
 	      if (deviceId) zoneDisplaySet.get(label).add(deviceId);
@@ -5403,13 +8035,28 @@ function parseFieldsFromQuestion(question, availableSets) {
 	
 	    for (const zone of selectionZones || []) addZone(zone);
 	
-	    return Array.from(zoneDisplaySet.entries()).map(([label, devices]) => {
-	      if (!devices || devices.size === 0) return label;
-	      const listed = Array.from(devices).slice(0, 3).map((id) => deviceFriendlyName(id));
-	      const suffix = devices.size > 3 ? `, …${devices.size - 3} more` : '';
-	      return `${label} — devices: ${listed.join(', ')}${suffix}`;
-	    });
-	  }
+    return Array.from(zoneDisplaySet.entries()).map(([label, devices]) => {
+      if (!devices || devices.size === 0) return label;
+      const listed = Array.from(devices).slice(0, 3).map((id) => deviceFriendlyName(id));
+      const suffix = devices.size > 3 ? `, …${devices.size - 3} more` : '';
+      return `${label} — devices: ${listed.join(', ')}${suffix}`;
+    });
+  }
+
+  function selectionRoomsMatchingQuestion(question, selectionRooms = [], scopeDeviceZones = {}) {
+    const normalizedQuestion = normalizeName(question);
+    if (!normalizedQuestion) return [];
+    const matches = [];
+    for (const deviceId of selectionRooms || []) {
+      const zoneCandidate = getDeviceZoneCandidate(deviceId, scopeDeviceZones);
+      if (!zoneCandidate) continue;
+      const zoneNorm = normalizeName(zoneCandidate);
+      if (zoneNorm && normalizedQuestion.includes(zoneNorm)) {
+        matches.push(deviceId);
+      }
+    }
+    return matches;
+  }
 	
 	  async function run(messages, {
 	    room,
@@ -5426,13 +8073,16 @@ function parseFieldsFromQuestion(question, availableSets) {
 	    attempt = 0
 	  }) {
     const question = messages[messages.length - 1]?.content || '';
-    setScopeContext({ selectionRooms, selectionZones, scopeDeviceZones, scopeLabels });
+    const questionLower = String(question || '').toLowerCase();
 
     try {
 
     // --- ROUTING & HYBRID RETRIEVAL ---
     const routing = classifyQuery(question);
-    const filters = suggestRetrievalFilters(routing.level);
+    const questionNamedRooms = extractQuestionRooms(question);
+    routing.namedRooms = questionNamedRooms;
+    const filters = suggestRetrievalFilters(routing.level, routing);
+    const routerDirectives = buildAnalysisDirectives(routing);
     const hybridHits = await hybridRetrieve({ query: question, ragIndex: rag, vectorClient: vector, k: routing?.pipeline?.retrieval?.k || 6 }).catch(()=>[]);
 
     // --- QUERY ENRICHMENT: Knowledge Pack ---
@@ -5446,7 +8096,6 @@ function parseFieldsFromQuestion(question, availableSets) {
     // --------------------------------------------
 
     const attemptIndex = Number.isFinite(Number(attempt)) ? Number(attempt) : 0;
-    const aggressiveCharts = attemptIndex > 0;
 
     const roomFieldCache = new Map();
     function fieldsForRoom(roomId) {
@@ -5482,6 +8131,7 @@ function parseFieldsFromQuestion(question, availableSets) {
     if (DEBUG) log('Context snippet schema keys:', Object.keys(ctx.schema));
 
     const rr = range || {};
+    setScopeContext({ selectionRooms, selectionZones, scopeDeviceZones, scopeLabels, range: rr });
     const adaptationNotes = [];
     // Inject knowledge enrichment into system prompt
     const startDate = rr.start ? new Date(rr.start) : null;
@@ -5489,14 +8139,62 @@ function parseFieldsFromQuestion(question, availableSets) {
 	    const startFmt = startDate ? `${startDate.toLocaleString()} (UTC: ${startDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
 	    const endFmt = endDate ? `${endDate.toLocaleString()} (UTC: ${endDate.toISOString().replace('T', ' ').slice(0, 16)})` : 'none';
 	
-	    const zoneSummaries = summarizeZones(selectionRooms, selectionZones, scopeDeviceZones, { building, floor });
-	    const zonesLine = zoneSummaries.length ? zoneSummaries.join('; ') : '(none)';
-	    const devicesLine = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : '(none)';
-	
-	    const sys = `You are a senior data analyst agent for building operations.
+    const zoneSummaries = summarizeZones(selectionRooms, selectionZones, scopeDeviceZones, { building, floor });
+    const zonesLine = zoneSummaries.length ? zoneSummaries.join('; ') : '(none)';
+    const devicesLine = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.join(', ') : '(none)';
+    const namedRoomDevices = questionNamedRooms.map((label) => ({
+      label,
+      devices: collectDevicesForZone(label, { building, floor })
+    }));
+    const namedRoomDeviceHints = namedRoomDevices
+      .map(({ label, devices }) => {
+        if (!Array.isArray(devices) || !devices.length) return `${label}: no matching scope devices`;
+        const preview = devices
+          .slice(0, 3)
+          .map((entry) => {
+            const id = entry.cloudId || entry.primaryId || entry.id || '';
+            const nm = entry.name && entry.name !== id ? ` (${entry.name})` : '';
+            return id ? `${id}${nm}` : entry.name || '';
+          })
+          .filter(Boolean)
+          .join(', ');
+        return `${label}: ${preview}`;
+      })
+      .filter(Boolean);
+
+    const unavailableMetricResponse = detectUnavailableMetricResponse(question, selectionRooms, room);
+    if (unavailableMetricResponse) return unavailableMetricResponse;
+
+    const intent = classifyIntent(question);
+    const histogramRequested = (routing?.intents?.histogram === true)
+      || questionLower.includes('histogram')
+      || questionLower.includes('distribution')
+      || questionLower.includes('frequency')
+      || questionLower.includes('bins')
+      || questionLower.includes('bucket');
+    const heatmapRequested = (routing?.intents?.heatmap === true)
+      || questionLower.includes('heatmap')
+      || questionLower.includes('matrix');
+    const requireRoomRanking = questionRequiresRoomRanking(question) && Array.isArray(selectionZones) && selectionZones.length > 1;
+    const rankingRoomsList = requireRoomRanking
+      ? (selectionZones.length ? selectionZones.join(', ') : (selectionRooms && selectionRooms.length ? selectionRooms.join(', ') : '(current scope)'))
+      : '';
+    const rankingInstruction = requireRoomRanking
+      ? `ROOM COMPARISON TASK: The user is asking which room/zone is busiest or unused. Compare every room currently in scope (${rankingRoomsList}). Use compare_rooms_on_metric (preferred), scope_daily_percentile (for percentile/occupied-median requests), or compare_series_cross_room on people_count/occupancy to rank them, cite the values, and explicitly name which room is busiest. Mention any rooms that lack occupancy data.`
+      : '';
+    const needsRoomComparison = questionRequiresRoomComparison(question);
+    const comparisonRoomsList = questionNamedRooms.length
+      ? questionNamedRooms.join(', ')
+      : (selectionZones && selectionZones.length ? selectionZones.join(', ') : (selectionRooms && selectionRooms.length ? selectionRooms.join(', ') : '(current scope)'));
+    const comparisonInstruction = needsRoomComparison
+      ? `ROOM METRIC COMPARISON TASK: The user asked to compare metrics between ${comparisonRoomsList}. You MUST call compare_series_cross_room or compare_rooms_on_metric (or both) on the relevant metric(s), discuss differences for each room, and highlight which room leads or lags.`
+      : '';
+
+    const sys = `You are a senior data analyst agent for building operations.
 Selected room: ${room || '(none)'}.
 Zones in scope: ${zonesLine}
 Devices in scope: ${devicesLine}
+${namedRoomDeviceHints.length ? `User-named rooms resolved to devices: ${namedRoomDeviceHints.join(' | ')}` : ''}
 ${room === 'ALL' && selectionRooms && selectionRooms.length ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these devices and their parent zones. Do NOT introduce other scopes.` : ''}
 Selected time window: 
 - Local: ${startFmt} to ${endFmt}
@@ -5508,10 +8206,16 @@ FREEDOM TO ANALYZE: You are encouraged to analyze the data, derive insights, com
 
 DOMAIN NOTE: "Zone" and "Room" are synonyms in this system. When the user mentions a zone, treat it exactly as a room, and vice versa. Use graph relationships (Building → Floor → Zone) to understand placement.
 
-=== KNOWLEDGE PACK ENRICHMENT (REPHRASE ONLY) ===
+${routerDirectives}
+
+${rankingInstruction ? `${rankingInstruction}\n` : ''}${comparisonInstruction ? `${comparisonInstruction}\n` : ''}=== KNOWLEDGE PACK ENRICHMENT (REPHRASE ONLY) ===
 ${knowledgeSnippets || 'No extra knowledge found for this query.'}
 
 RULE: Do NOT dump or quote long passages from knowledge. If you use it, REPHRASE concisely in your own words and keep it brief.
+CONSISTENCY RULE: Build every conclusion from the tools you run—do NOT fall back to placeholder text.
+AGGREGATION RULE: When comparing metrics, compute stats (count/min/max/avg) or aggregates (compare_rooms_on_metric, stats) and cite those numbers.
+
+${intent.weatherQuestion ? 'WEATHER TASK: Questions mentioning weather or outside conditions REQUIRE you to call weather_fetch (or building_temp_weather_corr) for the current building so you can compare indoor vs outdoor signals.' : ''}
 
 === CRITICAL CHART RULES ===
 NEVER embed data arrays directly in chart JSON. This will ALWAYS cause truncation and failure.
@@ -5539,6 +8243,8 @@ CORRECT (REQUIRED - use dataRef):
 
 The backend automatically resolves dataRef to extract data from your tool call results.
 You ONLY provide the reference. The backend handles data extraction.
+
+CHART STYLE: Pick a chart type that fits the metric (e.g., column for occupancy counts, line for smooth trends, area for cumulative energy, scatter for correlations, histogram for distributions). Always explain in prose what the chart shows and why it matters.
 
 === CHART EXAMPLES WITH dataRef ===
 
@@ -5597,6 +8303,13 @@ Weather data chart:
     "dataRef": {"tool": "weather_fetch", "xField": "ts", "yField": "temp"}
   }]
 }
+
+=== ANALYSIS WORKFLOW (MANDATORY) ===
+1. Before calling any tool, respond with {"action":"plan","steps":[...]} listing 2‑4 concrete steps (e.g., "Inspect CO2 trend with fetch_timeseries", "Compare humidity between Suite 6.2 and Suite 6.3 using compare_series_cross_room"). Each step MUST mention the tool or computation you intend to run. Do NOT call tools until the plan is acknowledged.
+2. After the plan is acknowledged, execute the steps sequentially using tool call actions ("tool_call" / "tool_calls"). It is acceptable to call several tools consecutively—reference the plan step numbers when you do.
+3. When tools finish, respond with {"action":"final", ...} that (a) begins with "Overview:" summarizing the conclusions for ${startFmt} to ${endFmt} in 2 sentences, (b) adds a "Details:" section referencing each plan step and the tool outputs, and (c) explicitly comments on any chart you provide (what it shows, peaks/lows, comparisons, etc.).
+4. If you cannot complete a plan step (missing data, tool limitation, etc.), explain why in the final answer and reference the affected step.
+
 If you want to answer in plain text (no chart, no structured data), respond with:
 { "action": "final_text", "answer": "<your answer>" }
 === ANALYSIS RULES ===
@@ -5624,15 +8337,18 @@ If you want to answer in plain text (no chart, no structured data), respond with
 - ALWAYS provide final answer as properly formatted JSON with action:"final". Never just provide conversational text without the JSON structure.
 
 === REMEMBER ===
-- Use dataRef in all chart series - NEVER embed data arrays
+- Prefer dataRef in chart series; only embed small aggregate arrays when they contain a handful of points.
 - The backend resolves dataRef automatically from tool results
-- Embedding data causes truncation - always use references
+- Avoid embedding large datasets – use dataRef for timeseries and long arrays
 
 Tools: ${buildToolSpec()}.
 Notes: 
 - In weather data, temperature field is 'temp'.
 - Use 'hour_of_day_stats' for "best time" by CO2 or occupancy.
 - Use 'busiest_day_of_week' for questions about "busiest day", "which weekday", "most crowded day", "highest occupancy day", etc.
+- Use 'histogram' when the user asks for a distribution or histogram.
+- Use 'compare_metrics_in_room' for comparing multiple metrics within one room, and 'compare_rooms_on_metric' to rank rooms by an aggregate.
+- Use 'scope_daily_percentile' when users request multi-room percentile/occupied-period summaries (e.g., “daily 95th percentile CO₂ with occupied median”).
 For IAQ table: common fields are temperature, humidity, co2, pm25, pm10, lux, airexchangerate
 When user asks to COMPARE between rooms or metrics, prefer these tools:
 - compare_series_cross_room (timeseries across rooms)
@@ -5647,7 +8363,17 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
     ];
 
     const qlLower = (question || '').toLowerCase();
-    const intent = classifyIntent(question);
+    const mentionsScopeSummary =
+      /\bscope\b/.test(qlLower) &&
+      (qlLower.includes('visible') ||
+        qlLower.includes('highlight') ||
+        qlLower.includes('devices') ||
+        qlLower.includes('zones') ||
+        qlLower.includes('floors') ||
+        qlLower.includes('sensors') ||
+        qlLower.includes('selected') ||
+        qlLower.includes('gaps') ||
+        qlLower.includes('current scope'));
     const wantsScopeSummary =
       intent.selectionTime ||
       /what\s+scope\s+do\s+you\s+see/.test(qlLower) ||
@@ -5655,7 +8381,8 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       /selection\s+and\s+time/.test(qlLower) ||
       /current\s+(range|window)/.test(qlLower) ||
       /what\s+(time|period|window)\s+are\s+you\s+analys/.test(qlLower) ||
-      /what\s+time\s+period/.test(qlLower);
+      /what\s+time\s+period/.test(qlLower) ||
+      mentionsScopeSummary;
     if (wantsScopeSummary) {
       const summary = buildScopeSummary({
         selectionRooms,
@@ -5668,718 +8395,105 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       return { message: assistantMessage(summary), chart: null, trace: [] };
     }
 
-    // EARLY PLOTTING: floor/building scope cross-room plots
-    const ql = (question || '').toLowerCase();
-    const floorAll = isAllRooms(room) && Array.isArray(selectionRooms) && selectionRooms.length;
-    const multiScope = Array.isArray(selectionRooms) && selectionRooms.length >= 2;
-    const wantsAcrossRooms = /across\s+all\s+rooms|on\s+this\s+floor|on\s+this\s+building/.test(ql);
-    if ((floorAll || multiScope) && (intent.plotAcrossRooms || ((ql.includes('plot') || ql.includes('chart')) && wantsAcrossRooms))) {
-      try {
-        const tablesSets = availableFieldsByTable(selectionRooms[0]);
-        const { field: f } = resolveMetricAndTableFromQuestion(question, tablesSets, (ql.includes('occupancy')||ql.includes('people')) ? 'people_count' : 'temperature');
-        let fieldUsed = f;
-        let compareArgs = { start: rr.start || undefined, end: rr.end || undefined, series: [] };
-        for (const r of selectionRooms.slice(0, 8)) {
-          const t = loadRoomTables(r);
-          let tableMatch = null;
-          for (const [tname, rows] of Object.entries(t)) { if (rows.length && Object.keys(rows[0] || {}).includes(f)) { tableMatch = tname; break; } }
-          compareArgs.series.push({ room: r, table: tableMatch || 'iaq', field: f, name: `${r} ${f}` });
-        }
-        let result = tools.compare_series_cross_room(compareArgs);
-        let hasData = Object.values(result || {}).some(arr => Array.isArray(arr) && arr.length);
-        if (!hasData && aggressiveCharts) {
-          const preferred = pickFieldsForRoom(selectionRooms[0], 5);
-          const altField = findSharedField(selectionRooms.slice(0, 8), preferred, f);
-          if (altField && altField !== f) {
-            const retryArgs = { start: compareArgs.start, end: compareArgs.end, series: [] };
-            for (const r of selectionRooms.slice(0, 8)) {
-              const tables = loadRoomTables(r);
-              let tableMatch = null;
-              for (const [tname, rows] of Object.entries(tables)) { if (rows.length && Object.keys(rows[0] || {}).includes(altField)) { tableMatch = tname; break; } }
-              retryArgs.series.push({ room: r, table: tableMatch || 'iaq', field: altField, name: `${r} ${altField}` });
-            }
-            const altResult = tools.compare_series_cross_room(retryArgs);
-            const altHasData = Object.values(altResult || {}).some(arr => Array.isArray(arr) && arr.length);
-            if (altHasData) {
-              compareArgs = retryArgs;
-              result = altResult;
-              fieldUsed = altField;
-              hasData = true;
-            }
-          }
-        }
-        if (!hasData) {
-          const msg = `No ${humanizeMetricName(fieldUsed)} readings available for the selected rooms during ${describeRange(rr)}.`;
-          return { message: assistantMessage(msg), chart: null, trace: [{ tool: 'compare_series_cross_room', args: compareArgs, result }] };
-        }
-        const seriesKeys = Object.keys(result || {}).slice(0, 8);
-        const metricLabel = humanizeMetricName(fieldUsed);
-        const chartType = /people|occupancy|count/i.test(fieldUsed) ? 'column' : 'line';
-        const chart = seriesKeys.length ? {
-          chart: { type: chartType },
-          title: { text: `${metricLabel} across rooms` },
-          xAxis: { type: 'datetime' },
-          yAxis: { title: { text: metricLabel } },
-          series: seriesKeys.map(k => ({ name: k, dataRef: { tool: 'compare_series_cross_room', field: k, xField: 'ts', yField: 'y' } }))
-        } : null;
-        const trace = [{ tool: 'compare_series_cross_room', args: compareArgs, result }];
-        const valid = validateChart(cloneChart(chart), trace);
-        if (valid) {
-          const fallbackText = `Plotted ${humanizeMetricName(fieldUsed)} across ${seriesKeys.length} room(s) in scope.`;
-          const answerText = buildDefaultAnswer({
-            question,
-            chart: valid,
-            trace,
-            fallbackText,
-            notes: adaptationNotes,
-            range: rr
-          });
-          return { message: assistantMessage(answerText), chart, trace };
-        }
-      } catch (e) { log('early plot across rooms failed:', String(e)); }
+    const explicitTimestamp = extractTimestampFromQuestion(question);
+    const looksLikeRangeQuery = (() => {
+      const q = String(question || '').toLowerCase();
+      if (q.includes('between')) return true;
+      if (q.includes('range')) return true;
+      if (q.includes('over the') || q.includes('throughout')) return true;
+      if (q.includes('from') && q.includes('to')) return true;
+      if ((q.match(/\d{4}/g) || []).length >= 2) return true;
+      return false;
+    })();
+    if (explicitTimestamp && !looksLikeRangeQuery) {
+      const pointAnswer = tryAnswerPointQuery({
+        question,
+        timestamp: explicitTimestamp,
+        room,
+        selectionRooms,
+        scopeDeviceZones,
+        range: rr
+      });
+      if (pointAnswer) return pointAnswer;
     }
 
-    // EARLY COMPARE between two room types (e.g., "compare humidity in the cafe and boardroom")
-    if ((floorAll || multiScope) && intent.compareTypes) {
-      try {
-        // Extract two room-type keywords
-        const types = [];
-        const tokens = ql.split(/[^a-z0-9_]+/).filter(Boolean);
-        const typeWords = ['boardroom','meeting','lab','laboratory','toilet','restroom','bathroom','wc','cafe','cafeteria','kitchen'];
-        for (const tk of tokens) {
-          if (typeWords.includes(tk) && !types.includes(tk)) types.push(tk);
-          if (types.length >= 2) break;
-        }
-        const norm = (t) => (t==='meeting'?'boardroom': t==='laboratory'?'lab': (t==='restroom'||t==='bathroom'||t==='wc')?'toilet': (t==='cafeteria'||t==='kitchen')?'cafe': t);
-        const t1 = types[0] ? norm(types[0]) : null;
-        const t2 = types[1] ? norm(types[1]) : null;
-        const tablesSets = availableFieldsByTable(selectionRooms[0]);
-        const { field: f } = resolveMetricAndTableFromQuestion(question, tablesSets, 'humidity');
-        const r1 = t1 ? roomsByType(selectionRooms, t1)[0] : null;
-        const r2 = t2 ? roomsByType(selectionRooms, t2)[0] : null;
-        const compareArgs = { start: rr.start || undefined, end: rr.end || undefined, series: [] };
-        if (r1) {
-          let tableMatch = null; for (const [tname, rows] of Object.entries(loadRoomTables(r1))) { if (rows.length && Object.keys(rows[0]||{}).includes(f)) { tableMatch = tname; break; } }
-          compareArgs.series.push({ room: r1, table: tableMatch || 'iaq', field: f, name: `${r1} ${f}` });
-        }
-        if (r2) {
-          let tableMatch = null; for (const [tname, rows] of Object.entries(loadRoomTables(r2))) { if (rows.length && Object.keys(rows[0]||{}).includes(f)) { tableMatch = tname; break; } }
-          compareArgs.series.push({ room: r2, table: tableMatch || 'iaq', field: f, name: `${r2} ${f}` });
-        }
-        if (compareArgs.series.length >= 2) {
-          const result = tools.compare_series_cross_room(compareArgs);
-          const entries = Object.values(result || {});
-          const hasData = entries.some(arr => Array.isArray(arr) && arr.length);
-          if (!hasData) {
-            const msg = `No ${humanizeMetricName(f)} data available for the requested room types in ${describeRange(rr)}.`;
-            return { message: assistantMessage(msg), chart: null, trace: [{ tool: 'compare_series_cross_room', args: compareArgs, result }] };
-          }
-          const keys = Object.keys(result || {}).slice(0, 8);
-          const chart = keys.length ? {
-            chart: { type: 'line' }, title: { text: `${f} comparison` }, xAxis: { type: 'datetime' }, yAxis: { title: { text: f } },
-            series: keys.map(k => ({ name: k, dataRef: { tool: 'compare_series_cross_room', field: k, xField: 'ts', yField: 'y' } }))
-          } : null;
-          const trace = [{ tool: 'compare_series_cross_room', args: compareArgs, result }];
-          const valid = validateChart(cloneChart(chart), trace);
-          if (valid) {
-            const fallbackText = `Compared ${humanizeMetricName(f)} between ${deviceFriendlyName(r1)} and ${deviceFriendlyName(r2)}.`;
-            const answerText = buildDefaultAnswer({
-              question,
-              chart: valid,
-              trace,
-              fallbackText,
-              notes: adaptationNotes,
-              range: rr
-            });
-            const extras = [{ message: assistantMessage(`Query ${routing.level}`), chart: null }];
-            return { message: assistantMessage(answerText), chart, trace, extras };
-          }
-        }
-      } catch (e) { log('early compareTypes failed:', String(e)); }
-    }
-
-    // EARLY METRICS SUMMARY: "what metrics are in each room" at floor/building scope
-    if ((floorAll || multiScope) && (intent.metricsEachRoom || /(what|which)\s+(metrics|detectors)[^?]*\b(each|every)\b[^?]*\brooms?/i.test(ql))) {
-      try {
-        const lines = [];
-        for (const r of selectionRooms.slice(0, 20)) {
-          const t = loadRoomTables(r);
-          const detectors = [];
-          if (t.iaq && t.iaq.length) detectors.push('IAQ_Sensor');
-          if (t.energy && t.energy.length) detectors.push('Energy_Meter');
-          if (t.people && t.people.length) detectors.push('People_Counter');
-          if (t.water && t.water.length) detectors.push('Water_Meter');
-          const fields = new Set();
-          for (const rows of Object.values(t)) {
-            const first = (rows||[])[0] || {};
-            for (const k of Object.keys(first)) if (k !== 'ts') fields.add(k);
-          }
-          const label = deviceFriendlyName(r);
-          lines.push(`- ${label}: detectors=[${detectors.join(', ')||'—'}], metrics=[${Array.from(fields).sort().join(', ')||'—'}]`);
-        }
-        const msg = `Metrics by room in current scope:\n${lines.join('\n')}`;
-        const extras = [{ message: assistantMessage(`Query ${routing.level}`), chart: null }];
-        return { message: assistantMessage(msg), chart: null, trace: [], extras };
-      } catch (e) { log('early metrics summary failed:', String(e)); }
-    }
-
-    // EARLY: compare metric between exactly two rooms in scope (e.g., "compare temperature between the two rooms in the scope")
-    if (multiScope && selectionRooms.length === 2 && /\bcompare\b/i.test(question)) {
-      try {
-        const rA = selectionRooms[0];
-        const rB = selectionRooms[1];
-        const tablesSetsA = availableFieldsByTable(rA);
-        const { field: f } = resolveMetricAndTableFromQuestion(question, tablesSetsA, 'temperature');
-        const compareArgs = { start: rr.start || undefined, end: rr.end || undefined, series: [] };
-        // room A
-        let tabA = null; for (const [tname, rows] of Object.entries(loadRoomTables(rA))) { if (rows.length && Object.keys(rows[0]||{}).includes(f)) { tabA = tname; break; } }
-        compareArgs.series.push({ room: rA, table: tabA || 'iaq', field: f, name: `${rA} ${f}` });
-        // room B
-        let tabB = null; for (const [tname, rows] of Object.entries(loadRoomTables(rB))) { if (rows.length && Object.keys(rows[0]||{}).includes(f)) { tabB = tname; break; } }
-        compareArgs.series.push({ room: rB, table: tabB || 'iaq', field: f, name: `${rB} ${f}` });
-        let fieldUsed = f;
-        let result = tools.compare_series_cross_room(compareArgs);
-        let hasData = Object.values(result || {}).some(arr => Array.isArray(arr) && arr.length);
-        if (!hasData && aggressiveCharts) {
-          const preferred = pickFieldsForRoom(rA || rB, 5);
-          const altField = findSharedField([rA, rB], preferred, f);
-          if (altField && altField !== f) {
-            const retryArgs = { start: compareArgs.start, end: compareArgs.end, series: [] };
-            const roomsToCompare = [rA, rB].filter(Boolean);
-            for (const roomId of roomsToCompare) {
-              let altTable = null;
-              for (const [tname, rows] of Object.entries(loadRoomTables(roomId))) {
-                if (rows.length && Object.keys(rows[0] || {}).includes(altField)) { altTable = tname; break; }
-              }
-              retryArgs.series.push({ room: roomId, table: altTable || 'iaq', field: altField, name: `${roomId} ${altField}` });
-            }
-            const altResult = tools.compare_series_cross_room(retryArgs);
-            const altHasData = Object.values(altResult || {}).some(arr => Array.isArray(arr) && arr.length);
-            if (altHasData) {
-              result = altResult;
-              compareArgs = retryArgs;
-              fieldUsed = altField;
-              hasData = true;
-            }
-          }
-        }
-        if (!hasData) {
-          const msg = `No ${humanizeMetricName(f)} readings available for ${deviceFriendlyName(rA)} or ${deviceFriendlyName(rB)} in ${describeRange(rr)}.`;
-          return { message: assistantMessage(msg), chart: null, trace: [{ tool: 'compare_series_cross_room', args: compareArgs, result }] };
-        }
-        const keys = Object.keys(result || {});
-        const metricLabel = humanizeMetricName(fieldUsed);
-        const chartType = /people|occupancy|count/i.test(fieldUsed) ? 'column' : 'line';
-        const chart = keys.length ? {
-          chart: { type: chartType },
-          title: { text: `${metricLabel} comparison` },
-          xAxis: { type: 'datetime' },
-          yAxis: { title: { text: metricLabel } },
-          series: keys.map(k => ({ name: k, dataRef: { tool: 'compare_series_cross_room', field: k, xField: 'ts', yField: 'y' } }))
-        } : null;
-        const trace = [{ tool: 'compare_series_cross_room', args: compareArgs, result }];
-        const valid = validateChart(cloneChart(chart), trace);
-        if (valid) {
-          const fallbackText = `Compared ${humanizeMetricName(fieldUsed)} between ${deviceFriendlyName(rA)} and ${deviceFriendlyName(rB)}.`;
-          const answerText = buildDefaultAnswer({
-            question,
-            chart: valid,
-            trace,
-            fallbackText,
-            notes: adaptationNotes,
-            range: rr
-          });
-          return { message: assistantMessage(answerText), chart, trace };
-        }
-      } catch (e) { log('early compare two rooms failed:', String(e)); }
-    }
-
-    // Devices/Detectors for a specific room (broad phrasing)
-    if (intent.devicesInRoom) {
-      let r = inferRoomFromText(question) || (selectionRooms && selectionRooms.length===1 ? selectionRooms[0] : null);
-      if (!r && floorAll) {
-        // Try by room type keyword in question
-        const types = ['boardroom','lab','toilet','cafe'];
-        for (const tp of types) {
-          if (ql.includes(tp) || (tp==='boardroom' && ql.includes('meeting'))) {
-            const matches = roomsByType(selectionRooms, tp);
-            if (matches.length) { r = matches[0]; break; }
-          }
-        }
-      }
-      if (r) {
-        try {
-          const dets = tools.scope_list_detectors({ room: r });
-          const tables = loadRoomTables(r);
-          const fieldSet = new Set();
-          for (const rows of Object.values(tables)) { const first=(rows||[])[0]||{}; for (const k of Object.keys(first)) if (k!=='ts') fieldSet.add(k); }
-          const label = deviceFriendlyName(r);
-          const msg = `${label}: detectors=[${(Array.isArray(dets)?dets:[]).join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`;
-          const extras = [{ message: assistantMessage(`Query ${routing.level}`), chart: null }];
-          return { message: assistantMessage(msg), chart: null, trace: [], extras };
-        } catch (e) { log('early devices summary failed:', String(e)); }
-      }
-    }
-
-    // Plot metrics in the boardroom/lab/toilet/cafe with N random (or available) series
-    if (floorAll && intent.plotSingle && /(boardroom|meeting|lab|laboratory|toilet|restroom|bathroom|wc|cafe|cafeteria|kitchen)/i.test(question)) {
-      try {
-        let roomForPlot = inferRoomFromText(question);
-        if (!roomForPlot) {
-          const types = ['boardroom','lab','toilet','cafe'];
-          for (const tp of types) { if (ql.includes(tp) || (tp==='boardroom' && ql.includes('meeting'))) { const matches = roomsByType(selectionRooms, tp); if (matches.length) { roomForPlot = matches[0]; break; } } }
-        }
-        if (roomForPlot) {
-          const nMatch = question.match(/(\d+)\s*(random|metrics|series)?/i);
-          const n = nMatch ? Math.max(1, Math.min(5, parseInt(nMatch[1], 10))) : 3;
-          const fields = pickFieldsForRoom(roomForPlot, n);
-          const tablesSets = availableFieldsByTable(roomForPlot);
-          const series = fields.map(f => {
-            let table = null; for (const [t, set] of Object.entries(tablesSets)) if (set.has(f)) { table = t; break; }
-            return { name: `${roomForPlot} ${f}`, dataRef: { tool: 'fetch_timeseries', room: roomForPlot, xField: 'ts', yField: f } };
-          });
-          const chart = { chart: { type: 'line' }, title: { text: `${roomForPlot} — ${fields.join(', ')}` }, xAxis: { type: 'datetime' }, yAxis: { title: { text: 'Value' } }, series };
-          // Ensure tool results are present
-          const trace = [];
-          for (const f of fields) {
-            // Decide table for this field
-            let tab = null; for (const [t, set] of Object.entries(tablesSets)) if (set.has(f)) { tab = t; break; }
-            const args = { room: roomForPlot, table: tab || 'iaq', fields: [f], start: rr.start || undefined, end: rr.end || undefined };
-            const res = tools.fetch_timeseries(args);
-            trace.push({ tool: 'fetch_timeseries', args, result: res });
-          }
-          const valid = validateChart(cloneChart(chart), trace);
-          if (valid) {
-            const fallbackText = `Plotted ${fields.length} metric(s) for ${deviceFriendlyName(roomForPlot)}.`;
-            const answerText = buildDefaultAnswer({
-              question,
-              chart: valid,
-              trace,
-              fallbackText,
-              notes: adaptationNotes,
-              range: rr
-            });
-            return { message: assistantMessage(answerText), chart, trace };
-          }
-        }
-      } catch (e) { log('plot room-type random metrics failed:', String(e)); }
-    }
-
-    // EARLY RANKING: highest average co2 (or similar) on this floor/building
-    if (floorAll && /(highest|top|most)\s+(avg|average|mean)?\s*(co2|temperature|humidity|lux|pm25|pm10|value)/i.test(question)) {
-      try {
-        const m = question.match(/(co2|temperature|humidity|lux|pm25|pm10|value)/i);
-        const field = (m && m[1]) ? m[1].toLowerCase() : 'co2';
-        const tableGuess = field==='value' ? 'energy' : 'iaq';
-        const ranking = tools.compare_rooms_on_metric({ rooms: selectionRooms, table: tableGuess, field, agg: 'avg', start: rr.start || undefined, end: rr.end || undefined });
-        const top = ranking.filter(r => r.value!=null).slice(0, 5).map(r => `${r.room}: ${Number(r.value).toFixed(2)}`).join('\n');
-        const chart = ranking.length ? {
-          chart: { type: 'bar' },
-          title: { text: `Average ${field} by room` },
-          xAxis: { categories: ranking.map(r => r.room) },
-          yAxis: { title: { text: field } },
-          series: [{ name: `avg(${field})`, data: ranking.map(r => (r.value!=null ? Number(r.value) : null)) }]
-        } : null;
-        return { message: assistantMessage(`Top rooms by average ${field} in the selected window:\n${top || 'No data'}`), chart, trace: [] };
-      } catch (e) { log('early ranking failed:', String(e)); }
-    }
-
-    // Auto-handle plotting intents by directly building charts without LLM
-    {
-      const qlc = String(question||'').toLowerCase();
-      const isPlotIntent = /(plot|chart|graph|scatter|histogram|heatmap)\b/.test(qlc);
-      if (isPlotIntent) {
-        try {
-          const deviceCandidate = inferDeviceFromQuestion(question);
-          if (deviceCandidate) {
-            const deviceId = normalizeRoomId(deviceCandidate) || deviceCandidate;
-            const tables = loadRoomTables(deviceId);
-            if (tables && Object.keys(tables).length) {
-              const rr = range || {};
-              const fieldsMapDevice = availableFieldsByTable(deviceId);
-              const { field: resolvedField, table: resolvedTable } = resolveMetricAndTableFromQuestion(question, fieldsMapDevice, 'lux');
-              const luxField = inferFieldName(resolvedField, fieldsMapDevice) || inferFieldName('lux', fieldsMapDevice) || inferFieldName('light', fieldsMapDevice) || resolvedField || 'lux';
-              const tableGuess = resolvedTable || (() => {
-                for (const [tableName, set] of Object.entries(fieldsMapDevice)) {
-                  if (set.has(luxField)) return tableName;
-                }
-                return 'iaq';
-              })();
-              const fetchArgs = {
-                room: deviceId,
-                table: tableGuess,
-                fields: [luxField],
-                start: rr.start || undefined,
-                end: rr.end || undefined
-              };
-              const res = tools.fetch_timeseries(fetchArgs);
-              const traceAuto = [{ tool: 'fetch_timeseries', args: fetchArgs, result: res }];
-              if (Array.isArray(res) && res.length) {
-                const chart = {
-                  chart: { type: 'line' },
-                  title: { text: `${deviceFriendlyName(deviceId)} — ${humanizeMetricName(luxField)}` },
-                  xAxis: { type: 'datetime' },
-                  yAxis: { title: { text: humanizeMetricName(luxField) } },
-                  series: [{
-                    name: `${deviceFriendlyName(deviceId)} ${humanizeMetricName(luxField)}`,
-                    dataRef: { tool: 'fetch_timeseries', room: deviceId, xField: 'ts', yField: luxField }
-                  }]
-                };
-                const valid = validateChart(cloneChart(chart), traceAuto);
-                if (valid) {
-                  const fallbackText = `Plotted ${humanizeMetricName(luxField)} for ${deviceFriendlyName(deviceId)}.`;
-                  const answerText = buildDefaultAnswer({
-                    question,
-                    chart: valid,
-                    trace: traceAuto,
-                    fallbackText,
-                    notes: adaptationNotes,
-                    range: rr
-                  });
-                  return { message: assistantMessage(answerText), chart, trace: traceAuto };
-                }
-              } else {
-                const msg = `No ${humanizeMetricName('lux')} readings available for ${deviceFriendlyName(deviceId)} in the selected window.`;
-                return { message: assistantMessage(msg), chart: null, trace: traceAuto };
-              }
-            }
-          }
-        } catch (e) {
-          log('device-specific autoplot failed:', String(e));
-        }
-      }
-      if (isPlotIntent && /\bcorrelat/.test(qlc) && qlc.includes('outside') && qlc.includes('temperat')) {
-        try {
-          const rr = range || {};
-          const candidateRooms = Array.isArray(selectionRooms) && selectionRooms.length
-            ? selectionRooms.slice(0, 24)
-            : listRooms().slice(0, 24);
-          const corrArgs = {
-            rooms: candidateRooms,
-            building: (scopeLabels && scopeLabels.building) || null,
-            field: 'temperature',
-            weather_field: 'temp',
-            start: rr.start || undefined,
-            end: rr.end || undefined,
-            bucket_minutes: qlc.includes('daily') ? 1440 : 60
-          };
-          const res = tools.building_temp_weather_corr(corrArgs);
-          const traceAuto = [{ tool: 'building_temp_weather_corr', args: corrArgs, result: res }];
-          if (Array.isArray(res?.scatter) && res.scatter.length) {
-            const chart = {
-              chart: { type: 'scatter' },
-              title: { text: 'Internal vs Outside Temperature' },
-              xAxis: { title: { text: 'Outside Temperature (°C)' } },
-              yAxis: { title: { text: 'Average Internal Temperature (°C)' } },
-              series: [{
-                name: 'Internal vs Outside Temp',
-                dataRef: { tool: 'building_temp_weather_corr', field: 'scatter', xField: 'x', yField: 'y' }
-              }]
-            };
-            const valid = validateChart(cloneChart(chart), traceAuto);
-            if (valid) {
-              const parts = [];
-              if (Number.isFinite(res.corr)) {
-                parts.push(`Correlation between averaged internal temperature and outside temperature is ${res.corr.toFixed(2)} (n=${res.n}).`);
-              } else {
-                parts.push(`Plotted averaged internal vs outside temperature for ${res.n} hourly points.`);
-              }
-              if (Array.isArray(res.rooms) && res.rooms.length) {
-                const roomLabels = res.rooms.slice(0, 4).map((id) => deviceFriendlyName(id)).filter(Boolean);
-                const suffix = res.rooms.length > 4 ? '…' : '';
-                if (roomLabels.length) parts.push(`Rooms included: ${roomLabels.join(', ')}${suffix}`);
-              }
-              const fallbackText = parts.join(' ');
-              const answerText = buildDefaultAnswer({
-                question,
-                chart: valid,
-                trace: traceAuto,
-                fallbackText,
-                notes: adaptationNotes,
-                range: rr
-              });
-              return { message: assistantMessage(answerText), chart, trace: traceAuto };
-            }
-          }
-          if (res?.error) {
-            return { message: assistantMessage(res.error), chart: null, trace: traceAuto };
-          }
-        } catch (e) {
-          log('building_temp_weather_corr autoplot failed:', String(e));
-        }
-      }
-      if (isPlotIntent && (room === 'ALL' || multiScope || floorAll)) {
-        if (qlc.includes('heatmap')) {
-          try {
-            const rr = range || {};
-            const candidateRooms = selectRoomsForHeatmap(question, selectionRooms, 8);
-            if (candidateRooms.length === 0) {
-              log('Heatmap autoplot skipped: no candidate rooms resolved');
-            } else {
-              const fieldsMap = availableFieldsByTable(candidateRooms[0] || candidateRooms);
-              const defaults = resolveMetricAndTableFromQuestion(question, fieldsMap, qlc.includes('occup') ? 'people_count' : 'co2');
-              const bucketMinutes = qlc.includes('daily') ? 1440 : 60;
-              const heatmapArgs = {
-                rooms: candidateRooms,
-                table: defaults.table,
-                field: defaults.field,
-                start: rr.start || undefined,
-                end: rr.end || undefined,
-                bucket_minutes: bucketMinutes,
-                agg: 'avg'
-              };
-              let res;
-              try {
-                res = tools.scope_heatmap(heatmapArgs);
-              } catch (err) {
-                const message = err && err.message ? err.message : 'Heatmap generation failed due to missing rooms.';
-                return { message: assistantMessage(message), chart: null, trace: [{ tool: 'scope_heatmap', args: heatmapArgs, result: { error: message } }] };
-              }
-              const traceAuto = [{ tool: 'scope_heatmap', args: heatmapArgs, result: res }];
-              if (res && res.error) {
-                const message = typeof res.error === 'string' ? res.error : 'Heatmap generation failed.';
-                return { message: assistantMessage(message), chart: null, trace: traceAuto };
-              }
-              if (!res.data || res.data.length === 0) {
-                const message = res.summary || `No ${humanizeMetricName(defaults.field)} readings found for the requested rooms during the selected window.`;
-                return { message: assistantMessage(message), chart: null, trace: traceAuto };
-              }
-              const roomLabels = res.rooms.map((r) => r.label);
-              const timeLabels = res.timeLabels && res.timeLabels.length ? res.timeLabels : res.timestamps.map((ts) => formatLocal(ts));
-              const metricLabel = humanizeMetricName(defaults.field);
-              const colorAxis = {};
-              if (Number.isFinite(res.min)) colorAxis.min = res.min;
-              if (Number.isFinite(res.max)) colorAxis.max = res.max;
-              const chart = {
-                chart: { type: 'heatmap' },
-                title: { text: `${metricLabel} heatmap` },
-                xAxis: { categories: timeLabels, title: { text: `Time (${res.bucket_minutes || bucketMinutes}-min buckets)` } },
-                yAxis: { categories: roomLabels, title: { text: 'Room' } },
-                colorAxis,
-                series: [{
-                  name: metricLabel,
-                  dataRef: { tool: 'scope_heatmap', field: 'data', xField: 'x', yField: 'y', valueField: 'value' }
-                }]
-              };
-              if (!Object.keys(colorAxis).length) delete chart.colorAxis;
-              const valid = validateChart(cloneChart(chart), traceAuto);
-              if (valid) {
-                if (res.summary) adaptationNotes.push(res.summary);
-                const roomList = roomLabels.slice(0, 4).join(', ') + (roomLabels.length > 4 ? ', …' : '');
-                const fallbackText = res.summary
-                  ? `${metricLabel} heatmap across ${roomList}. ${res.summary}`
-                  : `${metricLabel} heatmap across ${roomList}.`;
-                const answerText = buildDefaultAnswer({
-                  question,
-                  chart: valid,
-                  trace: traceAuto,
-                  fallbackText,
-                  notes: adaptationNotes,
-                  range: rr
-                });
-                return { message: assistantMessage(answerText), chart, trace: traceAuto };
-              }
-            }
-          } catch (e) {
-            log('scope_heatmap autoplot failed:', String(e));
-          }
-        }
-      } else if (isPlotIntent && room && room !== 'ALL') {
-        function pickMetric(q) {
-          const s = String(q||'').toLowerCase();
-          if (s.includes('humidity')) return 'humidity';
-          if (s.includes('co2')) return 'co2';
-          if (s.includes('temperature') || s.includes('temp')) return 'temperature';
-          if (s.includes('lux') || s.includes('light')) return 'lux';
-          if (s.includes('energy') || s.includes('kwh')) return 'total_kwh';
-          if (s.includes('people') || s.includes('occupancy')) return 'people_count';
-          return 'co2';
-        }
-        const metric = pickMetric(question);
-        let granularity = 'raw';
-        if (qlc.includes('daily')) granularity = 'daily';
-        else if (qlc.includes('hourly')) granularity = 'hourly';
-        else if (qlc.includes('scatter') || qlc.includes(' vs ')) granularity = 'scatter';
-        else if (qlc.includes('histogram') || qlc.includes('distribution')) granularity = 'histogram';
-        else if (qlc.includes('heatmap') || qlc.includes('correlation')) granularity = 'heatmap';
-        try {
-          const rr = range || {};
-          const traceAuto = [];
-          if (granularity === 'histogram') {
-            const res = tools.histogram({ room, table: 'iaq', field: metric, bins: 20, start: rr.start || undefined, end: rr.end || undefined });
-            traceAuto.push({ tool: 'histogram', args: { room, table: 'iaq', field: metric }, result: res });
-            const chart = { chart: { type: 'column' }, title: { text: `Histogram of ${metric}` }, xAxis: { title: { text: metric } }, yAxis: { title: { text: 'Count' } }, series: [{ name: `${room} ${metric}`, dataRef: { tool: 'histogram', xField: 'binStart', yField: 'count' } }] };
-            const valid = validateChart(cloneChart(chart), traceAuto);
-            if (valid) {
-              const fallbackText = `Histogram of ${humanizeMetricName(metric)} for ${deviceFriendlyName(room)}.`;
-              const answerText = buildDefaultAnswer({
-                question,
-                chart: valid,
-                trace: traceAuto,
-                fallbackText,
-                notes: adaptationNotes,
-                range: rr
-              });
-              return { message: assistantMessage(answerText), chart, trace: traceAuto };
-            }
-          } else if (granularity === 'heatmap') {
-            const wantsCorrelation = /\b(correlation|correlate|matrix)\b/.test(qlc);
-            if (wantsCorrelation) {
-              const fields = ['temperature','humidity','co2','lux'];
-              const res = tools.correlation_matrix({ room, table: 'iaq', fields, start: rr.start || undefined, end: rr.end || undefined });
-              traceAuto.push({ tool: 'correlation_matrix', args: { room, table: 'iaq', fields }, result: res });
-              const chart = { chart: { type: 'heatmap' }, title: { text: 'Correlation Heatmap' }, colorAxis: { min: -1, max: 1 }, series: [{ name: 'Correlation', dataRef: { tool: 'correlation_matrix', format: 'heatmap' } }] };
-              const valid = validateChart(cloneChart(chart), traceAuto);
-              if (valid) {
-                const fallbackText = `Correlation heatmap for ${deviceFriendlyName(room)}.`;
-                const answerText = buildDefaultAnswer({
-                  question,
-                  chart: valid,
-                  trace: traceAuto,
-                  fallbackText,
-                  notes: adaptationNotes,
-                  range: rr
-                });
-                return { message: assistantMessage(answerText), chart, trace: traceAuto };
-              }
-            } else {
-              const tableGuess = metric === 'people_count' ? 'people' : (metric === 'total_kwh' || metric === 'value') ? 'energy' : 'iaq';
-              const heatmapArgs = {
-                rooms: [room],
-                table: tableGuess,
-                field: metric,
-                start: rr.start || undefined,
-                end: rr.end || undefined,
-                bucket_minutes: qlc.includes('daily') ? 1440 : 60,
-                agg: 'avg'
-              };
-              let res;
-              try {
-                res = tools.scope_heatmap(heatmapArgs);
-              } catch (err) {
-                const message = err && err.message ? err.message : 'Heatmap generation failed due to missing rooms.';
-                traceAuto.push({ tool: 'scope_heatmap', args: heatmapArgs, result: { error: message } });
-                return { message: assistantMessage(message), chart: null, trace: traceAuto };
-              }
-              traceAuto.push({ tool: 'scope_heatmap', args: heatmapArgs, result: res });
-              if (res && res.error) {
-                const msg = typeof res.error === 'string' ? res.error : 'Heatmap generation failed.';
-                return { message: assistantMessage(msg), chart: null, trace: traceAuto };
-              }
-              if (!res.data || res.data.length === 0) {
-                const msg = res.summary || `No ${humanizeMetricName(metric)} readings available for ${room} in the selected window.`;
-                return { message: assistantMessage(msg), chart: null, trace: traceAuto };
-              }
-              const labels = res.rooms.map((r) => r.label);
-              const timeLabels = res.timeLabels && res.timeLabels.length ? res.timeLabels : res.timestamps.map((ts) => formatLocal(ts));
-              const colorAxis = {};
-              if (Number.isFinite(res.min)) colorAxis.min = res.min;
-              if (Number.isFinite(res.max)) colorAxis.max = res.max;
-              const chart = {
-                chart: { type: 'heatmap' },
-                title: { text: `${humanizeMetricName(metric)} heatmap` },
-                xAxis: { categories: timeLabels, title: { text: `Time (${res.bucket_minutes || heatmapArgs.bucket_minutes}-min buckets)` } },
-                yAxis: { categories: labels, title: { text: 'Room' } },
-                colorAxis,
-                series: [{
-                  name: humanizeMetricName(metric),
-                  dataRef: { tool: 'scope_heatmap', field: 'data', xField: 'x', yField: 'y', valueField: 'value' }
-                }]
-              };
-              if (!Object.keys(colorAxis).length) delete chart.colorAxis;
-              const valid = validateChart(cloneChart(chart), traceAuto);
-              if (valid) {
-                if (res.summary) adaptationNotes.push(res.summary);
-                const fallbackText = res.summary || `Heatmap of ${humanizeMetricName(metric)} for ${deviceFriendlyName(room)}.`;
-                const answerText = buildDefaultAnswer({
-                  question,
-                  chart: valid,
-                  trace: traceAuto,
-                  fallbackText,
-                  notes: adaptationNotes,
-                  range: rr
-                });
-                return { message: assistantMessage(answerText), chart, trace: traceAuto };
-              }
-            }
-          } else if (granularity === 'scatter') {
-            const res = tools.pair_timeseries({ room, table1: 'iaq', field1: metric, table2: 'weather', field2: 'temp', start: rr.start || undefined, end: rr.end || undefined, time_window_ms: 60*60*1000 });
-            traceAuto.push({ tool: 'pair_timeseries', args: { room, table1: 'iaq', field1: metric, table2: 'weather', field2: 'temp' }, result: res });
-            const chart = { chart: { type: 'scatter' }, title: { text: `${metric} vs outside temp` }, series: [{ name: `${metric} vs temp`, dataRef: { tool: 'pair_timeseries', xField: 'x', yField: 'y' } }] };
-            const valid = validateChart(cloneChart(chart), traceAuto);
-            if (valid) {
-              const fallbackText = `Scatter plot of ${humanizeMetricName(metric)} vs outside temperature for ${deviceFriendlyName(room)}.`;
-              const answerText = buildDefaultAnswer({
-                question,
-                chart: valid,
-                trace: traceAuto,
-                fallbackText,
-                notes: adaptationNotes,
-                range: rr
-              });
-              return { message: assistantMessage(answerText), chart, trace: traceAuto };
-            }
-          } else {
-            // time series
-            let res = null, yField = metric, toolName = 'fetch_timeseries';
-            if (granularity === 'hourly') { res = tools.hourly_timeseries({ room, table: 'iaq', field: metric, start: rr.start || undefined, end: rr.end || undefined }); toolName = 'hourly_timeseries'; yField = 'avg'; }
-            else if (granularity === 'daily') { res = tools.daily_avg({ room, table: 'iaq', field: metric, start: rr.start || undefined, end: rr.end || undefined }); toolName = 'daily_avg'; yField = 'avg'; }
-            else { res = tools.fetch_timeseries({ room, table: 'iaq', fields: [metric], start: rr.start || undefined, end: rr.end || undefined }); }
-            traceAuto.push({ tool: toolName, args: { room, table: 'iaq', field: metric, fields: [metric], start: rr.start || undefined, end: rr.end || undefined }, result: res });
-            const chart = { chart: { type: 'line' }, title: { text: `${room} — ${metric} (${granularity})` }, xAxis: { type: 'datetime' }, yAxis: [{ title: { text: metric } }], series: [{ name: `${room} ${metric}`, dataRef: { tool: toolName, xField: 'ts', yField } }] };
-            const valid = validateChart(cloneChart(chart), traceAuto);
-            if (valid) {
-              const fallbackText = `Plotted ${humanizeMetricName(metric)} for ${deviceFriendlyName(room)} (${granularity}).`;
-              const answerText = buildDefaultAnswer({
-                question,
-                chart: valid,
-                trace: traceAuto,
-                fallbackText,
-                notes: adaptationNotes,
-                range: rr
-              });
-              return { message: assistantMessage(answerText), chart, trace: traceAuto };
-            }
-          }
-        } catch (e) { log('auto-plot failed:', String(e)); }
-      }
-    }
 
     const trace = [];
     let lastToolSig = '';
-   let repeatCount = 0;
-   let totalToolCalls = 0;
+    let repeatCount = 0;
+    let totalToolCalls = 0;
     let scatterRetryCount = 0;
     let chartRetryCount = 0;
+    let planConfirmed = false;
+    let planSteps = [];
+    let planProgress = 0;
+    let planStatus = [];
+    let consecutivePlanReplies = 0;
+    let planLoopStrikes = 0;
+    let comparisonSatisfied = !needsRoomComparison;
+    let rankingSatisfied = !requireRoomRanking;
+    const summarizePlanStatusLines = () => planStatus
+      .map((step, idx) => {
+        if (!step) return null;
+        const marker = step.done ? 'x' : ' ';
+        const index = step.index ?? step.id ?? idx + 1;
+        const label = step.text || step.description || step.goal || '';
+        return `[${marker}] Step ${index}: ${label}`;
+      })
+      .filter(Boolean)
+      .join('\n');
+    const pushPlanProgress = (note) => {
+      if (!planStatus.length) return;
+      const summaryLines = summarizePlanStatusLines();
+      const next = planStatus.find((step) => !step.done);
+      const defaultNote = next
+        ? `Next: Step ${next.index}: ${next.text}. Execute it with the corresponding tool ({"action":"tool_call","tool":"<name>","args":{...}}) before moving on.`
+        : 'All planned steps are complete. Summarize the findings and finalize your answer now.';
+      convo.push({
+        role: 'user',
+        content: `PLAN STATUS:\n${summaryLines}${note ? `\n${note}` : `\n${defaultNote}`}`
+      });
+    };
+
+    const markPlanStepComplete = () => {
+      if (!planConfirmed || !planSteps.length) return;
+      if (planProgress >= planSteps.length) return;
+      planProgress += 1;
+      const statusIndex = planProgress - 1;
+      if (planStatus[statusIndex]) planStatus[statusIndex].done = true;
+      pushPlanProgress(`Completed Step ${planProgress}.`);
+    };
     
-    STEP_LOOP: for (let step = 0; step < 10; step++) {
+    STEP_LOOP: for (let step = 0; step < 12; step++) {
       const t0 = Date.now();
-    // Enforce chart_query for plotting intents
-    const qlc = String(question||'').toLowerCase();
-    if (/(plot|chart|graph|scatter|histogram|heatmap)\b/.test(qlc)) {
-      convo.push({ role: 'model', content: 'Reminder: For plotting questions, first call chart_query to produce a plan and chart with dataRef, then execute the plan and finalize with the chart.' });
-    }
-    const reply = await callGeminiChat(convo, {});
+      const reply = await callGeminiChat(convo, {});
       const dt = Date.now() - t0;
       log(`LLM step ${step} took ${dt}ms`);
       
-      if (!reply) break;
+      if (!reply) {
+        const emergency = runEmergencyAnalysis({ question, selectionRooms, room, range: rr });
+        if (emergency) {
+          const mergedTrace = Array.isArray(emergency.trace) ? [...trace, ...emergency.trace] : trace;
+          return { ...emergency, trace: mergedTrace };
+        }
+        break;
+      }
       if (DEBUG) log('LLM raw reply:', reply.slice(0, 600));
       
       // Force finalization if we've made enough tool calls
-      if (totalToolCalls >= 6 && step >= 4) {
+      if (totalToolCalls >= 8 && step >= 5) {
         const recentlyPaired = trace.some(t => t.tool === 'pair_timeseries');
-        if (recentlyPaired && step < 4) {
+        if (recentlyPaired && step < 5) {
           // Allow one extra iteration to let the model produce a chart using the paired dataRef
           log('Skipping forced finalization to allow scatter pairing (step', step, ')');
         } else {
           log('Strongly encouraging finalization after', totalToolCalls, 'tool calls at step', step);
         
         // CRITICAL: After 2 tools and step 2+, FORCE finalization with very explicit instructions
-        if (step >= 3) {
+        if (step >= 4) {
           const ql = question.toLowerCase();
           const isCorrelationPlot = ql.includes('correlation') && (ql.includes('plot') || ql.includes('show'));
-          const isScatterPlot = ql.includes('scatter') || ql.includes('scatterplot');
+          const isScatterPlot = ql.includes('scatter') || ql.includes('scatterplot') || ql.includes(' vs ') || ql.includes(' against ');
           const isCompare = ql.includes('compare') || ql.includes('vs') || ql.includes('versus');
           const isRatioQuery = question.toLowerCase().includes('per person') || 
                                question.toLowerCase().includes('per capita') ||
@@ -6453,7 +8567,7 @@ OR if no chart is needed:
 {"action": "final", "answer": "<your answer>", "chart": null}`;
           }
           
-          convo.push({ role: 'model', content: hint });
+          convo.push({ role: 'user', content: hint });
           continue STEP_LOOP; // Force another iteration with this guidance
         }
       }
@@ -6532,7 +8646,7 @@ OR if no chart is needed:
             trimmed.match(/,\s*\d+\.\d+\]$/))) {
           log('Detected truncated response with embedded data arrays');
           convo.push({
-            role: 'model',
+            role: 'user',
             content: `CRITICAL ERROR: Your response was truncated because you embedded data arrays directly in the JSON.
 
 YOU MUST USE dataRef TO REFERENCE TOOL RESULTS. THIS IS MANDATORY.
@@ -6570,7 +8684,7 @@ Respond again with dataRef, NOT data arrays.`
         if (trimmed.includes('"data":[[') || trimmed.match(/"data":\s*\[\[/)) {
           log('Detected embedded data array in response');
           convo.push({
-            role: 'model',
+            role: 'user',
             content: `CRITICAL ERROR: You embedded a data array in your chart JSON. This is FORBIDDEN and ALWAYS fails.
 
 You wrote something like:
@@ -6607,9 +8721,8 @@ Respond again with dataRef, NOT embedded data.`
         // CRITICAL: Reject plain text responses - force JSON format
         const plain = String(reply || '').trim();
         if (plain.length > 20 && /[a-zA-Z]/.test(plain) && !plain.startsWith('{')) {
-          // After step 5, auto-wrap plain text in JSON as last resort
-          if (step >= 5 && totalToolCalls >= 2) {
-            log('Auto-wrapping plain text response in JSON (step', step, ')');
+          if (totalToolCalls > 0 && (step >= 4 || attempt >= 1)) {
+            log('Auto-wrapping plain text response after tooling');
             return {
               message: assistantMessage(plain),
               chart: null,
@@ -6619,7 +8732,7 @@ Respond again with dataRef, NOT embedded data.`
           
           log('Rejecting plain text response, enforcing JSON format');
           convo.push({
-            role: 'model',
+            role: 'user',
             content: `CRITICAL ERROR: You provided a plain text response instead of JSON. This is NOT acceptable.
 
 Your response started with:
@@ -6635,7 +8748,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
         }
         
         convo.push({
-          role: 'model',
+          role: 'user',
           content: `CRITICAL ERROR: Response could not be parsed as valid JSON. You must respond with a JSON object using the documented schema (action/tool_calls/final/chart). Resend your answer in the required JSON format.`
         });
         continue STEP_LOOP;
@@ -6643,7 +8756,7 @@ Copy the above format and fill in your complete answer. Use proper JSON syntax.`
         // After step 2, if reply is not valid JSON with "action", force a JSON answer
         if (step >= 2 && (!obj || !obj.action)) {
           convo.push({
-            role: 'model',
+            role: 'user',
             content: `MANDATORY: Respond ONLY with a valid JSON object. 
 Repeat the selected time window exactly as shown below in your answer.
 Time window: Local: ${startFmt} to ${endFmt} (Epoch ms: start=${rr.start ?? 'none'} end=${rr.end ?? 'none'})
@@ -6687,8 +8800,91 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         
         // Feed back all results together
         convo.push({ 
-          role: 'model', 
+          role: 'user', 
           content: `{"tool_results": ${JSON.stringify(results).slice(0, 15000)} }` 
+        });
+        continue STEP_LOOP;
+      }
+      
+      if (obj && obj.action === 'plan') {
+        consecutivePlanReplies += 1;
+        if (planConfirmed) {
+          planLoopStrikes += 1;
+          if (planLoopStrikes >= 3) {
+            const defFallback = runDefinitionFallback(question);
+            if (defFallback) return defFallback;
+            const emergencyPlan = runEmergencyAnalysis({ question, selectionRooms, room, range: rr });
+            if (emergencyPlan) return emergencyPlan;
+            planLoopStrikes = 0;
+          }
+        } else {
+          planLoopStrikes = 0;
+        }
+        if (planConfirmed) {
+          const nextStep = planSteps?.[Math.min(planProgress, planSteps.length - 1)]?.text || 'the first step of your existing plan';
+          const severity = consecutivePlanReplies >= 3
+            ? `CRITICAL: Stop resending the plan. Immediately execute ${nextStep} by calling the appropriate tool (e.g., fetch_timeseries, stats, compare_series_cross_room).`
+            : `Plan already confirmed. Proceed with ${nextStep} by calling the required tool instead of replanning.`;
+          convo.push({
+            role: 'user',
+            content: severity
+          });
+          continue STEP_LOOP;
+        }
+        const rawSteps = Array.isArray(obj.steps) ? obj.steps : [];
+        const normalized = rawSteps
+          .map((step, idx) => {
+            if (typeof step === 'string') {
+              const text = step.trim();
+              return text ? { index: idx + 1, text } : null;
+            }
+            if (step && typeof step === 'object') {
+              const text = String(step.text ?? step.description ?? step.step ?? step.goal ?? '').trim();
+              const label = step.name || step.title || null;
+              if (text) return { index: step.index || step.id || idx + 1, text, label };
+              const fallback = JSON.stringify(step);
+              return { index: step.index || step.id || idx + 1, text: fallback };
+            }
+            if (step == null) return null;
+            return { index: idx + 1, text: String(step).trim() };
+          })
+          .filter(Boolean);
+        if (normalized.length < 2) {
+          convo.push({
+            role: 'user',
+            content: 'Plan must include at least two concrete steps referencing the metrics/tools you intend to use. Respond again with {"action":"plan","steps":[...]}'
+          });
+        } else {
+          planConfirmed = true;
+          planSteps = normalized.map((step, idx) => ({
+            index: step?.index || step?.id || idx + 1,
+            text: step?.text || step?.description || step?.goal || '',
+            label: step?.label || step?.name || step?.title || null
+          }));
+          planStatus = planSteps.map((step, idx) => ({
+            index: step?.index || step?.id || idx + 1,
+            text: step?.text || step?.description || step?.goal || '',
+            label: step?.label || step?.name || step?.title || null,
+            done: false
+          }));
+          planProgress = 0;
+          trace.push({ tool: 'plan', args: { steps: planSteps }, result: null });
+          const initialStep = planStatus[0];
+          const note = initialStep
+            ? `Plan locked. Begin Step ${initialStep.index}: ${initialStep.text} by calling the appropriate tool (e.g., fetch_timeseries, stats, compare_series_cross_room) using {"action":"tool_call","tool":"<name>","args":{...}}.`
+            : 'Plan locked. Execute the outlined steps with the required tools.';
+          pushPlanProgress(note);
+        }
+        continue STEP_LOOP;
+      }
+
+      consecutivePlanReplies = 0;
+      planLoopStrikes = 0;
+
+      if (!planConfirmed) {
+        convo.push({
+          role: 'user',
+          content: 'MANDATORY: Provide {"action":"plan","steps":[...]} before calling tools or finalizing. Outline 2-4 analytical steps that reference the data or tools you will use.'
         });
         continue STEP_LOOP;
       }
@@ -6712,28 +8908,35 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
                        String(question||'').toLowerCase().includes('temperature') || String(question||'').toLowerCase().includes('temp') ? 'temperature' :
                        String(question||'').toLowerCase().includes('co2') ? 'co2' :
                        String(question||'').toLowerCase().includes('lux') || String(question||'').toLowerCase().includes('light') ? 'lux' : null);
-          function inferTbl(m) { if (!m) return null; if (['co2','temperature','humidity','lux'].includes(m)) return 'iaq'; if (m==='people_count') return 'people'; if (m==='total_kwh') return 'energy'; return null; }
           if (want) {
             if (tool === 'fetch_timeseries') {
               if (!args.fields || !args.fields.length || !args.fields.includes(want)) args.fields = [want];
-              if (!args.table) { const t = inferTbl(want); if (t) args.table = t; }
+              if (!args.table) { const t = inferDefaultTableForMetric(want); if (t) args.table = t; }
             } else if (tool === 'hourly_timeseries' || tool === 'daily_avg' || tool === 'stats' || tool === 'hour_of_day_stats' || tool === 'histogram') {
               if (!args.field) args.field = want;
-              if (!args.table) { const t = inferTbl(want); if (t) args.table = t; }
+              if (!args.table) { const t = inferDefaultTableForMetric(want); if (t) args.table = t; }
             }
           }
+          prepareToolArgs(tool, args);
           let result = null;
           try { result = tools[tool](args); } catch (e) { result = { error: String(e) }; }
           results.push({ tool, args, result });
           trace.push({ tool, args, result });
           totalToolCalls += 1;
+          if (needsRoomComparison && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
+            comparisonSatisfied = true;
+          }
+          if (requireRoomRanking && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
+            rankingSatisfied = true;
+          }
         }
-        convo.push({ role: 'model', content: `{"tool_results": ${JSON.stringify(results).slice(0, 15000)} }` });
+        markPlanStepComplete();
+        convo.push({ role: 'user', content: `{"tool_results": ${JSON.stringify(results).slice(0, 15000)} }` });
         continue STEP_LOOP;
       }
       if (obj.action === 'tool_calls' && !Array.isArray(obj.tools)) {
         convo.push({
-          role: 'model',
+          role: 'user',
           content: 'ERROR: Received tool_calls without a tools array. Respond with a proper JSON final answer.'
         });
         continue STEP_LOOP;
@@ -6747,7 +8950,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         
         if (!tools[tool]) {
           convo.push({ 
-            role: 'model', 
+            role: 'user', 
             content: `Tool ${tool} not found.` 
           });
           break;
@@ -6763,16 +8966,16 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
                      String(question||'').toLowerCase().includes('temperature') || String(question||'').toLowerCase().includes('temp') ? 'temperature' :
                      String(question||'').toLowerCase().includes('co2') ? 'co2' :
                      String(question||'').toLowerCase().includes('lux') || String(question||'').toLowerCase().includes('light') ? 'lux' : null);
-        function inferTbl(m) { if (!m) return null; if (['co2','temperature','humidity','lux'].includes(m)) return 'iaq'; if (m==='people_count') return 'people'; if (m==='total_kwh') return 'energy'; return null; }
         if (want) {
           if (tool === 'fetch_timeseries') {
             if (!filledArgs.fields || !filledArgs.fields.length || !filledArgs.fields.includes(want)) filledArgs.fields = [want];
-            if (!filledArgs.table) { const t = inferTbl(want); if (t) filledArgs.table = t; }
+            if (!filledArgs.table) { const t = inferDefaultTableForMetric(want); if (t) filledArgs.table = t; }
           } else if (tool === 'hourly_timeseries' || tool === 'daily_avg' || tool === 'stats' || tool === 'hour_of_day_stats' || tool === 'histogram') {
             if (!filledArgs.field) filledArgs.field = want;
-            if (!filledArgs.table) { const t = inferTbl(want); if (t) filledArgs.table = t; }
+            if (!filledArgs.table) { const t = inferDefaultTableForMetric(want); if (t) filledArgs.table = t; }
           }
         }
+        prepareToolArgs(tool, filledArgs);
         
         let result = null;
         try { 
@@ -6785,7 +8988,14 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           result.length : 
           (result && typeof result === 'object' ? Object.keys(result).length : 0);
         log('Tool result size hint:', sizeHint);
-               trace.push({ tool, args, result });
+        trace.push({ tool, args, result });
+        if (needsRoomComparison && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
+          comparisonSatisfied = true;
+        }
+        if (requireRoomRanking && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
+          rankingSatisfied = true;
+        }
+        markPlanStepComplete();
         
         // If compare tool returned series, finalize immediately with a ready-to-plot chart
         if (tool === 'compare_series_cross_room' && result && typeof result === 'object' && !Array.isArray(result)) {
@@ -6898,62 +9108,19 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         }
 
         // Feed back a structured tool result frame when not finalizing
-        convo.push({ role: 'model', content: `{"tool_result": { "tool": ${JSON.stringify(tool)}, "args": ${JSON.stringify(filledArgs)}, "result": ${JSON.stringify(result).slice(0, 10000)} }}` });
+        convo.push({ role: 'user', content: `{"tool_result": { "tool": ${JSON.stringify(tool)}, "args": ${JSON.stringify(filledArgs)}, "result": ${JSON.stringify(result).slice(0, 10000)} }}` });
         
-        // If the selected window produced no data, fetch meta to help the model adapt
-        if ((tool === 'fetch_timeseries' && Array.isArray(result) && result.length === 0) || 
+        // If the selected window produced no data, fetch meta to inform the model (but do not auto-expand the window)
+        if ((tool === 'fetch_timeseries' && Array.isArray(result) && result.length === 0) ||
             (tool === 'stats' && (!result || !Number(result.count)))) {
           try {
-            const meta = tools.fetch_table_meta({ 
-              room: filledArgs.room, 
-              table: filledArgs.table || filledArgs.table1 || filledArgs.table2 
+            const meta = tools.fetch_table_meta({
+              room: filledArgs.room,
+              table: filledArgs.table || filledArgs.table1 || filledArgs.table2
             });
-            
-            // For "latest" queries, automatically retry with the actual data range
-            const isLatestQuery = question.toLowerCase().includes('latest') || 
-                                 question.toLowerCase().includes('most recent') ||
-                                 question.toLowerCase().includes('current');
-            
-            if (isLatestQuery && meta.tsMax != null && meta.count > 0) {
-              log('Auto-adapting "latest" query to actual data range');
-              const adaptedArgs = { ...filledArgs, start: null, end: meta.tsMax };
-              try {
-                const adaptedResult = tools[tool](adaptedArgs);
-                if ((Array.isArray(adaptedResult) && adaptedResult.length > 0) || 
-                    (adaptedResult && typeof adaptedResult === 'object' && adaptedResult.count > 0)) {
-                  log('Auto-adaptation successful, using adapted result');
-                  result = adaptedResult;
-                  convo.push({ 
-                    role: 'model', 
-                    content: `{"tool_result_adapted": { "tool": ${JSON.stringify(tool)}, "args": ${JSON.stringify(adaptedArgs)}, "result": ${JSON.stringify(result).slice(0, 10000)}, "note": "Query adapted to use actual data range since selected window had no data. Data available from ${new Date(meta.tsMin).toISOString()} to ${new Date(meta.tsMax).toISOString()}" }}` 
-                  });
-                  adaptationNotes.push(`Selected window returned no rows; showing latest available data up to ${formatLocal(meta.tsMax)}.`);
-                  continue STEP_LOOP;
-                }
-              } catch {}
-            } else if (meta && meta.count > 0 && meta.tsMin != null && meta.tsMax != null) {
-              const adaptedArgs = { ...filledArgs, start: meta.tsMin, end: meta.tsMax };
-              try {
-                const adaptedResult = tools[tool](adaptedArgs);
-                if ((Array.isArray(adaptedResult) && adaptedResult.length > 0) || 
-                    (adaptedResult && typeof adaptedResult === 'object' && adaptedResult.count > 0)) {
-                  log('Auto-adapting to full available range', adaptedArgs);
-                  result = adaptedResult;
-                  convo.push({
-                    role: 'model',
-                    content: `{"tool_result_adapted": { "tool": ${JSON.stringify(tool)}, "args": ${JSON.stringify(adaptedArgs)}, "result": ${JSON.stringify(result).slice(0, 10000)}, "note": "Selected window had no rows. Showing available data from ${new Date(meta.tsMin).toISOString()} to ${new Date(meta.tsMax).toISOString()}." }}`
-                  });
-                  adaptationNotes.push(`Selected window returned no rows; showing available data from ${formatLocal(meta.tsMin)} to ${formatLocal(meta.tsMax)} instead.`);
-                  continue STEP_LOOP;
-                }
-              } catch (e) {
-                log('Full-range adaptation failed:', String(e));
-              }
-            }
-            
-            convo.push({ 
-              role: 'model', 
-              content: `{"tool_hint": { "note": "No rows found in selected window; meta shown to help adaptation.", "meta": ${JSON.stringify(meta)} }}` 
+            convo.push({
+              role: 'user',
+              content: `{"tool_hint": { "note": "No rows found in selected window; meta shown to help adaptation.", "meta": ${JSON.stringify(meta)} }}`
             });
           } catch {}
         }
@@ -6992,12 +9159,18 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       } else if (obj.action === 'final') {
         log('Finalizing answer. Chart provided?', !!obj.chart);
 
+        const executedToolCount = countTraceToolExecutions(trace);
+        if (planConfirmed && executedToolCount === 0) {
+          pushPlanProgress('Plan recorded but no tools have been executed. Execute Step 1 with the required tool before finalizing.');
+          continue STEP_LOOP;
+        }
+
         // If model returned embedded arrays or no dataRef, retrofit to dataRef
         if (obj.chart && obj.chart.series && Array.isArray(obj.chart.series)) {
           try {
             const tablesSets = availableFieldsByTable(room);
             const ql2 = (question || '').toLowerCase();
-            const isVsQuery = /\bvs\b/.test(ql2) || ql2.includes('scatter');
+    const isVsQuery = /\bvs\b/.test(ql2) || /\bagainst\b/.test(ql2) || ql2.includes('scatter');
 
             function scrubDataArrays(series) {
               if (series && Array.isArray(series.data)) delete series.data; // prevent truncation
@@ -7050,7 +9223,38 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
                     const yTitle = yAx[yIdx]?.title?.text;
                     field = inferFieldName(yTitle, tablesSets) || field;
                   }
-                  if (field) {
+                  const normField = (value) => String(value || '').trim().toLowerCase();
+                  const candidateTools = new Set(['hourly_timeseries', 'daily_avg', 'fetch_timeseries']);
+                  const match = (() => {
+                    for (let i = trace.length - 1; i >= 0; i--) {
+                      const entry = trace[i];
+                      if (!entry || !candidateTools.has(entry.tool)) continue;
+                      const args = entry.args || {};
+                      const entryField = args.field || (Array.isArray(args.fields) ? args.fields[0] : null);
+                      if (field && entryField && normField(entryField) !== normField(field)) continue;
+                      return entry;
+                    }
+                    return null;
+                  })();
+                  if (match) {
+                    const refObj = {
+                      tool: match.tool,
+                      room: match.args?.room,
+                      table: match.args?.table || match.args?.table1 || match.args?.table2
+                    };
+                    if (match.tool === 'hourly_timeseries' || match.tool === 'daily_avg') {
+                      refObj.field = match.args?.field || field;
+                      refObj.xField = 'ts';
+                      refObj.yField = 'avg';
+                    } else if (match.tool === 'fetch_timeseries') {
+                      refObj.fields = match.args?.fields || (field ? [field] : undefined);
+                      refObj.xField = 'ts';
+                      refObj.yField = field;
+                    }
+                    if (!refObj.yField) refObj.yField = 'value';
+                    s.dataRef = refObj;
+                    scrubDataArrays(s);
+                  } else if (field) {
                     s.dataRef = { tool: 'fetch_timeseries', xField: 'ts', yField: field };
                     scrubDataArrays(s);
                   }
@@ -7064,189 +9268,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           }
         }
 
-        // If no chart provided, infer a useful one from the question
-        if (!obj.chart || !obj.chart.series || !obj.chart.series.length) {
-          try {
-            const tablesSets = availableFieldsByTable(room);
-            const ql = (question||'').toLowerCase();
-            const isHist = ql.includes('histogram') || ql.includes('distribution');
-            if (isHist) {
-              const fields = parseFieldsFromQuestion(question, tablesSets);
-              const f = fields[0] || 'odor_level';
-              obj.chart = {
-                chart: { type: 'column' },
-                title: { text: `${f} distribution` },
-                xAxis: { title: { text: f } },
-                yAxis: { title: { text: 'Count' } },
-                series: [{ name: `${f} histogram`, dataRef: { tool: 'histogram', field: f, xField: 'binStart', yField: 'count' } }]
-              };
-            } else {
-              const fields = parseFieldsFromQuestion(question, tablesSets);
-              const floorAll = isAllRooms(room) && Array.isArray(selectionRooms) && selectionRooms.length;
-              if (fields.length >= 2) {
-                obj.chart = {
-                  chart: { type: 'scatter' },
-                  title: { text: `${fields[0]} vs ${fields[1]}` },
-                  xAxis: { title: { text: fields[0] } },
-                  yAxis: { title: { text: fields[1] } },
-                  series: [{ name: `${fields[0]} vs ${fields[1]}`, dataRef: { tool: 'pair_timeseries', xField: 'x', yField: 'y', field1: fields[0], field2: fields[1] } }]
-                };
-              } else if ((fields.length === 1 && !floorAll) || (wantsChart(question) && !floorAll)) {
-                const f = fields[0] || 'temperature';
-                obj.chart = {
-                  chart: { type: 'line' },
-                  title: { text: `${f} over time` },
-                  xAxis: { type: 'datetime' },
-                  yAxis: { title: { text: f } },
-                  series: [{ name: f, dataRef: { tool: 'fetch_timeseries', xField: 'ts', yField: f } }]
-                };
-              } else if (floorAll && fields.length >= 1) {
-                // Build cross-room comparison line chart for selected rooms
-                const f = fields[0];
-                obj.chart = {
-                  chart: { type: 'line' },
-                  title: { text: `${f} across rooms` },
-                  xAxis: { type: 'datetime' },
-                  yAxis: { title: { text: f } },
-                  series: selectionRooms.slice(0, 8).map(r => ({ name: `${r} ${f}`, dataRef: { tool: 'compare_series_cross_room', field: `${r} ${f}`, xField: 'ts', yField: 'y' } }))
-                };
-                // Ensure compare tool result is present in trace
-                try {
-                  const compareArgs = { start: rr.start || undefined, end: rr.end || undefined, series: [] };
-                  for (const r of selectionRooms.slice(0, 8)) {
-                    const t = loadRoomTables(r);
-                    let tableMatch = null;
-                    for (const [tname, rows] of Object.entries(t)) {
-                      if (rows.length && Object.keys(rows[0] || {}).includes(f)) { tableMatch = tname; break; }
-                    }
-                    compareArgs.series.push({ room: r, table: tableMatch || 'iaq', field: f, name: `${r} ${f}` });
-                  }
-                  const compareResult = tools.compare_series_cross_room(compareArgs);
-                  trace.push({ tool: 'compare_series_cross_room', args: compareArgs, result: compareResult });
-                } catch (e) { log('auto-compare build failed:', String(e)); }
-              }
-            }
-          } catch (e) {
-            log('Auto-chart inference failed:', String(e));
-          }
-        }
-
-        // Find all dataRefs in the chart
-        const missingToolCalls = [];
-        if (obj.chart && obj.chart.series) {
-          for (const series of obj.chart.series) {
-            if (series.dataRef) {
-              const ref = series.dataRef;
-              // Check if tool result is in trace
-              const found = trace.some(t => t.tool === ref.tool && (!ref.room || (t.args && String(t.args.room) === String(ref.room))));
-              if (!found) {
-                // Prepare tool call args
-                let args = {};
-                if (ref.tool === 'fetch_timeseries') {
-                  const preferredRoom = ref.room || (isAllRooms(room) ? null : room);
-                  const binding = resolveFieldBinding(ref.yField || ref.field, selectionRooms, preferredRoom) || null;
-                  const roomForRef = binding?.room || preferredRoom || (selectionRooms && selectionRooms[0]) || inferRoomFromText(series.name) || inferRoomFromText(question) || room;
-                  const fieldName = binding?.fieldName || ref.yField || ref.field;
-                  if (!roomForRef || !fieldName) continue;
-                  const tableName = binding?.table || resolveTable(roomForRef, 'iaq');
-                  args = {
-                    room: roomForRef,
-                    table: tableName,
-                    fields: [fieldName],
-                    start: (range && range.start) || undefined,
-                    end: (range && range.end) || undefined
-                  };
-                  if (fieldName && ref.yField && fieldName !== ref.yField) ref.yField = fieldName;
-                } else if (ref.tool === 'pair_timeseries') {
-                  const tablesSets = availableFieldsByTable(selectionRooms && selectionRooms[0] ? selectionRooms[0] : room || '');
-                  let f1 = ref.field1;
-                  let f2 = ref.field2;
-                  if ((!f1 || !f2) && series && typeof series.name === 'string') {
-                    const parts = series.name.split(/\s+vs\s+|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
-                    if (parts.length >= 2) {
-                      f1 = f1 || inferFieldName(parts[0], tablesSets) || parts[0];
-                      f2 = f2 || inferFieldName(parts[1], tablesSets) || parts[1];
-                    }
-                  }
-                  f1 = f1 || ref.yField || inferFieldName(question, tablesSets) || 'temperature';
-                  f2 = f2 || inferFieldName(question, tablesSets) || 'humidity';
-                  const preferredRoom = ref.room || (selectionRooms && selectionRooms[0]) || (isAllRooms(room) ? null : room);
-                  const binding1 = resolveFieldBinding(f1, selectionRooms, preferredRoom);
-                  const roomForRef = binding1?.room || preferredRoom || inferRoomFromText(series.name) || inferRoomFromText(question) || room;
-                  if (!roomForRef) continue;
-                  const binding2 = resolveFieldBinding(f2, selectionRooms, roomForRef) || resolveFieldBinding(f2, selectionRooms, preferredRoom);
-                  const table1 = binding1?.table || resolveTable(roomForRef, 'iaq');
-                  const table2 = (binding2 && binding2.room === roomForRef) ? binding2.table : resolveTable(roomForRef, table1);
-                  const field1Name = binding1?.fieldName || f1;
-                  const field2Name = (binding2 && binding2.fieldName) || f2;
-                  if (!field1Name || !field2Name) continue;
-                  args = {
-                    room: roomForRef,
-                    table1,
-                    field1: field1Name,
-                    table2,
-                    field2: field2Name,
-                    start: (range && range.start) || undefined,
-                    end: (range && range.end) || undefined
-                  };
-                  ref.field1 = field1Name;
-                  ref.field2 = field2Name;
-                } else if (ref.tool === 'histogram') {
-                  const binding = resolveFieldBinding(ref.field, selectionRooms, ref.room || (isAllRooms(room) ? null : room));
-                  const roomForRef = binding?.room || ref.room || (selectionRooms && selectionRooms[0]) || inferRoomFromText(series.name) || inferRoomFromText(question) || room;
-                  const fieldName = binding?.fieldName || ref.field;
-                  if (!roomForRef || !fieldName) continue;
-                  const tableName = binding?.table || resolveTable(roomForRef, 'iaq');
-                  args = { room: roomForRef, table: tableName, field: fieldName, bins: ref.bins || 12, start: (range && range.start) || undefined, end: (range && range.end) || undefined };
-                } else if (ref.tool === 'compare_series_cross_room') {
-                  const roomsList = Array.isArray(selectionRooms) && selectionRooms.length ? selectionRooms.slice(0, 8) : (room && !isAllRooms(room) ? [room] : listRooms().slice(0, 4));
-                  const tablesSetsAny = roomsList.length ? availableFieldsByTable(roomsList[0]) : {};
-                  let field = ref.yField || ref.field || inferFieldName(series.name, tablesSetsAny) || inferFieldName(question, tablesSetsAny) || 'temperature';
-                  const seriesArgs = [];
-                  for (const r of roomsList) {
-                    const binding = resolveFieldBinding(field, [r], r);
-                    if (!binding) continue;
-                    const label = friendlySeriesLocation(binding.room, binding.room);
-                    seriesArgs.push({
-                      room: binding.room,
-                      table: binding.table,
-                      field: binding.fieldName,
-                      name: `${label} ${humanizeMetricName(binding.fieldName)}`
-                    });
-                  }
-                  if (seriesArgs.length) {
-                    args = { start: (range && range.start) || undefined, end: (range && range.end) || undefined, series: seriesArgs };
-                  } else {
-                    continue;
-                  }
-                } else if (ref.tool === 'weather_fetch') {
-                  const fields = Array.isArray(ref.fields) && ref.fields.length ? ref.fields : ['temp', 'humidity'];
-                  const buildingHint = (scopeLabels && scopeLabels.building) || inferBuildingFromContext();
-                  args = {
-                    building: buildingHint || undefined,
-                    room: (selectionRooms && selectionRooms[0]) || undefined,
-                    fields,
-                    start: (range && range.start) || undefined,
-                    end: (range && range.end) || undefined
-                  };
-                }
-                // Add other tool types as needed
-                if (args) {
-                  missingToolCalls.push({ tool: ref.tool, args });
-                }
-              }
-            }
-          }
-        }
-
-        // If missing tool calls, run them and add to trace
-        for (const call of missingToolCalls) {
-          if (tools[call.tool]) {
-            const result = tools[call.tool](call.args);
-            trace.push({ tool: call.tool, args: call.args, result });
-            log(`Auto-ran missing tool: ${call.tool}`, call.args);
-          }
-        }
+        ensureChartData(obj.chart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
 
         // Now resolve chart as usual
         const chartRequested = !!(obj.chart && Array.isArray(obj.chart.series) && obj.chart.series.length);
@@ -7254,33 +9276,6 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         let validChart = chartRequested ? validateChart(cloneChart(obj.chart), trace) : null;
         if (obj.chart && !validChart) {
           log('Chart validation failed - attempting fallback synthesis');
-        }
-
-        // Fallback: if no valid chart, synthesize from latest compare_series_cross_room
-        if (!validChart) {
-          if (chartRequested) {
-            adaptationNotes.push('No chartable data returned for the requested scope; providing narrative summary instead.');
-          }
-          try {
-            let lastCompare = null;
-            for (let i = trace.length - 1; i >= 0; i--) {
-              const t = trace[i];
-              if (t && t.tool === 'compare_series_cross_room' && t.result && typeof t.result === 'object') { lastCompare = t; break; }
-            }
-            if (lastCompare) {
-              const keys = Object.keys(lastCompare.result || {}).slice(0, 8);
-              if (keys.length) {
-                const series = keys.map((k) => ({ name: String(k), dataRef: { tool: 'compare_series_cross_room', field: k, xField: 'ts', yField: 'y' } }));
-                const fallbackChart = { chart: { type: 'line' }, title: { text: 'Cross-Room Comparison' }, xAxis: { type: 'datetime', title: { text: 'Time' } }, yAxis: { title: { text: 'Value' } }, series };
-                const vc = validateChart(cloneChart(fallbackChart), trace);
-                if (vc) {
-                  validChart = vc;
-                  chartForAnswer = fallbackChart;
-                  log('Synthesized fallback chart from compare_series_cross_room');
-                }
-              }
-            }
-          } catch (e) { log('Fallback chart synthesis failed:', String(e)); }
         }
 
         // Optionally execute background tools and return as extras
@@ -7338,14 +9333,28 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           if ((!validChart || !chartForAnswer || !isScatter || !hasDataRef || !scatterHasData) && scatterRetryCount < 2) {
             scatterRetryCount++;
             convo.push({
-              role: 'model',
+              role: 'user',
               content: 'You must return a scatter chart with a valid dataRef referencing the tool results before finalizing. Call pair_timeseries or building_temp_weather_corr/building_temp_weather_scatter to generate data for the scatter and include it in your final chart.'
             });
             continue STEP_LOOP;
           }
         }
+        if (needsRoomComparison && !comparisonSatisfied) {
+          convo.push({
+            role: 'user',
+            content: `You still need to compare ${comparisonRoomsList || 'the selected rooms'} using compare_rooms_on_metric or compare_series_cross_room before finalizing. Call the comparison tool and summarize the differences.`
+          });
+          continue STEP_LOOP;
+        }
+        if (requireRoomRanking && !rankingSatisfied) {
+          convo.push({
+            role: 'user',
+            content: `You still need to rank ${rankingRoomsList || 'the selected rooms'} by their occupancy metrics. Call compare_rooms_on_metric (preferred) or compare_series_cross_room on people_count/occupancy to produce the ranking and identify underused rooms before finalizing.`
+          });
+          continue STEP_LOOP;
+        }
 
-        const chartForResponse = validChart ? chartForAnswer : null;
+        let chartForResponse = validChart ? validChart : null;
         const needsChart = questionRequiresChart(question);
         const chartHasSeries = chartForResponse && Array.isArray(chartForResponse.series) && chartForResponse.series.length;
         if (needsChart && !chartHasSeries) {
@@ -7353,29 +9362,110 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           if (!allowNoChart && chartRetryCount < 2) {
             chartRetryCount++;
             convo.push({
-              role: 'model',
+              role: 'user',
               content: 'You must include a chart with valid dataRef references before finalizing. Call the appropriate tool (e.g., fetch_timeseries, compare_series_cross_room, scope_heatmap) and structure the chart with dataRef pointing to that tool result.'
             });
             continue STEP_LOOP;
           }
         }
-        const answerText = buildDefaultAnswer({
-          question,
-          chart: validChart,
-          trace,
-          fallbackText: obj.answer || reply || '',
-          notes: adaptationNotes,
-          range
-        });
-        let finalAnswer = answerText;
+        if (histogramRequested) {
+          const type = (chartForResponse?.chart?.type || chartForResponse?.type || '').toLowerCase();
+          const acceptableType = type === 'column' || type === 'bar' || type === 'histogram';
+          const histogramSeriesValid = chartForResponse
+            && Array.isArray(chartForResponse.series)
+            && chartForResponse.series.length > 0
+            && chartForResponse.series.every((series) => series?.dataRef && (series.dataRef.tool === 'histogram' || series.dataRef.tool === 'field_histogram'));
+          if (!chartForResponse || !acceptableType || !histogramSeriesValid) {
+            chartRetryCount++;
+            convo.push({
+              role: 'user',
+              content: 'A histogram/distribution was requested. Call histogram or field_histogram for the requested metric(s) and provide a column-style chart that references those tool results via dataRef before finalizing.'
+            });
+            continue STEP_LOOP;
+          }
+        }
+        if (heatmapRequested) {
+          const type = (chartForResponse?.chart?.type || chartForResponse?.type || '').toLowerCase();
+          const acceptableType = type === 'heatmap';
+          const heatmapTools = new Set(['scope_heatmap', 'correlation_matrix', 'hour_of_day_stats', 'weekday_weekend_comparison', 'busiest_day_of_week']);
+          const hasHeatmapData = acceptableType
+            && Array.isArray(chartForResponse?.series)
+            && chartForResponse.series.every((series) => {
+              const toolName = series?.dataRef?.tool;
+              if (!toolName) return false;
+              if (heatmapTools.has(toolName)) return true;
+              if (series?.dataRef?.format === 'heatmap') return true;
+              return false;
+            });
+          if (!acceptableType || !hasHeatmapData) {
+            chartRetryCount++;
+            convo.push({
+              role: 'user',
+              content: 'A heatmap was requested. Call scope_heatmap or correlation_matrix to build heatmap data, then return a heatmap chart referencing that tool via dataRef before finalizing.'
+            });
+            continue STEP_LOOP;
+          }
+        }
+
+        const dataPresent = traceHasData(trace);
+        const llmAnswer = typeof obj.answer === 'string' ? obj.answer.trim() : '';
+        let finalAnswer = llmAnswer && !isPlaceholderAnswer(llmAnswer)
+          ? llmAnswer
+          : buildDefaultAnswer({
+              question,
+              chart: validChart,
+              trace,
+              fallbackText: llmAnswer || reply || '',
+              notes: adaptationNotes,
+              range
+            });
+        if (!llmAnswer && planSteps.length) {
+          const summary = planSteps.map((step, idx) => {
+            const label = step && step.text ? step.text : '';
+            return `Step ${step?.index ?? idx + 1}: ${label}`;
+          }).join(' | ');
+          finalAnswer = `${finalAnswer}\nPlan executed: ${summary}`;
+        }
+        if (requireRoomRanking) {
+          const type = (chartForResponse?.chart?.type || chartForResponse?.type || '').toLowerCase();
+          const acceptableType = type === 'column' || type === 'bar';
+          const rankingTools = new Set(['compare_rooms_on_metric', 'compare_series_cross_room', 'compare_metrics_in_room', 'scope_daily_percentile']);
+          const rankingSeriesValid = chartForResponse
+            && Array.isArray(chartForResponse.series)
+            && chartForResponse.series.some((series) => {
+              const toolName = series?.dataRef?.tool;
+              return toolName && rankingTools.has(toolName);
+            });
+          if (!chartForResponse || !acceptableType || !rankingSeriesValid) {
+            chartRetryCount++;
+            convo.push({
+              role: 'user',
+              content: 'A room ranking was requested. Include a column or bar chart that references compare_rooms_on_metric (or another comparison tool) via dataRef so the busiest and underused rooms are visualized before finalizing.'
+            });
+            continue STEP_LOOP;
+          }
+        }
         if (!finalAnswer || normalizeText(finalAnswer) === normalizeText(question)) {
-          const chartSummary = summarizeChart(validChart);
+          const fallbackChartSummary = summarizeChart(validChart);
           const insight = traceInsight(trace);
-          finalAnswer = chartSummary || insight || 'I analyzed the available data for the selected scope and time window.';
+          finalAnswer = fallbackChartSummary || insight || 'I analyzed the available data for the selected scope and time window.';
           if (Array.isArray(adaptationNotes) && adaptationNotes.length) {
             finalAnswer += ' ' + adaptationNotes.join(' ');
           }
         }
+        if (!dataPresent) {
+          finalAnswer = 'No telemetry data was available for the selected scope and time window; adjust the range or choose a different scope.';
+          chartForResponse = null;
+        }
+        if (chartForResponse) {
+          const chartSummary = summarizeChart(chartForResponse);
+          if (chartSummary && !normalizeText(finalAnswer).includes(normalizeText(chartSummary))) {
+            finalAnswer += finalAnswer.endsWith('.') ? ' ' : '\n';
+            finalAnswer += `Chart insight: ${chartSummary}`;
+          }
+        }
+        finalAnswer = enforceOverviewDetails(finalAnswer, { range: rr, trace, planStatus });
+
         try {
           const evalMetrics = evaluateQA({ question, answer: finalAnswer, retrievedDocs: ctx._retrievedDocs || [] });
           extras = extras || [];
@@ -7391,15 +9481,50 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         
       } else if (obj.action === 'final_text') {
         log('Finalizing plain text answer.');
-        const answerText = buildDefaultAnswer({
-          question,
-          chart: null,
-          trace,
-          fallbackText: obj.answer || reply || '',
-          notes: adaptationNotes,
-          range
-        });
-        let finalAnswer = answerText;
+        const executedToolCount = countTraceToolExecutions(trace);
+        if (planConfirmed && executedToolCount === 0) {
+          pushPlanProgress('Plan recorded but no tools have been executed. Execute Step 1 before finalizing.');
+          continue STEP_LOOP;
+        }
+        if (needsRoomComparison && !comparisonSatisfied) {
+          convo.push({
+            role: 'user',
+            content: `You must compare ${comparisonRoomsList || 'the selected rooms'} using compare_rooms_on_metric or compare_series_cross_room before providing the final answer.`
+          });
+          continue STEP_LOOP;
+        }
+        if (requireRoomRanking && !rankingSatisfied) {
+          convo.push({
+            role: 'user',
+            content: `You must rank ${rankingRoomsList || 'the selected rooms'} using compare_rooms_on_metric (or compare_series_cross_room) before providing the final answer. Report the busiest and underused rooms.`
+          });
+          continue STEP_LOOP;
+        }
+        if (histogramRequested || heatmapRequested || requireRoomRanking) {
+          convo.push({
+            role: 'user',
+            content: 'You must include the requested visualization (histogram/heatmap/ranking chart) before finalizing in plain text. Return {"action":"final","chart":{...}} with the correct chart type referencing the appropriate tool output.'
+          });
+          continue STEP_LOOP;
+        }
+        const llmAnswer = typeof obj.answer === 'string' ? obj.answer.trim() : '';
+        let finalAnswer = llmAnswer && !isPlaceholderAnswer(llmAnswer)
+          ? llmAnswer
+          : buildDefaultAnswer({
+              question,
+              chart: null,
+              trace,
+              fallbackText: llmAnswer || reply || '',
+              notes: adaptationNotes,
+              range
+            });
+        if (!llmAnswer && planSteps.length) {
+          const summary = planSteps.map((step, idx) => {
+            const label = step && step.text ? step.text : '';
+            return `Step ${step?.index ?? idx + 1}: ${label}`;
+          }).join(' | ');
+          finalAnswer = `${finalAnswer}\nPlan executed: ${summary}`;
+        }
         if (!finalAnswer || normalizeText(finalAnswer) === normalizeText(question)) {
           const insight = traceInsight(trace);
           finalAnswer = insight || 'I analyzed the available data for the selected scope and time window.';
@@ -7407,6 +9532,10 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             finalAnswer += ' ' + adaptationNotes.join(' ');
           }
         }
+        if (!traceHasData(trace)) {
+          finalAnswer = 'No telemetry data was available for the selected scope and time window; adjust the range or choose a different scope.';
+        }
+        finalAnswer = enforceOverviewDetails(finalAnswer, { range: rr, trace, planStatus });
         return {
           message: assistantMessage(finalAnswer),
           chart: null,
@@ -7416,7 +9545,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         // Unknown → continue
         log('Unknown action from LLM:', obj.action);
         convo.push({ 
-          role: 'model', 
+          role: 'user', 
           content: 'ERROR: Invalid action. Use "tool_call", "tool_calls", or "final".' 
         });
       }
@@ -7465,8 +9594,9 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           notes: adaptationNotes,
           range
         });
+        const overviewAnswer = enforceOverviewDetails(answer, { range: rr, trace, planStatus });
         return {
-          message: assistantMessage(answer),
+          message: assistantMessage(overviewAnswer),
           chart: fallbackChart,
           trace
         };
@@ -7474,87 +9604,14 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       const trimmedLast = last.trim();
       if (!/^Reminder:/i.test(trimmedLast) && !/^MANDATORY:/i.test(trimmedLast) && !/^CRITICAL ERROR:/i.test(trimmedLast) && !/^ERROR:/i.test(trimmedLast) &&
           last && last.length > 40 && !last.includes('respond with a JSON') && !last.includes('ERROR:')) {
-        // Try to infer a helpful chart for plain text responses
-        autoChart = null;
-        try {
-          const tablesSets = availableFieldsByTable(room);
-          const fields = parseFieldsFromQuestion(question, tablesSets);
-          const floorAll = isAllRooms(room) && Array.isArray(selectionRooms) && selectionRooms.length;
-          if (fields.length >= 2) {
-            autoChart = {
-              chart: { type: 'scatter' },
-              title: { text: `${fields[0]} vs ${fields[1]}` },
-              xAxis: { title: { text: fields[0] } },
-              yAxis: { title: { text: fields[1] } },
-              series: [{ name: `${fields[0]} vs ${fields[1]}`, dataRef: { tool: 'pair_timeseries', xField: 'x', yField: 'y', field1: fields[0], field2: fields[1] } }]
-            };
-          } else if ((fields.length === 1 && !floorAll) || (wantsChart(question) && !floorAll)) {
-            const f = fields[0] || 'temperature';
-            autoChart = {
-              chart: { type: 'line' },
-              title: { text: `${f} over time` },
-              xAxis: { type: 'datetime' },
-              yAxis: { title: { text: f } },
-              series: [{ name: f, dataRef: { tool: 'fetch_timeseries', xField: 'ts', yField: f } }]
-            };
-          } else if (floorAll) {
-            // Build a cross-room comparison from last compare_series_cross_room or run one now
-            let compare = null;
-            for (let i = trace.length - 1; i >= 0; i--) {
-              if (trace[i].tool === 'compare_series_cross_room' && trace[i].result && typeof trace[i].result === 'object') { compare = trace[i]; break; }
-            }
-            const f = fields[0] || 'people_count';
-            if (!compare) {
-              // Execute compare now for scoped rooms
-              const compareArgs = { start: rr.start || undefined, end: rr.end || undefined, series: [] };
-              for (const r of selectionRooms.slice(0, 8)) {
-                const t = loadRoomTables(r);
-                let tableMatch = null;
-                for (const [tname, rows] of Object.entries(t)) { if (rows.length && Object.keys(rows[0] || {}).includes(f)) { tableMatch = tname; break; } }
-                compareArgs.series.push({ room: r, table: tableMatch || 'iaq', field: f, name: `${r} ${f}` });
-              }
-              const result = tools.compare_series_cross_room(compareArgs);
-              trace.push({ tool: 'compare_series_cross_room', args: compareArgs, result });
-              compare = { result };
-            }
-            const keys = Object.keys(compare.result || {}).slice(0, 8);
-            if (keys.length) {
-              autoChart = {
-                chart: { type: 'line' },
-                title: { text: `${f} across rooms` },
-                xAxis: { type: 'datetime' },
-                yAxis: { title: { text: f } },
-                series: keys.map(k => ({ name: k, dataRef: { tool: 'compare_series_cross_room', field: k, xField: 'ts', yField: 'y' } }))
-              };
-            }
-          }
-        } catch {}
-        // If recent trace includes scope_list_detectors calls, summarize detectors/metrics per room
-        try {
-          const recent = trace.filter(t => t.tool === 'scope_list_detectors' && t.args && t.args.room);
-          if (recent.length) {
-            const lines = [];
-            for (const t of recent) {
-              const r = t.args.room;
-              const dets = Array.isArray(t.result) ? t.result : [];
-              const tables = loadRoomTables(r);
-              const fieldSet = new Set();
-              for (const rows of Object.values(tables)) { const first = (rows||[])[0]||{}; for (const k of Object.keys(first)) if (k!=='ts') fieldSet.add(k); }
-              const label = deviceFriendlyName(r);
-              lines.push(`- ${label}: detectors=[${dets.join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`);
-            }
-            const msg = `Metrics by room in current scope:\n${lines.join('\n')}`;
-            return { message: assistantMessage(msg), chart: autoChart, trace };
-          }
-        } catch {}
-        if (!autoChart) {
-          const fallbackChart = buildFallbackChartFromTrace({
-            trace,
-            question,
-            defaultRoom: room,
-            selectionRooms
-          });
-          if (fallbackChart) autoChart = fallbackChart;
+        autoChart = buildFallbackChartFromTrace({
+          trace,
+          question,
+          defaultRoom: room,
+          selectionRooms
+        });
+        if (autoChart) {
+          ensureChartData(autoChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
         }
         let safeAnswer = buildDefaultAnswer({
           question,
@@ -7572,6 +9629,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             safeAnswer += ' ' + adaptationNotes.join(' ');
           }
         }
+        safeAnswer = enforceOverviewDetails(safeAnswer, { range: rr, trace, planStatus });
         return { message: assistantMessage(safeAnswer), chart: autoChart, trace };
       }
     }
@@ -7585,6 +9643,9 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         defaultRoom: room,
         selectionRooms
       });
+    }
+    if (autoChart) {
+      ensureChartData(autoChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
     }
     const traceSummary = traceInsight(trace);
     const fallbackAnswer = buildDefaultAnswer({
@@ -7613,6 +9674,8 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         }
       }
     }
+
+    finalFallback = enforceOverviewDetails(finalFallback, { range: rr, trace, planStatus });
 
     return { 
       message: assistantMessage(finalFallback), 

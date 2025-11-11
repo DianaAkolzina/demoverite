@@ -23,5 +23,6 @@ Reasoning Guide for Queries and Math Mapping (Updated)
   - busiest hour/day patterns → `hour_of_day_stats`
   - correlations among metrics → `correlation_matrix`
   - no rows in window → inspect `fetch_table_meta` and adapt within available range
+- Empty datasets: still return the chart object (with the original tool dataRef) and explain that the selected window has no rows; note any fallback range you considered.
 
 See also: tools_playbook.md (Authoritative) for current tool list, chart patterns (prefer dataRef; small arrays allowed for short windows), and scope/time window rules.

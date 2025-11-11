@@ -1,23 +1,4 @@
 #!/usr/bin/env node
-/**
- * End-to-end pipeline runner for the AVM Bolton scenarios.
- *
- * Steps:
- *  1. Install node dependencies (npm install).
- *  2. Start the server and wait for the LLM warmup log entry ("Warmup ok").
- *  3. Execute the Bolton test suite (scripts/run_avm_bolton_tests.js).
- *  4. Convert the latest traces into a LaTeX report and compile a PDF.
- *  5. Upload the PDF to S3 using the configured credentials, under a tests/ prefix.
- *
- * Required env for the upload:
- *  - AWS_S3_BUCKET
- *  - AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (and optional AWS_SESSION_TOKEN)
- * Optional:
- *  - AWS_S3_REGION / AWS_REGION (defaults to eu-west-2)
- *  - AWS_S3_PREFIX (prepended before the tests/ prefix)
- *  - AWS_S3_FORCE_PATH_STYLE=1 to force path-style URLs
- */
-
 import { spawn } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -32,9 +13,15 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data');
 const TESTS_DIR = path.join(DATA_DIR, 'tests');
 const TRACES_DIR = path.join(DATA_DIR, 'traces');
+const PIPELINE_TMP_DIR = path.join(DATA_DIR, 'pipeline_tmp');
 
 const WARMUP_TOKEN = '[startup][llm] Warmup ok';
 const WARMUP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+const TEST_RUNS = [
+  { label: 'buildings', description: 'Deterministic building regression suites', command: ['node', 'scripts/run_building_regression.js'] },
+  { label: 'scope', description: 'Multi-building scope/device coverage suites', command: ['node', 'scripts/test_scope_runs.js'] }
+];
 
 function logInfo(message) {
   console.log(`[pipeline] ${message}`);
@@ -44,7 +31,7 @@ function logError(message) {
   console.error(`[pipeline] ERROR: ${message}`);
 }
 
-function runCommand(command, args, { cwd = ROOT, env = process.env, allowFailure = false } = {}) {
+async function runCommand(command, args, { cwd = ROOT, env = process.env } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
@@ -63,13 +50,10 @@ function runCommand(command, args, { cwd = ROOT, env = process.env, allowFailure
       stderr += text;
       process.stderr.write(text);
     });
-    child.on('error', (err) => {
-      if (allowFailure) resolve({ code: 1, stdout, stderr, error: err });
-      else reject(err);
-    });
+    child.on('error', reject);
     child.on('close', (code) => {
-      if (code === 0 || allowFailure) {
-        resolve({ code, stdout, stderr });
+      if (code === 0) {
+        resolve({ stdout, stderr });
       } else {
         const err = new Error(`${command} ${args.join(' ')} exited with code ${code}`);
         err.stdout = stdout;
@@ -85,11 +69,11 @@ function startServer() {
   const child = spawn('node', ['server/index.js'], {
     cwd: ROOT,
     env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe']
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true
   });
   child.stdout.on('data', (chunk) => process.stdout.write(chunk));
   child.stderr.on('data', (chunk) => process.stderr.write(chunk));
-
   return child;
 }
 
@@ -127,52 +111,73 @@ async function waitForWarmup(serverProcess) {
     }
 
     function cleanup() {
-      serverProcess.stdout.off('data', handleData);
-      serverProcess.stderr.off('data', handleData);
+      serverProcess.stdout?.off('data', handleData);
+      serverProcess.stderr?.off('data', handleData);
       serverProcess.off('exit', handleExit);
     }
 
-    serverProcess.stdout.on('data', handleData);
-    serverProcess.stderr.on('data', handleData);
+    serverProcess.stdout?.on('data', handleData);
+    serverProcess.stderr?.on('data', handleData);
     serverProcess.once('exit', handleExit);
   });
 }
 
 async function ensurePdflatexAvailable() {
-  const whichResult = await runCommand('which', ['pdflatex'], { allowFailure: true });
-  if (whichResult.code !== 0) {
+  try {
+    await runCommand('which', ['pdflatex']);
+  } catch {
     throw new Error('pdflatex not found in PATH. Install TeX Live (or similar) to compile PDFs.');
   }
 }
 
-async function runBoltonTests() {
-  logInfo('Running Bolton scenario tests…');
-  const result = await runCommand('node', ['scripts/run_avm_bolton_tests.js']);
-  const match = result.stdout.match(/Saved to (.*chat_avm_bolton_.*\.json)/);
-  if (!match) {
-    logError('Unable to detect results file from test output.');
-  } else {
-    logInfo(`Recorded Bolton results: ${match[1].trim()}`);
+async function listTraceFiles(dir) {
+  try {
+    const entries = await fsPromises.readdir(dir);
+    return new Set(entries.filter((f) => f.endsWith('.json')));
+  } catch (err) {
+    if (err.code === 'ENOENT') return new Set();
+    throw err;
   }
 }
 
-async function generateLatexAndPdf() {
+function timestampSlug() {
+  return new Date().toISOString().replace(/[:.]/g, '-');
+}
+
+async function copyNewTraces(beforeSet, dir, destinationRoot, label) {
+  const afterEntries = await fsPromises.readdir(dir).catch(() => []);
+  const newFiles = afterEntries.filter((f) => f.endsWith('.json') && !beforeSet.has(f));
+  if (!newFiles.length) return { tempDir: null, files: [] };
+
+  const slug = `${label}_${timestampSlug()}`;
+  const tempDir = path.join(destinationRoot, slug);
+  await fsPromises.mkdir(tempDir, { recursive: true });
+  for (const file of newFiles) {
+    const src = path.join(dir, file);
+    const dest = path.join(tempDir, file);
+    await fsPromises.copyFile(src, dest);
+  }
+  logInfo(`Captured ${newFiles.length} new trace files for ${label}.`);
+  return { tempDir, files: newFiles };
+}
+
+async function generateLatexAndPdf({ tracesDir, outputBase }) {
   await fsPromises.mkdir(TESTS_DIR, { recursive: true });
-  await fsPromises.mkdir(TRACES_DIR, { recursive: true });
+  await fsPromises.mkdir(tracesDir, { recursive: true });
 
-  const texPath = path.join(TESTS_DIR, 'bolton_traces_report.tex');
-  const pdfPath = path.join(TESTS_DIR, 'bolton_traces_report.pdf');
+  const texPath = path.join(TESTS_DIR, `${outputBase}.tex`);
+  const pdfPath = path.join(TESTS_DIR, `${outputBase}.pdf`);
 
-  logInfo('Creating LaTeX report from traces…');
+  logInfo(`Creating LaTeX report (${outputBase})…`);
   await runCommand('python3', [
     'scripts/traces_to_latex.py',
     '--traces-dir',
-    TRACES_DIR,
+    tracesDir,
     '--output',
     texPath
   ]);
 
-  logInfo('Compiling LaTeX to PDF (pdflatex)…');
+  logInfo(`Compiling ${outputBase}.tex -> PDF…`);
   await runCommand('pdflatex', [
     '-interaction=nonstopmode',
     '-halt-on-error',
@@ -181,7 +186,6 @@ async function generateLatexAndPdf() {
     texPath
   ]);
 
-  // pdflatex generates aux/log/toc files; clean them to avoid noise.
   const auxExtensions = ['.aux', '.log', '.out', '.toc'];
   await Promise.all(
     auxExtensions.map(async (ext) => {
@@ -274,7 +278,7 @@ function signRequest({ method, region, service, host, canonicalUri, query, heade
   return { authorization, amzDate };
 }
 
-async function uploadPdfToS3(pdfPath) {
+async function uploadPdfToS3(pdfPath, { label }) {
   const bucket = process.env.AWS_S3_BUCKET;
   if (!bucket) {
     throw new Error('AWS_S3_BUCKET is required to upload the PDF.');
@@ -287,9 +291,10 @@ async function uploadPdfToS3(pdfPath) {
 
   const region = process.env.AWS_S3_REGION || process.env.AWS_REGION || 'eu-west-2';
   const rawPrefix = (process.env.AWS_S3_PREFIX || '').replace(/^\/+|\/+$/g, '');
-  const keyPrefix = rawPrefix ? `${rawPrefix}/tests` : 'tests';
-  const fileName = path.basename(pdfPath);
-  const objectKey = `${keyPrefix.replace(/\/+$/, '')}/${fileName}`;
+  const keyRoot = rawPrefix ? `${rawPrefix}/tests` : 'tests';
+  const timestamp = timestampSlug();
+  const fileName = `${label}_${timestamp}.pdf`;
+  const objectKey = `${keyRoot}/${label}/${fileName}`;
   const fileBuffer = await fsPromises.readFile(pdfPath);
   const contentType = 'application/pdf';
 
@@ -341,37 +346,84 @@ async function uploadPdfToS3(pdfPath) {
   return { bucket, key: objectKey };
 }
 
+async function runTestSuite({ label, description, command }, baselineTraces) {
+  logInfo(`Running test suite "${label}" — ${description}`);
+  const before = new Set(baselineTraces);
+  const result = await runCommand(command[0], command.slice(1));
+
+  // Attempt to log the results path if present
+  const match = result.stdout.match(/Saved to (.*\.json)/);
+  if (match) {
+    logInfo(`Test results saved to ${match[1].trim()}`);
+  }
+
+  const { tempDir, files } = await copyNewTraces(before, TRACES_DIR, PIPELINE_TMP_DIR, label);
+  if (!tempDir || !files.length) {
+    logInfo(`No new traces detected for ${label}; skipping LaTeX/PDF generation for this run.`);
+    return { pdfPath: null, s3: null, traceDir: null };
+  }
+
+  const outputBase = `${label}_traces_${timestampSlug()}`;
+  const pdfPath = await generateLatexAndPdf({ tracesDir: tempDir, outputBase });
+  const uploadInfo = await uploadPdfToS3(pdfPath, { label });
+
+  return { pdfPath, s3: uploadInfo, traceDir: tempDir };
+}
+
+function detachServer(serverProcess) {
+  try {
+    serverProcess.stdout?.removeAllListeners('data');
+    serverProcess.stderr?.removeAllListeners('data');
+    serverProcess.unref();
+    serverProcess.stdout?.unref?.();
+    serverProcess.stderr?.unref?.();
+    logInfo(`Server left running (PID ${serverProcess.pid}). Use "kill ${serverProcess.pid}" to stop it manually.`);
+  } catch (err) {
+    logError(`Failed to detach server process: ${err.message || err}`);
+  }
+}
+
 async function main() {
   await fsPromises.mkdir(TESTS_DIR, { recursive: true });
-  await fsPromises.mkdir(TRACES_DIR, { recursive: true });
+  await fsPromises.mkdir(PIPELINE_TMP_DIR, { recursive: true });
 
   logInfo('Installing dependencies (npm install)…');
   await runCommand('npm', ['install', '--no-audit', '--no-fund']);
 
+  await ensurePdflatexAvailable();
+
   const server = startServer();
   let serverExited = false;
-  server.once('exit', () => {
-    serverExited = true;
-  });
+  server.once('exit', () => { serverExited = true; });
 
   try {
     await waitForWarmup(server);
-    await runBoltonTests();
-    await ensurePdflatexAvailable();
-    const pdfPath = await generateLatexAndPdf();
-    await uploadPdfToS3(pdfPath);
-    logInfo('Pipeline completed successfully.');
+
+    // Baseline trace list before running suites
+    let baselineTraces = await listTraceFiles(TRACES_DIR);
+
+    const pdfUploads = [];
+    for (const test of TEST_RUNS) {
+      const result = await runTestSuite(test, baselineTraces);
+      baselineTraces = await listTraceFiles(TRACES_DIR);
+      if (result.pdfPath && result.s3) {
+        pdfUploads.push(result.s3);
+      }
+      if (result.traceDir) {
+        // Clean up temporary trace bundle after PDF generation
+        await fsPromises.rm(result.traceDir, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+
+    if (pdfUploads.length) {
+      logInfo('Uploaded reports:');
+      pdfUploads.forEach((item) => logInfo(`- s3://${item.bucket}/${item.key}`));
+    } else {
+      logInfo('No PDFs were generated/uploaded.');
+    }
   } finally {
     if (!serverExited) {
-      logInfo('Stopping server…');
-      server.kill('SIGTERM');
-      await new Promise((resolve) => {
-        const timeout = setTimeout(resolve, 5000);
-        server.once('exit', () => {
-          clearTimeout(timeout);
-          resolve();
-        });
-      });
+      detachServer(server);
     }
   }
 }

@@ -32,6 +32,7 @@ def latex_escape(text: str) -> str:
         "^": r"\^{}",
         "~": r"\textasciitilde{}",
         "°": r"\textdegree{}",
+        " ": r"\,",
         "₀": r"$_0$",
         "₁": r"$_1$",
         "₂": r"$_2$",
@@ -121,81 +122,160 @@ def resolve_series_data(result, data_ref: Dict, series_def: Dict):
     return result if isinstance(result, list) else None
 
 
-def extract_series_points(
-    trace_data: Dict, series_def: Dict
-) -> Optional[Tuple[List[datetime], List[float]]]:
-    data_ref = series_def.get("dataRef")
-    if not data_ref:
-        return None
-    tool = data_ref.get("tool")
-    if not tool:
-        return None
-
-    entries = [entry for entry in trace_data.get("trace", []) if entry.get("tool") == tool]
-    if not entries:
-        return None
-
-    entry = resolve_matching_tool_entry(entries, data_ref, series_def)
-    result = entry.get("result")
-    if result is None:
-        return None
-
-    series_data = resolve_series_data(result, data_ref, series_def)
-    if not series_data:
-        return None
-
-    x_field = data_ref.get("xField") or "ts"
-    y_field = data_ref.get("yField")
-
-    xs: List[datetime] = []
-    ys: List[float] = []
-
+def collect_raw_entries(series_data, x_field: Optional[str], y_field: Optional[str]):
+    raw_entries = []
     for item in series_data:
+        x_value = None
+        y_value = None
         if isinstance(item, dict):
-            x_value = item.get(x_field)
-            y_value = item.get(y_field) if y_field else item.get("value") or item.get("y")
+            if x_field:
+                x_value = item.get(x_field)
+            else:
+                for key in ("x", "ts", "category", "label"):
+                    if key in item:
+                        x_value = item.get(key)
+                        if x_value is not None:
+                            break
+            if y_field:
+                y_value = item.get(y_field)
+            else:
+                for key in ("y", "value"):
+                    if key in item:
+                        y_value = item.get(key)
+                        if y_value is not None:
+                            break
         elif isinstance(item, (list, tuple)) and len(item) >= 2:
             x_value, y_value = item[0], item[1]
         else:
             continue
-
-        dt = to_datetime(x_value)
-        val = to_float(y_value)
-        if dt is None or val is None:
+        if y_value is None:
             continue
-        xs.append(dt)
-        ys.append(val)
+        val = to_float(y_value)
+        if val is None:
+            continue
+        raw_entries.append((x_value, val))
+    return raw_entries
 
-    if not xs or not ys:
+
+def extract_series_points(
+    trace_data: Dict, series_def: Dict
+) -> Optional[Dict]:
+    data_ref = series_def.get("dataRef")
+    inline_data = series_def.get("data")
+    if not data_ref and not inline_data:
         return None
 
-    return xs, ys
+    series_data = None
+    x_field: Optional[str] = None
+    y_field: Optional[str] = None
+
+    if data_ref:
+        tool = data_ref.get("tool")
+        if not tool:
+            return None
+
+        entries = [entry for entry in trace_data.get("trace", []) if entry.get("tool") == tool]
+        if not entries:
+            return None
+
+        entry = resolve_matching_tool_entry(entries, data_ref, series_def)
+        result = entry.get("result")
+        if result is None:
+            return None
+
+        series_data = resolve_series_data(result, data_ref, series_def)
+        if not series_data:
+            return None
+
+        x_field = data_ref.get("xField") or "ts"
+        y_field = data_ref.get("yField")
+    elif isinstance(inline_data, list):
+        series_data = inline_data
+        x_field = series_def.get("xField")
+        y_field = series_def.get("yField")
+
+    if not series_data:
+        return None
+
+    raw_entries = collect_raw_entries(series_data, x_field, y_field)
+    if not raw_entries:
+        return None
+
+    datetime_entries = []
+    numeric_entries = []
+    category_entries = []
+    for x_value, val in raw_entries:
+        dt = to_datetime(x_value)
+        if dt is not None:
+            datetime_entries.append((dt, val))
+            continue
+        num = to_float(x_value)
+        if num is not None:
+            numeric_entries.append((num, val))
+            continue
+        label = str(x_value) if x_value is not None else ""
+        category_entries.append((label, val))
+
+    total = len(raw_entries)
+    mode = None
+    if datetime_entries and len(datetime_entries) >= max(len(numeric_entries), len(category_entries)):
+        mode = "datetime"
+        xs = [dt for dt, _ in datetime_entries]
+        ys = [val for _, val in datetime_entries]
+    elif numeric_entries and len(numeric_entries) >= len(category_entries):
+        mode = "numeric"
+        xs = [num for num, _ in numeric_entries]
+        ys = [val for _, val in numeric_entries]
+    else:
+        mode = "category"
+        if not category_entries:
+            category_entries = [(str(x) if x is not None else "", val) for x, val in raw_entries]
+        xs = [label for label, _ in category_entries]
+        ys = [val for _, val in category_entries]
+
+    return {"mode": mode, "xs": xs, "ys": ys}
 
 
 def format_timestamp(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d %H:%M")
 
 
-def pgfplot_coordinates(xs: List[datetime], ys: List[float]) -> Tuple[str, List[str]]:
-    max_points = 80
+def downsample_points(xs, ys, max_points=80):
     n = len(xs)
-    if n > max_points:
-        step = (n - 1) / (max_points - 1)
-        idxs = []
-        for i in range(max_points):
-            idx = int(round(i * step))
-            if idx >= n:
-                idx = n - 1
-            if not idxs or idx != idxs[-1]:
-                idxs.append(idx)
-        xs = [xs[i] for i in idxs]
-        ys = [ys[i] for i in idxs]
+    if n <= max_points:
+        return xs, ys
+    step = (n - 1) / (max_points - 1)
+    idxs = []
+    for i in range(max_points):
+        idx = int(round(i * step))
+        if idx >= n:
+            idx = n - 1
+        if not idxs or idx != idxs[-1]:
+            idxs.append(idx)
+    xs_ds = [xs[i] for i in idxs]
+    ys_ds = [ys[i] for i in idxs]
+    return xs_ds, ys_ds
+
+
+def build_coordinate_block(mode: str, xs, ys):
+    xs, ys = downsample_points(xs, ys)
     coords = []
     labels = []
-    for idx, (dt, val) in enumerate(zip(xs, ys)):
-        y_str = f"{val:.6f}".rstrip("0").rstrip(".")
-        coords.append(f"({idx},{y_str})")
-        labels.append(format_timestamp(dt))
+    if mode == "datetime":
+        for idx, (dt, val) in enumerate(zip(xs, ys)):
+            y_str = f"{val:.6f}".rstrip("0").rstrip(".")
+            coords.append(f"({idx},{y_str})")
+            labels.append(format_timestamp(dt))
+    elif mode == "numeric":
+        for x, val in zip(xs, ys):
+            y_str = f"{val:.6f}".rstrip("0").rstrip(".")
+            x_str = f"{x:.6f}".rstrip("0").rstrip(".")
+            coords.append(f"({x_str},{y_str})")
+    else:  # category
+        for idx, (label, val) in enumerate(zip(xs, ys)):
+            y_str = f"{val:.6f}".rstrip("0").rstrip(".")
+            coords.append(f"({idx},{y_str})")
+            labels.append(str(label) if label else f"Cat {idx+1}")
     return "\n".join(coords), labels
 
 
@@ -222,22 +302,34 @@ def build_pgfplot(
     trace_data: Dict,
     chart: Dict,
     trace_index: int,
-) -> Tuple[Optional[str], List[str]]:
+) -> Tuple[Optional[str], Dict]:
     series_defs = chart.get("series") or []
-    datasets: List[Tuple[str, str]] = []
+    datasets: List[Dict] = []
     tick_labels_reference: Optional[List[str]] = None
+    axis_mode: Optional[str] = None
 
     for series_def in series_defs:
         points = extract_series_points(trace_data, series_def)
         if not points:
             continue
-        coords, labels = pgfplot_coordinates(points[0], points[1])
-        datasets.append((series_def.get("name") or "Series", coords))
+        coords, labels = build_coordinate_block(points["mode"], points["xs"], points["ys"])
+        if not coords:
+            continue
+        datasets.append(
+            {
+                "name": series_def.get("name") or "Series",
+                "coords": coords,
+                "mode": points["mode"],
+                "labels": labels,
+            }
+        )
+        if axis_mode is None:
+            axis_mode = points["mode"]
         if tick_labels_reference is None or len(labels) > len(tick_labels_reference):
             tick_labels_reference = labels
 
     if not datasets:
-        return None, []
+        return None, {}
 
     chart_type = (chart.get("chart", {}) or {}).get("type", "line").lower()
     title = latex_escape(chart.get("title", {}).get("text", f"Trace {trace_index} chart"))
@@ -255,21 +347,19 @@ def build_pgfplot(
     y_label = latex_escape((y_axis.get("title") or {}).get("text", "Value"))
 
     plot_lines = []
-    for name, coords in datasets:
+    for dataset in datasets:
         addplot_prefix = r"\addplot"
         if chart_type == "column":
             addplot_prefix += "+[ybar]"
         elif chart_type == "scatter":
             addplot_prefix += "+[only marks, mark=*, mark size=1.5pt]"
-        else:
-            addplot_prefix += ""
         plot_lines.append(
             textwrap.dedent(
                 rf"""
                 {addplot_prefix} coordinates {{
-                {coords}
+                {dataset["coords"]}
                 }};
-                \addlegendentry{{{latex_escape(name)}}}
+                \addlegendentry{{{latex_escape(dataset["name"])}}}
                 """
             ).strip()
         )
@@ -314,14 +404,14 @@ def build_pgfplot(
         """
     ).strip()
 
-    return figure_tex, tick_labels_reference or []
+    return figure_tex, {"mode": axis_mode, "labels": tick_labels_reference or []}
 
 
 def format_chart(trace_index: int, trace_data: Dict, chart: Optional[Dict]) -> str:
     if not chart:
         return r"\textit{No chart was produced.}"
 
-    figure_tex, labels = build_pgfplot(trace_data, chart, trace_index)
+    figure_tex, metadata = build_pgfplot(trace_data, chart, trace_index)
     if not figure_tex:
         return r"\textit{Chart rendering failed for this trace.}"
 
@@ -351,12 +441,21 @@ def format_chart(trace_index: int, trace_data: Dict, chart: Optional[Dict]) -> s
     lines.append(r"\end{itemize}")
 
     extra_notes = ""
-    if labels:
+    labels = (metadata or {}).get("labels") or []
+    mode = (metadata or {}).get("mode")
+    if mode == "datetime" and len(labels) >= 2:
         start_label = latex_escape(labels[0])
         end_label = latex_escape(labels[-1])
         extra_notes = (
             r"\begin{itemize}"
             + rf"\item Samples plotted in chronological order from {start_label} to {end_label}."
+            + r"\end{itemize}"
+        )
+    elif mode == "category" and labels:
+        preview = ", ".join(latex_escape(lbl) for lbl in labels[:6])
+        extra_notes = (
+            r"\begin{itemize}"
+            + rf"\item Categories (first few): {preview}."
             + r"\end{itemize}"
         )
 

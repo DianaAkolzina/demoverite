@@ -13,6 +13,48 @@ function isoToLocalInput(iso) {
 let msgId = 0;
 function nextId() { return 'm' + (++msgId); }
 let chartCounter = 0;
+const UI_LOCALE = 'en-GB';
+const UI_TIMEZONE = 'Europe/London';
+const tsFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+  timeZone: UI_TIMEZONE
+});
+
+function formatTs(ts) {
+  if (ts == null) return '—';
+  const num = Number(ts);
+  if (!Number.isFinite(num)) return '—';
+  try {
+    return tsFormatter.format(new Date(num));
+  } catch {
+    return new Date(num).toLocaleString('en-GB', { hour12: false });
+  }
+}
+
+function readInputTs(input) {
+  if (!input || !input.value) return null;
+  const parsed = Date.parse(input.value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function normalizeTimestamp(ts) {
+  return Number.isFinite(ts) ? ts : null;
+}
+
+function formatDateLocal(ts) { return formatTs(ts); }
+
+function formatDateUTC(ts) {
+  if (ts == null) return 'n/a';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return 'n/a';
+  return d.toISOString().replace('T', ' ').slice(0, 16);
+}
 
 function escapeHtml(str) {
   return String(str || '')
@@ -169,6 +211,7 @@ async function init() {
   const floorSelect = document.getElementById('floor-select');
   const zoneSelect = document.getElementById('zone-select');
   const deviceSelect = document.getElementById('device-select');
+  const rangeDiv = document.getElementById('selected-range');
   const scopePillEl = document.getElementById('scope-pill');
   const confirmBtn = document.getElementById('confirm-scope');
   const clearBtn = document.getElementById('clear-scope');
@@ -178,6 +221,7 @@ async function init() {
     floor: null,
     room: null,
     roomLabel: null,
+    roomId: null,
     devices: [],
     zonesList: [],
     floorsList: [],
@@ -233,14 +277,16 @@ async function init() {
     sendBtn.disabled = sending || !hasText;
   }
 
-  function readInputTs(input) {
-    if (!input || !input.value) return null;
-    const parsed = Date.parse(input.value);
-    return Number.isNaN(parsed) ? null : parsed;
-  }
-
-  function normalizeTimestamp(ts) {
-    return Number.isFinite(ts) ? ts : null;
+  function updateSelectedRangeDisplay() {
+    if (!rangeDiv) return;
+    const start = readInputTs(startEl);
+    const end = readInputTs(endEl);
+    const sel = selection || { building: null, floor: null, room: null };
+    rangeDiv.innerHTML = `
+      <b>Scope:</b> ${sel.building ? 'Building '+sel.building : '—'}${sel.floor ? ' · Floor '+sel.floor : ''}${sel.room ? ' · Room '+(sel.roomLabel || sel.room) : ''}<br>
+      <b>Start:</b> ${formatDateLocal(start)} <span style="color:#3b82f6;">(UTC: ${formatDateUTC(start)})</span><br>
+      <b>End:</b> ${formatDateLocal(end)} <span style="color:#3b82f6;">(UTC: ${formatDateUTC(end)})</span>
+    `;
   }
 
   renderScopePill();
@@ -555,7 +601,7 @@ async function init() {
 
   buildingSelect?.addEventListener('change', async () => {
     selection.building = buildingSelect.value || null;
-    selection.floor = null; selection.room = null; selection.roomLabel = null; selectionConfirmed = false; graphLevel='floors';
+    selection.floor = null; selection.room = null; selection.roomLabel = null; selection.roomId = null; selectionConfirmed = false; graphLevel='floors';
     selection.devices = [];
     selection.zonesList = [];
     selection.floorsList = [];
@@ -572,7 +618,7 @@ async function init() {
   });
   floorSelect?.addEventListener('change', async () => {
     selection.floor = floorSelect.value || null;
-    selection.room = null; selection.roomLabel = null; selectionConfirmed = false; graphLevel='rooms';
+    selection.room = null; selection.roomLabel = null; selection.roomId = null; selectionConfirmed = false; graphLevel='rooms';
     selection.devices = [];
     selection.zonesList = [];
     currentScopeDevices = [];
@@ -588,6 +634,13 @@ async function init() {
   zoneSelect?.addEventListener('change', async () => {
     selection.room = zoneSelect.value || null;
     selection.roomLabel = zoneSelect.selectedIndex >= 0 ? zoneSelect.options[zoneSelect.selectedIndex]?.text || selection.room : selection.room;
+    selection.roomId = null;
+    if (selection.room) {
+      try {
+        const z = lastGraphNodes.find(n => n.nodeType === 'Zone' && (String(n.name) === String(selection.room) || String(n.roomId) === String(selection.room)));
+        if (z && z.roomId != null) selection.roomId = String(z.roomId);
+      } catch {}
+    }
     selectionConfirmed = false; graphLevel='devices';
     selection.devices = [];
     selection.deviceZoneMap = {};
@@ -623,7 +676,7 @@ async function init() {
   tenantSelect.addEventListener('change', async () => {
     selection.tenant = tenantSelect.value || null;
     // Reset deeper scope when tenant changes
-    selection.building = null; selection.floor = null; selection.room = null; selection.roomLabel = null; graphLevel = 'buildings'; selectionConfirmed = false;
+    selection.building = null; selection.floor = null; selection.room = null; selection.roomLabel = null; selection.roomId = null; graphLevel = 'buildings'; selectionConfirmed = false;
     if (buildingSelect) buildingSelect.innerHTML = '<option value="">Select building…</option>';
     if (floorSelect) floorSelect.innerHTML = '<option value="">Select floor…</option>';
     if (zoneSelect) zoneSelect.innerHTML = '<option value="">Select zone…</option>';
@@ -650,13 +703,15 @@ async function init() {
     if (selection.room) {
       let rlabel = selection.room;
       try {
-        const z = lastGraphNodes.find(n => n.nodeType==='Zone' && (String(n.roomId)===String(selection.room) || String(n.name)===String(selection.room)));
+        const z = lastGraphNodes.find(n => n.nodeType==='Zone' && (String(n.name)===String(selection.room) || String(n.roomId)===String(selection.room)));
         if (z && z.name) rlabel = z.name;
+        if (z && z.roomId != null) selection.roomId = String(z.roomId);
       } catch {}
       selection.roomLabel = rlabel;
       parts.push(`Room: ${rlabel}`);
     } else {
       selection.roomLabel = null;
+      selection.roomId = null;
     }
     if (scopePillEl) scopePillEl.textContent = parts.length ? (selectionConfirmed ? '✔ ' : '') + parts.join(' · ') : 'No scope selected';
     updateScopeControls();
@@ -693,12 +748,12 @@ async function init() {
               `field=${encodeURIComponent(v)}`,
               startParam != null ? `start=${encodeURIComponent(startParam)}` : '',
               endParam != null ? `end=${encodeURIComponent(endParam)}` : '',
-              `limit=1000`
+              `limit=0`
             ].filter(Boolean).join('&');
             const resp = await fetchJSON(`/api/scope/series?${params}`);
             const rows = Array.isArray(resp.rows) ? resp.rows : [];
             const header = `<div class=\"series-header\"><strong>${escapeHtml(v)}</strong> in scope ${resp.scope && resp.scope.building ? `(Building ${escapeHtml(resp.scope.building)})` : ''} (${rows.length} rows)</div>`;
-            const table = ['<table class=\"series-table\">','<thead><tr><th>ts</th><th>device</th><th>',escapeHtml(v),'</th></tr></thead><tbody>',rows.map(r => `<tr><td>${new Date(r.ts).toLocaleString()}</td><td>${escapeHtml(r.device||'')}</td><td>${r.value}</td></tr>`).join(''),'</tbody></table>'].join('');
+            const table = ['<table class=\"series-table\">','<thead><tr><th>ts</th><th>device</th><th>',escapeHtml(v),'</th></tr></thead><tbody>',rows.map(r => `<tr><td>${formatTs(r.ts)}</td><td>${escapeHtml(r.device||'')}</td><td>${r.value}</td></tr>`).join(''),'</tbody></table>'].join('');
             metricsEl.innerHTML = `<div class=\"series-container\">${header}${table}</div>`;
           } else {
             const qs = [
@@ -709,10 +764,8 @@ async function init() {
             ].filter(Boolean).join('&');
             const res = await fetchJSON(`/api/series?${qs}`);
             const rows = res.data || [];
-            const maxRows = 2000;
-            const shown = rows.slice(-maxRows);
-            const header = `<div class=\"series-header\"><strong>${res.field}</strong> from <em>${res.table}</em> (${shown.length} rows)</div>`;
-            const table = ['<table class=\"series-table\">','<thead><tr><th>ts</th><th>',res.field,'</th></tr></thead><tbody>',shown.map(p => `<tr><td>${new Date(p[0]).toLocaleString()}</td><td>${p[1]}</td></tr>`).join(''),'</tbody></table>'].join('');
+            const header = `<div class=\"series-header\"><strong>${escapeHtml(res.field)}</strong> from <em>${escapeHtml(res.table)}</em> (${rows.length} rows)</div>`;
+            const table = ['<table class=\"series-table\">','<thead><tr><th>ts</th><th>',escapeHtml(res.field),'</th></tr></thead><tbody>',rows.map(p => `<tr><td>${formatTs(p[0])}</td><td>${p[1]}</td></tr>`).join(''),'</tbody></table>'].join('');
             metricsEl.innerHTML = `<div class=\"series-container\">${header}${table}</div>`;
           }
         } catch (e) { console.error(e); }
@@ -731,19 +784,17 @@ async function init() {
 
  
 
-  function fmtDate(ts) {
-    if (ts == null) return '—';
-    const d = new Date(ts);
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const day = String(d.getDate()).padStart(2,'0');
-    return `${y}/${m}/${day}`;
-  }
+  function fmtDate(ts) { return formatTs(ts); }
 
   async function refreshMetrics() {
     metricsEl.innerHTML = 'Loading…';
     const room = selection.room || 'ALL';
     if (!room) { metricsEl.textContent = 'Select a room'; return; }
+    const deviceSet = new Set();
+    const deviceDisplay = new Map();
+    const deviceZoneMapObj = {};
+    const zoneSet = new Set();
+    const floorSet = new Set();
     try {
       const startMs = readInputTs(startEl);
       const endMs = readInputTs(endEl);
@@ -785,11 +836,6 @@ async function init() {
       currentScopeDevices = [];
       currentScopeZones = [];
       currentScopeFloors = [];
-      const deviceSet = new Set();
-      const deviceDisplay = new Map();
-      const deviceZoneMapObj = {};
-      const zoneSet = new Set();
-      const floorSet = new Set();
 
       const captureDevice = (d, zoneName = null) => {
         if (!d) return;
@@ -962,7 +1008,8 @@ async function init() {
         tenant: selection.tenant || null,
         building: selection.building || null,
         floor: selection.floor || null,
-        room: selection.room || null,
+        room: selection.roomLabel || selection.room || null,
+        roomId: selection.roomId || null,
         device: (typeof deviceSelect !== 'undefined' && deviceSelect) ? (deviceSelect.value || null) : null,
         devices: selection.devices.slice(),
         zones: selection.zonesList.slice(),
@@ -1130,7 +1177,16 @@ async function init() {
           if (f) { addNode(f.id); addLink(f.id, b ? b.id : null, 'LOCATED_IN_BUILDING'); }
           allLinks.filter(l => l[2] === 'BELONGS_TO_FLOOR').forEach(([from, to, rel]) => { if (f && to === f.id) { addNode(from); addLink(from, to, rel); } });
         } else if (graphLevel === 'devices' && selection.room) {
-          let z = zones.find(n => String(n.roomId || '') === String(selection.room));
+          let z = null;
+          if (selection.roomId != null) {
+            z = zones.find(n => String(n.roomId || '') === String(selection.roomId));
+          }
+          if (!z) {
+            z = zones.find(n => String(n.name || '') === String(selection.room));
+          }
+          if (!z) {
+            z = zones.find(n => String(n.roomId || '') === String(selection.room));
+          }
           if (!z) {
             const candidateZones = zones.filter(n => String(n.name || '') === String(selection.room));
             if (candidateZones.length === 1) z = candidateZones[0];
@@ -1216,6 +1272,7 @@ async function init() {
             selection.floor = null;
             selection.room = null;
             selection.roomLabel = null;
+            selection.roomId = null;
             selectionConfirmed = false;
             selection.deviceZoneMap = {};
             graphLevel = 'floors';
@@ -1234,6 +1291,7 @@ async function init() {
             selection.floor = floorName;
             selection.room = null;
             selection.roomLabel = null;
+            selection.roomId = null;
             selectionConfirmed = false;
             selection.deviceZoneMap = {};
             graphLevel = 'rooms';
@@ -1245,7 +1303,8 @@ async function init() {
             await populateZones(selection.building, selection.floor);
             syncDropdownsFromSelection();
           } else if (point.nodeType === 'Zone') {
-            const zoneName = String(point.roomId || point.name || '');
+            const zoneName = String(point.name || point.roomId || '').trim();
+            const zoneRoomId = point.roomId != null ? String(point.roomId) : (zoneName || null);
             const floorLink = allLinks.find(l => l[0] === point.id && l[2] === 'BELONGS_TO_FLOOR');
             if (floorLink) {
               const floorNode = nodeByIdAll.get(floorLink[1]);
@@ -1258,6 +1317,7 @@ async function init() {
             }
             selection.room = zoneName;
             selection.roomLabel = zoneName;
+            selection.roomId = zoneRoomId;
             selectionConfirmed = false;
             graphLevel = 'devices';
             syncDropdownsFromSelection();
@@ -1303,7 +1363,14 @@ async function init() {
           {
             type: 'scatter',
             data: nodePoints,
-            dataLabels: { enabled: true, style: { color: '#cbd5e1', textOutline: 'none' } },
+            dataLabels: {
+              enabled: true,
+              formatter() {
+                const point = this.point || {};
+                return point.name || point.roomId || '';
+              },
+              style: { color: '#cbd5e1', textOutline: 'none' }
+            },
             cursor: 'pointer',
             point: {
               events: {
@@ -1360,6 +1427,7 @@ async function init() {
     selection.zonesList = [];
     selection.floorsList = [];
     selection.roomLabel = null;
+    selection.roomId = null;
     selection.deviceZoneMap = {};
     currentScopeDevices = [];
     currentScopeZones = [];
@@ -1372,31 +1440,6 @@ async function init() {
     await refreshGraphView();
   });
 }
-
-function formatDateLocal(ts) {
-  if (!ts) return 'n/a';
-  const d = new Date(ts);
-  return d.toLocaleString();
-}
-function formatDateUTC(ts) {
-  if (!ts) return 'n/a';
-  const d = new Date(ts);
-  return d.toISOString().replace('T', ' ').slice(0, 16);
-}
-function updateSelectedRangeDisplay() {
-  const startEl = document.getElementById('start');
-  const endEl = document.getElementById('end');
-  const rangeDiv = document.getElementById('selected-range');
-  const start = readInputTs(startEl);
-  const end = readInputTs(endEl);
-  const sel = (window && window.selection) ? window.selection : { building: null, floor: null, room: null };
-  rangeDiv.innerHTML = `
-    <b>Scope:</b> ${sel.building ? 'Building '+sel.building : '—'} ${sel.floor ? ' · Floor '+sel.floor : ''} ${sel.room ? ' · Room '+sel.room : ''}<br>
-    <b>Start:</b> ${formatDateLocal(start)} <span style="color:#3b82f6;">(UTC: ${formatDateUTC(start)})</span><br>
-    <b>End:</b> ${formatDateLocal(end)} <span style="color:#3b82f6;">(UTC: ${formatDateUTC(end)})</span>
-  `;
-}
-// Listeners are attached in init(); initial render is also triggered there
 
 async function loadRoomMetrics(room) {
   // Try room-specific JSON first, fallback to global data
@@ -1429,9 +1472,3 @@ async function loadRoomMetrics(room) {
 
 
 init();
-      if (!zoneSet.size && meta && meta.byZone) {
-        Object.keys(meta.byZone).forEach((k) => { if (k) zoneSet.add(String(k)); });
-      }
-      if (!floorSet.size && meta && meta.byFloor) {
-        Object.keys(meta.byFloor).forEach((k) => { if (k) floorSet.add(String(k)); });
-      }
