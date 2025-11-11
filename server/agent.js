@@ -583,6 +583,57 @@ const extractFieldValue = (row, fieldOrList) => {
     if (!args.scopeRoomLabel && originalRoom && originalRoom !== args.room) {
       args.scopeRoomLabel = originalRoom;
     }
+
+    const normalizeRoomRef = (value) => {
+      if (!value || typeof value !== 'string') return value;
+      return normalizeRoomId(value) || value;
+    };
+
+    const roomKeys = ['room', 'room1', 'room2', 'room3', 'roomA', 'roomB', 'roomC', 'room_a', 'room_b', 'room_c'];
+    for (const key of roomKeys) {
+      if (typeof args[key] === 'string') {
+        const resolved = normalizeRoomRef(args[key]);
+        if (resolved) args[key] = resolved;
+      }
+    }
+    if (Array.isArray(args.rooms)) {
+      args.rooms = args.rooms.map((room) => (typeof room === 'string' ? normalizeRoomRef(room) : room)).filter(Boolean);
+    }
+    if (Array.isArray(args.series)) {
+      args.series = args.series.map((entry) => {
+        if (!entry || typeof entry !== 'object') return entry;
+        const clone = { ...entry };
+        if (typeof clone.room === 'string') {
+          const resolved = normalizeRoomRef(clone.room);
+          if (resolved) clone.room = resolved;
+        }
+        return clone;
+      });
+    }
+    if (Array.isArray(args.queries)) {
+      args.queries = args.queries.map((query) => {
+        if (!query || typeof query !== 'object') return query;
+        const clone = { ...query };
+        const requestedRoom = typeof clone.room === 'string'
+          ? clone.room
+          : (typeof clone.room_name === 'string' ? clone.room_name : null);
+        if (requestedRoom) {
+          const resolvedRoom = normalizeRoomRef(requestedRoom);
+          if (resolvedRoom) {
+            clone.room = resolvedRoom;
+          }
+        }
+        if (!clone.field && clone.metric_name) clone.field = clone.metric_name;
+        if (!clone.table && clone.field) {
+          const guess = inferDefaultTableForMetric(clone.field);
+          if (guess) clone.table = guess;
+        }
+        return clone;
+      });
+      if (!args.room && args.queries[0]?.room) args.room = args.queries[0].room;
+      if (!args.table && args.queries[0]?.table) args.table = args.queries[0].table;
+      if (!args.field && args.queries[0]?.field) args.field = args.queries[0].field;
+    }
   }
 
   function loadFriendlyToCloudMap() {
@@ -8524,8 +8575,11 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
         qlLower.includes('sensors') ||
         qlLower.includes('selected') ||
         qlLower.includes('gaps') ||
-        qlLower.includes('current scope'));
-    const scopeOnlyQuestion = mentionsScopeSummary && !/\b(sensor|sensors|metric|metrics|telemetry|gap|gaps|chart|trend|compare|list|plot|graph)\b/.test(qlLower);
+        qlLower.includes('current scope') ||
+        /\bcurrent(ly)?\b/.test(qlLower));
+    const scopeOnlyQuestion =
+      (mentionsScopeSummary || /\bwhat\s+scope\b/.test(qlLower)) &&
+      !/\b(sensor|sensors|metric|metrics|telemetry|gap|gaps|chart|trend|compare|list|plot|graph)\b/.test(qlLower);
     const wantsScopeSummary =
       intent.selectionTime ||
       /what\s+scope\s+do\s+you\s+see/.test(qlLower) ||
