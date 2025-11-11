@@ -366,6 +366,104 @@ const extractFieldValue = (row, fieldOrList) => {
     return out;
   }
 
+  function metricsPreviewForDevice(deviceId, limit = 4) {
+    const metrics = new Set();
+    const csvMetrics = CSV_DEVICE_METRICS.get(deviceId);
+    if (Array.isArray(csvMetrics)) {
+      for (const m of csvMetrics) {
+        if (m && typeof m === 'string') metrics.add(m);
+      }
+    }
+    return Array.from(metrics).slice(0, limit);
+  }
+
+  function describeDeviceForScopeSummary(deviceId) {
+    if (!deviceId) return null;
+    const meta = snapshotIndex?.deviceMeta?.get(deviceId) || null;
+    const metrics = metricsPreviewForDevice(deviceId).map(humanizeMetricName);
+    const baseName = meta?.name || deviceId;
+    const typeText = meta?.type ? ` (${meta.type})` : '';
+    const locationBits = [];
+    if (meta?.zoneName) locationBits.push(meta.zoneName);
+    if (meta?.floorName) locationBits.push(meta.floorName);
+    if (meta?.buildingName) locationBits.push(meta.buildingName);
+    const locationText = locationBits.length ? ` — ${locationBits.join(' · ')}` : '';
+    const metricsText = metrics.length ? metrics.join(', ') : 'unknown metrics';
+    return `${baseName}${typeText} [${deviceId}]${locationText} metrics: ${metricsText}`;
+  }
+
+  function summarizeZoneRecordForScope(zoneRecord, { maxDevices = 4 } = {}) {
+    if (!zoneRecord) return null;
+    const deviceIds = Array.isArray(zoneRecord.devices) ? zoneRecord.devices.filter(Boolean) : [];
+    const header = `Zone ${zoneRecord.name || zoneRecord.id} · Floor ${zoneRecord.floorName || 'n/a'} · Building ${zoneRecord.buildingName || 'n/a'}`;
+    const deviceLines = [];
+    for (const deviceId of deviceIds.slice(0, maxDevices)) {
+      const summary = describeDeviceForScopeSummary(deviceId);
+      if (summary) deviceLines.push(summary);
+    }
+    const extra = deviceIds.length > maxDevices ? ` (+${deviceIds.length - maxDevices} more)` : '';
+    if (!deviceLines.length && !extra) return header;
+    return `${header} — devices: ${deviceLines.join(' | ') || 'none'}${extra}.`;
+  }
+
+  function buildScopeSnapshotContextSummary({
+    selectionZones = [],
+    selectionRooms = [],
+    scopeDeviceZones = {},
+    scopeLabels = {},
+    limit = 3
+  } = {}) {
+    if (!snapshotIndex) return '';
+    const lines = [];
+    const seenZones = new Set();
+    const pushZone = (zoneRecord) => {
+      if (!zoneRecord || !zoneRecord.id || seenZones.has(zoneRecord.id)) return;
+      const summary = summarizeZoneRecordForScope(zoneRecord);
+      if (summary) {
+        lines.push(summary);
+        seenZones.add(zoneRecord.id);
+      }
+    };
+    (selectionZones || []).forEach((label) => pushZone(findSnapshotZone(label, scopeLabels)));
+    if (scopeLabels?.room) pushZone(findSnapshotZone(scopeLabels.room, scopeLabels));
+    if (scopeLabels?.zone) pushZone(findSnapshotZone(scopeLabels.zone, scopeLabels));
+    if (!lines.length && scopeDeviceZones && typeof scopeDeviceZones === 'object') {
+      const zoneNames = new Set(Object.values(scopeDeviceZones).filter(Boolean));
+      zoneNames.forEach((name) => pushZone(findSnapshotZone(name, scopeLabels)));
+    }
+    if (!lines.length && Array.isArray(selectionRooms)) {
+      for (const deviceId of selectionRooms) {
+        const meta = snapshotIndex?.deviceMeta?.get(deviceId);
+        if (meta?.zoneId) pushZone(snapshotIndex.zoneById?.get(meta.zoneId));
+      }
+    }
+    const trimmedZones = lines.slice(0, limit);
+    const deviceHighlights = [];
+    if (Array.isArray(selectionRooms)) {
+      const seenDevices = new Set();
+      for (const deviceId of selectionRooms) {
+        if (seenDevices.has(deviceId)) continue;
+        const summary = describeDeviceForScopeSummary(deviceId);
+        if (summary) {
+          deviceHighlights.push(summary);
+          seenDevices.add(deviceId);
+          if (deviceHighlights.length >= limit) break;
+        }
+      }
+    }
+    const sections = [];
+    if (trimmedZones.length) {
+      sections.push('Scope snapshot:');
+      sections.push(...trimmedZones);
+    }
+    if (deviceHighlights.length) {
+      sections.push(`Device highlights: ${deviceHighlights.join(' | ')}`);
+    }
+    const text = sections.join('\n').trim();
+    if (!text) return '';
+    return text.length > 1200 ? `${text.slice(0, 1200)}…` : text;
+  }
+
   const graphHierarchy = loadGraphFormHierarchy();
   const snapshotIndex = buildSnapshotIndex();
   let currentScopeContext = {
@@ -7916,7 +8014,12 @@ function parseFieldsFromQuestion(question, availableSets) {
     return JSON.stringify(toolDefs(), null, 0);
   }
 
-  async function buildContextSnippet(question, room, range, selectionRooms = []) {
+  async function buildContextSnippet(question, room, range, selectionRooms = [], options = {}) {
+    const {
+      selectionZones = [],
+      scopeDeviceZones = {},
+      scopeLabels = {}
+    } = options || {};
     const retrieved = await hybridRetrieve({ query: question, ragIndex: rag, vectorClient: vector, k: 6 }).catch(() => []);
     const head = (retrieved || []).map(h => 
       `Score:${(h.final ?? h.rrf ?? h.scoreRaw ?? 0).toFixed(3)} Meta:${JSON.stringify(h.meta)}\n${h.text}`
@@ -7961,10 +8064,18 @@ function parseFieldsFromQuestion(question, availableSets) {
           agg[t] = cur;
         }
       }
-	      Object.assign(meta, agg);
-	    }
-	    return { retrieved: head, schema, meta, range, room, selectionRooms, _retrievedDocs: retrieved };
-	  }
+      Object.assign(meta, agg);
+    }
+    const scopeSnapshotSummary = buildScopeSnapshotContextSummary({
+      selectionRooms,
+      selectionZones,
+      scopeDeviceZones,
+      scopeLabels
+    });
+    const ctx = { retrieved: head, schema, meta, range, room, selectionRooms, selectionZones, _retrievedDocs: retrieved };
+    if (scopeSnapshotSummary) ctx.scopeSnapshot = scopeSnapshotSummary;
+    return ctx;
+  }
 	
   function zoneLabelFromEntry(entry) {
     if (!entry) return null;
@@ -8127,7 +8238,13 @@ function parseFieldsFromQuestion(question, availableSets) {
       return null;
     }
 
-    const ctx = await buildContextSnippet(question, room && room !== 'ALL' ? room : null, range, selectionRooms);
+    const ctx = await buildContextSnippet(
+      question,
+      room && room !== 'ALL' ? room : null,
+      range,
+      selectionRooms,
+      { selectionZones, scopeDeviceZones, scopeLabels }
+    );
     log('Question:', '<redacted>');
     if (DEBUG) log('Context snippet schema keys:', Object.keys(ctx.schema));
 

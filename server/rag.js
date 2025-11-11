@@ -66,6 +66,193 @@ function buildTfidfIndex(docs, { debug = false } = {}) {
   };
 }
 
+function safeReadJson(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function listSnapshotFiles(dataDir) {
+  try {
+    const dir = path.resolve(dataDir || '.');
+    if (!fs.existsSync(dir)) return [];
+    return fs
+      .readdirSync(dir)
+      .filter((name) => /^graph_snapshot(\.|$)/.test(name) && name.endsWith('.json'))
+      .map((name) => path.join(dir, name));
+  } catch {
+    return [];
+  }
+}
+
+function buildScopeDocsFromSnapshots(dataDir) {
+  const docs = [];
+  const files = listSnapshotFiles(dataDir);
+  if (!files.length) return docs;
+  const typeOf = (node) => (node?.nodeType || node?.label || null);
+  const metricRels = new Set(['HAS_TELEMETRY_KEY', 'MEASURES', 'MEASURES_KEY']);
+
+  for (const file of files) {
+    const snap = safeReadJson(file);
+    if (!snap || !Array.isArray(snap.nodes) || !Array.isArray(snap.links)) continue;
+    const tenant = snap.tenant || snap.tenantName || (() => {
+      const basename = path.basename(file);
+      const parts = basename.split('.');
+      return parts.length === 3 ? parts[1] : null;
+    })();
+    const nodesById = new Map();
+    for (const node of snap.nodes) {
+      if (!node || !node.id) continue;
+      nodesById.set(node.id, node);
+    }
+    const floors = new Map();
+    const buildings = new Map();
+    const zones = new Map();
+    const devices = new Map();
+    const deviceByCloudId = new Map();
+    snap.nodes.forEach((node) => {
+      const type = typeOf(node);
+      if (type === 'Floor') {
+        floors.set(node.id, { id: node.id, name: node.name || null, buildingIds: new Set(), node });
+      } else if (type === 'Building') {
+        buildings.set(node.id, { id: node.id, name: node.name || null, node });
+      } else if (type === 'Zone') {
+        zones.set(node.id, {
+          id: node.id,
+          name: node.name || null,
+          roomId: node.roomId != null ? String(node.roomId) : null,
+          floorName: node.floorName || null,
+          buildingName: node.buildingName || null,
+          deviceIds: new Set(),
+          node
+        });
+      } else if (type === 'Device') {
+        const cloudId = node.cloudId || node.name || node.id;
+        const record = {
+          id: node.id,
+          cloudId: cloudId ? String(cloudId) : null,
+          name: node.name || null,
+          type: node.deviceType || node.type || null,
+          node
+        };
+        devices.set(node.id, record);
+        if (record.cloudId) deviceByCloudId.set(record.cloudId, record);
+      }
+    });
+
+    const deviceMetrics = new Map(); // cloudId -> Set(metrics)
+    const ensureMetric = (cloudId, metric) => {
+      if (!cloudId || !metric) return;
+      const set = deviceMetrics.get(cloudId) || new Set();
+      set.add(metric);
+      deviceMetrics.set(cloudId, set);
+    };
+
+    for (const link of snap.links) {
+      if (!link || !link.rel) continue;
+      const { source, target, rel } = link;
+      if (rel === 'LOCATED_IN_ZONE') {
+        const zone = zones.get(target);
+        const device = devices.get(source);
+        if (zone && device && device.cloudId) zone.deviceIds.add(device.cloudId);
+      } else if (rel === 'BELONGS_TO_FLOOR' || rel === 'PART_OF_FLOOR') {
+        const zone = zones.get(source);
+        const floor = floors.get(target);
+        if (zone && floor) zone.floorName = zone.floorName || floor.name || null;
+      } else if (rel === 'LOCATED_ON_FLOOR') {
+        const device = devices.get(source);
+        const floor = floors.get(target);
+        if (device && floor && !device.floorName) device.floorName = floor.name || null;
+      } else if (rel === 'BELONGS_TO_BUILDING' || rel === 'LOCATED_IN_BUILDING' || rel === 'PART_OF_BUILDING' || rel === 'IN_BUILDING') {
+        const node = nodesById.get(source);
+        const building = buildings.get(target);
+        if (!building) continue;
+        const type = typeOf(node);
+        if (type === 'Zone') {
+          const zone = zones.get(source);
+          if (zone) zone.buildingName = zone.buildingName || building.name || null;
+        } else if (type === 'Floor') {
+          const floor = floors.get(source);
+          if (floor) floor.buildingIds.add(building.id);
+        } else if (type === 'Device') {
+          const device = devices.get(source);
+          if (device && !device.buildingName) device.buildingName = building.name || null;
+        }
+      } else if (metricRels.has(rel)) {
+        const src = nodesById.get(source);
+        const tgt = nodesById.get(target);
+        const srcType = typeOf(src);
+        const tgtType = typeOf(tgt);
+        let deviceNode = null;
+        let metricNode = null;
+        if (srcType === 'Device' && tgtType === 'TelemetryKey') {
+          deviceNode = src;
+          metricNode = tgt;
+        } else if (srcType === 'TelemetryKey' && tgtType === 'Device') {
+          deviceNode = tgt;
+          metricNode = src;
+        }
+        if (deviceNode) {
+          const cloudId = deviceNode.cloudId || deviceNode.name || deviceNode.id;
+          const metricName = metricNode?.name || metricNode?.metric || metricNode?.field || null;
+          ensureMetric(cloudId ? String(cloudId) : null, metricName);
+        }
+      }
+    }
+
+    const zoneDocs = [];
+    zones.forEach((zone) => {
+        const deviceList = Array.from(zone.deviceIds);
+        if (!zone.name && !deviceList.length) return;
+      const tenantLabel = tenant ? `Tenant ${tenant}` : 'Default Tenant';
+      const buildingLabel = zone.buildingName || 'Unknown Building';
+      const floorLabel = zone.floorName || 'Unknown Floor';
+      const zoneLabel = zone.name || zone.roomId || zone.id;
+      const deviceSummaries = [];
+      for (const cloudId of deviceList.slice(0, 8)) {
+        const deviceNode = deviceByCloudId.get(cloudId);
+        if (!deviceNode) continue;
+        const metrics = Array.from(deviceMetrics.get(cloudId) || []).slice(0, 5);
+        const metricsText = metrics.length ? metrics.join(', ') : 'unknown metrics';
+        const typeHint = deviceNode.type ? `, ${deviceNode.type}` : '';
+        deviceSummaries.push(`- ${deviceNode.name || cloudId} (${cloudId}${typeHint}) — metrics: ${metricsText}`);
+      }
+      const aggregateMetrics = new Set();
+      deviceList.forEach((cloudId) => {
+        const set = deviceMetrics.get(cloudId);
+        if (set) set.forEach((m) => aggregateMetrics.add(m));
+      });
+      const text = [
+        `Scope Snapshot (${tenantLabel}): Building ${buildingLabel}, Floor ${floorLabel}, Zone ${zoneLabel}.`,
+        zone.roomId ? `Room identifier: ${zone.roomId}.` : null,
+        deviceSummaries.length ? `Devices (${deviceList.length}):\n${deviceSummaries.join('\n')}` : 'Devices: none recorded in snapshot.',
+        deviceList.length > deviceSummaries.length
+          ? `(+${deviceList.length - deviceSummaries.length} additional devices omitted for brevity)`
+          : null,
+        `Primary metrics: ${aggregateMetrics.size ? Array.from(aggregateMetrics).slice(0, 8).join(', ') : 'unknown'}.`
+      ]
+        .filter(Boolean)
+        .join('\n');
+      zoneDocs.push({
+        text,
+        meta: {
+          type: 'scope_snapshot',
+          tenant: tenant || 'default',
+          building: buildingLabel,
+          floor: floorLabel,
+          zone: zoneLabel,
+          zoneId: zone.id,
+          deviceCount: deviceList.length
+        }
+      });
+    });
+    docs.push(...zoneDocs);
+  }
+  return docs;
+}
+
 export function buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir }) {
   const docs = [];
   let id = 0;
@@ -171,6 +358,12 @@ export function buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir
         docs.push({ id: `k_${id++}`, text: c, meta: { type: 'knowledge', file: rel, category, ...fm } });
       }
     }
+  }
+
+  // Scope snapshots (graph-derived)
+  const scopeDocs = buildScopeDocsFromSnapshots(dataDir);
+  for (const doc of scopeDocs) {
+    docs.push({ id: `scope_${id++}`, text: doc.text, meta: doc.meta });
   }
   
   // Room schemas
