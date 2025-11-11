@@ -8307,10 +8307,15 @@ Weather data chart:
 }
 
 === ANALYSIS WORKFLOW (MANDATORY) ===
-1. Before calling any tool, respond with {"action":"plan","steps":[...]} listing 2‑4 concrete steps (e.g., "Inspect CO2 trend with fetch_timeseries", "Compare humidity between Suite 6.2 and Suite 6.3 using compare_series_cross_room"). Each step MUST mention the tool or computation you intend to run. Do NOT call tools until the plan is acknowledged.
-2. After the plan is acknowledged, execute the steps sequentially using tool call actions ("tool_call" / "tool_calls"). It is acceptable to call several tools consecutively—reference the plan step numbers when you do.
-3. When tools finish, respond with {"action":"final", ...} that (a) begins with "Overview:" summarizing the conclusions for ${startFmt} to ${endFmt} in 2 sentences, (b) adds a "Details:" section referencing each plan step and the tool outputs, and (c) explicitly comments on any chart you provide (what it shows, peaks/lows, comparisons, etc.).
-4. If you cannot complete a plan step (missing data, tool limitation, etc.), explain why in the final answer and reference the affected step.
+1. Before calling any tool, respond with {"action":"plan","steps":[{"id":"S1","goal":"Review CO2 trend","tool":"fetch_timeseries","inputs":["co2"]}, ...]} listing 2‑4 concrete steps. Every step MUST be a JSON object (not a string) with:
+   - id: S1, S2, S3… (unique per step)
+   - goal: what you will do
+   - tool: the exact tool name you intend to call
+   - inputs/metrics (array) describing the metric(s) you’ll request
+   Do NOT call tools until the structured plan is acknowledged.
+2. After the plan is acknowledged, every {"action":"tool_call"} (and each entry inside {"action":"tool_calls"}) MUST include "planStep":"S#" pointing to the step it satisfies. Execute the plan in order and only advance after completing each step’s tool call.
+3. When tools finish, respond with {"action":"final", ... , "plan_status":[{"id":"S1","status":"done","finding":"CO₂ trend captured"}, ...]} that (a) begins with "Overview:" summarizing the conclusions for ${startFmt} to ${endFmt} in 2 sentences, (b) adds a "Details:" section referencing each plan step and the tool outputs, (c) explicitly comments on any chart you provide, and (d) lists plan_status for every step with its outcome.
+4. If you cannot complete a plan step (missing data, tool limitation, etc.), explain why in the final answer, mark that step in plan_status with status:"blocked" (or similar), and describe the gap.
 
 If you want to answer in plain text (no chart, no structured data), respond with:
 { "action": "final_text", "answer": "<your answer>" }
@@ -8428,42 +8433,171 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
     let chartRetryCount = 0;
     let planConfirmed = false;
     let planSteps = [];
-    let planProgress = 0;
     let planStatus = [];
+    let planStepMap = new Map();
     let consecutivePlanReplies = 0;
     let planLoopStrikes = 0;
+
+    const canonicalPlanStepId = (raw, idx = null) => {
+      let id = raw == null ? '' : String(raw).trim();
+      if (!id && idx != null) id = `S${idx + 1}`;
+      if (!id) return null;
+      id = id.replace(/\s+/g, '');
+      if (/^step\d+$/i.test(id)) id = `S${id.replace(/^step/i, '')}`;
+      if (/^\d+$/i.test(id)) id = `S${id}`;
+      if (!/^S/i.test(id)) id = `S${id}`;
+      return id.toUpperCase();
+    };
+
+    const registerPlanSteps = (steps = []) => {
+      planStepMap = new Map();
+      steps.forEach((step, idx) => {
+        if (!step || !step.id) return;
+        const aliases = new Set([
+          step.id,
+          step.id.toLowerCase(),
+          `S${step.index || idx + 1}`,
+          `STEP${step.index || idx + 1}`,
+          String(step.index || idx + 1)
+        ]);
+        aliases.forEach((key) => planStepMap.set(String(key).toUpperCase(), step));
+      });
+    };
+
+    const findPlanStep = (ref) => {
+      if (!ref) return null;
+      const key = canonicalPlanStepId(ref);
+      if (!key) return null;
+      return planStepMap.get(key.toUpperCase()) || null;
+    };
+
+    const planStatusSnapshot = () => planStatus.map((step) => ({
+      id: step.id,
+      index: step.index,
+      text: step.text,
+      tool: step.tool,
+      done: !!step.done,
+      note: step.note || null
+    }));
+
+    const normalizePlanSteps = (rawSteps = []) => {
+      const normalized = [];
+      const errors = [];
+      rawSteps.forEach((raw, idx) => {
+        if (!raw || typeof raw !== 'object') {
+          errors.push(`Step ${idx + 1} must be an object with id/tool/goal.`);
+          return;
+        }
+        const text = String(raw.goal ?? raw.text ?? raw.description ?? raw.summary ?? '').trim();
+        if (!text) {
+          errors.push(`Step ${idx + 1} is missing a goal/description.`);
+          return;
+        }
+        const id = canonicalPlanStepId(raw.id ?? raw.stepId ?? raw.step_id ?? raw.step ?? raw.index ?? raw.name ?? raw.label ?? '', idx);
+        if (!id) {
+          errors.push(`Step ${idx + 1} is missing an id (use S1, S2, ...).`);
+          return;
+        }
+        const rawToolName = raw.tool ?? raw.tool_name ?? raw.toolName ?? raw.action ?? raw.intent ?? '';
+        const resolvedTool = resolveToolName(rawToolName);
+        if (!resolvedTool || !tools[resolvedTool]) {
+          errors.push(`Step ${id} must specify a valid tool (got "${rawToolName || 'none'}").`);
+          return;
+        }
+        const inputs = [];
+        const pushInput = (val) => {
+          const str = String(val ?? '').trim();
+          if (str) inputs.push(str);
+        };
+        if (Array.isArray(raw.inputs)) raw.inputs.forEach(pushInput);
+        if (Array.isArray(raw.fields)) raw.fields.forEach(pushInput);
+        if (Array.isArray(raw.metrics)) raw.metrics.forEach(pushInput);
+        if (raw.metric) pushInput(raw.metric);
+        if (raw.field) pushInput(raw.field);
+        normalized.push({
+          id,
+          index: idx + 1,
+          text,
+          tool: resolvedTool,
+          rawTool: rawToolName || resolvedTool,
+          inputs,
+          target: raw.room || raw.zone || raw.target || raw.scope || null,
+          done: false,
+          note: null
+        });
+      });
+      return { steps: normalized, errors };
+    };
     let comparisonSatisfied = !needsRoomComparison;
     let rankingSatisfied = !requireRoomRanking;
     const summarizePlanStatusLines = () => planStatus
-      .map((step, idx) => {
+      .map((step) => {
         if (!step) return null;
         const marker = step.done ? 'x' : ' ';
-        const index = step.index ?? step.id ?? idx + 1;
         const label = step.text || step.description || step.goal || '';
-        return `[${marker}] Step ${index}: ${label}`;
+        const toolLabel = step.tool ? ` [${step.tool}]` : '';
+        return `[${marker}] ${step.id || step.index}: ${label}${toolLabel}`;
       })
       .filter(Boolean)
       .join('\n');
+
     const pushPlanProgress = (note) => {
       if (!planStatus.length) return;
       const summaryLines = summarizePlanStatusLines();
       const next = planStatus.find((step) => !step.done);
       const defaultNote = next
-        ? `Next: Step ${next.index}: ${next.text}. Execute it with the corresponding tool ({"action":"tool_call","tool":"<name>","args":{...}}) before moving on.`
-        : 'All planned steps are complete. Summarize the findings and finalize your answer now.';
+        ? `Next: ${next.id}: ${next.text}. Execute it via {"action":"tool_call","planStep":"${next.id}","tool":"${next.tool}","args":{...}}.`
+        : 'All planned steps are complete. Provide {"action":"final","plan_status":[...]} summarizing each step.';
       convo.push({
         role: 'user',
-        content: `PLAN STATUS:\n${summaryLines}${note ? `\n${note}` : `\n${defaultNote}`}`
+        content: `PLAN STATUS:\n${summaryLines}\n${note || defaultNote}\nRemember: every tool call must include "planStep":"S#".`
       });
     };
 
-    const markPlanStepComplete = () => {
-      if (!planConfirmed || !planSteps.length) return;
-      if (planProgress >= planSteps.length) return;
-      planProgress += 1;
-      const statusIndex = planProgress - 1;
-      if (planStatus[statusIndex]) planStatus[statusIndex].done = true;
-      pushPlanProgress(`Completed Step ${planProgress}.`);
+    const markPlanStepComplete = (stepRef = null, note = null) => {
+      if (!planConfirmed || !planStatus.length) return;
+      const target = stepRef ? findPlanStep(stepRef) : planStatus.find((s) => !s.done);
+      if (!target) return;
+      if (!target.done) {
+        target.done = true;
+        if (note) target.note = note;
+        pushPlanProgress(`Completed ${target.id}: ${target.text}.`);
+      } else if (note) {
+        target.note = note;
+      }
+    };
+
+    const extractPlanStatusPayload = (obj = {}) => {
+      if (Array.isArray(obj.plan_status)) return obj.plan_status;
+      if (Array.isArray(obj.planStatus)) return obj.planStatus;
+      if (obj.plan && Array.isArray(obj.plan.status)) return obj.plan.status;
+      return null;
+    };
+
+    const ensureFinalReferencesPlan = (obj = {}) => {
+      if (!planConfirmed || !planStatus.length) return true;
+      const payload = extractPlanStatusPayload(obj);
+      if (!Array.isArray(payload) || !payload.length) {
+        convo.push({
+          role: 'user',
+          content: 'Include "plan_status":[{"id":"S1","status":"done","finding":"..."}] summarizing each plan step before finalizing.'
+        });
+        return false;
+      }
+      const provided = new Set();
+      for (const entry of payload) {
+        const norm = canonicalPlanStepId(entry?.id ?? entry?.step ?? entry?.stepId ?? entry?.planStep ?? '');
+        if (norm) provided.add(norm);
+      }
+      const missing = planStatus.filter((step) => !provided.has(step.id));
+      if (missing.length) {
+        convo.push({
+          role: 'user',
+          content: `Plan status missing for ${missing.map((s) => s.id).join(', ')}. Include each step with its outcome and resend the final response.`
+        });
+        return false;
+      }
+      return true;
     };
     
     STEP_LOOP: for (let step = 0; step < 12; step++) {
@@ -8823,9 +8957,10 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           planLoopStrikes = 0;
         }
         if (planConfirmed) {
-          const nextStep = planSteps?.[Math.min(planProgress, planSteps.length - 1)]?.text || 'the first step of your existing plan';
+          const nextPending = planStatus.find((s) => !s.done) || planStatus[0];
+          const nextStep = nextPending ? `${nextPending.id}: ${nextPending.text}` : 'the first step of your existing plan';
           const severity = consecutivePlanReplies >= 3
-            ? `CRITICAL: Stop resending the plan. Immediately execute ${nextStep} by calling the appropriate tool (e.g., fetch_timeseries, stats, compare_series_cross_room).`
+            ? `CRITICAL: Stop resending the plan. Immediately execute ${nextStep} using {"action":"tool_call","planStep":"${nextPending?.id || 'S1'}","tool":"${nextPending?.tool || '<tool>'}","args":{...}}.`
             : `Plan already confirmed. Proceed with ${nextStep} by calling the required tool instead of replanning.`;
           convo.push({
             role: 'user',
@@ -8834,46 +8969,28 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           continue STEP_LOOP;
         }
         const rawSteps = Array.isArray(obj.steps) ? obj.steps : [];
-        const normalized = rawSteps
-          .map((step, idx) => {
-            if (typeof step === 'string') {
-              const text = step.trim();
-              return text ? { index: idx + 1, text } : null;
-            }
-            if (step && typeof step === 'object') {
-              const text = String(step.text ?? step.description ?? step.step ?? step.goal ?? '').trim();
-              const label = step.name || step.title || null;
-              if (text) return { index: step.index || step.id || idx + 1, text, label };
-              const fallback = JSON.stringify(step);
-              return { index: step.index || step.id || idx + 1, text: fallback };
-            }
-            if (step == null) return null;
-            return { index: idx + 1, text: String(step).trim() };
-          })
-          .filter(Boolean);
-        if (normalized.length < 2) {
+        const { steps: structuredSteps, errors } = normalizePlanSteps(rawSteps);
+        if (errors.length) {
           convo.push({
             role: 'user',
-            content: 'Plan must include at least two concrete steps referencing the metrics/tools you intend to use. Respond again with {"action":"plan","steps":[...]}'
+            content: `Plan error: ${errors[0]}. Provide {"action":"plan","steps":[{"id":"S1","goal":"Review CO2 trend","tool":"fetch_timeseries","inputs":["co2"]}, {"id":"S2","goal":"Compare rooms on CO2","tool":"compare_rooms_on_metric","inputs":["co2"]}]}`
+          });
+          continue STEP_LOOP;
+        }
+        if (structuredSteps.length < 2) {
+          convo.push({
+            role: 'user',
+            content: 'Plan must include at least two structured steps with ids/tools. Respond again with {"action":"plan","steps":[...]}'
           });
         } else {
           planConfirmed = true;
-          planSteps = normalized.map((step, idx) => ({
-            index: step?.index || step?.id || idx + 1,
-            text: step?.text || step?.description || step?.goal || '',
-            label: step?.label || step?.name || step?.title || null
-          }));
-          planStatus = planSteps.map((step, idx) => ({
-            index: step?.index || step?.id || idx + 1,
-            text: step?.text || step?.description || step?.goal || '',
-            label: step?.label || step?.name || step?.title || null,
-            done: false
-          }));
-          planProgress = 0;
-          trace.push({ tool: 'plan', args: { steps: planSteps }, result: null });
-          const initialStep = planStatus[0];
+          planSteps = structuredSteps.map((step) => ({ ...step }));
+          planStatus = planSteps;
+          registerPlanSteps(planStatus);
+          trace.push({ tool: 'plan', args: { steps: planStatusSnapshot() }, result: null });
+          const initialStep = planStatus.find((s) => !s.done);
           const note = initialStep
-            ? `Plan locked. Begin Step ${initialStep.index}: ${initialStep.text} by calling the appropriate tool (e.g., fetch_timeseries, stats, compare_series_cross_room) using {"action":"tool_call","tool":"<name>","args":{...}}.`
+            ? `Plan locked. Begin ${initialStep.id}: ${initialStep.text} using {"action":"tool_call","planStep":"${initialStep.id}","tool":"${initialStep.tool}","args":{...}}.`
             : 'Plan locked. Execute the outlined steps with the required tools.';
           pushPlanProgress(note);
         }
@@ -8894,12 +9011,40 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       // Handle single tool call
       // Handle multiple parallel tool calls
       if (obj.action === 'tool_calls' && Array.isArray(obj.tools)) {
-        const results = [];
+        const resolvedCalls = [];
+        let planStepValidationError = null;
         for (const tc of obj.tools) {
-          const tool = resolveToolName(tc.tool);
-          const args = { ...(tc.args || {}) };
+          const planRefRaw = tc.planStep ?? tc.plan_step ?? tc.plan ?? tc.step ?? tc.stepId ?? tc.id ?? null;
+          if (planConfirmed && !planRefRaw) {
+            planStepValidationError = 'Each tool call must include "planStep":"S#" indicating which plan step it satisfies.';
+            break;
+          }
+          const planEntry = planConfirmed ? findPlanStep(planRefRaw) : null;
+          if (planConfirmed && !planEntry) {
+            const validIds = planStatus.map((s) => s.id).join(', ');
+            planStepValidationError = `Unknown planStep "${planRefRaw}". Valid ids: ${validIds}`;
+            break;
+          }
+          resolvedCalls.push({
+            raw: tc,
+            toolName: resolveToolName(tc.tool),
+            planEntry,
+            planStepId: planEntry?.id || (planRefRaw ? canonicalPlanStepId(planRefRaw) : null)
+          });
+        }
+        if (planStepValidationError) {
+          convo.push({
+            role: 'user',
+            content: `${planStepValidationError} Resend the tool call JSON like {"action":"tool_call","planStep":"${planStatus[0]?.id || 'S1'}","tool":"fetch_timeseries","args":{...}}.`
+          });
+          continue STEP_LOOP;
+        }
+        const results = [];
+        for (const tc of resolvedCalls) {
+          const tool = tc.toolName;
+          const args = { ...((tc.raw?.args) || {}) };
           if (!tools[tool]) {
-            results.push({ tool, args, result: { error: `Tool ${tool} not found` } });
+            results.push({ planStep: tc.planStepId, tool, args, result: { error: `Tool ${tool} not found` } });
             continue;
           }
           if (args.room == null && room) args.room = room;
@@ -8922,8 +9067,8 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           prepareToolArgs(tool, args);
           let result = null;
           try { result = tools[tool](args); } catch (e) { result = { error: String(e) }; }
-          results.push({ tool, args, result });
-          trace.push({ tool, args, result });
+          results.push({ planStep: tc.planStepId, tool, args, result });
+          trace.push({ planStepId: tc.planStepId, tool, args, result });
           totalToolCalls += 1;
           if (needsRoomComparison && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
             comparisonSatisfied = true;
@@ -8931,8 +9076,8 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           if (requireRoomRanking && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
             rankingSatisfied = true;
           }
+          markPlanStepComplete(tc.planStepId, `Executed ${tool}`);
         }
-        markPlanStepComplete();
         convo.push({ role: 'user', content: `{"tool_results": ${JSON.stringify(results).slice(0, 15000)} }` });
         continue STEP_LOOP;
       }
@@ -8945,6 +9090,24 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       }
 
       if (obj.action === 'tool_call') {
+        const planRefRaw = obj.planStep ?? obj.plan_step ?? obj.plan ?? obj.step ?? obj.stepId ?? null;
+        if (planConfirmed && !planRefRaw) {
+          convo.push({
+            role: 'user',
+            content: 'Every tool call must include "planStep":"S#" referencing the plan step it fulfills. Add it and resend the tool call.'
+          });
+          continue STEP_LOOP;
+        }
+        const planEntry = planConfirmed ? findPlanStep(planRefRaw) : null;
+        if (planConfirmed && !planEntry) {
+          const validIds = planStatus.map((s) => s.id).join(', ');
+          convo.push({
+            role: 'user',
+            content: `Unknown planStep "${planRefRaw}". Valid ids: ${validIds}. Resend the tool call with a valid plan reference.`
+          });
+          continue STEP_LOOP;
+        }
+        const planStepId = planEntry?.id || (planRefRaw ? canonicalPlanStepId(planRefRaw) : null);
         let { tool, args } = obj;
         tool = resolveToolName(tool);
         log('Tool call:', tool, 'args:', args);
@@ -8990,14 +9153,14 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           result.length : 
           (result && typeof result === 'object' ? Object.keys(result).length : 0);
         log('Tool result size hint:', sizeHint);
-        trace.push({ tool, args, result });
+        trace.push({ planStepId, tool, args: filledArgs, result });
         if (needsRoomComparison && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
           comparisonSatisfied = true;
         }
         if (requireRoomRanking && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
           rankingSatisfied = true;
         }
-        markPlanStepComplete();
+        markPlanStepComplete(planStepId, `Executed ${tool}`);
         
         // If compare tool returned series, finalize immediately with a ready-to-plot chart
         if (tool === 'compare_series_cross_room' && result && typeof result === 'object' && !Array.isArray(result)) {
@@ -9408,6 +9571,9 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             continue STEP_LOOP;
           }
         }
+        if (!ensureFinalReferencesPlan(obj)) {
+          continue STEP_LOOP;
+        }
 
         const dataPresent = traceHasData(trace);
         const llmAnswer = typeof obj.answer === 'string' ? obj.answer.trim() : '';
@@ -9421,10 +9587,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
               notes: adaptationNotes,
               range
             });
-        if (!llmAnswer && planSteps.length) {
-          const summary = planSteps.map((step, idx) => {
+        if (!llmAnswer && planStatus.length) {
+          const summary = planStatus.map((step, idx) => {
             const label = step && step.text ? step.text : '';
-            return `Step ${step?.index ?? idx + 1}: ${label}`;
+            const marker = step?.done ? 'done' : 'pending';
+            return `Step ${step?.id ?? step?.index ?? idx + 1} (${marker}): ${label}`;
           }).join(' | ');
           finalAnswer = `${finalAnswer}\nPlan executed: ${summary}`;
         }
@@ -9509,6 +9676,9 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           });
           continue STEP_LOOP;
         }
+        if (!ensureFinalReferencesPlan(obj)) {
+          continue STEP_LOOP;
+        }
         const llmAnswer = typeof obj.answer === 'string' ? obj.answer.trim() : '';
         let finalAnswer = llmAnswer && !isPlaceholderAnswer(llmAnswer)
           ? llmAnswer
@@ -9520,10 +9690,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
               notes: adaptationNotes,
               range
             });
-        if (!llmAnswer && planSteps.length) {
-          const summary = planSteps.map((step, idx) => {
+        if (!llmAnswer && planStatus.length) {
+          const summary = planStatus.map((step, idx) => {
             const label = step && step.text ? step.text : '';
-            return `Step ${step?.index ?? idx + 1}: ${label}`;
+            const marker = step?.done ? 'done' : 'pending';
+            return `Step ${step?.id ?? step?.index ?? idx + 1} (${marker}): ${label}`;
           }).join(' | ');
           finalAnswer = `${finalAnswer}\nPlan executed: ${summary}`;
         }
