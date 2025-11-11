@@ -3,9 +3,12 @@ import fs from 'fs';
 import path from 'path';
 import url from 'url';
 import { spawn } from 'child_process';
+import { randomUUID } from 'crypto';
 import { createAgent } from './agent.js';
 import { createGraphFromEnv } from './graph.js';
 import { createVectorClient } from './vector.js';
+import { ConversationStore } from './conversation_state.js';
+import { classifyQuery } from './router.js';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -56,6 +59,7 @@ const WEATHER_BACKFILL_END = process.env.WEATHER_BACKFILL_END || '2024-10-31';
 const WEATHER_USE_SYNTHETIC = (process.env.WEATHER_USE_SYNTHETIC || '1') === '1';
 const DEFAULT_WEATHER_LAT = Number(process.env.WEATHER_DEFAULT_LAT ?? 53.4808);
 const DEFAULT_WEATHER_LON = Number(process.env.WEATHER_DEFAULT_LON ?? -2.2426);
+const conversationStore = new ConversationStore();
 
 // Simple in-memory cache (best-effort, short TTLs)
 const __cache = {
@@ -1920,8 +1924,12 @@ const server = http.createServer(async (req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { messages = [], room, range, selection } = JSON.parse(body || '{}');
-        if (DEBUG_HTTP) console.log('[API/chat] selection:', selection);
+        const payload = JSON.parse(body || '{}');
+        const { messages = [], room, range, selection } = payload;
+        let conversationId = String(payload.conversationId || '').trim();
+        if (!conversationId) conversationId = randomUUID();
+        let conversationState = conversationStore.ensure(conversationId);
+        if (DEBUG_HTTP) console.log('[API/chat] selection:', selection, 'conversationId=', conversationId);
         // Compute effective scope from UI selection (building/floor/room(zone))
         // In S3-only mode, a "room" is a deviceId; zones are mapped to devices via graph.
         let effRoom = room || null;
@@ -2075,6 +2083,21 @@ const server = http.createServer(async (req, res) => {
           selectionFloors = selection.floors.map((f) => String(f)).filter(Boolean);
         }
         const selectionDeviceZones = selection && selection.deviceZones && typeof selection.deviceZones === 'object' ? selection.deviceZones : {};
+
+        conversationState = conversationStore.recordScope(conversationId, {
+          tenant: selection?.tenant || null,
+          building: selection?.building || null,
+          floor: selection?.floor || null,
+          zone: selection?.room || selection?.roomLabel || null,
+          devices: selectionRooms,
+          zones: selectionZones,
+          floors: selectionFloors,
+          range: range || null
+        }) || conversationState;
+
+        if (payload?.preferences) {
+          conversationState = conversationStore.recordPreferences(conversationId, payload.preferences) || conversationState;
+        }
         if (!selectionZones.length && selection && selection.labels && selection.labels.room) {
           selectionZones = [String(selection.labels.room)];
         }
@@ -2086,6 +2109,12 @@ const server = http.createServer(async (req, res) => {
 
         const userLast = [...messages].reverse().find(m => m.role === 'user' || m.role === 'User' || m.role === 'human');
         const question = userLast?.content || '';
+        const routingPreview = classifyQuery(question || '');
+        conversationState = conversationStore.recordQuestion(conversationId, question, {
+          metrics: routingPreview.metrics,
+          intents: routingPreview.intents,
+          timeHints: routingPreview.timeHints
+        }) || conversationState;
         const tables = effRoom && effRoom !== 'ALL' ? loadRoomTables(effRoom) : {};
         const context = {
           instruction: 'You are a building analytics chat assistant. Answer succinctly. If plotting helps, include a JSON HighchartsOptions with yAxis as time and xAxis as chosen metric. Do not include code fences in the JSON.',
@@ -2120,6 +2149,7 @@ const server = http.createServer(async (req, res) => {
       return false;
     }
 
+    const conversationSummary = conversationStore.summarize(conversationState);
     const maxAttempts = Number(process.env.AGENT_MAX_ATTEMPTS || 2);
     let agentResult = null;
     for (let attempt = 0; attempt < Math.max(1, maxAttempts); attempt += 1) {
@@ -2135,7 +2165,8 @@ const server = http.createServer(async (req, res) => {
         scopeLabels: selection && selection.labels ? selection.labels : null,
         scopeFloors: selectionFloors,
         scopeDeviceZones: selectionDeviceZones,
-        attempt
+        attempt,
+        conversationSummary
       });
       if (!resultNeedsRetry(runResult)) {
         agentResult = runResult;
@@ -2189,15 +2220,24 @@ const server = http.createServer(async (req, res) => {
       }
     } catch (e) { console.warn('[Agent][trace] save failed:', String(e)); }
         if (!message || !message.content) {
-          return sendJson(res, 502, { error: 'agent_empty', detail: 'Agent returned no answer after retries.' });
+          return sendJson(res, 502, { conversationId, error: 'agent_empty', detail: 'Agent returned no answer after retries.' });
         }
+        const insightSummary =
+          (message?.content || '')
+            .split('\n')
+            .map((line) => line.trim())
+            .find((line) => line.length) || '';
+        conversationState = conversationStore.recordInsight(conversationId, {
+          summary: insightSummary,
+          metrics: routingPreview.metrics
+        }) || conversationState;
         if (expectsChartFromQuestion(question) && !chartHasRenderableSeries(agentResult)) {
-          return sendJson(res, 502, { error: 'agent_no_chart', detail: 'Agent did not deliver chart data after retries.' });
+          return sendJson(res, 502, { conversationId, error: 'agent_no_chart', detail: 'Agent did not deliver chart data after retries.' });
         }
-        return sendJson(res, 200, { message, chart, extras: extras || ((agent && agent.extras) ? agent.extras : undefined), trace, mode: 'agent' });
+        return sendJson(res, 200, { conversationId, message, chart, extras: extras || ((agent && agent.extras) ? agent.extras : undefined), trace, mode: 'agent' });
       } catch (e) {
         try { console.error('[API/chat] FAILED:', e?.stack || String(e)); } catch {}
-        return sendJson(res, 500, { error: 'bad_request', detail: String(e?.message || e || 'unknown') });
+        return sendJson(res, 500, { conversationId, error: 'bad_request', detail: String(e?.message || e || 'unknown') });
       }
     });
     return;

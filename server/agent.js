@@ -8058,20 +8058,21 @@ function parseFieldsFromQuestion(question, availableSets) {
     return matches;
   }
 	
-	  async function run(messages, {
-	    room,
-	    range,
-	    selectionRooms = [],
-	    selectionZones = [],
+  async function run(messages, {
+    room,
+    range,
+    selectionRooms = [],
+    selectionZones = [],
 	    tenant = null,
 	    building = null,
 	    floor = null,
 	    zone = null,
-	    scopeLabels = null,
-	    scopeFloors = [],
-	    scopeDeviceZones = {},
-	    attempt = 0
-	  }) {
+    scopeLabels = null,
+    scopeFloors = [],
+    scopeDeviceZones = {},
+    attempt = 0,
+    conversationSummary = ''
+  }) {
     const question = messages[messages.length - 1]?.content || '';
     const questionLower = String(question || '').toLowerCase();
 
@@ -8191,6 +8192,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       : '';
 
     const sys = `You are a senior data analyst agent for building operations.
+${conversationSummary ? `=== CONVERSATION MEMORY ===\n${conversationSummary}\n` : ''}
 Selected room: ${room || '(none)'}.
 Zones in scope: ${zonesLine}
 Devices in scope: ${devicesLine}

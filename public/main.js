@@ -26,6 +26,48 @@ const tsFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
   timeZone: UI_TIMEZONE
 });
 
+const CONVERSATION_STORAGE_KEY = 'avm.conversation-id';
+const randomConversationId = () =>
+  (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+    ? crypto.randomUUID()
+    : `conv-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+
+function readStoredConversationId() {
+  try {
+    return sessionStorage.getItem(CONVERSATION_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function persistConversationId(id) {
+  if (!id) return;
+  try {
+    sessionStorage.setItem(CONVERSATION_STORAGE_KEY, id);
+  } catch {}
+}
+
+let conversationId = readStoredConversationId() || randomConversationId();
+persistConversationId(conversationId);
+
+function setConversationId(nextId) {
+  if (!nextId || nextId === conversationId) return;
+  conversationId = nextId;
+  persistConversationId(conversationId);
+}
+
+function resetConversationMemory() {
+  conversationId = randomConversationId();
+  persistConversationId(conversationId);
+}
+
+try {
+  window.AVMConversation = {
+    getId: () => conversationId,
+    reset: resetConversationMemory
+  };
+} catch {}
+
 function formatTs(ts) {
   if (ts == null) return '—';
   const num = Number(ts);
@@ -1002,7 +1044,7 @@ async function init() {
 
     const thinkingEl = appendMessage(chatEl, 'assistant', 'Thinking…');
 
-    const payload = { messages, room, range: { start: startMs ?? null, end: endMs ?? null } };
+    const payload = { conversationId, messages, room, range: { start: startMs ?? null, end: endMs ?? null } };
     if (selection.tenant || selection.building || selection.floor || selection.room) {
       const scopeSelection = {
         tenant: selection.tenant || null,
@@ -1037,6 +1079,10 @@ async function init() {
       res = { error: err?.message || String(err) };
     } finally {
       if (thinkingEl && thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
+    }
+
+    if (res && res.conversationId) {
+      setConversationId(res.conversationId);
     }
 
     if (!res || res.error) {
