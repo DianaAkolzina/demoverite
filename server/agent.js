@@ -2721,7 +2721,9 @@ function summarizeFieldComparison(entries = []) {
           for (const device of devices) {
             const typeSuffix = device.type ? ` [${device.type}]` : '';
             const metricsPreview = device.metrics.length ? device.metrics.slice(0, 12).join(', ') : 'n/a';
-            formatLines.push(`      ${device.name}${typeSuffix} (${device.shortId}) — metrics: ${metricsPreview}`);
+            const stats = getCsvStats(device.id);
+            const telemetryNote = describeTelemetryCoverage(stats, rr);
+            formatLines.push(`      ${device.name}${typeSuffix} (${device.shortId}) — metrics: ${metricsPreview} | ${telemetryNote}`);
           }
           if (zoneMap.get(zoneName).length > devices.length) {
             formatLines.push(`      … ${zoneMap.get(zoneName).length - devices.length} more devices`);
@@ -2782,6 +2784,29 @@ function summarizeFieldComparison(entries = []) {
     }
     CSV_STATS_CACHE.set(id, stats);
     return stats;
+  }
+
+  function rangesOverlap(aStart, aEnd, bStart, bEnd) {
+    if (!Number.isFinite(aStart) || !Number.isFinite(aEnd) || !Number.isFinite(bStart) || !Number.isFinite(bEnd)) {
+      return true;
+    }
+    return aStart <= bEnd && bStart <= aEnd;
+  }
+
+  function describeTelemetryCoverage(stats, range = {}) {
+    if (!stats || !Number.isFinite(stats.tsMin) || !Number.isFinite(stats.tsMax)) {
+      return 'telemetry: missing (no CSV rows)';
+    }
+    const coverageRange = { start: stats.tsMin, end: stats.tsMax };
+    const coverageText = describeRangeWindow(coverageRange);
+    const hasSelection = Number.isFinite(range?.start) || Number.isFinite(range?.end);
+    if (hasSelection) {
+      const overlaps = rangesOverlap(range.start ?? stats.tsMin, range.end ?? stats.tsMax, stats.tsMin, stats.tsMax);
+      return overlaps
+        ? `telemetry: ${coverageText} (covers selection)`
+        : `telemetry: ${coverageText} (no data within selected window)`;
+    }
+    return `telemetry: ${coverageText}`;
   }
 
   function deviceTablesAvailable(deviceId) {
@@ -8308,6 +8333,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       ? `ROOM METRIC COMPARISON TASK: The user asked to compare metrics between ${comparisonRoomsList}. You MUST call compare_series_cross_room or compare_rooms_on_metric (or both) on the relevant metric(s), discuss differences for each room, and highlight which room leads or lags.`
       : '';
 
+    const scopeSnapshotNote = ctx.scopeSnapshot ? `Scope snapshot notes:\n${ctx.scopeSnapshot}\n` : '';
     const sys = `You are a senior data analyst agent for building operations.
 ${conversationSummary ? `=== CONVERSATION MEMORY ===\n${conversationSummary}\n` : ''}
 Selected room: ${room || '(none)'}.
@@ -8315,6 +8341,7 @@ Zones in scope: ${zonesLine}
 Devices in scope: ${devicesLine}
 ${namedRoomDeviceHints.length ? `User-named rooms resolved to devices: ${namedRoomDeviceHints.join(' | ')}` : ''}
 ${room === 'ALL' && selectionRooms && selectionRooms.length ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these devices and their parent zones. Do NOT introduce other scopes.` : ''}
+${scopeSnapshotNote}
 Selected time window: 
 - Local: ${startFmt} to ${endFmt}
 - Epoch ms: start=${rr.start ?? 'none'} end=${rr.end ?? 'none'}
@@ -8498,15 +8525,16 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
         qlLower.includes('selected') ||
         qlLower.includes('gaps') ||
         qlLower.includes('current scope'));
+    const scopeOnlyQuestion = mentionsScopeSummary && !/\b(sensor|sensors|metric|metrics|telemetry|gap|gaps|chart|trend|compare|list|plot|graph)\b/.test(qlLower);
     const wantsScopeSummary =
       intent.selectionTime ||
       /what\s+scope\s+do\s+you\s+see/.test(qlLower) ||
       /what\s+selection\s+do\s+you\s+see/.test(qlLower) ||
       /selection\s+and\s+time/.test(qlLower) ||
-      /current\s+(range|window)/.test(qlLower) ||
+      /current\s+(range|window)\??/.test(qlLower) ||
       /what\s+(time|period|window)\s+are\s+you\s+analys/.test(qlLower) ||
       /what\s+time\s+period/.test(qlLower) ||
-      mentionsScopeSummary;
+      scopeOnlyQuestion;
     if (wantsScopeSummary) {
       const summary = buildScopeSummary({
         selectionRooms,
