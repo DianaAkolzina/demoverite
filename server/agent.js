@@ -8814,6 +8814,7 @@ function parseFieldsFromQuestion(question, availableSets) {
   async function buildContextSnippet(question, room, range, selectionRooms = [], options = {}) {
     const {
       selectionZones = [],
+      selectionFloors = [],
       scopeDeviceZones = {},
       scopeLabels = {},
       retrievalHints = {}
@@ -9060,6 +9061,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       selectionRooms,
       {
         selectionZones,
+        selectionFloors,
         scopeDeviceZones,
         scopeLabels,
         retrievalHints: {
