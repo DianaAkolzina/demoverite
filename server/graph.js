@@ -297,6 +297,51 @@ export function createGraphClient({ uri, username, password, database }) {
       const outLinks = [];
       const addNode = (id, props) => { if (!outNodes.has(id)) outNodes.set(id, { id, ...props }); };
       const linkCache = new Set();
+      const neoElementId = (node) => {
+        if (!node) return null;
+        if (typeof node.elementId === 'string' && node.elementId) return node.elementId;
+        if (node.identity != null) {
+          try {
+            return String(node.identity);
+          } catch {}
+          const { identity } = node;
+          if (identity && typeof identity.low === 'number') {
+            return identity.high ? `${identity.high}:${identity.low}` : String(identity.low);
+          }
+        }
+        return null;
+      };
+      const normalizeToken = (val) => {
+        if (val === null || val === undefined) return null;
+        const str = String(val).trim();
+        return str || null;
+      };
+      const firstToken = (...values) => {
+        for (const val of values) {
+          const token = normalizeToken(val);
+          if (token) return token;
+        }
+        return null;
+      };
+      const buildingKeyId = (node) => firstToken(
+        node?.properties?.id,
+        node?.properties?.buildingID,
+        node?.properties?.name,
+        neoElementId(node)
+      );
+      const zoneIdentifier = (zoneNode, bKeyFallback, defaultName) => {
+        const base = firstToken(
+          zoneNode?.properties?.roomId,
+          zoneNode?.properties?.roomID,
+          zoneNode?.properties?.zoneID,
+          zoneNode?.properties?.id,
+          neoElementId(zoneNode),
+          defaultName
+        );
+        if (!base) return null;
+        const buildingKey = firstToken(bKeyFallback, 'global');
+        return `Zone:${base}:${buildingKey}`;
+      };
       const addLink = (a, b, rel) => {
         if (!a || !b || !rel) return;
         const key = `${a}::${b}::${rel}`;
@@ -340,10 +385,9 @@ export function createGraphClient({ uri, username, password, database }) {
         }
         console.warn(`[graph][snapshot] Zone ${zoneName || zid} floor candidate ${fid} ignored; keeping ${existing.fid}.`);
       };
-      const normalizeToken = (val) => {
-        if (val === null || val === undefined) return null;
-        const str = String(val).trim().toLowerCase();
-        return str || null;
+      const normalizeTokenLower = (val) => {
+        const token = normalizeToken(val);
+        return token ? token.toLowerCase() : null;
       };
       const zoneMatchesFloorNode = (zoneNode, floorNode) => {
         if (!zoneNode || !floorNode) return false;
@@ -355,13 +399,13 @@ export function createGraphClient({ uri, username, password, database }) {
           zProps.floor,
           zProps.floor_name,
           zProps.level
-        ].map(normalizeToken).filter(Boolean);
+        ].map(normalizeTokenLower).filter(Boolean);
         if (!zoneTokens.length) return false;
         const floorTokens = [
           fProps.id,
           fProps.floorID,
           fProps.name
-        ].map(normalizeToken).filter(Boolean);
+        ].map(normalizeTokenLower).filter(Boolean);
         if (!floorTokens.length) return false;
         return zoneTokens.some((token) => floorTokens.includes(token));
       };
@@ -416,7 +460,7 @@ export function createGraphClient({ uri, username, password, database }) {
         const floorsRaw = (r.get('floors') || []).filter(Boolean);
         const bName = b.properties?.name || String(b.properties?.buildingID || b.properties?.id || 'Building');
         const bid = `Building:${bName}`;
-        const bKeyId = b.properties?.id ?? b.properties?.buildingID ?? b.properties?.name ?? '';
+        const bKeyId = buildingKeyId(b) || bName || '';
         addNode(bid, { label: 'Building', name: bName, nodeType: 'Building', hasData: false, dataDevices: 0 });
         if (!buildingFloorsCache.has(bid) || (floorsRaw.length && (buildingFloorsCache.get(bid)?.size || 0) === 0)) {
           const floorMap = buildingFloorsCache.get(bid) || new Map();
@@ -433,8 +477,10 @@ export function createGraphClient({ uri, username, password, database }) {
         if (z) {
           const rawRid = (z.properties?.roomId != null ? z.properties.roomId : (z.properties?.id != null ? z.properties.id : null));
           const roomId = rawRid != null ? String(rawRid) : null;
-          const zid = `Zone:${z.properties?.name || roomId}:${bName}`;
-          addNode(zid, { label: 'Zone', name: z.properties?.name || roomId, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null });
+          const zoneDisplayName = z.properties?.name || roomId;
+          const zid = zoneIdentifier(z, bKeyId, zoneDisplayName);
+          if (!zid) continue;
+          addNode(zid, { label: 'Zone', name: zoneDisplayName, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null });
           addLink(zid, bid, 'LOCATED_IN_BUILDING');
           let floorIdForZone = zoneFloorFromRel;
           if (!floorIdForZone && !zoneFloorFromRel && floorMap && floorMap.size) {
@@ -486,10 +532,11 @@ export function createGraphClient({ uri, username, password, database }) {
         if (!includeDevice) continue;
         const did = `Device:${d.properties?.id || d.properties?.name}`;
         const bid = b ? `Building:${b.properties?.name}` : null;
-        const bKeyId = b ? (b.properties?.id ?? b.properties?.buildingID ?? b.properties?.name ?? '') : '';
+        const bKeyId = b ? (buildingKeyId(b) || b.properties?.name || '') : '';
         const fKeyRaw = f ? (f.properties?.id ?? f.properties?.floorID ?? f.properties?.name ?? '') : '';
         const fid = f ? `Floor:${String(fKeyRaw)}:${String(bKeyId)}` : null;
-        const zid = z ? `Zone:${z.properties?.name}:${b?.properties?.name || ''}` : null;
+        const zoneDisplayName = z?.properties?.name || (z?.properties?.roomId != null ? String(z.properties.roomId) : null);
+        const zid = z ? zoneIdentifier(z, bKeyId, zoneDisplayName) : null;
         if (b) {
           const bName = b.properties?.name || String(b.properties?.buildingID || b.properties?.id || 'Building');
           addNode(bid, { label: 'Building', name: bName, nodeType: 'Building', hasData: false, dataDevices: 0 });
@@ -498,14 +545,14 @@ export function createGraphClient({ uri, username, password, database }) {
         if (z) {
           const rawRid = (z.properties?.roomId != null ? z.properties.roomId : (z.properties?.id != null ? z.properties.id : null));
           const roomId = rawRid != null ? String(rawRid) : null;
-          addNode(zid, { label: 'Zone', name: z.properties?.name, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null });
+          if (zid) addNode(zid, { label: 'Zone', name: z.properties?.name || roomId, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null });
         }
         addNode(did, { label: 'Device', name: d.properties?.name, nodeType: 'Device', deviceType: d.properties?.type || null, cloudId });
         includedDevices.add(did);
         if (f && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
-        if (z && fid) attachZoneFloor(zid, fid, z.properties?.name);
-        if (z && bid) addLink(zid, bid, 'LOCATED_IN_BUILDING');
-        if (z) addLink(did, zid, 'LOCATED_IN_ZONE');
+        if (z && fid && zid) attachZoneFloor(zid, fid, z.properties?.name);
+        if (z && bid && zid) addLink(zid, bid, 'LOCATED_IN_BUILDING');
+        if (z && zid) addLink(did, zid, 'LOCATED_IN_ZONE');
         if (f) addLink(did, fid, 'LOCATED_ON_FLOOR');
         if (b) { addLink(did, bid, 'IN_BUILDING'); bumpBuildingCount(bid); }
         const bName = (b?.properties?.name) || String(b?.properties?.buildingID || b?.properties?.id || '') || null;

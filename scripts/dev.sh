@@ -7,10 +7,72 @@ LOG_DIR="$ROOT/logs"
 LOG_FILE="$LOG_DIR/app.log"
 CONTAINER_NAME="avmsolutions-analytics"
 IMAGE_NAME="avmsolutions-analytics"
+CACHE_DIR="$ROOT/.devcache"
+NODE_STAMP_FILE="$CACHE_DIR/node.hash"
+PY_STAMP_FILE="$CACHE_DIR/python.hash"
+PYTHON_VENV="${PYTHON_VENV:-$ROOT/.venv}"
+
+hash_file() {
+  local target="$1"
+  if [[ -f "$target" ]]; then
+    sha256sum "$target" | awk '{print $1}'
+  else
+    echo "missing"
+  fi
+}
+
+ensure_node_deps() {
+  local lock_file
+  if [[ -f "$ROOT/package-lock.json" ]]; then
+    lock_file="$ROOT/package-lock.json"
+  else
+    lock_file="$ROOT/package.json"
+  fi
+  local desired_hash current_hash
+  desired_hash="$(hash_file "$lock_file")"
+  [[ -f "$NODE_STAMP_FILE" ]] && current_hash="$(cat "$NODE_STAMP_FILE")" || current_hash=""
+  if [[ ! -d "$ROOT/node_modules" ]] || [[ "$desired_hash" != "$current_hash" ]]; then
+    echo "[dev] Installing npm dependencies..."
+    (cd "$ROOT" && npm install)
+    mkdir -p "$CACHE_DIR"
+    echo "$desired_hash" >"$NODE_STAMP_FILE"
+  fi
+}
+
+ensure_python_deps() {
+  local req_file="$ROOT/requirements.txt"
+  if [[ ! -f "$req_file" ]] || [[ "${SKIP_PY_DEPS:-0}" == "1" ]]; then
+    return
+  fi
+  if [[ ! -d "$PYTHON_VENV" ]]; then
+    echo "[dev] Creating Python venv at $PYTHON_VENV"
+    python3 -m venv "$PYTHON_VENV"
+  fi
+  local desired_hash current_hash
+  desired_hash="$(hash_file "$req_file")"
+  [[ -f "$PY_STAMP_FILE" ]] && current_hash="$(cat "$PY_STAMP_FILE")" || current_hash=""
+  if [[ "$desired_hash" != "$current_hash" ]]; then
+    echo "[dev] Installing Python dependencies..."
+    "$PYTHON_VENV/bin/pip" install --upgrade pip
+    "$PYTHON_VENV/bin/pip" install -r "$req_file"
+    mkdir -p "$CACHE_DIR"
+    echo "$desired_hash" >"$PY_STAMP_FILE"
+  fi
+  case ":$PATH:" in
+    *":$PYTHON_VENV/bin:"*) ;;
+    *) export PATH="$PYTHON_VENV/bin:$PATH" ;;
+  esac
+}
+
+ensure_local_deps() {
+  ensure_node_deps
+  ensure_python_deps
+}
 
 maybe_index_chroma() {
   local should_index="${INDEX_CHROMA_ON_START:-1}"
   if [[ "$should_index" == "1" ]]; then
+    ensure_local_deps
     echo "[dev] Indexing Chroma before start (set INDEX_CHROMA_ON_START=0 to skip)..."
     if ! index_chroma; then
       echo "[dev] Warning: Chroma indexing failed; continuing anyway." >&2
@@ -21,10 +83,12 @@ maybe_index_chroma() {
 }
 
 run_npm() {
+  ensure_node_deps
   (cd "$ROOT" && npm "$@")
 }
 
 start_app() {
+  ensure_node_deps
   if [[ -f "$PID_FILE" ]]; then
     local existing_pid
     existing_pid="$(cat "$PID_FILE")"
@@ -83,23 +147,28 @@ tail_logs() {
 }
 
 sync_s3() {
+  ensure_node_deps
   run_npm run sync:s3
 }
 
 populate_neo4j() {
+  ensure_node_deps
   run_npm run populate:neo4j
 }
 
 index_chroma() {
+  ensure_local_deps
   run_npm run index:chroma
 }
 
 run_tests() {
+  ensure_node_deps
   run_npm run test:buildings
   run_npm run test:scope
 }
 
 run_pipeline() {
+  ensure_node_deps
   run_npm run pipeline:regression
 }
 
@@ -169,6 +238,8 @@ Maintenance:
 Environment:
   INDEX_CHROMA_ON_START=0    Skip automatic `npm run index:chroma` before start/docker-up
   RUN_CHROMA_INDEX=1         Enable Docker build-time indexing (set CHROMA_BUILD_URL/CHROMA_URL accordingly)
+  PYTHON_VENV=/path/to/.venv  Override the default local venv location used for Python deps
+  SKIP_PY_DEPS=1             Skip automatic Python dependency installation
 EOF
 }
 
