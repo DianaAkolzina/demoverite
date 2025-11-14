@@ -5,3 +5,10 @@ npm-debug.log
 .DS_Store
 *.local
 tmp
+# Heavy local data/cache directories that blow up the build context
+CSVex_s3
+neo4j
+data
+knowledge
+clean_traces
+chroma

@@ -9,10 +9,15 @@ import { createGraphFromEnv } from './graph.js';
 import { createVectorClient } from './vector.js';
 import { ConversationStore } from './conversation_state.js';
 import { classifyQuery } from './router.js';
+import { initConnectorRegistry } from './connectors/index.js';
+import { createLLMClient } from './llm_client.js';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const s3LocalDir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+const DAY_MS = 24 * 60 * 60 * 1000;
+const CSV_STATS_CACHE = new Map();
+const SNAPSHOT_CACHE = new Map();
 
 // Simple env loader
 const envPath = path.join(root, '.env');
@@ -36,19 +41,10 @@ const LLM_DEBUG = (process.env.LLM_DEBUG === '1') || (process.env.LOG_LEVEL === 
 
 const USE_LLM = (process.env.USE_LLM || 'true').toLowerCase() === 'true';
 const LLM_PROVIDER = process.env.LLM_PROVIDER || 'gemini';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'models/gemini-2.5-flash';
 
 if (!USE_LLM) {
-  console.error('[startup] USE_LLM must be true. Set USE_LLM=true to enable the Gemini agent.');
-  process.exit(1);
-}
-if ((LLM_PROVIDER || '').toLowerCase() !== 'gemini') {
-  console.error('[startup] LLM_PROVIDER must be "gemini" to run this assistant.');
-  process.exit(1);
-}
-if (!GEMINI_API_KEY) {
-  console.error('[startup] GEMINI_API_KEY is required. Set it in your environment or .env file.');
+  console.error('[startup] USE_LLM must be true. Set USE_LLM=true to enable the analytics agent.');
   process.exit(1);
 }
 
@@ -60,6 +56,20 @@ const WEATHER_USE_SYNTHETIC = (process.env.WEATHER_USE_SYNTHETIC || '1') === '1'
 const DEFAULT_WEATHER_LAT = Number(process.env.WEATHER_DEFAULT_LAT ?? 53.4808);
 const DEFAULT_WEATHER_LON = Number(process.env.WEATHER_DEFAULT_LON ?? -2.2426);
 const conversationStore = new ConversationStore();
+const llmClient = createLLMClient({ env: process.env, logger: console });
+if (!llmClient.isReady()) {
+  console.error('[startup] No LLM provider is configured. Set GEMINI_API_KEY or OPENAI_API_KEY (or use LLM_PROVIDER_CHAIN).');
+  process.exit(1);
+}
+const connectorRegistry = initConnectorRegistry({ root, env: process.env });
+async function callGemini(prompt, context) {
+  if (!USE_LLM) throw new Error('LLM disabled (set USE_LLM=true)');
+  return llmClient.generate(prompt, context);
+}
+async function callGeminiChat(messages, context) {
+  if (!USE_LLM) throw new Error('LLM disabled (set USE_LLM=true)');
+  return llmClient.chat(messages, context);
+}
 
 // Simple in-memory cache (best-effort, short TTLs)
 const __cache = {
@@ -470,6 +480,297 @@ function withinRange(ts, start, end) {
 
 function buildingSlug(name) { return String(name||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
 
+function getCsvStats(deviceId) {
+  if (!deviceId) return null;
+  if (CSV_STATS_CACHE.has(deviceId)) return CSV_STATS_CACHE.get(deviceId);
+  const stats = { tsMin: null, tsMax: null, count: 0 };
+  try {
+    const file = path.join(s3LocalDir, `${deviceId}.csv`);
+    if (!fs.existsSync(file)) {
+      CSV_STATS_CACHE.set(deviceId, stats);
+      return stats;
+    }
+    const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/).filter((line) => line.trim().length > 0);
+    if (lines.length < 2) {
+      CSV_STATS_CACHE.set(deviceId, stats);
+      return stats;
+    }
+    for (let i = 1; i < lines.length; i += 1) {
+      const parts = lines[i].split(',');
+      if (!parts.length) continue;
+      const ts = Number(parts[0]);
+      if (!Number.isFinite(ts)) continue;
+      stats.count += 1;
+      if (stats.tsMin == null || ts < stats.tsMin) stats.tsMin = ts;
+      if (stats.tsMax == null || ts > stats.tsMax) stats.tsMax = ts;
+    }
+  } catch (err) {
+    console.warn('[scope][stats] Failed to read CSV stats for', deviceId, err?.message || err);
+  }
+  CSV_STATS_CACHE.set(deviceId, stats);
+  return stats;
+}
+
+function aggregateCoverageFromDevices(deviceIds = []) {
+  const spans = [];
+  for (const id of deviceIds) {
+    const stats = getCsvStats(id);
+    if (!stats || !Number.isFinite(stats.tsMin) || !Number.isFinite(stats.tsMax)) continue;
+    spans.push(stats);
+  }
+  if (!spans.length) return null;
+  return {
+    start: Math.min(...spans.map((s) => s.tsMin)),
+    end: Math.max(...spans.map((s) => s.tsMax))
+  };
+}
+
+function alignRangeToCoverage(range = {}, deviceIds = []) {
+  const coverage = aggregateCoverageFromDevices(deviceIds);
+  const requestedStart = Number.isFinite(range?.start) ? Number(range.start) : null;
+  const requestedEnd = Number.isFinite(range?.end) ? Number(range.end) : null;
+  if (!coverage) {
+    return {
+      range: { start: requestedStart, end: requestedEnd },
+      changed: false,
+      coverage: null
+    };
+  }
+  let start = requestedStart != null ? requestedStart : coverage.start;
+  let end = requestedEnd != null ? requestedEnd : coverage.end;
+  if (!Number.isFinite(start)) start = coverage.start;
+  if (!Number.isFinite(end)) end = coverage.end;
+  let changed = false;
+  if (end < coverage.start || start > coverage.end) {
+    end = coverage.end;
+    start = Math.max(coverage.start, coverage.end - 7 * DAY_MS);
+    changed = true;
+  }
+  const clampedStart = Math.max(start, coverage.start);
+  const clampedEnd = Math.min(end, coverage.end);
+  if (clampedStart !== start || clampedEnd !== end) changed = true;
+  return {
+    range: { start: clampedStart, end: clampedEnd },
+    changed,
+    coverage
+  };
+}
+
+const tenantSlug = (s) => String(s || '')
+  .trim()
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '_')
+  .replace(/^_+|_+$/g, '');
+
+function loadSnapshotFile(tenant = null) {
+  const file = tenant
+    ? path.join(root, 'data', `graph_snapshot.${tenantSlug(tenant)}.json`)
+    : path.join(root, 'data', 'graph_snapshot.json');
+  if (!fs.existsSync(file)) return null;
+  if (SNAPSHOT_CACHE.has(file)) return SNAPSHOT_CACHE.get(file);
+  try {
+    const snap = JSON.parse(fs.readFileSync(file, 'utf8'));
+    SNAPSHOT_CACHE.set(file, snap);
+    return snap;
+  } catch (err) {
+    console.warn('[snapshot] Failed to parse', file, err?.message || err);
+    return null;
+  }
+}
+
+function collectDevicesFromSnapshotScope({ tenant = null, building = null, floor = null, zone = null } = {}) {
+  const snap = loadSnapshotFile(tenant);
+  if (!snap || !Array.isArray(snap.nodes) || !Array.isArray(snap.links)) {
+    return { deviceIds: [], devMeta: new Map(), zones: [], floors: [] };
+  }
+  const nodes = snap.nodes || [];
+  const links = snap.links || [];
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const typeOf = (node) => node?.nodeType || node?.label || null;
+  const normalize = (val) => String(val ?? '').trim().toLowerCase();
+  const matchesToken = (value, target) => {
+    if (!target) return true;
+    if (!value) return false;
+    return normalize(value) === normalize(target);
+  };
+  const matchesNode = (node, target) => {
+    if (!target) return true;
+    const tokens = [
+      node?.name,
+      node?.id,
+      node?.buildingID || node?.buildingId,
+      node?.floorID || node?.floorId,
+      node?.roomId
+    ].map((v) => (v == null ? null : v));
+    const tNorm = normalize(target);
+    return tokens.some((token) => token != null && normalize(token) === tNorm);
+  };
+
+  const buildings = nodes.filter((n) => typeOf(n) === 'Building');
+  const floors = nodes.filter((n) => typeOf(n) === 'Floor');
+  const zones = nodes.filter((n) => typeOf(n) === 'Zone');
+  const devices = nodes.filter((n) => typeOf(n) === 'Device');
+
+  const bNode = building ? buildings.find((b) => matchesNode(b, building)) : null;
+  const floorCandidates = floors.filter((f) => matchesNode(f, floor));
+  const zoneCandidates = zones.filter((z) => matchesNode(z, zone));
+
+  const deviceIds = [];
+  const devMeta = new Map();
+  const zoneSet = new Set();
+  const floorSet = new Set();
+
+  const gatherMetaFromLinks = (deviceNode) => {
+    const metas = { zone: null, floor: null, building: null };
+    const devId = deviceNode?.id;
+    if (!devId) return metas;
+    const rels = links.filter((l) => l.source === devId || l.target === devId);
+    for (const l of rels) {
+      const other = l.source === devId ? l.target : l.source;
+      const n = byId.get(other);
+      const t = typeOf(n);
+      if (t === 'Zone' && !metas.zone) metas.zone = n?.name || null;
+      if (t === 'Floor' && !metas.floor) metas.floor = n?.name || null;
+      if (t === 'Building' && !metas.building) metas.building = n?.name || null;
+    }
+    if (!metas.floor && metas.zone) {
+      const zn = zones.find((z) => z.name === metas.zone);
+      if (zn) {
+        const zLink = links.find((l) => l.source === zn.id && ['BELONGS_TO_FLOOR', 'PART_OF_FLOOR'].includes(l.rel));
+        const floorNode = zLink ? byId.get(zLink.target) : null;
+        if (typeOf(floorNode) === 'Floor') metas.floor = floorNode.name || metas.floor;
+        if (!metas.building) {
+          const fbLink = floorNode
+            ? links.find((l) => l.source === floorNode.id && ['LOCATED_IN_BUILDING', 'PART_OF_BUILDING'].includes(l.rel))
+            : null;
+          const buildNode = fbLink ? byId.get(fbLink.target) : null;
+          if (typeOf(buildNode) === 'Building') metas.building = buildNode.name || metas.building;
+        }
+      }
+    }
+    if (!metas.building && metas.floor) {
+      const fn = floors.find((f) => f.name === metas.floor);
+      const fbLink = fn
+        ? links.find((l) => l.source === fn.id && ['LOCATED_IN_BUILDING', 'PART_OF_BUILDING'].includes(l.rel))
+        : null;
+      const buildNode = fbLink ? byId.get(fbLink.target) : null;
+      if (typeOf(buildNode) === 'Building') metas.building = buildNode.name || metas.building;
+    }
+    return metas;
+  };
+
+  const shouldIncludeDevice = (meta) => {
+    if (zone && !matchesToken(meta.zone, zone)) return false;
+    if (floor && !matchesToken(meta.floor, floor)) return false;
+    if (building && !matchesToken(meta.building, building)) return false;
+    return true;
+  };
+
+  const pushDevice = (deviceNode) => {
+    if (!deviceNode) return;
+    const id = String(deviceNode.cloudId || deviceNode.id || deviceNode.deviceId || deviceNode.name || '').trim();
+    if (!id || deviceIds.includes(id)) return;
+    const meta = gatherMetaFromLinks(deviceNode);
+    if (!shouldIncludeDevice(meta)) return;
+    devMeta.set(id, {
+      name: deviceNode.name || id,
+      type: deviceNode.deviceType || deviceNode.type || null,
+      zone: meta.zone,
+      floor: meta.floor,
+      building: meta.building
+    });
+    if (meta.zone) zoneSet.add(meta.zone);
+    if (meta.floor) floorSet.add(meta.floor);
+    deviceIds.push(id);
+  };
+
+  if (zone && zoneCandidates.length) {
+    for (const candidate of zoneCandidates) {
+      for (const l of links) {
+        if (l.rel === 'LOCATED_IN_ZONE' && l.target === candidate.id) {
+          const devNode = byId.get(l.source);
+          if (typeOf(devNode) === 'Device') pushDevice(devNode);
+        }
+      }
+    }
+  } else if (floor && floorCandidates.length) {
+    for (const floorNode of floorCandidates) {
+      const zoneIds = new Set(
+        links.filter((l) => ['BELONGS_TO_FLOOR', 'PART_OF_FLOOR'].includes(l.rel) && l.target === floorNode.id).map((l) => l.source)
+      );
+      for (const l of links) {
+        if (l.rel === 'LOCATED_IN_ZONE' && zoneIds.has(l.target)) {
+          const devNode = byId.get(l.source);
+          if (typeOf(devNode) === 'Device') pushDevice(devNode);
+        }
+        if (l.rel === 'LOCATED_ON_FLOOR' && l.target === floorNode.id) {
+          const devNode = byId.get(l.source);
+          if (typeOf(devNode) === 'Device') pushDevice(devNode);
+        }
+      }
+    }
+  } else if (building && bNode) {
+    const floorIds = new Set(
+      links.filter((l) => ['LOCATED_IN_BUILDING', 'PART_OF_BUILDING'].includes(l.rel) && l.target === bNode.id).map((l) => l.source)
+    );
+    const zoneIds = new Set(
+      links.filter((l) => ['BELONGS_TO_FLOOR', 'PART_OF_FLOOR'].includes(l.rel) && floorIds.has(l.target)).map((l) => l.source)
+    );
+    for (const l of links) {
+      if (l.rel === 'LOCATED_IN_ZONE' && zoneIds.has(l.target)) {
+        const devNode = byId.get(l.source);
+        if (typeOf(devNode) === 'Device') pushDevice(devNode);
+      }
+      if (l.rel === 'LOCATED_ON_FLOOR' && floorIds.has(l.target)) {
+        const devNode = byId.get(l.source);
+        if (typeOf(devNode) === 'Device') pushDevice(devNode);
+      }
+      if (l.rel === 'IN_BUILDING' && l.target === bNode.id) {
+        const devNode = byId.get(l.source);
+        if (typeOf(devNode) === 'Device') pushDevice(devNode);
+      }
+    }
+  } else {
+    devices.forEach(pushDevice);
+  }
+
+  return {
+    deviceIds,
+    devMeta,
+    zones: Array.from(zoneSet),
+    floors: Array.from(floorSet)
+  };
+}
+
+async function collectDevicesFromGraphScope({ tenant = null, building = null, floor = null, zone = null } = {}) {
+  const devMeta = new Map();
+  const deviceIds = [];
+  try {
+    const g = createGraphFromEnv(process.env);
+    if (!g || !g.devicesByScope) return { deviceIds, devMeta, zones: [], floors: [] };
+    const { devices = [] } = await g.devicesByScope({ tenant, building, floor, zone, type: null });
+    const zoneSet = new Set();
+    const floorSet = new Set();
+    for (const d of devices) {
+      const id = String(d.id || '').trim();
+      if (!id || deviceIds.includes(id)) continue;
+      devMeta.set(id, { name: d.name || id, type: d.type || null, zone: d.zone || null, floor: d.floor || null, building: d.building || null });
+      if (d.zone) zoneSet.add(d.zone);
+      if (d.floor) floorSet.add(d.floor);
+      deviceIds.push(id);
+    }
+    return { deviceIds, devMeta, zones: Array.from(zoneSet), floors: Array.from(floorSet) };
+  } catch (err) {
+    return { deviceIds: [], devMeta: new Map(), zones: [], floors: [] };
+  }
+}
+
+async function resolveScopeDevices(scope = {}) {
+  const snapshotResult = collectDevicesFromSnapshotScope(scope);
+  if (snapshotResult.deviceIds.length) return snapshotResult;
+  return collectDevicesFromGraphScope(scope);
+}
+
 function toNumeric(value) {
   if (value == null) return null;
   if (typeof value === 'object') {
@@ -626,8 +927,9 @@ async function fetchHistoricalWeather({ lat, lon, start, end, existingMap }) {
   return out;
 }
 
-function loadWeather(building = null) {
+function loadWeather(building = null, options = {}) {
   try {
+    const requestedRange = options?.range || null;
     const toWeatherRow = (row) => {
       if (!row) return null;
       const ts = Number(row.ts);
@@ -653,20 +955,20 @@ function loadWeather(building = null) {
       if (file) {
         return parseCSV(file).map(toWeatherRow).filter(Boolean);
       }
-      ensureWeatherFetchForBuilding(building);
+      ensureWeatherFetchForBuilding(building, requestedRange);
     }
     // Generic fallback
     const csvGeneric = path.join(s3LocalDir, 'weather.csv');
     const csvGenericData = path.join(root, 'data', 'weather.csv');
     const f = fs.existsSync(csvGeneric) ? csvGeneric : (fs.existsSync(csvGenericData) ? csvGenericData : null);
     if (f) return parseCSV(f).map(toWeatherRow).filter(Boolean);
-    if (building) ensureWeatherFetchForBuilding(building);
+    if (building) ensureWeatherFetchForBuilding(building, requestedRange);
     return [];
   } catch { return []; }
 }
 
 // Fetch and cache per-building weather (synthetic generation using lat/lon from graph)
-async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
+async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon, options = {}) {
   let latNum = toNumeric(lat);
   let lonNum = toNumeric(lon);
   const fallback = defaultWeatherCoords();
@@ -751,10 +1053,26 @@ async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
     }
   }
 
-  const startDt = parseUtcDate(WEATHER_BACKFILL_START);
-  const endDt = parseUtcDate(WEATHER_BACKFILL_END);
+  const resolveDateInput = (value, defaultValue) => {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return new Date(value.getTime());
+    if (Number.isFinite(value)) {
+      const d = new Date(Number(value));
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    if (typeof value === 'string' && value) {
+      const parsed = parseUtcDate(value);
+      if (parsed) return parsed;
+    }
+    return defaultValue;
+  };
+  const defaultStart = parseUtcDate(WEATHER_BACKFILL_START) || new Date(Date.now() - 30 * 24 * 3600_000);
+  const defaultEnd = parseUtcDate(WEATHER_BACKFILL_END) || new Date();
+  const startDt = resolveDateInput(options.start ?? options.startDate, defaultStart);
+  const endDt = resolveDateInput(options.end ?? options.endDate, defaultEnd);
+  const startLabel = startDt ? startDt.toISOString().slice(0, 10) : WEATHER_BACKFILL_START;
+  const endLabel = endDt ? endDt.toISOString().slice(0, 10) : WEATHER_BACKFILL_END;
   const forceRefresh = WEATHER_USE_SYNTHETIC || (process.env.WEATHER_FORCE_REFRESH === '1');
-  const alreadyCovered = hasWeatherCoverage(existingMap, startDt, endDt);
+  const alreadyCovered = startDt && endDt ? hasWeatherCoverage(existingMap, startDt, endDt) : false;
 
   if (alreadyCovered && !forceRefresh) {
     ensureMirrorCopies(primarySource);
@@ -765,8 +1083,8 @@ async function fetchAndCacheWeatherForBuilding(buildingName, lat, lon) {
     const syntheticRows = await fetchHistoricalWeather({
       lat: latNum,
       lon: lonNum,
-      start: WEATHER_BACKFILL_START,
-      end: WEATHER_BACKFILL_END,
+      start: startLabel,
+      end: endLabel,
       existingMap
     });
 
@@ -864,154 +1182,6 @@ function pearson(xs, ys) {
   return denom > 0 ? cov/denom : NaN;
 }
 
-// Generic retry with exponential backoff (for 429/5xx/network errors)
-async function fetchWithRetry(urlStr, options, { retries = 3, baseDelayMs = 500, maxDelayMs = 4000 } = {}) {
-  let lastErr = null;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const controller = new AbortController();
-    const timeoutMs = options?.timeoutMs ?? 15000;
-    const to = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(urlStr, { ...options, signal: controller.signal, headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(options?.headers || {}) } });
-      clearTimeout(to);
-      if (res.ok) return res;
-      // Retry for 429 / 5xx
-      if (res.status === 429 || (res.status >= 500 && res.status < 600)) {
-        if (LLM_DEBUG) console.log(`[LLM] HTTP ${res.status} on ${urlStr}. Retrying...`);
-        const delay = Math.min(maxDelayMs, baseDelayMs * Math.pow(2, attempt));
-        await new Promise(r => setTimeout(r, delay));
-        continue;
-      }
-      // Non-retryable
-      if (LLM_DEBUG) {
-        try { const errTxt = await res.text(); console.log('[LLM] Error body:', errTxt.slice(0, 500)); } catch {}
-      }
-      lastErr = new Error(`LLM HTTP ${res.status}`);
-      break;
-    } catch (e) {
-      clearTimeout(to);
-      lastErr = e;
-      if (LLM_DEBUG) console.log(`[LLM] Network error: ${String(e)}. Retrying...`);
-      const delay = Math.min(maxDelayMs, baseDelayMs * Math.pow(2, attempt));
-      await new Promise(r => setTimeout(r, delay));
-      continue;
-    }
-  }
-  throw lastErr || new Error('LLM request failed');
-}
-
-function modelIdBare(model) {
-  const m = model || 'gemini-2.5-flash';
-  return m.replace(/^models\//, '');
-}
-
-function buildGenerationConfig() {
-  const cfg = {
-    temperature: Number.isFinite(LLM_TEMPERATURE) ? LLM_TEMPERATURE : 0.3,
-    maxOutputTokens: Number.isFinite(LLM_MAX_TOKENS) ? LLM_MAX_TOKENS : 2048 // Increased default
-  };
-  return cfg;
-}
-
-async function tryGeminiSDK(contents) {
-  // Try @google/generative-ai if installed; otherwise return null
-  try {
-    const mod = await import('@google/generative-ai').catch(() => null);
-    if (!mod) return null;
-    const { GoogleGenerativeAI } = mod;
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const modelId = (GEMINI_MODEL || 'gemini-2.5-flash').replace(/^models\//, '');
-    const model = genAI.getGenerativeModel({ model: modelId, generationConfig: { temperature: LLM_TEMPERATURE, maxOutputTokens: LLM_MAX_TOKENS } });
-    const result = await model.generateContent({ contents });
-    const resp = result?.response;
-    const txt = resp?.text?.trim?.();
-    if (txt) return txt;
-    const cands = resp?.candidates || [];
-    const parts = [];
-    for (const c of cands) {
-      const p = c?.content?.parts || [];
-      for (const part of p) if (part?.text) parts.push(part.text);
-    }
-    return parts.length ? parts.join('\n') : null;
-  } catch (e) {
-    if (LLM_DEBUG) console.log('[LLM] SDK path failed:', String(e));
-    return null;
-  }
-}
-
-async function callGemini(prompt, context) {
-  if (!USE_LLM) throw new Error('LLM disabled (set USE_LLM=true)');
-  if (LLM_PROVIDER !== 'gemini') throw new Error(`Unsupported LLM provider: ${LLM_PROVIDER}`);
-  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY missing');
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelIdBare(GEMINI_MODEL))}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
-  const body = {
-    contents: [
-      { role: 'user', parts: [{ text: prompt }] },
-      { role: 'user', parts: [{ text: `Context JSON (truncated):\n${JSON.stringify(context).slice(0, 6000)}` }] }
-    ],
-    generationConfig: buildGenerationConfig()
-  };
-  try {
-    // Try SDK first if present
-    const sdkText = await tryGeminiSDK(body.contents);
-    if (sdkText && sdkText.trim()) return sdkText;
-    const res = await fetchWithRetry(endpoint, { method: 'POST', body: JSON.stringify(body), timeoutMs: 20000 });
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).join('\n') || '';
-    return text;
-  } catch (e) {
-    if (LLM_DEBUG) console.log('[LLM] callGemini failed:', String(e));
-    return null;
-  }
-}
-
-async function callGeminiChatOnce(messages, context) {
-  if (!USE_LLM) throw new Error('LLM disabled (set USE_LLM=true)');
-  if (LLM_PROVIDER !== 'gemini') throw new Error(`Unsupported LLM provider: ${LLM_PROVIDER}`);
-  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY missing');
-  const contents = [];
-  for (const m of messages.slice(-12)) {
-    const role = m.role === 'assistant' || m.role === 'model' ? 'model' : 'user';
-    contents.push({ role, parts: [{ text: m.content }] });
-  }
-  contents.push({ role: 'user', parts: [{ text: `Context JSON (truncated):\n${JSON.stringify(context).slice(0, 6000)}` }] });
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelIdBare(GEMINI_MODEL))}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
-  // Try SDK path first if installed
-  const sdkText = await tryGeminiSDK(contents);
-  if (sdkText && sdkText.trim()) return sdkText;
-  const res = await fetchWithRetry(endpoint, { method: 'POST', body: JSON.stringify({ contents, generationConfig: buildGenerationConfig() }), timeoutMs: 25000 });
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).join('\n') || '';
-  return text;
-}
-
-async function callGeminiChat(messages, context) {
-  const maxAttempts = Math.max(1, Number(process.env.LLM_CHAT_RETRIES || 3));
-  const baseDelay = Math.max(250, Number(process.env.LLM_CHAT_BACKOFF_MS || 750));
-  let lastError = null;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    try {
-      const reply = await callGeminiChatOnce(messages, context);
-      if (reply && reply.trim()) {
-        return reply;
-      }
-      lastError = new Error('Empty response from Gemini');
-    } catch (e) {
-      lastError = e;
-      if (LLM_DEBUG) console.log(`[LLM] callGeminiChat attempt ${attempt + 1} failed:`, String(e));
-    }
-
-    if (attempt < maxAttempts - 1) {
-      const delay = Math.min(10000, baseDelay * Math.pow(2, attempt));
-      if (LLM_DEBUG) console.log(`[LLM] retrying Gemini call in ${delay}ms (attempt ${attempt + 2}/${maxAttempts})`);
-      await wait(delay);
-    }
-  }
-
-  if (LLM_DEBUG && lastError) console.log('[LLM] callGeminiChat exhausted retries:', String(lastError));
-  return null;
-}
 
 function buildHighchartsSeriesFromTable(table, valueKey, start, end) {
   // Line charts: time on X axis (datetime), metric on Y axis
@@ -1341,8 +1511,32 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === '/api/weather' && req.method === 'GET') {
-    const weather = loadWeather();
-    return sendJson(res, 200, { count: weather.length, latest: weather.at(-1) || null });
+    const parseTsParam = (value) => {
+      if (value == null) return null;
+      const raw = Array.isArray(value) ? value[0] : value;
+      if (raw == null || raw === '') return null;
+      const num = Number(raw);
+      if (Number.isFinite(num)) return num;
+      const parsed = Date.parse(raw);
+      return Number.isNaN(parsed) ? null : parsed;
+    };
+    const building = query.building ? String(query.building).trim() : null;
+    const startParam = parseTsParam(query.start ?? query.startMs ?? query.from);
+    const endParam = parseTsParam(query.end ?? query.endMs ?? query.to);
+    const rangeOption = (Number.isFinite(startParam) || Number.isFinite(endParam))
+      ? { start: Number.isFinite(startParam) ? startParam : undefined, end: Number.isFinite(endParam) ? endParam : undefined }
+      : undefined;
+    const weather = loadWeather(building, rangeOption ? { range: rangeOption } : {});
+    const filtered = weather.filter((row) => withinRange(row.ts, startParam ?? null, endParam ?? null));
+    return sendJson(res, 200, {
+      building,
+      count: weather.length,
+      filteredCount: filtered.length,
+      start: startParam ?? null,
+      end: endParam ?? null,
+      latest: filtered.at(-1) || weather.at(-1) || null,
+      data: filtered
+    });
   }
 
   if (pathname === '/api/status' && req.method === 'GET') {
@@ -1802,8 +1996,16 @@ const server = http.createServer(async (req, res) => {
       const floor = String(query.floor || '').trim() || null;
       const zone = String(query.zone || '').trim() || null;
       const field = String(query.field || '').trim();
-      const start = query.start ? Number(query.start) : null;
-      const end = query.end ? Number(query.end) : null;
+      const parseRangeParam = (value) => {
+        if (value == null || value === '') return null;
+        const num = Number(value);
+        if (Number.isFinite(num)) return num;
+        const parsed = Date.parse(value);
+        return Number.isNaN(parsed) ? null : parsed;
+      };
+      const requestedStart = parseRangeParam(query.start ?? query.startMs ?? query.from);
+      const requestedEnd = parseRangeParam(query.end ?? query.endMs ?? query.to);
+      const requestedRange = { start: requestedStart, end: requestedEnd };
       let limit = 1000;
       if (query.limit != null) {
         const rawLimit = Number(query.limit);
@@ -1816,12 +2018,19 @@ const server = http.createServer(async (req, res) => {
       // Weather support: if building provided and field prefixed with weather.
       if (building && field.startsWith('weather.')) {
         const weatherKey = field.split('.').slice(1).join('.') || '';
-        const arr = loadWeather(building) || [];
+        const weatherOpts = (requestedRange.start != null || requestedRange.end != null)
+          ? { range: requestedRange }
+          : {};
+        const arr = loadWeather(building, weatherOpts) || [];
         const rows = [];
+        let wMin = null;
+        let wMax = null;
         for (const r of arr) {
           const ts = Number(r.ts);
           if (!Number.isFinite(ts)) continue;
-          if (!withinRange(ts, start, end)) continue;
+          if (wMin == null || ts < wMin) wMin = ts;
+          if (wMax == null || ts > wMax) wMax = ts;
+          if (!withinRange(ts, requestedRange.start, requestedRange.end)) continue;
           const v = r[weatherKey];
           const y = Number(v);
           if (!Number.isFinite(y)) continue;
@@ -1829,7 +2038,18 @@ const server = http.createServer(async (req, res) => {
           if (rows.length >= limit) break;
         }
         rows.sort((a,b)=>a.ts-b.ts);
-        return sendJson(res, 200, { scope: { tenant, building, floor, zone }, field, count: rows.length, rows });
+        return sendJson(res, 200, {
+          scope: { tenant, building, floor, zone },
+          field,
+          count: rows.length,
+          rows,
+          range: {
+            requested: requestedRange,
+            applied: requestedRange,
+            coverage: wMin != null && wMax != null ? { start: wMin, end: wMax } : null,
+            adjusted: false
+          }
+        });
       }
 
       // Determine device IDs in scope (favor snapshot, fallback to graph)
@@ -1890,6 +2110,10 @@ const server = http.createServer(async (req, res) => {
         }
       } catch {}
 
+      const alignedRange = alignRangeToCoverage(requestedRange, ids);
+      const effectiveStart = alignedRange.range.start ?? requestedRange.start ?? null;
+      const effectiveEnd = alignedRange.range.end ?? requestedRange.end ?? null;
+
       // Collect rows across devices
       const rows = [];
       const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
@@ -1906,7 +2130,7 @@ const server = http.createServer(async (req, res) => {
           for (let i = 1; i < lines.length; i++) {
             const parts = lines[i].split(',');
             const ts = Number(parts[0]); if (!Number.isFinite(ts)) continue;
-            if (!withinRange(ts, start, end)) continue;
+            if (!withinRange(ts, effectiveStart, effectiveEnd)) continue;
             const y = Number(parts[colIndex]); if (!Number.isFinite(y)) continue;
             rows.push({ ts, value: y, device: id });
             if (rows.length >= limit) break;
@@ -1915,7 +2139,18 @@ const server = http.createServer(async (req, res) => {
         } catch {}
       }
       rows.sort((a,b)=>a.ts-b.ts);
-      return sendJson(res, 200, { scope: { tenant, building, floor, zone }, field, count: rows.length, rows });
+      return sendJson(res, 200, {
+        scope: { tenant, building, floor, zone },
+        field,
+        count: rows.length,
+        rows,
+        range: {
+          requested: requestedRange,
+          applied: alignedRange.range,
+          coverage: alignedRange.coverage,
+          adjusted: alignedRange.changed
+        }
+      });
     } catch (e) { return sendJson(res, 500, { error: 'scope_series_failed', detail: String(e) }); }
   }
 
@@ -1923,12 +2158,14 @@ const server = http.createServer(async (req, res) => {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
+      let conversationId = null;
+      let conversationState = null;
       try {
         const payload = JSON.parse(body || '{}');
         const { messages = [], room, range, selection } = payload;
-        let conversationId = String(payload.conversationId || '').trim();
+        conversationId = String(payload.conversationId || '').trim();
         if (!conversationId) conversationId = randomUUID();
-        let conversationState = conversationStore.ensure(conversationId);
+        conversationState = conversationStore.ensure(conversationId);
         if (DEBUG_HTTP) console.log('[API/chat] selection:', selection, 'conversationId=', conversationId);
         // Compute effective scope from UI selection (building/floor/room(zone))
         // In S3-only mode, a "room" is a deviceId; zones are mapped to devices via graph.
@@ -1945,7 +2182,21 @@ const server = http.createServer(async (req, res) => {
               const { devices = [] } = await g.devicesByScope({ tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null, zone: selection.room || null, type: null });
               const devIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
               effRoom = 'ALL';
-              selectionRooms = devIds;
+              let roomIds = devIds;
+              if (!roomIds.length) {
+                const resolved = await resolveScopeDevices({
+                  tenant: selection.tenant || null,
+                  building: selection.building || null,
+                  floor: selection.floor || null,
+                  zone: selection.room || null
+                });
+                if (resolved.deviceIds.length) {
+                  roomIds = resolved.deviceIds;
+                  if (!selectionZones.length && resolved.zones?.length) selectionZones = resolved.zones.slice();
+                  if (!selectionFloors.length && resolved.floors?.length) selectionFloors = resolved.floors.slice();
+                }
+              }
+              selectionRooms = roomIds;
               // Include zones list for scope; omit devices from note
               let roomsList = [];
               try {
@@ -2021,15 +2272,28 @@ const server = http.createServer(async (req, res) => {
                 selectionZones = roomsList;
               } catch {}
               // Gather devices
-              let devIds = [];
-              try {
-                if (g.devicesByScope) {
-                  const { devices = [] } = await g.devicesByScope({ tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null, zone: null, type: null });
-                  devIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
-                }
-              } catch {}
-              effRoom = 'ALL';
-              selectionRooms = devIds;
+            let devIds = [];
+            try {
+              if (g.devicesByScope) {
+                const { devices = [] } = await g.devicesByScope({ tenant: selection.tenant || null, building: selection.building || null, floor: selection.floor || null, zone: null, type: null });
+                devIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
+              }
+            } catch {}
+            if (!devIds.length) {
+              const resolved = await resolveScopeDevices({
+                tenant: selection.tenant || null,
+                building: selection.building || null,
+                floor: selection.floor || null,
+                zone: null
+              });
+              if (resolved.deviceIds.length) {
+                devIds = resolved.deviceIds.slice();
+                if (!selectionZones.length && resolved.zones?.length) selectionZones = resolved.zones.slice();
+                if (!selectionFloors.length && resolved.floors?.length) selectionFloors = resolved.floors.slice();
+              }
+            }
+            effRoom = 'ALL';
+            selectionRooms = devIds;
               let floorsList2 = [];
               try {
                 if (selection.building) {
@@ -2084,6 +2348,22 @@ const server = http.createServer(async (req, res) => {
         }
         const selectionDeviceZones = selection && selection.deviceZones && typeof selection.deviceZones === 'object' ? selection.deviceZones : {};
 
+        let scopeRange = (range && typeof range === 'object') ? { ...range } : {};
+        if (scopeRange.start != null && !Number.isFinite(scopeRange.start)) {
+          const parsedStart = Number(scopeRange.start);
+          scopeRange.start = Number.isFinite(parsedStart) ? parsedStart : null;
+        }
+        if (scopeRange.end != null && !Number.isFinite(scopeRange.end)) {
+          const parsedEnd = Number(scopeRange.end);
+          scopeRange.end = Number.isFinite(parsedEnd) ? parsedEnd : null;
+        }
+        const rangeAlignment = (selectionRooms && selectionRooms.length)
+          ? alignRangeToCoverage(scopeRange, selectionRooms)
+          : null;
+        if (rangeAlignment && rangeAlignment.coverage) {
+          scopeRange = rangeAlignment.range || scopeRange;
+        }
+
         conversationState = conversationStore.recordScope(conversationId, {
           tenant: selection?.tenant || null,
           building: selection?.building || null,
@@ -2092,7 +2372,7 @@ const server = http.createServer(async (req, res) => {
           devices: selectionRooms,
           zones: selectionZones,
           floors: selectionFloors,
-          range: range || null
+          range: (scopeRange && (scopeRange.start != null || scopeRange.end != null)) ? scopeRange : null
         }) || conversationState;
 
         if (payload?.preferences) {
@@ -2120,7 +2400,7 @@ const server = http.createServer(async (req, res) => {
           instruction: 'You are a building analytics chat assistant. Answer succinctly. If plotting helps, include a JSON HighchartsOptions with yAxis as time and xAxis as chosen metric. Do not include code fences in the JSON.',
           tables: Object.keys(tables),
           sampleRows: Object.fromEntries(Object.entries(tables).map(([k, v]) => [k, v.slice(0, 5)])),
-          range: range || {},
+          range: scopeRange || {},
           knowledge: loadKnowledge(),
           weatherSample: loadWeather().slice(-50)
         };
@@ -2150,15 +2430,16 @@ const server = http.createServer(async (req, res) => {
     }
 
     const conversationSummary = conversationStore.summarize(conversationState);
+    const connectorsSnapshot = await connectorRegistry.summary().catch(() => []);
     const maxAttempts = Number(process.env.AGENT_MAX_ATTEMPTS || 2);
     let agentResult = null;
     for (let attempt = 0; attempt < Math.max(1, maxAttempts); attempt += 1) {
-      const runResult = await agent.run(effMessages, {
-        room: effRoom,
-        range,
-        selectionRooms,
-        selectionZones,
-        tenant: (selection && selection.tenant) ? String(selection.tenant) : null,
+        const runResult = await agent.run(effMessages, {
+          room: effRoom,
+          range: scopeRange,
+          selectionRooms,
+          selectionZones,
+          tenant: (selection && selection.tenant) ? String(selection.tenant) : null,
         building: (selection && selection.building) ? String(selection.building) : null,
         floor: (selection && selection.floor) ? String(selection.floor) : null,
         zone: (selection && selection.room) ? String(selection.room) : null,
@@ -2166,7 +2447,8 @@ const server = http.createServer(async (req, res) => {
         scopeFloors: selectionFloors,
         scopeDeviceZones: selectionDeviceZones,
         attempt,
-        conversationSummary
+        conversationSummary,
+        connectors: connectorsSnapshot
       });
       if (!resultNeedsRetry(runResult)) {
         agentResult = runResult;
@@ -2205,7 +2487,7 @@ const server = http.createServer(async (req, res) => {
         const record = {
           timestamp: ts.toISOString(),
           selection: selection || null,
-          effective: { room: effRoom, range },
+          effective: { room: effRoom, range: scopeRange },
           selectionRooms,
           selectionZones,
           question: (messages && messages.length) ? (messages[messages.length-1]?.content || '') : '',
@@ -2296,33 +2578,61 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === '/api/health') {
-    return sendJson(res, 200, { ok: true, useLLM: USE_LLM, provider: LLM_PROVIDER });
+    connectorRegistry.summary().then((connectors) => {
+      sendJson(res, 200, {
+        ok: true,
+        useLLM: USE_LLM,
+        providers: llmClient.providerChain,
+        provider: LLM_PROVIDER,
+        connectors
+      });
+    }).catch((err) => {
+      sendJson(res, 500, { ok: false, error: err?.message || String(err) });
+    });
+    return;
+  }
+
+  if (pathname === '/api/connectors' && req.method === 'GET') {
+    const force = url.parse(req.url, true)?.query?.force === '1';
+    connectorRegistry.summary({ force }).then((connectors) => {
+      sendJson(res, 200, { connectors, force });
+    }).catch((err) => {
+      sendJson(res, 500, { error: 'connectors_unavailable', detail: err?.message || String(err) });
+    });
+    return;
   }
 
   // Lightweight diagnostics
   if (pathname === '/api/diag' && req.method === 'GET') {
-    try {
-      const snapPath = path.join(root, 'data', 'graph_snapshot.json');
-      const haveSnap = fs.existsSync(snapPath);
-      const s3Weather = path.join(s3LocalDir, 'weather_buildings');
-      const dataWeather = path.join(root, 'data', 'weather_buildings');
-      const out = {
-        env: {
-          LOG_LEVEL: process.env.LOG_LEVEL || '',
-          HTTP_DEBUG: process.env.HTTP_DEBUG || '',
-          USE_LLM, LLM_PROVIDER, GEMINI_MODEL
-        },
-        paths: { s3LocalDir, dataDir, publicDir },
-        snapshot: { haveSnap, file: haveSnap ? 'data/graph_snapshot.json' : null },
-        weather: {
-          s3Exists: fs.existsSync(s3Weather),
-          dataExists: fs.existsSync(dataWeather),
-          s3Files: fs.existsSync(s3Weather) ? fs.readdirSync(s3Weather).filter(f=>f.endsWith('.csv')).slice(0,20) : [],
-          dataFiles: fs.existsSync(dataWeather) ? fs.readdirSync(dataWeather).filter(f=>f.endsWith('.csv')).slice(0,20) : []
-        }
-      };
-      return sendJson(res, 200, out);
-    } catch (e) { return sendJson(res, 500, { error: 'diag_failed', detail: String(e) }); }
+    connectorRegistry.summary().then((connectors) => {
+      try {
+        const snapPath = path.join(root, 'data', 'graph_snapshot.json');
+        const haveSnap = fs.existsSync(snapPath);
+        const s3Weather = path.join(s3LocalDir, 'weather_buildings');
+        const dataWeather = path.join(root, 'data', 'weather_buildings');
+        const out = {
+          env: {
+            LOG_LEVEL: process.env.LOG_LEVEL || '',
+            HTTP_DEBUG: process.env.HTTP_DEBUG || '',
+            USE_LLM,
+            LLM_PROVIDER,
+            GEMINI_MODEL,
+            LLM_CHAIN: llmClient.providerChain
+          },
+          paths: { s3LocalDir, dataDir, publicDir },
+          connectors,
+          snapshot: { haveSnap, file: haveSnap ? 'data/graph_snapshot.json' : null },
+          weather: {
+            s3Exists: fs.existsSync(s3Weather),
+            dataExists: fs.existsSync(dataWeather),
+            s3Files: fs.existsSync(s3Weather) ? fs.readdirSync(s3Weather).filter(f=>f.endsWith('.csv')).slice(0,20) : [],
+            dataFiles: fs.existsSync(dataWeather) ? fs.readdirSync(dataWeather).filter(f=>f.endsWith('.csv')).slice(0,20) : []
+          }
+        };
+        return sendJson(res, 200, out);
+      } catch (e) { return sendJson(res, 500, { error: 'diag_failed', detail: String(e) }); }
+    }).catch((err) => sendJson(res, 500, { error: 'diag_failed', detail: err?.message || String(err) }));
+    return;
   }
 
   // Weather endpoint (supports building param)
@@ -2657,7 +2967,23 @@ const server = http.createServer(async (req, res) => {
           zones: Array.from(byZ.entries()).map(([z, devs]) => ({ zone: z, devices: devs }))
         }))
       }));
-      const payload = { scope: { tenant, building, floor, zone }, devices: deviceIds, metrics, counts, byDevice, zones, floors: floorsArr, byZone, byFloor, coverage: perMetricCoverage, weather: weatherFields, deviceIndex, groups };
+      const scopeCoverage = aggregateCoverageFromDevices(deviceIds);
+      const payload = {
+        scope: { tenant, building, floor, zone },
+        devices: deviceIds,
+        metrics,
+        counts,
+        byDevice,
+        zones,
+        floors: floorsArr,
+        byZone,
+        byFloor,
+        coverage: perMetricCoverage,
+        weather: weatherFields,
+        deviceIndex,
+        groups,
+        range: { coverage: scopeCoverage }
+      };
       cacheSet(__cache.scopeMetrics, key, payload);
       return sendJson(res, 200, payload);
     } catch (e) { return sendJson(res, 500, { error: 'scope_metrics_failed', detail: String(e) }); }
@@ -2773,7 +3099,7 @@ async function prefetchWeatherForAllBuildings() {
   }
 }
 
-function ensureWeatherFetchForBuilding(buildingName) {
+function ensureWeatherFetchForBuilding(buildingName, range = null) {
   if (!buildingName) return;
   const slug = buildingSlug(buildingName);
   const csvS3 = path.join(s3LocalDir, 'weather_buildings', `${slug}.csv`);
@@ -2792,14 +3118,17 @@ function ensureWeatherFetchForBuilding(buildingName) {
         console.warn('[weather] unable to inspect cached file', file, String(err));
       }
     }
-    const startDt = parseUtcDate(WEATHER_BACKFILL_START);
-    const endDt = parseUtcDate(WEATHER_BACKFILL_END);
-    if (hasWeatherCoverage(tsMap, startDt, endDt)) return;
+    const startDt = range && Number.isFinite(range.start) ? new Date(range.start) : parseUtcDate(WEATHER_BACKFILL_START);
+    const endDt = range && Number.isFinite(range.end) ? new Date(range.end) : parseUtcDate(WEATHER_BACKFILL_END);
+    if (startDt && endDt && hasWeatherCoverage(tsMap, startDt, endDt)) return;
   }
   if (__weatherFetchPromises.has(slug)) return;
   const coord = findIndexedBuildingCoord(buildingName);
   if (!coord) return;
-  const promise = fetchAndCacheWeatherForBuilding(coord.name, coord.lat, coord.lon)
+  const promise = fetchAndCacheWeatherForBuilding(coord.name, coord.lat, coord.lon, {
+    start: range?.start,
+    end: range?.end
+  })
     .catch((err) => {
       console.warn('[weather] async fetch failed for', coord.name, String(err));
     })
@@ -2918,7 +3247,9 @@ const agent = createAgent({
   loadWeather,
   callGeminiChat,
   graph,
-  vector
+  vector,
+  connectors: connectorRegistry,
+  llmProviders: llmClient.providerChain
 });
 
 ensureDatastores()

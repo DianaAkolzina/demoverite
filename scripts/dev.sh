@@ -8,6 +8,18 @@ LOG_FILE="$LOG_DIR/app.log"
 CONTAINER_NAME="avmsolutions-analytics"
 IMAGE_NAME="avmsolutions-analytics"
 
+maybe_index_chroma() {
+  local should_index="${INDEX_CHROMA_ON_START:-1}"
+  if [[ "$should_index" == "1" ]]; then
+    echo "[dev] Indexing Chroma before start (set INDEX_CHROMA_ON_START=0 to skip)..."
+    if ! index_chroma; then
+      echo "[dev] Warning: Chroma indexing failed; continuing anyway." >&2
+    fi
+  else
+    echo "[dev] Skipping Chroma indexing (INDEX_CHROMA_ON_START=$should_index)."
+  fi
+}
+
 run_npm() {
   (cd "$ROOT" && npm "$@")
 }
@@ -23,6 +35,7 @@ start_app() {
   fi
   mkdir -p "$LOG_DIR"
   echo "Starting Node server..."
+  maybe_index_chroma
   (
     cd "$ROOT"
     NODE_ENV="${NODE_ENV:-development}" node server/index.js >>"$LOG_FILE" 2>&1 &
@@ -91,11 +104,18 @@ run_pipeline() {
 }
 
 docker_build() {
-  (cd "$ROOT" && docker build -t "$IMAGE_NAME" .)
+  local build_arg_run="${RUN_CHROMA_INDEX:-0}"
+  local build_chroma_url="${CHROMA_BUILD_URL:-${CHROMA_URL:-http://localhost:8000}}"
+  echo "[dev] docker build with RUN_CHROMA_INDEX=$build_arg_run CHROMA_URL=$build_chroma_url"
+  (cd "$ROOT" && docker build \
+    --build-arg RUN_CHROMA_INDEX="$build_arg_run" \
+    --build-arg CHROMA_URL="$build_chroma_url" \
+    -t "$IMAGE_NAME" .)
 }
 
 docker_up() {
   mkdir -p "$ROOT/data" "$ROOT/CSVex_s3"
+  maybe_index_chroma
   docker run -d \
     --name "$CONTAINER_NAME" \
     -p "${PORT:-3000}:3000" \
@@ -146,6 +166,9 @@ Docker helpers:
 
 Maintenance:
   clean            Stop app/container and remove PID file
+Environment:
+  INDEX_CHROMA_ON_START=0    Skip automatic `npm run index:chroma` before start/docker-up
+  RUN_CHROMA_INDEX=1         Enable Docker build-time indexing (set CHROMA_BUILD_URL/CHROMA_URL accordingly)
 EOF
 }
 

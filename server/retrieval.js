@@ -5,6 +5,20 @@ import { spawn } from 'child_process';
 let rerankDisabled = false;
 const MIN_FINAL_SCORE = Number(process.env.RAG_MIN_SCORE || 0.01);
 const MIN_LEXICAL_SCORE = Number(process.env.RAG_MIN_LEX || 0.05);
+const CATEGORY_BOOST = Number(process.env.RAG_CATEGORY_BOOST || 0.3);
+const METRIC_MISS_FACTOR = Number(process.env.RAG_METRIC_MISS_FACTOR || 0.85);
+
+function buildAugmentedQuery(base, scope = {}) {
+  const parts = [String(base || '')];
+  if (scope?.room && scope.room !== 'ALL') parts.push(`room:${scope.room}`);
+  if (scope?.building) parts.push(`building:${scope.building}`);
+  if (scope?.tenant) parts.push(`tenant:${scope.tenant}`);
+  if (Array.isArray(scope?.metrics) && scope.metrics.length) parts.push(`metrics:${scope.metrics.join(',')}`);
+  if (scope?.timeHints?.granularity) parts.push(`granularity:${scope.timeHints.granularity}`);
+  if (scope?.timeHints?.future) parts.push('forecast:true');
+  if (scope?.zones && scope.zones.length) parts.push(`zones:${scope.zones.slice(0, 3).join('|')}`);
+  return parts.filter(Boolean).join(' | ');
+}
 
 function tokenize(s) {
   return String(s || '')
@@ -73,11 +87,14 @@ function reciprocalRankFusion(lists, k0 = 60) {
   return Array.from(map.values());
 }
 
-export async function hybridRetrieve({ query, ragIndex, vectorClient, k = 6 }) {
+export async function hybridRetrieve({ query, ragIndex, vectorClient, k = 6, preferCategories = [], scope = {} }) {
+  const augmentedQuery = buildAugmentedQuery(query, scope);
+  const preferSet = new Set((preferCategories || []).map((c) => String(c || '').toLowerCase()).filter(Boolean));
+  const metricTokens = new Set((scope?.metrics || []).map((m) => String(m || '').toLowerCase()).filter(Boolean));
   const lists = [];
   let ragHits = [];
   try {
-    ragHits = ragIndex?.search ? ragIndex.search(query, Math.max(k, 10)) : [];
+    ragHits = ragIndex?.search ? ragIndex.search(augmentedQuery, Math.max(k, 10)) : [];
   } catch {}
   const ragList = (ragHits || []).map((h, i) => toUnifiedFromRag(h, i));
   if (ragList.length) lists.push(ragList);
@@ -85,7 +102,8 @@ export async function hybridRetrieve({ query, ragIndex, vectorClient, k = 6 }) {
   let vecList = [];
   try {
     if (vectorClient && vectorClient.searchDocs) {
-      const res = await vectorClient.searchDocs({ query, k: Math.max(k, 10) });
+      const where = preferSet.size ? { category: { '$in': Array.from(preferSet) } } : null;
+      const res = await vectorClient.searchDocs({ query: augmentedQuery, k: Math.max(k, 10), where });
       const hits = res?.hits || [];
       vecList = hits.map((h, i) => toUnifiedFromVec(h, i));
       if (vecList.length) lists.push(vecList);
@@ -95,9 +113,26 @@ export async function hybridRetrieve({ query, ragIndex, vectorClient, k = 6 }) {
   const fused = reciprocalRankFusion(lists);
   // Lightweight lexical rerank to bias toward explicit overlaps
   for (const it of fused) {
-    it.lex = lexicalOverlapScore(query, it.text);
-    // Blend: final = 0.7*rrf + 0.3*lex
-    it.final = 0.7 * it.rrf + 0.3 * it.lex;
+    it.lex = lexicalOverlapScore(augmentedQuery, it.text);
+    const category = String(it.meta?.category || it.meta?.type || '').toLowerCase();
+    const categoryBoost = preferSet.has(category) ? CATEGORY_BOOST : 0;
+    let scopeBoost = 0;
+    if (scope?.room && scope.room !== 'ALL') {
+      const needle = String(scope.room).toLowerCase();
+      if (needle && it.text.toLowerCase().includes(needle)) scopeBoost += 0.05;
+    }
+    let metricMultiplier = 1;
+    if (metricTokens.size) {
+      const textLower = it.text.toLowerCase();
+      let support = 0;
+      metricTokens.forEach((token) => {
+        if (token && textLower.includes(token)) support += 1;
+      });
+      it.metricSupport = support;
+      if (!support) metricMultiplier = METRIC_MISS_FACTOR;
+    }
+    // Blend: final = 0.7*rrf + 0.3*lex + boosts
+    it.final = (0.7 * it.rrf + 0.3 * it.lex + categoryBoost + scopeBoost) * metricMultiplier;
   }
   fused.sort((a, b) => b.final - a.final);
 

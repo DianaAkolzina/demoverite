@@ -37,11 +37,16 @@ Prerequisites
    ```bash
    npm run index:chroma
    ```
+   To bake the same step into the Docker image, build with `--build-arg RUN_CHROMA_INDEX=1 --build-arg CHROMA_URL=http://chroma:8000` (adjust the URL to match your vector service and ensure the build has network access to it, e.g. `docker build --network=host ...`).
 7. Start the server  
    ```bash
    npm start
    ```
    The UI listens on `http://localhost:3000`. Startup regenerates `data/graph_snapshot.json` plus per-tenant snapshots and reads telemetry from `CSVex_s3/`.
+
+### LLM Provider Chain
+
+Set `LLM_PROVIDER_CHAIN` to try several providers in order (e.g., `gemini,openai,mock`). The server now refuses to start when `USE_LLM=true` but none of the listed providers have credentials, which prevents silent fallback to placeholder replies.
 
 ### Dev Helper Script
 
@@ -91,7 +96,23 @@ It runs the deterministic building regression suites (`scripts/run_building_regr
 Requirements:
 - `pdflatex` available in `PATH` (TeX Live or similar) for PDF generation.
 - AWS credentials in the environment (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional `AWS_SESSION_TOKEN`).
+
+### Retrieval regression
+
+Grounding can silently drift when knowledge files or telemetry snapshots change. A lightweight guard is bundled as:
+
+```bash
+npm run test:rag
+```
+
+It rebuilds the on-disk RAG index (without starting the server) and verifies that canonical questions such as IAQ limits, energy optimisations, and RAG best practices still surface the correct knowledge chunks. Failures exit non‑zero with the offending question so you can refresh embeddings or inspect the docs before deploying.
 - `AWS_S3_BUCKET` (and optional `AWS_S3_REGION` / `AWS_S3_PREFIX`). PDFs are pushed to the same bucket that hosts the device telemetry mirror.
+
+### Connector Health & Evaluation Harness
+
+- `/api/health` now returns the connector snapshots (Neo4j, telemetry cache, weather cache, Chroma) alongside the active LLM provider chain, so you can spot degraded data planes before running a suite.
+- `/api/connectors` (or `/api/connectors?force=1`) exposes the same connector snapshots without the rest of the health payload—handy for dashboards.
+- `npm run eval:traces` walks `data/traces/`, flags missing plans/tool calls/overview blocks, and drops a JSON report under `data/evals/`. Use `npm run eval:traces -- --dir data/traces --outdir data/evals --strict` to fail on fallback answers too.
 
 ### Targeted Regression Suites
 

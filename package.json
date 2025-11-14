@@ -14,7 +14,9 @@
     "docker:logs": "docker logs -f avmsolutions-analytics",
     "index:chroma": "python3 scripts/index_chroma.py",
     "pipeline:regression": "node scripts/pipeline_regression.js",
-    "upload:reports": "node scripts/upload_reports_to_s3.js"
+    "upload:reports": "node scripts/upload_reports_to_s3.js",
+    "eval:traces": "node scripts/eval_agent.js",
+    "test:rag": "node scripts/eval_rag.js"
   },
   "dependencies": {
     "node-fetch": "^3.3.2",

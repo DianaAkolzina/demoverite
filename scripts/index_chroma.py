@@ -59,7 +59,7 @@ class HashEmbeddingFunction:
 
 
 def create_embedding_function():
-    prefer_transformer = os.environ.get("CHROMA_USE_SENTENCE_TRANSFORMER", "").lower() in ("1", "true", "yes")
+    prefer_transformer = os.environ.get("CHROMA_USE_SENTENCE_TRANSFORMER", "1").lower() not in ("0", "false", "no")
     hash_dim = int(os.environ.get("CHROMA_HASH_DIM", "384"))
     if prefer_transformer:
         try:
@@ -97,17 +97,94 @@ def get_client():
         pass
     return chromadb.HttpClient(host=host, port=port, settings=Settings(allow_reset=True))
 
+def parse_front_matter(text):
+    if not text.startswith('---'):
+        return {}, text
+    parts = text.split('\n', 2)
+    if len(parts) < 3 or not parts[0].strip() == '---':
+        return {}, text
+    try:
+        end_idx = text.index('\n---', 3)
+    except ValueError:
+        return {}, text
+    header = text[4:end_idx]
+    body = text[end_idx + 4:]
+    meta = {}
+    for line in header.splitlines():
+        if ':' not in line:
+            continue
+        key, value = line.split(':', 1)
+        key = key.strip()
+        value = value.strip()
+        if ',' in value:
+            meta[key] = [v.strip() for v in value.split(',') if v.strip()]
+        else:
+            meta[key] = value
+    return meta, body.lstrip('\n')
+
+
+def chunk_markdown(text, max_len=1400, min_len=400):
+    if not text:
+        return []
+    sections = []
+    current = []
+    for line in text.splitlines():
+        if line.startswith('#') and len('\n'.join(current)) >= max_len:
+            sections.append('\n'.join(current).strip())
+            current = [line]
+        else:
+            current.append(line)
+            if len('\n'.join(current)) >= max_len:
+                sections.append('\n'.join(current).strip())
+                current = []
+    if current:
+        sections.append('\n'.join(current).strip())
+    merged = []
+    for chunk in sections:
+        if not chunk:
+            continue
+        if merged and len(chunk) < min_len:
+            prev = merged.pop()
+            merged.append((prev + '\n\n' + chunk).strip())
+        else:
+            merged.append(chunk)
+    return merged or [text[:max_len]]
+
+
+def coerce_meta_value(value):
+    if value is None:
+        return None
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, (list, tuple, set)):
+        return ', '.join(str(item) for item in value if item)
+    return str(value)
+
+
 def index_knowledge(client):
     name = os.environ.get('CHROMA_COLLECTION', 'knowledge')
     coll = client.get_or_create_collection(name=name, embedding_function=EF)
     files = [f for f in glob.glob('knowledge/**/*.*', recursive=True) if f.lower().endswith(('.md','.txt'))]
     docs, ids, metas = [], [], []
+    stamp = int(time.time())
     for i, f in enumerate(files):
         with open(f, 'r', encoding='utf-8') as fh:
             txt = fh.read()
-        ids.append(f"kn-{i}-{int(time.time())}")
-        docs.append(txt)
-        metas.append({"path": f})
+        meta, body = parse_front_matter(txt)
+        rel_path = os.path.relpath(f, 'knowledge')
+        category = os.path.dirname(rel_path) if os.path.dirname(rel_path) != '' else None
+        fallback_category = os.path.splitext(os.path.basename(rel_path))[0]
+        category = category or fallback_category or "uncategorized"
+        chunks = chunk_markdown(body)
+        for idx, chunk in enumerate(chunks):
+            ids.append(f"kn-{i}-{idx}-{stamp}")
+            docs.append(chunk)
+            sanitized_meta = {}
+            merged_meta = {**meta, "path": rel_path, "category": category, "chunk": idx}
+            for mk, mv in merged_meta.items():
+                coerced = coerce_meta_value(mv)
+                sanitized_meta[mk] = coerced
+            metas.append(sanitized_meta)
     if docs:
         coll.add(documents=docs, ids=ids, metadatas=metas)
     print(f"Indexed {len(docs)} knowledge docs")
@@ -151,3 +228,11 @@ if __name__ == '__main__':
     client = get_client()
     index_knowledge(client)
     index_profiles(client)
+def coerce_meta_value(value):
+    if value is None:
+        return None
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, list):
+        return ', '.join(str(item) for item in value if item)
+    return str(value)

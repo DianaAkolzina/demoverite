@@ -1,0 +1,34 @@
+{
+  "question": "List the devices in Bolton Cafe (iaq cafe wording)",
+  "trace": [
+    {
+      "tool": "graph_zone_devices",
+      "args": { "room": "iaq Cafe" },
+      "result": {
+        "devices": [
+          {
+            "id": "abc73b80-4797-11f0-bf13-bf19a72566f6",
+            "name": "Cafe Air Quality",
+            "type": "IAQ",
+            "zone": "Cafe",
+            "floor": "First Floor",
+            "building": "Bolton",
+            "metrics": ["temperature", "humidity", "co2"],
+            "hasTelemetry": true
+          },
+          {
+            "id": "ab5fb660-872d-11f0-a19e-8f874a1c01d3",
+            "name": "Cafe Occupancy",
+            "type": "PeopleCounter",
+            "zone": "Cafe",
+            "floor": "First Floor",
+            "building": "Bolton",
+            "metrics": ["people_count"],
+            "hasTelemetry": true
+          }
+        ]
+      }
+    }
+  ],
+  "note": "Shows snapshotIndex-backed aliasing so \"iaq cafe\" resolves to the Cafe zone graph devices."
+}

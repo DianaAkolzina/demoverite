@@ -3,7 +3,11 @@
 export function createVectorClient({ chromaUrl, defaultCollection = process.env.CHROMA_COLLECTION || 'knowledge' } = {}) {
   const base = (chromaUrl || '').replace(/\/$/, '');
   if (!base) {
-    return { searchDocs: async () => null, searchProfiles: async () => null };
+    return {
+      searchDocs: async () => null,
+      searchProfiles: async () => null,
+      ping: async () => false
+    };
   }
 
   async function jsonFetch(url, opts) {
@@ -76,7 +80,7 @@ export function createVectorClient({ chromaUrl, defaultCollection = process.env.
     return null;
   }
 
-  async function searchDocs({ query, k = 6, collection = defaultCollection }) {
+  async function searchDocs({ query, k = 6, collection = defaultCollection, where = null }) {
     try {
       const coll = await getOrCreateCollection(collection);
       const cid = coll?.id;
@@ -85,12 +89,12 @@ export function createVectorClient({ chromaUrl, defaultCollection = process.env.
       try {
         out = await jsonFetch(`${base}/api/v2/collections/${encodeURIComponent(cid)}/query`, {
           method: 'POST',
-          body: JSON.stringify({ query_texts: [String(query || '')], n_results: k })
+          body: JSON.stringify({ query_texts: [String(query || '')], n_results: k, where: where || undefined })
         });
       } catch (e) {
         out = await jsonFetch(`${base}/api/v1/collections/${encodeURIComponent(cid)}/query`, {
           method: 'POST',
-          body: JSON.stringify({ query_texts: [String(query || '')], n_results: k })
+          body: JSON.stringify({ query_texts: [String(query || '')], n_results: k, where: where || undefined })
         });
       }
       // Normalize results
@@ -112,5 +116,13 @@ export function createVectorClient({ chromaUrl, defaultCollection = process.env.
     return searchDocs({ query: q, k, collection });
   }
 
-  return { searchDocs, searchProfiles };
+  async function ping() {
+    try {
+      return await checkHeartbeat();
+    } catch {
+      return false;
+    }
+  }
+
+  return { searchDocs, searchProfiles, ping };
 }

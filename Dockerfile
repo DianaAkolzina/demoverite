@@ -47,9 +47,21 @@ RUN if [ "$PREFETCH_EMB" = "1" ]; then \
       SentenceTransformer(m)" || true; \
     fi
 
+# Optional: run Chroma indexing during image build (requires a reachable CHROMA_URL)
+ARG RUN_CHROMA_INDEX=0
+ARG CHROMA_URL=http://localhost:8000
+ENV CHROMA_URL=${CHROMA_URL}
+RUN if [ "$RUN_CHROMA_INDEX" = "1" ]; then \
+      echo "[build] Indexing Chroma at ${CHROMA_URL}" && \
+      python3 scripts/index_chroma.py; \
+    else \
+      echo "[build] Skipping Chroma indexing (RUN_CHROMA_INDEX=0)"; \
+    fi
+
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:'+process.env.PORT+'/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 
 CMD ["node","server/index.js"]
+# copy commands?

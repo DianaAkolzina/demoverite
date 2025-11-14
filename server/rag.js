@@ -287,7 +287,7 @@ export function buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir
     return { meta, body: text.slice(m[0].length) };
   }
 
-  function chunkByHeadings(text, { maxLen = 1200, minLen = 400 } = {}) {
+function chunkByHeadings(text, { maxLen = 1200, minLen = 400 } = {}) {
     // Split on ATX headings and keep them with their section; fallback to fixed-size
     const parts = text.split(/^#{1,6}\s.+$/m);
     if (parts.length <= 1) {
@@ -334,9 +334,9 @@ export function buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir
       }
     }
     return merged;
-  }
+}
 
-  function shouldExcludeDoc(meta = {}) {
+function shouldExcludeDoc(meta = {}) {
     const flag = String(meta.exclude || meta.flagged || '').toLowerCase();
     if (flag === 'true' || flag === '1') return true;
     const status = String(meta.status || '').toLowerCase();
@@ -344,43 +344,137 @@ export function buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir
     return false;
   }
 
-  // Knowledge (recursive)
-  if (knowledgeDir && fs.existsSync(knowledgeDir)) {
-    const files = walk(knowledgeDir).filter(f => /\.(md|txt)$/i.test(f));
-    for (const abs of files) {
-      const rel = path.relative(knowledgeDir, abs);
-      const category = path.dirname(rel) === '.' ? null : path.dirname(rel);
-      const raw = fs.readFileSync(abs, 'utf8');
-      const { meta: fm, body } = parseFrontMatter(raw);
-      if (shouldExcludeDoc(fm)) continue;
-      const chunks = chunkByHeadings(body, { maxLen: 1400 });
-      for (const c of chunks) {
-        docs.push({ id: `k_${id++}`, text: c, meta: { type: 'knowledge', file: rel, category, ...fm } });
+function buildTelemetrySummaries({ rooms, loadRoomTables, maxRooms = Number(process.env.RAG_MAX_SUMMARY_ROOMS || 150) }) {
+  const summaries = [];
+  if (!Array.isArray(rooms) || !rooms.length || typeof loadRoomTables !== 'function') return summaries;
+  const roomSample = rooms.slice(0, maxRooms);
+  for (const room of roomSample) {
+    let tables = {};
+    try {
+      tables = loadRoomTables(room) || {};
+    } catch {
+      tables = {};
+    }
+    for (const [table, rows] of Object.entries(tables)) {
+      if (!Array.isArray(rows) || !rows.length) continue;
+      const tsMin = rows[0]?.ts ?? null;
+      const tsMax = rows[rows.length - 1]?.ts ?? null;
+      const metrics = Object.keys(rows[0] || {}).filter((k) => k !== 'ts');
+      const sample = rows.slice(Math.max(0, rows.length - 120));
+      const stats = {};
+      for (const row of sample) {
+        for (const metric of metrics) {
+          const raw = row[metric];
+          const value = Number(raw);
+          if (!Number.isFinite(value)) continue;
+          const store = stats[metric] || { min: value, max: value, sum: 0, count: 0 };
+          store.min = Math.min(store.min, value);
+          store.max = Math.max(store.max, value);
+          store.sum += value;
+          store.count += 1;
+          stats[metric] = store;
+        }
       }
+      const statLines = Object.entries(stats)
+        .map(([metric, info]) => {
+          const avg = info.count ? info.sum / info.count : null;
+          return `${metric}: min=${info.min?.toFixed?.(2) ?? info.min} max=${info.max?.toFixed?.(2) ?? info.max} avg=${avg?.toFixed?.(2) ?? avg}`;
+        })
+        .slice(0, 6)
+        .join('; ');
+      const text = `Telemetry summary for device ${room} table ${table}. Metrics: ${metrics.join(', ') || 'unknown'}. Coverage: ${tsMin ? new Date(tsMin).toISOString() : 'n/a'} → ${tsMax ? new Date(tsMax).toISOString() : 'n/a'}. Recent stats: ${statLines || 'insufficient numeric samples'}.`;
+      summaries.push({
+        id: `t_${room}_${table}_${summaries.length}`,
+        text,
+        meta: { type: 'telemetry_summary', room, table, metrics }
+      });
     }
   }
+  return summaries;
+}
 
-  // Scope snapshots (graph-derived)
-  const scopeDocs = buildScopeDocsFromSnapshots(dataDir);
-  for (const doc of scopeDocs) {
-    docs.push({ id: `scope_${id++}`, text: doc.text, meta: doc.meta });
+function buildWeatherDocs(dataDir) {
+  const docs = [];
+  const dir = path.join(dataDir, 'weather_buildings');
+  if (!fs.existsSync(dir)) return docs;
+  const files = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.json'));
+  for (const file of files) {
+    try {
+      const payload = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
+      const rows = Array.isArray(payload) ? payload : payload?.data;
+      if (!Array.isArray(rows) || !rows.length) continue;
+      const temps = rows.map((r) => Number(r.temp ?? r.temperature)).filter(Number.isFinite);
+      const humidity = rows.map((r) => Number(r.humidity)).filter(Number.isFinite);
+      const tsMin = rows[0]?.ts ?? null;
+      const tsMax = rows[rows.length - 1]?.ts ?? null;
+      const building = payload?.building || file.replace(/\.[^.]+$/, '');
+      const lineParts = [];
+      if (temps.length) {
+        temps.sort((a, b) => a - b);
+        const avg = temps.reduce((a, b) => a + b, 0) / temps.length;
+        lineParts.push(`temperature ${temps[0].toFixed(1)}–${temps.at(-1).toFixed(1)}°C (avg ${avg.toFixed(1)}°C)`);
+      }
+      if (humidity.length) {
+        humidity.sort((a, b) => a - b);
+        const avgH = humidity.reduce((a, b) => a + b, 0) / humidity.length;
+        lineParts.push(`humidity ${humidity[0].toFixed(1)}–${humidity.at(-1).toFixed(1)}% (avg ${avgH.toFixed(1)}%)`);
+      }
+      const text = `Weather cache for ${building}. Coverage: ${tsMin ? new Date(tsMin).toISOString() : 'unknown'} → ${tsMax ? new Date(tsMax).toISOString() : 'unknown'}. ${lineParts.join('. ')}`;
+      docs.push({
+        id: `w_${building}_${docs.length}`,
+        text,
+        meta: { type: 'weather', building }
+      });
+    } catch {}
   }
-  
-  // Room schemas
-  for (const room of rooms) {
-    const tables = loadRoomTables(room);
-    for (const [t, rows] of Object.entries(tables)) {
-      const first = rows?.[0] || {};
-      const keys = Object.keys(first);
-      const preview = JSON.stringify(rows.slice(0, 3));
-      const text = `Room ${room} Table ${t} has keys ${keys.join(', ')}. Sample: ${preview}`;
-      docs.push({ id: `s_${id++}`, text, meta: { type: 'schema', room, table: t } });
-    }
-  }
-  
-  // Weather is fetched and cached per building at runtime; no static CSV inspection required.
-  
   return docs;
+}
+
+// Knowledge (recursive)
+if (knowledgeDir && fs.existsSync(knowledgeDir)) {
+  const files = walk(knowledgeDir).filter(f => /\.(md|txt)$/i.test(f));
+  for (const abs of files) {
+    const rel = path.relative(knowledgeDir, abs);
+    const dirCategory = path.dirname(rel) === '.' ? null : path.dirname(rel);
+    const fallbackCategory = path.basename(rel, path.extname(rel));
+    const raw = fs.readFileSync(abs, 'utf8');
+    const { meta: fm, body } = parseFrontMatter(raw);
+    if (shouldExcludeDoc(fm)) continue;
+    const chunks = chunkByHeadings(body, { maxLen: 1400 });
+    chunks.forEach((c, idxChunk) => {
+      const baseMeta = { ...fm };
+      const docCategory = baseMeta.category || dirCategory || fallbackCategory || null;
+      const meta = { type: 'knowledge', file: rel, chunk: idxChunk, ...baseMeta, category: docCategory };
+      docs.push({ id: `k_${id++}`, text: c, meta });
+    });
+  }
+}
+
+// Scope snapshots (graph-derived)
+const scopeDocs = buildScopeDocsFromSnapshots(dataDir);
+for (const doc of scopeDocs) {
+  docs.push({ id: `scope_${id++}`, text: doc.text, meta: doc.meta });
+}
+
+// Room schemas
+for (const room of rooms) {
+  const tables = loadRoomTables(room);
+  for (const [t, rows] of Object.entries(tables)) {
+    const first = rows?.[0] || {};
+    const keys = Object.keys(first);
+    const preview = JSON.stringify(rows.slice(0, 3));
+    const text = `Room ${room} Table ${t} has keys ${keys.join(', ')}. Sample: ${preview}`;
+    docs.push({ id: `s_${id++}`, text, meta: { type: 'schema', room, table: t } });
+  }
+}
+
+// Telemetry and weather enrichments
+const telemetryDocs = buildTelemetrySummaries({ rooms, loadRoomTables });
+const weatherDocs = buildWeatherDocs(dataDir);
+telemetryDocs.forEach((doc) => docs.push({ id: `ts_${id++}`, text: doc.text, meta: doc.meta }));
+weatherDocs.forEach((doc) => docs.push({ id: `wx_${id++}`, text: doc.text, meta: doc.meta }));
+
+return docs;
 }
 
 export function buildRagIndex(docs, { debug = false } = {}) {

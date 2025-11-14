@@ -5,19 +5,56 @@ import { evaluateQA } from './eval.js';
 import fs from 'fs';
 import path from 'path';
 
-export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTablesRaw, loadWeather, callGeminiChat, graph = null, vector = null }) {
+export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTablesRaw, loadWeather, callGeminiChat, graph = null, vector = null, connectors = null, llmProviders = [] }) {
   const DEBUG = process.env.RAG_DEBUG === '1' || process.env.LOG_LEVEL === 'debug';
   const log = (...a) => { if (DEBUG) console.log('[Agent]', ...a); };
   
-  // Build RAG index once at startup
-  const docs = buildDocsFromData({
-    dataDir,
-    rooms: listRooms(),
-    loadRoomTables,
-    knowledgeDir: path.join(path.dirname(dataDir), 'knowledge')
-  });
-  log(`Initialized RAG with ${docs.length} docs`);
-  const rag = buildRagIndex(docs, { debug: DEBUG });
+  const knowledgeDir = path.join(path.dirname(dataDir), 'knowledge');
+  const csvDir = path.join(path.dirname(dataDir), 'CSVex_s3');
+
+  function fingerprintSources() {
+    const targets = [knowledgeDir, dataDir, csvDir];
+    const bits = [];
+    for (const target of targets) {
+      try {
+        if (!target) continue;
+        const stat = fs.statSync(target);
+        if (stat.isDirectory()) {
+          const sample = fs.readdirSync(target, { withFileTypes: true }).slice(0, 32);
+          bits.push(`${target}:dir:${stat.mtimeMs}:${stat.size}:${sample.length}`);
+        } else {
+          bits.push(`${target}:file:${stat.mtimeMs}:${stat.size}`);
+        }
+      } catch {
+        bits.push(`${target || 'unknown'}:missing`);
+      }
+    }
+    return bits.join('|');
+  }
+
+  function createRagManager() {
+    let state = { docs: [], index: null, signature: null };
+    const rebuild = (reason = 'manual') => {
+      const rooms = listRooms();
+      const docs = buildDocsFromData({ dataDir, rooms, loadRoomTables, knowledgeDir });
+      const index = buildRagIndex(docs, { debug: DEBUG });
+      state = { docs, index, signature: fingerprintSources() };
+      log(`[RAG] rebuilt (${docs.length} docs) reason=${reason}`);
+      return state;
+    };
+    const ensure = () => {
+      const sig = fingerprintSources();
+      if (!state.index || state.signature !== sig) return rebuild('auto');
+      return state;
+    };
+    return {
+      ensure,
+      rebuild,
+      stats: () => ({ docs: state.docs.length })
+    };
+  }
+
+  const ragManager = createRagManager();
 
   const repoRoot = path.dirname(dataDir);
   const s3LocalDir = path.join(repoRoot, 'CSVex_s3');
@@ -50,6 +87,27 @@ const DAYPART_WINDOWS = [
   { id: '12-16', startHour: 12, endHour: 16 },
   { id: '16-20', startHour: 16, endHour: 20 }
 ];
+const ZONE_SYNONYM_STOPWORDS = [
+  'iaq',
+  'co2',
+  'temperature',
+  'temp',
+  'humidity',
+  'occupancy',
+  'people',
+  'count',
+  'energy',
+  'kwh',
+  'sensor',
+  'sensors',
+  'data',
+  'plot',
+  'chart',
+  'graph',
+  'vs',
+  'versus'
+];
+const ZONE_STOPWORD_REGEX = new RegExp(`\\b(?:${ZONE_SYNONYM_STOPWORDS.join('|')})\\b`, 'gi');
 const PEOPLE_FALLBACK_FIELDS = ['line_periodic_data', 'line_total_data', 'people_count', 'count', 'value', 'dwell'];
 const DEFAULT_TIME_ZONE = 'Europe/London';
   const tzFormatterCache = new Map();
@@ -244,6 +302,29 @@ const extractFieldValue = (row, fieldOrList) => {
       const norm = normalizeName(val);
       if (!norm) return;
       values.push(norm, canonicalizeBuildingToken(val));
+    };
+    if (candidate && typeof candidate === 'object') {
+      push(candidate.name);
+      push(candidate.id);
+    } else {
+      push(candidate);
+    }
+    return values.some((val) => val === normalizedSelection || val === strippedSelection);
+  };
+  const floorMatchesSelection = (selection, candidate) => {
+    if (!selection) return true;
+    const normalizedSelection = normalizeName(selection);
+    const strippedSelection = normalizedSelection.replace(/^floor[\s:_-]*/, '');
+    const values = [];
+    const push = (val) => {
+      if (!val) return;
+      const raw = String(val);
+      const norm = normalizeName(raw);
+      if (norm) values.push(norm);
+      const stripped = norm.replace(/^floor[\s:_-]*/, '');
+      if (stripped) values.push(stripped);
+      const digits = raw.match(/\d+/);
+      if (digits) values.push(digits[0]);
     };
     if (candidate && typeof candidate === 'object') {
       push(candidate.name);
@@ -474,14 +555,73 @@ const extractFieldValue = (row, fieldOrList) => {
     range: null
   };
 
+  function hydrateScopeDeviceZones(scope = {}) {
+    const source = scope.scopeDeviceZones && typeof scope.scopeDeviceZones === 'object'
+      ? { ...scope.scopeDeviceZones }
+      : {};
+    const rooms = Array.isArray(scope.selectionRooms) ? scope.selectionRooms : [];
+    for (const deviceId of rooms) {
+      const key = String(deviceId || '').trim();
+      if (!key || source[key]) continue;
+      const meta = lookupDeviceHierarchy(deviceId);
+      if (meta?.zoneName) {
+        source[key] = meta.zoneName;
+      } else if (meta?.name) {
+        source[key] = meta.name;
+      }
+    }
+    return source;
+  }
+
+  function resolveDeviceForZoneAlias(zoneName) {
+    if (!zoneName) return null;
+    const normalizedTarget = normalizeName(zoneName);
+    const scopeMap = currentScopeContext.scopeDeviceZones || {};
+    for (const [deviceId, zoneLabel] of Object.entries(scopeMap)) {
+      if (!zoneLabel) continue;
+      if (normalizeName(zoneLabel) === normalizedTarget) return deviceId;
+    }
+    const entries = collectDevicesForZone(zoneName, currentScopeContext.scopeLabels || {});
+    if (entries && entries.length) {
+      const candidate = entries.find((entry) => deviceTablesAvailable(entry.cloudId || entry.id)) || entries[0];
+      return candidate?.cloudId || candidate?.id || null;
+    }
+    return null;
+  }
+
+  function rebuildDynamicScopeAliases(scope = currentScopeContext) {
+    DYNAMIC_SCOPE_ALIASES.clear();
+    const scopeMap = scope.scopeDeviceZones || {};
+    for (const [deviceId, zoneName] of Object.entries(scopeMap)) {
+      if (zoneName) registerDynamicAlias(zoneName, deviceId);
+    }
+    const rooms = Array.isArray(scope.selectionRooms) ? scope.selectionRooms : [];
+    for (const deviceId of rooms) {
+      const meta = lookupDeviceHierarchy(deviceId);
+      if (!meta) continue;
+      if (meta.name) registerDynamicAlias(meta.name, deviceId);
+      if (meta.zoneName) registerDynamicAlias(meta.zoneName, deviceId);
+      if (meta.zoneName && meta.floorName) registerDynamicAlias(`${meta.zoneName} (${meta.floorName})`, deviceId);
+      if (meta.zoneName && meta.buildingName) registerDynamicAlias(`${meta.zoneName} (${meta.buildingName})`, deviceId);
+      if (meta.cloudId) registerDynamicAlias(meta.cloudId, deviceId);
+    }
+    if (Array.isArray(scope.selectionZones)) {
+      for (const zone of scope.selectionZones) {
+        const deviceId = resolveDeviceForZoneAlias(zone);
+        if (deviceId) registerDynamicAlias(zone, deviceId);
+      }
+    }
+  }
+
   function setScopeContext(ctx = {}) {
     currentScopeContext = {
       selectionRooms: Array.isArray(ctx.selectionRooms) ? [...ctx.selectionRooms] : [],
       selectionZones: Array.isArray(ctx.selectionZones) ? [...ctx.selectionZones] : [],
-      scopeDeviceZones: ctx.scopeDeviceZones && typeof ctx.scopeDeviceZones === 'object' ? { ...ctx.scopeDeviceZones } : {},
+      scopeDeviceZones: hydrateScopeDeviceZones(ctx),
       scopeLabels: ctx.scopeLabels && typeof ctx.scopeLabels === 'object' ? { ...ctx.scopeLabels } : {},
       range: ctx.range && typeof ctx.range === 'object' ? { ...ctx.range } : null
     };
+    rebuildDynamicScopeAliases(currentScopeContext);
   }
 
   function gatherCandidateDevices(room, { includeSelection = true } = {}) {
@@ -519,6 +659,49 @@ const extractFieldValue = (row, fieldOrList) => {
       entries.forEach((entry) => pushIfValid(entry.cloudId));
     }
     return Array.from(out);
+  }
+
+  function scopedRoomIds(roomsInput, { limit = 48 } = {}) {
+    const resolved = [];
+    const seen = new Set();
+    const addRoom = (value) => {
+      if (!value) return;
+      const trimmed = String(value).trim();
+      if (!trimmed || trimmed === 'ALL' || trimmed === '*') return;
+      const normalized = normalizeRoomId(trimmed);
+      const candidate = deviceTablesAvailable(normalized) ? normalized : (deviceTablesAvailable(trimmed) ? trimmed : null);
+      if (!candidate) return;
+      const key = candidate.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      resolved.push(candidate);
+    };
+    const addFromZoneLabel = (label) => {
+      if (!label) return;
+      const devices = collectDevicesForZone(label, currentScopeContext.scopeLabels || {});
+      for (const entry of devices) {
+        addRoom(entry.cloudId || entry.primaryId || entry.id);
+      }
+    };
+    if (Array.isArray(roomsInput)) {
+      for (const entry of roomsInput) {
+        if (!entry) continue;
+        addRoom(entry);
+        addFromZoneLabel(entry);
+      }
+    }
+    if (!resolved.length && Array.isArray(currentScopeContext.selectionRooms)) {
+      currentScopeContext.selectionRooms.forEach(addRoom);
+    }
+    if (!resolved.length && currentScopeContext.scopeDeviceZones) {
+      Object.keys(currentScopeContext.scopeDeviceZones).forEach(addRoom);
+    }
+    if (!resolved.length) {
+      try {
+        listRooms().forEach(addRoom);
+      } catch {}
+    }
+    return (limit && resolved.length > limit) ? resolved.slice(0, limit) : resolved;
   }
 
   function resolveDeviceForFields(room, preferredFields = [], candidates = []) {
@@ -589,6 +772,29 @@ const extractFieldValue = (row, fieldOrList) => {
       return normalizeRoomId(value) || value;
     };
 
+    const fieldSetCache = new Map();
+    const getFieldSets = (roomId) => {
+      const key = typeof roomId === 'string' ? roomId : (roomId && roomId.id) ? String(roomId.id) : roomId;
+      const normalized = normalizeRoomId(key || args.room || originalRoom);
+      if (!normalized) return null;
+      if (fieldSetCache.has(normalized)) return fieldSetCache.get(normalized);
+      let sets = null;
+      try {
+        sets = availableFieldsByTable(normalized);
+      } catch {
+        sets = null;
+      }
+      fieldSetCache.set(normalized, sets);
+      return sets;
+    };
+
+    const normalizeFieldBinding = (value, roomId) => {
+      if (!value || typeof value !== 'string') return value;
+      const sets = getFieldSets(roomId);
+      if (!sets) return value;
+      return inferFieldName(value, sets) || value;
+    };
+
     const roomKeys = ['room', 'room1', 'room2', 'room3', 'roomA', 'roomB', 'roomC', 'room_a', 'room_b', 'room_c'];
     for (const key of roomKeys) {
       if (typeof args[key] === 'string') {
@@ -599,6 +805,18 @@ const extractFieldValue = (row, fieldOrList) => {
     if (Array.isArray(args.rooms)) {
       args.rooms = args.rooms.map((room) => (typeof room === 'string' ? normalizeRoomRef(room) : room)).filter(Boolean);
     }
+    if (typeof args.field === 'string') {
+      args.field = normalizeFieldBinding(args.field, args.room || originalRoom);
+    }
+    if (Array.isArray(args.fields)) {
+      args.fields = args.fields.map((field) => (typeof field === 'string' ? normalizeFieldBinding(field, args.room || originalRoom) : field)).filter(Boolean);
+    }
+    const fieldKeys = ['field1', 'field2', 'metric', 'metric1', 'metric2'];
+    for (const key of fieldKeys) {
+      if (typeof args[key] === 'string') {
+        args[key] = normalizeFieldBinding(args[key], args.room || originalRoom);
+      }
+    }
     if (Array.isArray(args.series)) {
       args.series = args.series.map((entry) => {
         if (!entry || typeof entry !== 'object') return entry;
@@ -606,6 +824,14 @@ const extractFieldValue = (row, fieldOrList) => {
         if (typeof clone.room === 'string') {
           const resolved = normalizeRoomRef(clone.room);
           if (resolved) clone.room = resolved;
+        }
+        if (typeof clone.field === 'string') {
+          clone.field = normalizeFieldBinding(clone.field, clone.room || args.room || originalRoom);
+        }
+        for (const key of fieldKeys) {
+          if (typeof clone[key] === 'string') {
+            clone[key] = normalizeFieldBinding(clone[key], clone.room || args.room || originalRoom);
+          }
         }
         return clone;
       });
@@ -633,6 +859,14 @@ const extractFieldValue = (row, fieldOrList) => {
       if (!args.room && args.queries[0]?.room) args.room = args.queries[0].room;
       if (!args.table && args.queries[0]?.table) args.table = args.queries[0].table;
       if (!args.field && args.queries[0]?.field) args.field = args.queries[0].field;
+    }
+    if (!args.field && typeof args.metric === 'string') {
+      const resolvedMetric = normalizeFieldBinding(args.metric, args.room || originalRoom) || args.metric;
+      args.field = resolvedMetric;
+    }
+    if (!args.table && typeof args.field === 'string') {
+      const guess = inferDefaultTableForMetric(args.field);
+      if (guess) args.table = guess;
     }
   }
 
@@ -822,6 +1056,39 @@ const extractFieldValue = (row, fieldOrList) => {
   }
 
   const FRIENDLY_TO_CLOUD = loadFriendlyToCloudMap();
+  const DYNAMIC_SCOPE_ALIASES = new Map();
+  const MAX_DYNAMIC_ALIASES = 512;
+
+  const aliasKeyVariants = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return [];
+    const lower = raw.toLowerCase();
+    const slug = lower.replace(/[^a-z0-9]/g, '');
+    return Array.from(new Set([raw, lower, slug].filter(Boolean)));
+  };
+
+  function registerDynamicAlias(alias, deviceId) {
+    if (!alias || !deviceId) return;
+    for (const key of aliasKeyVariants(alias)) {
+      if (!key) continue;
+      DYNAMIC_SCOPE_ALIASES.set(key, deviceId);
+    }
+    if (DYNAMIC_SCOPE_ALIASES.size > MAX_DYNAMIC_ALIASES) {
+      const excess = DYNAMIC_SCOPE_ALIASES.size - MAX_DYNAMIC_ALIASES;
+      const keys = Array.from(DYNAMIC_SCOPE_ALIASES.keys());
+      for (let i = 0; i < excess; i += 1) {
+        const key = keys[i];
+        if (key) DYNAMIC_SCOPE_ALIASES.delete(key);
+      }
+    }
+  }
+
+  function lookupDynamicAlias(label) {
+    for (const key of aliasKeyVariants(label)) {
+      if (DYNAMIC_SCOPE_ALIASES.has(key)) return DYNAMIC_SCOPE_ALIASES.get(key);
+    }
+    return null;
+  }
   const { stats: CSV_DEVICE_STATS, metrics: CSV_DEVICE_METRICS } = buildCsvMetadata();
   const CSV_STATS_CACHE = CSV_DEVICE_STATS;
   const friendlyLookup = (label) => {
@@ -830,6 +1097,8 @@ const extractFieldValue = (row, fieldOrList) => {
     if (!raw) return null;
     const lower = raw.toLowerCase();
     const slug = lower.replace(/[^a-z0-9]/g, '');
+    const dynamic = lookupDynamicAlias(raw) || lookupDynamicAlias(lower) || lookupDynamicAlias(slug);
+    if (dynamic) return dynamic;
     return FRIENDLY_TO_CLOUD.get(raw)
       || FRIENDLY_TO_CLOUD.get(lower)
       || FRIENDLY_TO_CLOUD.get(slug)
@@ -852,16 +1121,18 @@ const extractFieldValue = (row, fieldOrList) => {
     return null;
   }
 
-  function loadWeatherScoped(room = null) {
+  function loadWeatherScoped(room = null, opts = {}) {
     const buildingName = inferBuildingFromContext(room);
-    return loadWeather(buildingName);
+    const rangeOverride = opts.range || currentScopeContext.range || null;
+    return loadWeather(buildingName, { range: rangeOverride });
   }
 
-  function loadWeatherFor(room = null, building = null) {
+  function loadWeatherFor(room = null, building = null, opts = {}) {
+    const rangeOverride = opts.range || currentScopeContext.range || null;
     if (building && String(building).trim()) {
-      return loadWeather(String(building).trim());
+      return loadWeather(String(building).trim(), { range: rangeOverride });
     }
-    return loadWeatherScoped(room);
+    return loadWeatherScoped(room, { range: rangeOverride });
   }
 
   function sanitizeAnswerText(text) {
@@ -1602,6 +1873,11 @@ const extractFieldValue = (row, fieldOrList) => {
         if (Number.isFinite(best)) {
           return `Peak hour appears to be ${best}:00 based on hour-of-day analysis.`;
         }
+      } else if (t.tool === 'energy_delta_kwh') {
+        const delta = t.result?.delta_kwh;
+        if (Number.isFinite(delta)) {
+          return `Energy use changed by ${delta.toFixed(2)} kWh across the selected window.`;
+        }
       }
     }
     return '';
@@ -1618,18 +1894,30 @@ const extractFieldValue = (row, fieldOrList) => {
           const seriesArrays = Object.values(result).filter((val) => Array.isArray(val) && val.length);
           if (seriesArrays.length) return true;
         }
-        if (Array.isArray(result.rows) && result.rows.length) return true;
-        if (Array.isArray(result.data) && result.data.length) return true;
-        if (Array.isArray(result.series) && result.series.some((s) => Array.isArray(s?.data) && s.data.length)) return true;
-        if (Array.isArray(result.groups) && result.groups.some((g) => Array.isArray(g?.devices) && g.devices.length)) return true;
-        if (Array.isArray(result.scatter) && result.scatter.length) return true;
-        if (Array.isArray(result.scatter_series) && result.scatter_series.length) return true;
-        if (typeof result.count === 'number' && result.count > 0) return true;
-        if (typeof result.n === 'number' && result.n > 0) return true;
-        if (typeof result.total === 'number' || typeof result.sum === 'number') return true;
-      }
+      if (Array.isArray(result.rows) && result.rows.length) return true;
+      if (Array.isArray(result.data) && result.data.length) return true;
+      if (Array.isArray(result.series) && result.series.some((s) => Array.isArray(s?.data) && s.data.length)) return true;
+      if (Array.isArray(result.groups) && result.groups.some((g) => Array.isArray(g?.devices) && g.devices.length)) return true;
+      if (Array.isArray(result.scatter) && result.scatter.length) return true;
+      if (Array.isArray(result.scatter_series) && result.scatter_series.length) return true;
+      if (typeof result.count === 'number' && result.count > 0) return true;
+      if (typeof result.n === 'number' && result.n > 0) return true;
+      if (typeof result.total === 'number' || typeof result.sum === 'number') return true;
+      if (typeof result.delta_kwh === 'number' && Number.isFinite(result.delta_kwh)) return true;
     }
+  }
     return false;
+  }
+
+  function traceHasHistogramData(trace) {
+    if (!Array.isArray(trace)) return false;
+    return trace.some((entry) => {
+      if (!entry || !entry.tool) return false;
+      if (entry.tool !== 'histogram' && entry.tool !== 'field_histogram') return false;
+      const rows = entry.result;
+      if (!Array.isArray(rows) || !rows.length) return false;
+      return rows.some((bin) => Number(bin?.count) > 0);
+    });
   }
 
   function countTraceToolExecutions(trace) {
@@ -2247,6 +2535,7 @@ function summarizeFieldComparison(entries = []) {
     const intents = routing.intents || {};
     const metrics = routing.metrics || [];
     const chartHint = routing.chartHint || null;
+    const questionLower = String(routing.original || '').toLowerCase();
     const lines = [];
 
     if (intents.comparison) {
@@ -2290,6 +2579,10 @@ function summarizeFieldComparison(entries = []) {
     }
     if (intents.occupancy || metrics.includes('occupancy')) {
       lines.push('- Occupancy metric detected: use stats/compare_rooms_on_metric on people_count to show utilization.');
+    }
+    const comfortQuestion = /comfort|comfortable|target temperature|temperature should we target/.test(questionLower);
+    if (comfortQuestion && metrics.includes('temperature')) {
+      lines.push('- Comfort analysis needed: call comfort_band_summary (adjust minComfort/maxComfort if specified) to report the % of readings within the comfort band and highlight any rooms that fall outside.');
     }
     if (chartHint === 'bar') {
       lines.push('- Bar/column chart requested: compare aggregate values (e.g., stats or compare_rooms_on_metric) and plot them as a column chart.');
@@ -2374,15 +2667,21 @@ function summarizeFieldComparison(entries = []) {
       const tablesSets = availableFieldsByTable(targetRoom);
       const fields = parseFieldsFromQuestion(question, tablesSets);
       let field = fields[0];
+      if (!field) field = inferFieldFromQuestionKeywords(question);
       if (!field) {
         const qLower = String(question || '').toLowerCase();
         if (qLower.includes('co2') || qLower.includes('co₂')) field = 'co2';
         else if (qLower.includes('occupancy') || qLower.includes('people')) field = 'people_count';
         else if (qLower.includes('humidity')) field = 'humidity';
         else if (qLower.includes('lux') || qLower.includes('light')) field = 'lux';
-        else field = inferFieldName(question, tablesSets) || 'temperature';
       }
-      const binding = resolveFieldBinding(field, selectionRooms, targetRoom) || resolveFieldBinding(field, [targetRoom], targetRoom);
+      if (!field) field = inferFieldName(question, tablesSets) || 'temperature';
+      let binding = resolveFieldBinding(field, selectionRooms, targetRoom) || resolveFieldBinding(field, [targetRoom], targetRoom);
+      if (!binding) {
+        try {
+          binding = resolveFieldBinding(field, listRooms(), targetRoom);
+        } catch {}
+      }
       if (!binding || !binding.fieldName) return null;
       const fetchArgs = {
         room: binding.room || targetRoom,
@@ -2811,6 +3110,18 @@ function summarizeFieldComparison(entries = []) {
     return formatLines.join('\n');
   }
 
+  function summarizeConnectorStatus(connectors = []) {
+    if (!Array.isArray(connectors) || !connectors.length) return '';
+    const parts = connectors
+      .filter(Boolean)
+      .map((entry) => {
+        const name = entry.label || entry.id || 'connector';
+        const status = String(entry.status || 'unknown').toUpperCase();
+        return `${name}:${status}${entry.detail ? ` (${entry.detail})` : ''}`;
+      });
+    return parts.length ? `Connector health — ${parts.join(' | ')}` : '';
+  }
+
   function getCsvStats(deviceId) {
     const id = String(deviceId || '').trim();
     if (!id) return { tsMin: null, tsMax: null, count: 0 };
@@ -2862,6 +3173,68 @@ function summarizeFieldComparison(entries = []) {
         : `telemetry: ${coverageText} (no data within selected window)`;
     }
     return `telemetry: ${coverageText}`;
+  }
+
+  function aggregateSelectionCoverage({ selectionRooms = [], selectionZones = [], scopeLabels = {}, fallbackRoom = null } = {}) {
+    const spans = [];
+    const seen = new Set();
+    const pushDevice = (deviceId) => {
+      if (!deviceId) return;
+      const normalized = normalizeRoomId(deviceId) || deviceId;
+      if (!normalized || seen.has(normalized)) return;
+      if (!deviceTablesAvailable(normalized)) return;
+      seen.add(normalized);
+      const stats = getCsvStats(normalized);
+      if (!stats || !Number.isFinite(stats.tsMin) || !Number.isFinite(stats.tsMax)) return;
+      spans.push({ start: stats.tsMin, end: stats.tsMax });
+    };
+    if (Array.isArray(selectionRooms) && selectionRooms.length) {
+      selectionRooms.forEach(pushDevice);
+    }
+    if (!spans.length && Array.isArray(selectionZones)) {
+      for (const zone of selectionZones) {
+        const entries = collectDevicesForZone(zone, scopeLabels);
+        entries.forEach((entry) => pushDevice(entry.cloudId || entry.primaryId || entry.id));
+        if (spans.length) break;
+      }
+    }
+    if (!spans.length && currentScopeContext.scopeDeviceZones) {
+      Object.keys(currentScopeContext.scopeDeviceZones).forEach(pushDevice);
+    }
+    if (!spans.length && Array.isArray(currentScopeContext.selectionRooms)) {
+      currentScopeContext.selectionRooms.forEach(pushDevice);
+    }
+    if (!spans.length && fallbackRoom) {
+      pushDevice(fallbackRoom);
+    }
+    if (!spans.length) return null;
+    return {
+      start: Math.min(...spans.map((s) => s.start)),
+      end: Math.max(...spans.map((s) => s.end))
+    };
+  }
+
+  function alignRangeToTelemetry(range = {}, { selectionRooms = [], selectionZones = [], scopeLabels = {}, fallbackRoom = null } = {}) {
+    const coverage = aggregateSelectionCoverage({ selectionRooms, selectionZones, scopeLabels, fallbackRoom });
+    if (!coverage) return { range: range || {}, changed: false, coverage: null };
+    let start = Number.isFinite(range?.start) ? Number(range.start) : coverage.end - 7 * DAY_MS;
+    let end = Number.isFinite(range?.end) ? Number(range.end) : coverage.end;
+    if (!Number.isFinite(start)) start = coverage.start;
+    if (!Number.isFinite(end)) end = coverage.end;
+    let changed = false;
+    if (end < coverage.start || start > coverage.end) {
+      end = coverage.end;
+      start = Math.max(coverage.start, coverage.end - 7 * DAY_MS);
+      changed = true;
+    }
+    const clampedStart = Math.max(start, coverage.start);
+    const clampedEnd = Math.min(end, coverage.end);
+    if (clampedStart !== start || clampedEnd !== end) changed = true;
+    return {
+      range: { start: clampedStart, end: clampedEnd },
+      changed,
+      coverage
+    };
   }
 
   function deviceTablesAvailable(deviceId) {
@@ -3391,6 +3764,7 @@ function buildSnapshotIndex() {
       { name: 'compare_field_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Compute per-room value (avg/sum/peak) for ranking and comparison' },
       { name: 'scope_heatmap', args: { rooms: 'string[]', table: 'string', field: 'string', start: 'number?', end: 'number?', bucket_minutes: 'number?', agg: 'string?' }, desc: 'Build a room-by-time heatmap for the given metric. Returns { rooms, timestamps, data, summary } where data items map to [x=time index, y=room index, value]' },
       { name: 'compare_rooms_on_metric', args: { rooms: 'string[]?', table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Rank rooms by metric aggregate within selection (uses selectionRooms if rooms omitted). Returns [{room, value}] sorted desc.' },
+      { name: 'comfort_band_summary', args: { rooms: 'string[]?', table: 'string?', field: 'string?', minComfort: 'number?', maxComfort: 'number?', start: 'number?', end: 'number?', limit: 'number?' }, desc: 'Summarize % of samples within the comfort temperature band per room. Returns sorted room summaries plus overall stats.' },
       { name: 'scope_daily_percentile', args: { rooms: 'string[]?', table: 'string?', value_field: 'string?', occupancy_field: 'string?', percentile: 'number?', days: 'number?', start: 'number?', end: 'number?' }, desc: 'Per-room daily percentile/median stats for a multi-room scope. Returns { series: { \"Room Name\": [{ts,p95,occupied_median}] }, summary: [{room,label,avg_p95,worst_p95,occupied_median}] } for charting rankings and multi-series lines.' },
       { name: 'timeseries_regression_join', args: { metrics: '[{room:string,field:string,table?:string,mode?:"avg"|"sum"|"delta",alias?:string}]', regressions: '[{name?:string,x:string,y:string}]', start: 'number?', end: 'number?', bucket_minutes: 'number?', forward_fill_minutes: 'number?', timeZone: 'string?' }, desc: 'Align/aggregate multiple metrics (e.g., IAQ vs dwell) and compute regression stats plus scatter-ready arrays.' },
       { name: 'occupancy_people_insight', args: { occupancy_room: 'string', people_room: 'string', occupancy_field: 'string?', people_fields: 'string[]?', bucket_minutes: 'number?', start: 'number?', end: 'number?', timeZone: 'string?' }, desc: '15-minute utilisation vs people counter analysis with heatmaps, peak windows, and regression scatter.' },
@@ -3445,6 +3819,15 @@ function buildSnapshotIndex() {
           if (!match && key) match = keys.find(k => k.toLowerCase().includes(String(key).toLowerCase()));
           if (!match) match = keys[0];
           sourceData = sourceData[match] || [];
+        }
+
+        if (ref.tool === 'compare_rooms_on_metric' && Array.isArray(toolResult)) {
+          const data = toolResult
+            .filter((row) => row && row.room && Number.isFinite(Number(row.value)))
+            .map((row) => [deviceFriendlyName(row.room), Number(row.value)]);
+          series.data = data;
+          delete series.dataRef;
+          continue;
         }
         
         // If ref specifies a field (e.g., forecast blocks)
@@ -3834,6 +4217,23 @@ function buildSnapshotIndex() {
         if (valid) return chart;
       }
 
+      if (entry.tool === 'compare_rooms_on_metric' && Array.isArray(entry.result) && entry.result.length) {
+        const metricName = humanizeMetricName(entry.args?.field || entry.args?.metric || 'Value');
+        const labelField = entry.result.some((row) => row && row.friendlyName) ? 'friendlyName' : 'room';
+        const chart = {
+          chart: { type: 'column' },
+          title: { text: `${metricName} by Room` },
+          xAxis: { type: 'category', title: { text: labelField === 'friendlyName' ? 'Space' : 'Room' } },
+          yAxis: { title: { text: metricName } },
+          series: [{
+            name: metricName,
+            dataRef: { tool: 'compare_rooms_on_metric', xField: labelField, yField: 'value' }
+          }]
+        };
+        const valid = validateChart(cloneChart(chart), trace);
+        if (valid) return chart;
+      }
+
       if (entry.tool === 'correlation_matrix' && entry.result && Array.isArray(entry.result.data)) {
         const chart = {
           chart: { type: 'heatmap' },
@@ -3865,11 +4265,31 @@ function buildSnapshotIndex() {
     const matches = [];
     const ql = String(text || '').toLowerCase();
     if (!ql) return matches;
+    const seen = new Set();
+    const pushDevice = (id) => {
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      matches.push(id);
+      return true;
+    };
     for (const [deviceId, zoneName] of Object.entries(scopeDeviceZones || {})) {
       if (!zoneName) continue;
       if (ql.includes(String(zoneName).toLowerCase())) {
-        matches.push(deviceId);
-        if (matches.length >= limit) break;
+        if (pushDevice(deviceId) && matches.length >= limit) return matches;
+      }
+    }
+    const sanitized = ql.replace(ZONE_STOPWORD_REGEX, ' ').replace(/\s+/g, ' ').trim();
+    if (snapshotIndex?.zoneByName && sanitized) {
+      for (const [zoneKey, zoneRecords] of snapshotIndex.zoneByName.entries()) {
+        if (!zoneKey || !sanitized.includes(zoneKey)) continue;
+        for (const zoneRecord of zoneRecords) {
+          const entries = buildDeviceEntriesFromSnapshotZone(zoneRecord);
+          for (const entry of entries) {
+            if (pushDevice(entry.cloudId || entry.primaryId || entry.id) && matches.length >= limit) {
+              return matches;
+            }
+          }
+        }
       }
     }
     return matches;
@@ -3901,11 +4321,15 @@ function buildSnapshotIndex() {
   
   function resolveTable(room, name) {
     const t = loadRoomTables(room);
-    if (t[name]) return name;
     const keys = Object.keys(t);
-    if (!keys.length) return name;
+    if (!keys.length) return name || 'telemetry';
+    if (!name) {
+      if (t.telemetry) return 'telemetry';
+      return keys[0];
+    }
+    if (t[name]) return name;
     const n = norm(name);
-  const TABLE_ALIAS = {
+    const TABLE_ALIAS = {
       iaq: 'telemetry',
       indoorairquality: 'telemetry',
       airquality: 'telemetry',
@@ -3923,11 +4347,13 @@ function buildSnapshotIndex() {
     if (aliasTarget && t[aliasTarget]) return aliasTarget;
     const k1 = keys.find(k => norm(k) === n);
     if (k1) return k1;
-    const parts = name.split('_');
+    const parts = String(name).split('_');
     const core = norm(parts[parts.length-1] || name);
     const k2 = keys.find(k => norm(k) === core) || keys.find(k => norm(k).endsWith(core)) || keys.find(k => norm(k).includes(core));
     if (k2) return k2;
-    return keys.length === 1 ? keys[0] : name;
+    if (keys.length === 1) return keys[0];
+    if (t.telemetry) return 'telemetry';
+    return name;
   }
 
   function findRoomWithTable(tableName, selectionRooms = [], fallbackRoom = null) {
@@ -4011,15 +4437,18 @@ function buildSnapshotIndex() {
   function inferFieldName(label, availableSets) {
     if (!label) return null;
     const target = norm(String(label).replace(/\(([^)]*)\)/g, '').trim());
+    const sets = Object.values(availableSets || {});
     // Direct match across any table
-    for (const set of Object.values(availableSets)) {
+    for (const set of sets) {
       for (const f of set) if (norm(f) === target) return f;
     }
     // Synonyms
+    let canonicalFallback = null;
     for (const [canon, syns] of Object.entries(FIELD_SYNONYMS)) {
       const cn = norm(canon);
       if (target === cn || syns.some(s => norm(s) === target)) {
-        for (const set of Object.values(availableSets)) {
+        canonicalFallback = canon;
+        for (const set of sets) {
           for (const f of set) if (norm(f) === cn) return f;
           for (const s of syns) {
             for (const f of set) if (norm(f) === norm(s)) return f;
@@ -4028,10 +4457,11 @@ function buildSnapshotIndex() {
       }
     }
     // Fuzzy contains
-    for (const set of Object.values(availableSets)) {
+    for (const set of sets) {
       for (const f of set) if (norm(f).includes(target) || target.includes(norm(f))) return f;
     }
-    return null;
+    if (canonicalFallback) return canonicalFallback;
+    return target || null;
   }
 
 function parseFieldsFromQuestion(question, availableSets) {
@@ -4076,6 +4506,33 @@ function parseFieldsFromQuestion(question, availableSets) {
       }
     }
     return fields;
+  }
+
+  const QUESTION_FIELD_HINTS = [
+    { field: 'pm25', keywords: ['pm2.5', 'pm 2.5', 'pm25'] },
+    { field: 'pm10', keywords: ['pm10', 'pm 10'] },
+    { field: 'pm1', keywords: ['pm1', 'pm 1'] },
+    { field: 'voc', keywords: ['voc', 'tvoc'] },
+    { field: 'virusRisk', keywords: ['virus risk', 'virusrisk'] },
+    { field: 'mold', keywords: ['mold', 'mould'] },
+    { field: 'radonShortTermAvg', keywords: ['radon'] },
+    { field: 'airExchangeRate', keywords: ['air exchange', 'airchangerate', 'ach'] },
+    { field: 'co2', keywords: ['co2', 'co₂', 'carbon dioxide'] },
+    { field: 'humidity', keywords: ['humidity', 'humid'] },
+    { field: 'temperature', keywords: ['temperature', 'temp'] },
+    { field: 'lux', keywords: ['lux', 'light level', 'illuminance'] },
+    { field: 'people_count', keywords: ['people', 'occupancy', 'headcount', 'footfall'] }
+  ];
+
+  function inferFieldFromQuestionKeywords(question) {
+    const q = String(question || '').toLowerCase();
+    if (!q) return null;
+    for (const entry of QUESTION_FIELD_HINTS) {
+      if (entry.keywords.some((kw) => q.includes(kw))) {
+        return entry.field;
+      }
+    }
+    return null;
   }
 
   function extractTimestampFromQuestion(question) {
@@ -4624,6 +5081,22 @@ function parseFieldsFromQuestion(question, availableSets) {
       }
     }
   }
+
+  function chartHasRenderableSeries(chartObj) {
+    if (!chartObj) return false;
+    const series = Array.isArray(chartObj.series)
+      ? chartObj.series
+      : Array.isArray(chartObj?.chart?.series)
+        ? chartObj.chart.series
+        : [];
+    if (!series.length) return false;
+    return series.some((s) => {
+      if (!s) return false;
+      if (Array.isArray(s.data) && s.data.length) return true;
+      if (s.dataRef && typeof s.dataRef === 'object') return true;
+      return false;
+    });
+  }
   
   const FIELD_SYNONYMS = {
     temperature: ['temp', 'temperaturec', 'temp_c', 'airtemp', 'ambienttemp'],
@@ -4971,31 +5444,50 @@ function parseFieldsFromQuestion(question, availableSets) {
       return getLatest ? out.reverse() : out;
     },
     
-    stats({ room, table, field, start = null, end = null }) {
-      const t = loadRoomTables(room);
-      const tab = resolveTable(room, table);
-      const arr = t[tab] || [];
-      let count = 0, min = Infinity, max = -Infinity, sum = 0;
-      let minTs = null, maxTs = null;
-      for (const r of arr) {
-        if (!withinRange(r.ts, start, end)) continue;
-        const v = Number(r[field]);
-        if (!Number.isFinite(v)) continue;
-        count++; 
-        sum += v; 
-        if (v < min) { min = v; minTs = r.ts ?? null; }
-        if (v > max) { max = v; maxTs = r.ts ?? null; }
-      }
-      const avg = count ? sum / count : NaN;
-      return { 
-        count, 
-        min: isFinite(min) ? min : null, 
-        max: isFinite(max) ? max : null, 
-        avg: isFinite(avg) ? avg : null, 
-        sum,
-        minTs: minTs ?? null,
-        maxTs: maxTs ?? null
+    stats({ room, table, field, start = null, end = null, queries = null }) {
+      const compute = ({ targetRoom, targetTable, targetField, qStart, qEnd }) => {
+        const resolvedRoom = targetRoom || room;
+        if (!resolvedRoom) return { error: 'room required' };
+        const t = loadRoomTables(resolvedRoom);
+        const tab = resolveTable(resolvedRoom, targetTable);
+        const arr = t[tab] || [];
+        const resolvedField = targetField || field;
+        if (!resolvedField) return { error: 'field required', room: resolvedRoom };
+        let count = 0, min = Infinity, max = -Infinity, sum = 0;
+        let minTs = null, maxTs = null;
+        for (const r of arr) {
+          if (!withinRange(r.ts, qStart ?? start, qEnd ?? end)) continue;
+          const v = Number(r[resolvedField]);
+          if (!Number.isFinite(v)) continue;
+          count += 1;
+          sum += v;
+          if (v < min) { min = v; minTs = r.ts ?? null; }
+          if (v > max) { max = v; maxTs = r.ts ?? null; }
+        }
+        const avg = count ? sum / count : NaN;
+        return {
+          room: resolvedRoom,
+          table: tab,
+          field: resolvedField,
+          count,
+          min: Number.isFinite(min) ? min : null,
+          max: Number.isFinite(max) ? max : null,
+          avg: Number.isFinite(avg) ? avg : null,
+          sum,
+          minTs: minTs ?? null,
+          maxTs: maxTs ?? null
+        };
       };
+      if (Array.isArray(queries) && queries.length) {
+        return queries.map((query) => compute({
+          targetRoom: query.room || query.room_name || room,
+          targetTable: query.table || table,
+          targetField: query.field || query.metric_name || field,
+          qStart: query.start ?? start,
+          qEnd: query.end ?? end
+        }));
+      }
+      return compute({ targetRoom: room, targetTable: table, targetField: field, qStart: start, qEnd: end });
     },
     
     get_time_for_value({
@@ -5587,14 +6079,17 @@ function parseFieldsFromQuestion(question, availableSets) {
       return { ts: bestTs, delta: bestDelta };
     },
 
-    aggregate_stats_across_rooms({ table, field, agg = 'sum', start = null, end = null }) {
+    aggregate_stats_across_rooms({ table, field, agg = 'sum', start = null, end = null, rooms = null }) {
+      const targets = scopedRoomIds(rooms, { limit: 80 });
       let values = [];
-      for (const r of listRooms()) {
-        const t = loadRoomTables(r);
-        const tab = resolveTable(r, table);
-        const arr = (t[tab] || []).filter(row => withinRange(row.ts, start, end));
-        for (const row of arr) {
-          const v = Number(row[field]);
+      for (const roomId of targets) {
+        const t = loadRoomTables(roomId);
+        const tab = resolveTable(roomId, table);
+        const rows = (t[tab] || []).filter(row => withinRange(row.ts, start, end));
+        if (!rows.length) continue;
+        const resolvedField = resolveField(rows, field);
+        for (const row of rows) {
+          const v = Number(row[resolvedField]);
           if (Number.isFinite(v)) values.push(v);
         }
       }
@@ -5629,22 +6124,126 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
 
     compare_rooms_on_metric({ rooms = null, table, field, agg = 'avg', start = null, end = null }) {
-      const targetRooms = Array.isArray(rooms) && rooms.length ? rooms : listRooms();
+      const targetRooms = scopedRoomIds(rooms, { limit: 32 });
       const out = [];
-      for (const r of targetRooms) {
-        const t = loadRoomTables(r);
-        const tab = resolveTable(r, table);
-        const arr = (t[tab] || []).filter(row => withinRange(row.ts, start, end));
-        const vals = arr.map(row => Number(row[field])).filter(Number.isFinite);
-        if (!vals.length) { out.push({ room: r, value: null }); continue; }
+      for (const roomId of targetRooms) {
+        const t = loadRoomTables(roomId);
+        const tab = resolveTable(roomId, table);
+        const rows = (t[tab] || []).filter(row => withinRange(row.ts, start, end));
+        if (!rows.length) {
+          out.push({ room: roomId, friendlyName: deviceFriendlyName(roomId), value: null });
+          continue;
+        }
+        const resolvedField = resolveField(rows, field);
+        const vals = rows.map(row => Number(row[resolvedField])).filter(Number.isFinite);
+        if (!vals.length) {
+          out.push({ room: roomId, friendlyName: deviceFriendlyName(roomId), value: null });
+          continue;
+        }
         const sum = vals.reduce((a,b)=>a+b,0);
         const avg = sum / vals.length;
         const peak = Math.max(...vals);
         const map = { sum, avg, peak };
-        out.push({ room: r, value: map[agg] != null ? map[agg] : avg });
+        out.push({
+          room: roomId,
+          friendlyName: deviceFriendlyName(roomId),
+          value: map[agg] != null ? map[agg] : avg
+        });
       }
       out.sort((a,b)=> (b.value ?? -Infinity) - (a.value ?? -Infinity));
       return out;
+    },
+
+    comfort_band_summary({
+      rooms = [],
+      table = 'iaq',
+      field = 'temperature',
+      minComfort = Number(process.env.COMFORT_MIN_TEMP) || 20,
+      maxComfort = Number(process.env.COMFORT_MAX_TEMP) || 24,
+      start = null,
+      end = null,
+      limit = 12
+    }) {
+      const resolvedRooms = [];
+      const seen = new Set();
+      const pushRoom = (roomId) => {
+        if (!roomId) return;
+        const normalized = normalizeRoomId(roomId) || roomId;
+        if (!normalized) return;
+        if (seen.has(normalized)) return;
+        seen.add(normalized);
+        resolvedRooms.push(normalized);
+      };
+      if (Array.isArray(rooms) && rooms.length) {
+        rooms.forEach(pushRoom);
+      }
+      if (!resolvedRooms.length && Array.isArray(currentScopeContext.selectionRooms)) {
+        currentScopeContext.selectionRooms.forEach(pushRoom);
+      }
+      if (!resolvedRooms.length && currentScopeContext.scopeDeviceZones) {
+        Object.keys(currentScopeContext.scopeDeviceZones).forEach(pushRoom);
+      }
+      const summaries = [];
+      let totalSamples = 0;
+      let totalInBand = 0;
+      const clampMin = Number(minComfort);
+      const clampMax = Number(maxComfort);
+      for (const roomId of resolvedRooms.slice(0, limit || 12)) {
+        const tables = loadRoomTables(roomId);
+        if (!tables) continue;
+        const tab = resolveTable(roomId, table || 'iaq');
+        const rows = (tables[tab] || []).filter((row) => withinRange(row.ts, start, end));
+        if (!rows.length) continue;
+        const resolvedField = resolveField(rows, field || 'temperature');
+        const values = [];
+        for (const row of rows) {
+          const val = Number(row[resolvedField]);
+          if (Number.isFinite(val)) values.push(val);
+        }
+        if (!values.length) continue;
+        const samples = values.length;
+        const inBand = values.filter((val) => Number.isFinite(clampMin) && Number.isFinite(clampMax)
+          ? (val >= clampMin && val <= clampMax)
+          : true
+        ).length;
+        const pct = samples ? (inBand / samples) * 100 : 0;
+        const avg = values.reduce((a, b) => a + b, 0) / samples;
+        const minVal = Math.min(...values);
+        const maxVal = Math.max(...values);
+        summaries.push({
+          room: roomId,
+          friendlyName: deviceFriendlyName(roomId),
+          samples,
+          inBand,
+          pctInBand: pct,
+          avgValue: avg,
+          minValue: minVal,
+          maxValue: maxVal,
+          field: resolvedField
+        });
+        totalSamples += samples;
+        totalInBand += inBand;
+      }
+      summaries.sort((a, b) => (a.pctInBand ?? 0) - (b.pctInBand ?? 0));
+      const overall = {
+        roomsAnalyzed: summaries.length,
+        avgPctInBand: totalSamples ? (totalInBand / totalSamples) * 100 : null,
+        minPctInBand: summaries[0]?.pctInBand ?? null,
+        maxPctInBand: summaries[summaries.length - 1]?.pctInBand ?? null,
+        totalSamples,
+        minComfort: clampMin,
+        maxComfort: clampMax
+      };
+      return logToolResult('comfort_band_summary', {
+        rooms,
+        table,
+        field,
+        minComfort: clampMin,
+        maxComfort: clampMax,
+        start,
+        end,
+        limit
+      }, { rooms: summaries, overall });
     },
     
     scope_daily_percentile({
@@ -7104,60 +7703,66 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
 
     graph_rooms_by_scope({ building = null, floor = null }) {
-      // Prefer graph snapshot or adapter; otherwise infer from room IDs locally
+      const dedupe = new Set();
+      if (snapshotIndex?.zoneById?.size) {
+        const rooms = [];
+        snapshotIndex.zoneById.forEach((zone) => {
+          if (!zone) return;
+          if (building && !buildingMatchesSelection(building, { name: zone.buildingName, id: zone.buildingId })) {
+            return;
+          }
+          if (floor && !floorMatchesSelection(floor, { name: zone.floorName, id: zone.floorId })) {
+            return;
+          }
+          const roomId = zone.roomId || zone.id || zone.name;
+          if (!roomId) return;
+          if (dedupe.has(roomId)) return;
+          dedupe.add(roomId);
+          rooms.push(String(roomId));
+        });
+        return { rooms };
+      }
+      // Fallback: load snapshot file or infer from room naming
       try {
         const snap = loadGraphSnapshot();
-        if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
-          const floors = new Map();
-          const nodesById = new Map(snap.nodes.map(n => [n.id, n]));
-          const hasRel = (from, to, rel) => snap.links.some(l => l.source===from && l.target===to && (!rel || l.rel===rel));
+        if (snap && Array.isArray(snap.nodes)) {
           const rooms = [];
-          // Iterate zones and backtrack to floor/building
-          for (const n of snap.nodes) {
-            if ((n.nodeType||n.label) !== 'Zone') continue;
-            const zid = n.id;
-            // find floor
-            const floorLink = snap.links.find(l => l.source===zid && l.rel==='BELONGS_TO_FLOOR');
-            const fid = floorLink ? floorLink.target : null;
-            const fNode = fid ? nodesById.get(fid) : null;
-            // find building
-            let bNode = null;
-            if (fid) {
-              const bLink = snap.links.find(l => l.source===fid && l.rel==='LOCATED_IN_BUILDING');
-              const bid = bLink ? bLink.target : null;
-              bNode = bid ? nodesById.get(bid) : null;
-            }
-            const bOk = building ? buildingMatchesSelection(building, bNode) : true;
-            const fOk = floor ? (fNode && (fNode.name === floor || fNode.name.endsWith(` ${String(floor).replace(/^F/, '')}`))) : true;
-            if (bOk && fOk) {
-              if (n.roomId) rooms.push(n.roomId);
+          for (const zone of snap.nodes) {
+            if ((zone.nodeType || zone.label) !== 'Zone') continue;
+            const buildingCandidate = { name: zone.buildingName || null, id: zone.buildingId || null };
+            if (building && !buildingMatchesSelection(building, buildingCandidate)) continue;
+            const floorCandidate = { name: zone.floorName || null, id: zone.floorId || null };
+            if (floor && !floorMatchesSelection(floor, floorCandidate)) continue;
+            if (zone.roomId && !dedupe.has(zone.roomId)) {
+              dedupe.add(zone.roomId);
+              rooms.push(zone.roomId);
             }
           }
-          return { rooms: Array.from(new Set(rooms)) };
+          if (rooms.length) return { rooms };
         }
       } catch {}
       const rooms = listRooms();
-      function normBuilding(b) { if (!b) return null; const m = String(b).match(/([A-Za-z])$/); return m ? m[1].toUpperCase() : String(b).toUpperCase(); }
-      function normFloor(f) { if (!f) return null; const m = String(f).match(/(\d+)/); return m ? `F${m[1]}` : String(f); }
-      const b = normBuilding(building);
-      const f = normFloor(floor);
-      const out = rooms.filter(r => {
-        const m = String(r).match(/^([A-Za-z])_(F\d+)_.+$/);
-        if (!m) return false;
-        const rb = m[1].toUpperCase();
-        const rf = m[2];
-        if (b && rb !== b) return false;
-        if (f && rf !== f) return false;
-        return true;
+      const out = rooms.filter((r) => {
+        const lower = String(r || '').toLowerCase();
+        const buildingOk = building ? lower.includes(normalizeName(building)) : true;
+        const floorOk = floor ? lower.includes(normalizeName(floor)) : true;
+        return buildingOk && floorOk;
       });
       return { rooms: out };
     },
 
     scope_list_buildings() {
+      if (snapshotIndex?.buildingById?.size) {
+        const names = new Set();
+        snapshotIndex.buildingById.forEach((building) => {
+          if (building?.name) names.add(building.name);
+        });
+        return Array.from(names).sort();
+      }
       const snap = loadGraphSnapshot();
       if (snap && Array.isArray(snap.nodes)) {
         const bs = snap.nodes.filter(n => (n.nodeType||n.label)==='Building').map(n => n.name).filter(Boolean);
-        return Array.from(new Set(bs)).sort();
+        if (bs.length) return Array.from(new Set(bs)).sort();
       }
       const rooms = listRooms();
       const set = new Set();
@@ -7166,6 +7771,17 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
 
     scope_list_floors({ building }) {
+      if (snapshotIndex?.floorById?.size) {
+        const names = new Set();
+        snapshotIndex.floorById.forEach((floor) => {
+          if (!floor) return;
+          if (building && !buildingMatchesSelection(building, { name: floor.buildingName, id: floor.buildingId })) {
+            return;
+          }
+          if (floor.name) names.add(floor.name);
+        });
+        return Array.from(names).sort((a,b)=> Number(a.replace(/\D+/g,'')) - Number(b.replace(/\D+/g,'')));
+      }
       const snap = loadGraphSnapshot();
       if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
         const floorNames = new Set();
@@ -7178,7 +7794,9 @@ function parseFieldsFromQuestion(question, availableSets) {
           if (building && (!bNode || !buildingMatchesSelection(building, bNode))) continue;
           floorNames.add(n.name);
         }
-        return Array.from(floorNames).sort((a,b)=> Number(a.replace(/\D+/g,'')) - Number(b.replace(/\D+/g,'')));
+        if (floorNames.size) {
+          return Array.from(floorNames).sort((a,b)=> Number(a.replace(/\D+/g,'')) - Number(b.replace(/\D+/g,'')));
+        }
       }
       // Fallback to inference
       const rooms = listRooms();
@@ -7203,26 +7821,58 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
 
     graph_zone_devices({ room }) {
-      const snap = loadGraphSnapshot();
-      if (!snap || !Array.isArray(snap.nodes) || !Array.isArray(snap.links)) return { devices: [] };
-      const nodesById = new Map(snap.nodes.map(n => [n.id, n]));
-      // Find zone node by roomId
-      const z = snap.nodes.find(n => (n.nodeType||n.label)==='Zone' && n.roomId === room);
-      if (!z) return { devices: [] };
-      const devs = [];
-      for (const l of snap.links) {
-        if (l.target === z.id && l.rel === 'LOCATED_IN_ZONE') {
-          const d = nodesById.get(l.source);
-          if (d && (d.nodeType||d.label)==='Device') devs.push({ id: d.id, name: d.name, type: d.deviceType || d.type || 'Device' });
+      const scopeLabels = currentScopeContext.scopeLabels || {};
+      const dedupe = new Set();
+      const devicesOut = [];
+      const pushDevice = (entry) => {
+        const deviceId = entry.cloudId || entry.primaryId || entry.id;
+        if (!deviceId || dedupe.has(deviceId)) return;
+        dedupe.add(deviceId);
+        const meta = lookupDeviceHierarchy(deviceId) || {};
+        devicesOut.push({
+          id: deviceId,
+          name: meta.name || entry.name || deviceId,
+          type: meta.type || entry.type || entry.deviceType || null,
+          zone: meta.zoneName || entry.zone || entry.zoneName || null,
+          floor: meta.floorName || entry.floor || entry.floorName || null,
+          building: meta.buildingName || entry.building || entry.buildingName || null,
+          metrics: metricsPreviewForDevice(deviceId),
+          hasTelemetry: deviceTablesAvailable(deviceId)
+        });
+      };
+
+      const resolveZoneLabel = (value) => {
+        if (!value) return null;
+        return String(value).replace(ZONE_STOPWORD_REGEX, ' ').trim() || value;
+      };
+
+      let targetZone = resolveZoneEntry(resolveZoneLabel(room), scopeLabels);
+      if (!targetZone && typeof room === 'string') {
+        const meta = lookupDeviceHierarchy(room);
+        if (meta?.zoneName) {
+          targetZone = resolveZoneEntry(meta.zoneName, scopeLabels);
         }
       }
-      // Attach metric types measured
-      const withMetrics = devs.map(d => {
-        const mids = snap.links.filter(l => l.target===d.id && l.rel==='MEASURES').map(l => l.source);
-        const metrics = mids.map(mid => (nodesById.get(mid)?.name)).filter(Boolean);
-        return { ...d, metrics };
-      });
-      return { devices: withMetrics };
+      if (!targetZone && snapshotIndex && typeof room === 'string') {
+        const deviceMeta = snapshotIndex.deviceMeta?.get(room) || snapshotIndex.deviceMetaCanonical?.get(room.toLowerCase());
+        if (deviceMeta?.zoneName) {
+          targetZone = resolveZoneEntry(deviceMeta.zoneName, scopeLabels);
+        }
+      }
+
+      const zoneLabel = targetZone?.name || targetZone?.zone || resolveZoneLabel(room);
+      if (zoneLabel) {
+        const zoneDevices = collectDevicesForZone(zoneLabel, scopeLabels);
+        zoneDevices.forEach(pushDevice);
+      }
+      if (!devicesOut.length && typeof room === 'string') {
+        // direct device lookup fallback
+        const meta = lookupDeviceHierarchy(room);
+        if (meta?.cloudId) {
+          pushDevice({ cloudId: meta.cloudId, name: meta.name, type: meta.type, zoneName: meta.zoneName, floorName: meta.floorName, buildingName: meta.buildingName });
+        }
+      }
+      return { devices: devicesOut };
     },
 
     // Vector search — fallback stub (the system already has TF‑IDF rag)
@@ -8098,12 +8748,41 @@ function parseFieldsFromQuestion(question, availableSets) {
     const {
       selectionZones = [],
       scopeDeviceZones = {},
-      scopeLabels = {}
+      scopeLabels = {},
+      retrievalHints = {}
     } = options || {};
-    const retrieved = await hybridRetrieve({ query: question, ragIndex: rag, vectorClient: vector, k: 6 }).catch(() => []);
-    const head = (retrieved || []).map(h => 
-      `Score:${(h.final ?? h.rrf ?? h.scoreRaw ?? 0).toFixed(3)} Meta:${JSON.stringify(h.meta)}\n${h.text}`
-    ).join('\n---\n');
+    const ragState = ragManager.ensure();
+    const scopeContext = {
+      room,
+      rooms: selectionRooms,
+      zones: selectionZones,
+      tenant: retrievalHints.scope?.tenant || null,
+      building: retrievalHints.scope?.building || null,
+      floor: retrievalHints.scope?.floor || null,
+      metrics: retrievalHints.metrics || [],
+      timeHints: retrievalHints.timeHints || {}
+    };
+    const retrieved = await hybridRetrieve({
+      query: question,
+      ragIndex: ragState.index,
+      vectorClient: vector,
+      k: retrievalHints.k || 6,
+      preferCategories: retrievalHints.preferCategories || [],
+      scope: scopeContext
+    }).catch(() => []);
+    const structuredHits = (retrieved || []).map((h, idx) => ({
+      id: h.id,
+      source: h.source,
+      score: Number(h.final ?? h.rrf ?? h.scoreRaw ?? 0),
+      category: h.meta?.category || h.meta?.type || null,
+      meta: h.meta || null,
+      snippet: h.text && h.text.length > 420 ? `${h.text.slice(0, 420)}…` : h.text,
+      rank: idx + 1
+    }));
+    const head = structuredHits
+      .slice(0, 3)
+      .map((hit) => `#${hit.rank} [${hit.category || hit.source}] score=${hit.score.toFixed(3)} :: ${hit.snippet}`)
+      .join('\n---\n');
     
     let schema = {};
     if (room && room !== 'ALL') {
@@ -8152,7 +8831,17 @@ function parseFieldsFromQuestion(question, availableSets) {
       scopeDeviceZones,
       scopeLabels
     });
-    const ctx = { retrieved: head, schema, meta, range, room, selectionRooms, selectionZones, _retrievedDocs: retrieved };
+    const ctx = {
+      retrieved: head,
+      retrievedDocs: structuredHits,
+      schema,
+      meta,
+      range,
+      room,
+      selectionRooms,
+      selectionZones,
+      _retrievedDocs: retrieved
+    };
     if (scopeSnapshotSummary) ctx.scopeSnapshot = scopeSnapshotSummary;
     return ctx;
   }
@@ -8274,8 +8963,29 @@ function parseFieldsFromQuestion(question, availableSets) {
     const questionNamedRooms = extractQuestionRooms(question);
     routing.namedRooms = questionNamedRooms;
     const filters = suggestRetrievalFilters(routing.level, routing);
+    const preferCategories = filters?.preferCategories || [];
     const routerDirectives = buildAnalysisDirectives(routing);
-    const hybridHits = await hybridRetrieve({ query: question, ragIndex: rag, vectorClient: vector, k: routing?.pipeline?.retrieval?.k || 6 }).catch(()=>[]);
+    const retrievalScope = {
+      tenant,
+      building,
+      floor,
+      room: effRoom,
+      rooms: selectionRooms,
+      zones: selectionZones,
+      metrics: routing.metrics,
+      timeHints: routing.timeHints
+    };
+
+    const hybridHits = (ctx._retrievedDocs && ctx._retrievedDocs.length)
+      ? ctx._retrievedDocs
+      : await hybridRetrieve({
+          query: question,
+          ragIndex: ragManager.ensure().index,
+          vectorClient: vector,
+          k: routing?.pipeline?.retrieval?.k || 6,
+          preferCategories,
+          scope: retrievalScope
+        }).catch(() => []);
 
     // --- QUERY ENRICHMENT: Knowledge Pack ---
     let knowledgeSnippets = hybridHits
@@ -8323,14 +9033,35 @@ function parseFieldsFromQuestion(question, availableSets) {
       room && room !== 'ALL' ? room : null,
       range,
       selectionRooms,
-      { selectionZones, scopeDeviceZones, scopeLabels }
+      {
+        selectionZones,
+        scopeDeviceZones,
+        scopeLabels,
+        retrievalHints: {
+          preferCategories,
+          metrics: routing.metrics,
+          timeHints: routing.timeHints,
+          scope: retrievalScope,
+          k: routing?.pipeline?.retrieval?.k || 6
+        }
+      }
     );
     log('Question:', '<redacted>');
     if (DEBUG) log('Context snippet schema keys:', Object.keys(ctx.schema));
 
-    const rr = range || {};
+    let rr = (range && typeof range === 'object') ? { ...range } : {};
+    const telemetryAlignment = alignRangeToTelemetry(rr, {
+      selectionRooms,
+      selectionZones,
+      scopeLabels: scopeLabels || {},
+      fallbackRoom: room
+    });
+    rr = telemetryAlignment.range;
     setScopeContext({ selectionRooms, selectionZones, scopeDeviceZones, scopeLabels, range: rr });
     const adaptationNotes = [];
+    if (telemetryAlignment.changed) {
+      adaptationNotes.push(`Adjusted time window to available telemetry (${describeRangeWindow(rr)}).`);
+    }
     // Inject knowledge enrichment into system prompt
     const startDate = rr.start ? new Date(rr.start) : null;
     const endDate = rr.end ? new Date(rr.end) : null;
@@ -8389,8 +9120,10 @@ function parseFieldsFromQuestion(question, availableSets) {
       : '';
 
     const scopeSnapshotNote = ctx.scopeSnapshot ? `Scope snapshot notes:\n${ctx.scopeSnapshot}\n` : '';
+    const connectorNote = summarizeConnectorStatus(ctx.connectors);
     const sys = `You are a senior data analyst agent for building operations.
 ${conversationSummary ? `=== CONVERSATION MEMORY ===\n${conversationSummary}\n` : ''}
+${connectorNote ? `${connectorNote}\n` : ''}
 Selected room: ${room || '(none)'}.
 Zones in scope: ${zonesLine}
 Devices in scope: ${devicesLine}
@@ -8639,7 +9372,11 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
     let planStatus = [];
     let planStepMap = new Map();
     let consecutivePlanReplies = 0;
-    let planLoopStrikes = 0;
+    let planLoopWarnings = 0;
+    let lastPlanSignature = null;
+    let consecutiveJsonFailures = 0;
+    let incompletePlanWarnings = 0;
+    const MAX_INCOMPLETE_PLAN_WARNINGS = Math.max(1, Number(process.env.AGENT_INCOMPLETE_PLAN_MAX || 3));
 
     const canonicalPlanStepId = (raw, idx = null) => {
       let id = raw == null ? '' : String(raw).trim();
@@ -8731,6 +9468,21 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       });
       return { steps: normalized, errors };
     };
+
+    const planStatusPayload = () => planStatusSnapshot().map((step) => ({
+      id: step.id,
+      status: step.done ? 'done' : 'pending',
+      finding: step.note || step.text || ''
+    }));
+
+    const attachPlanStatus = (obj = {}) => {
+      if (!planConfirmed || !planStatus.length || !obj || typeof obj !== 'object') return obj;
+      const payload = extractPlanStatusPayload(obj);
+      if (!Array.isArray(payload) || !payload.length) {
+        obj.plan_status = planStatusPayload();
+      }
+      return obj;
+    };
     let comparisonSatisfied = !needsRoomComparison;
     let rankingSatisfied = !requireRoomRanking;
     const summarizePlanStatusLines = () => planStatus
@@ -8765,6 +9517,7 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
         target.done = true;
         if (note) target.note = note;
         pushPlanProgress(`Completed ${target.id}: ${target.text}.`);
+        incompletePlanWarnings = 0;
       } else if (note) {
         target.note = note;
       }
@@ -8818,6 +9571,11 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
         break;
       }
       if (DEBUG) log('LLM raw reply:', reply.slice(0, 600));
+
+      const assistantTurn = String(reply || '').trim();
+      if (assistantTurn) {
+        convo.push({ role: 'assistant', content: assistantTurn });
+      }
       
       // Force finalization if we've made enough tool calls
       if (totalToolCalls >= 8 && step >= 5) {
@@ -8973,7 +9731,35 @@ OR if no chart is needed:
       }
       
       obj = extractJson(reply);
-      
+
+      if (obj) {
+        consecutiveJsonFailures = 0;
+        attachPlanStatus(obj);
+      } else {
+        consecutiveJsonFailures += 1;
+        if (consecutiveJsonFailures >= 3 && totalToolCalls > 0) {
+          log('Synthesizing final JSON after repeated parse errors');
+          const syntheticChart = buildFallbackChartFromTrace({
+            trace,
+            question,
+            defaultRoom: room,
+            selectionRooms
+          });
+          const syntheticAnswer = buildDefaultAnswer({
+            question,
+            trace,
+            chart: syntheticChart,
+            range: rr
+          });
+          obj = {
+            action: 'final',
+            answer: syntheticAnswer,
+            chart: syntheticChart,
+            plan_status: planStatusSnapshot()
+          };
+        }
+      }
+
       if (!obj) {
         // Check if response looks truncated (ends with incomplete data)
         const trimmed = reply.trim();
@@ -9147,32 +9933,23 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       
       if (obj && obj.action === 'plan') {
         consecutivePlanReplies += 1;
-        if (planConfirmed) {
-          planLoopStrikes += 1;
-          if (planLoopStrikes >= 3) {
-            const defFallback = runDefinitionFallback(question);
-            if (defFallback) return defFallback;
-            const emergencyPlan = runEmergencyAnalysis({ question, selectionRooms, room, range: rr });
-            if (emergencyPlan) return emergencyPlan;
-            planLoopStrikes = 0;
-          }
-        } else {
-          planLoopStrikes = 0;
-        }
-        if (planConfirmed) {
-          const nextPending = planStatus.find((s) => !s.done) || planStatus[0];
-          const nextStep = nextPending ? `${nextPending.id}: ${nextPending.text}` : 'the first step of your existing plan';
-          const severity = consecutivePlanReplies >= 3
-            ? `CRITICAL: Stop resending the plan. Immediately execute ${nextStep} using {"action":"tool_call","planStep":"${nextPending?.id || 'S1'}","tool":"${nextPending?.tool || '<tool>'}","args":{...}}.`
-            : `Plan already confirmed. Proceed with ${nextStep} by calling the required tool instead of replanning.`;
-          convo.push({
-            role: 'user',
-            content: severity
-          });
-          continue STEP_LOOP;
-        }
         const rawSteps = Array.isArray(obj.steps) ? obj.steps : [];
         const { steps: structuredSteps, errors } = normalizePlanSteps(rawSteps);
+        const signature = JSON.stringify(structuredSteps.map((step) => ({
+          id: step.id,
+          tool: step.tool,
+          goal: step.text
+        })));
+        if (planConfirmed && planStatus.length && signature && signature === lastPlanSignature) {
+          planLoopWarnings += 1;
+          const next = planStatus.find((s) => !s.done);
+          const reminder = next
+            ? `Plan already locked. Execute ${next.id}: ${next.text} via {"action":"tool_call","planStep":"${next.id}","tool":"${next.tool}","args":{...}} instead of rewriting the plan.`
+            : 'Plan locked and all steps complete. Respond with {"action":"final","plan_status":[...]} referencing each step.';
+          convo.push({ role: 'user', content: reminder });
+          if (planLoopWarnings >= 2) pushPlanProgress('Stop resending the plan—advance to the pending step.');
+          continue STEP_LOOP;
+        }
         if (errors.length) {
           convo.push({
             role: 'user',
@@ -9186,22 +9963,27 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             content: 'Plan must include at least two structured steps with ids/tools. Respond again with {"action":"plan","steps":[...]}'
           });
         } else {
+          const planWasActive = planConfirmed && planStatus.length;
           planConfirmed = true;
           planSteps = structuredSteps.map((step) => ({ ...step }));
           planStatus = planSteps;
           registerPlanSteps(planStatus);
+          incompletePlanWarnings = 0;
+          lastPlanSignature = signature;
           trace.push({ tool: 'plan', args: { steps: planStatusSnapshot() }, result: null });
           const initialStep = planStatus.find((s) => !s.done);
+          const prefix = planWasActive ? 'Plan updated.' : 'Plan locked.';
           const note = initialStep
-            ? `Plan locked. Begin ${initialStep.id}: ${initialStep.text} using {"action":"tool_call","planStep":"${initialStep.id}","tool":"${initialStep.tool}","args":{...}}.`
-            : 'Plan locked. Execute the outlined steps with the required tools.';
+            ? `${prefix} Begin ${initialStep.id}: ${initialStep.text} using {"action":"tool_call","planStep":"${initialStep.id}","tool":"${initialStep.tool}","args":{...}}.`
+            : `${prefix} Execute the outlined steps with the required tools.`;
           pushPlanProgress(note);
         }
+        planLoopWarnings = 0;
+        consecutivePlanReplies = 0;
         continue STEP_LOOP;
       }
 
       consecutivePlanReplies = 0;
-      planLoopStrikes = 0;
 
       if (!planConfirmed) {
         convo.push({
@@ -9214,6 +9996,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       // Handle single tool call
       // Handle multiple parallel tool calls
       if (obj.action === 'tool_calls' && Array.isArray(obj.tools)) {
+        planLoopWarnings = 0;
         const resolvedCalls = [];
         for (const tc of obj.tools) {
           const planRefRaw = tc.planStep ?? tc.plan_step ?? tc.plan ?? tc.step ?? tc.stepId ?? tc.id ?? null;
@@ -9279,6 +10062,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       }
 
       if (obj.action === 'tool_call') {
+        planLoopWarnings = 0;
         const planRefRaw = obj.planStep ?? obj.plan_step ?? obj.plan ?? obj.step ?? obj.stepId ?? null;
         let planEntry = planConfirmed ? findPlanStep(planRefRaw) : null;
         if (!planEntry && planConfirmed) {
@@ -9498,13 +10282,51 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         }
         continue STEP_LOOP;
         
-      } else if (obj.action === 'final') {
+      } else if (obj.action === 'final' || obj.action === 'finish') {
+        planLoopWarnings = 0;
         log('Finalizing answer. Chart provided?', !!obj.chart);
 
         const executedToolCount = countTraceToolExecutions(trace);
         if (planConfirmed && executedToolCount === 0) {
           pushPlanProgress('Plan recorded but no tools have been executed. Execute Step 1 with the required tool before finalizing.');
           continue STEP_LOOP;
+        }
+        if (planConfirmed) {
+          const incompleteSteps = planStatus.filter((step) => !step.done);
+          if (incompleteSteps.length) {
+            incompletePlanWarnings += 1;
+            if (incompletePlanWarnings >= MAX_INCOMPLETE_PLAN_WARNINGS) {
+              log('Auto-finalizing after repeated incomplete plan warnings');
+              const autoChart = buildFallbackChartFromTrace({
+                trace,
+                question,
+                defaultRoom: room,
+                selectionRooms
+              });
+              if (autoChart) {
+                ensureChartData(autoChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
+              }
+              const fallbackAnswer = buildDefaultAnswer({
+                question,
+                chart: autoChart,
+                trace,
+                notes: [`Plan steps ${incompleteSteps.map((s) => s.id).join(', ')} were not executed; summarizing available telemetry instead.`],
+                range: rr
+              });
+              const overviewAnswer = enforceOverviewDetails(fallbackAnswer, { range: rr, trace, planStatus });
+              return {
+                message: assistantMessage(overviewAnswer),
+                chart: autoChart,
+                trace
+              };
+            }
+            const nextStep = incompleteSteps[0];
+            convo.push({
+              role: 'user',
+              content: `REMINDER: Plan steps ${incompleteSteps.map((s) => s.id).join(', ')} still need their tool calls. Execute {"action":"tool_call","planStep":"${nextStep.id}","tool":"${nextStep.tool}","args":{...}} before finalizing.`
+            });
+            continue STEP_LOOP;
+          }
         }
 
         // If model returned embedded arrays or no dataRef, retrofit to dataRef
@@ -9676,7 +10498,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             scatterRetryCount++;
             convo.push({
               role: 'user',
-              content: 'You must return a scatter chart with a valid dataRef referencing the tool results before finalizing. Call pair_timeseries or building_temp_weather_corr/building_temp_weather_scatter to generate data for the scatter and include it in your final chart.'
+              content: 'REMINDER: You must return a scatter chart with a valid dataRef referencing the tool results before finalizing. Call pair_timeseries or building_temp_weather_corr/building_temp_weather_scatter to generate data for the scatter and include it in your final chart.'
             });
             continue STEP_LOOP;
           }
@@ -9684,32 +10506,34 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         if (needsRoomComparison && !comparisonSatisfied) {
           convo.push({
             role: 'user',
-            content: `You still need to compare ${comparisonRoomsList || 'the selected rooms'} using compare_rooms_on_metric or compare_series_cross_room before finalizing. Call the comparison tool and summarize the differences.`
+            content: `REMINDER: You still need to compare ${comparisonRoomsList || 'the selected rooms'} using compare_rooms_on_metric or compare_series_cross_room before finalizing. Call the comparison tool and summarize the differences.`
           });
           continue STEP_LOOP;
         }
         if (requireRoomRanking && !rankingSatisfied) {
           convo.push({
             role: 'user',
-            content: `You still need to rank ${rankingRoomsList || 'the selected rooms'} by their occupancy metrics. Call compare_rooms_on_metric (preferred) or compare_series_cross_room on people_count/occupancy to produce the ranking and identify underused rooms before finalizing.`
+            content: `REMINDER: You still need to rank ${rankingRoomsList || 'the selected rooms'} by their occupancy metrics. Call compare_rooms_on_metric (preferred) or compare_series_cross_room on people_count/occupancy to produce the ranking and identify underused rooms before finalizing.`
           });
           continue STEP_LOOP;
         }
 
         let chartForResponse = validChart ? validChart : null;
-        const needsChart = questionRequiresChart(question);
-        const chartHasSeries = chartForResponse && Array.isArray(chartForResponse.series) && chartForResponse.series.length;
-        if (needsChart && !chartHasSeries) {
+        const baseChartRequested = questionRequiresChart(question);
+        const needsChart = baseChartRequested || needsRoomComparison || requireRoomRanking;
+        if (needsChart && !chartHasRenderableSeries(chartForResponse)) {
           const allowNoChart = adaptationNotes.some(note => /no (chart|data)/i.test(String(note)));
           if (!allowNoChart && chartRetryCount < 2) {
             chartRetryCount++;
             convo.push({
               role: 'user',
-              content: 'You must include a chart with valid dataRef references before finalizing. Call the appropriate tool (e.g., fetch_timeseries, compare_series_cross_room, scope_heatmap) and structure the chart with dataRef pointing to that tool result.'
+              content: 'REMINDER: You must include a chart with valid dataRef references before finalizing. Call the appropriate tool (e.g., fetch_timeseries, compare_series_cross_room, scope_heatmap) and structure the chart with dataRef pointing to that tool result.'
             });
             continue STEP_LOOP;
           }
         }
+        const chartHasSeries = chartHasRenderableSeries(chartForResponse);
+        const histogramHasData = traceHasHistogramData(trace);
         if (histogramRequested) {
           const type = (chartForResponse?.chart?.type || chartForResponse?.type || '').toLowerCase();
           const acceptableType = type === 'column' || type === 'bar' || type === 'histogram';
@@ -9717,13 +10541,17 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             && Array.isArray(chartForResponse.series)
             && chartForResponse.series.length > 0
             && chartForResponse.series.every((series) => series?.dataRef && (series.dataRef.tool === 'histogram' || series.dataRef.tool === 'field_histogram'));
-          if (!chartForResponse || !acceptableType || !histogramSeriesValid) {
-            chartRetryCount++;
-            convo.push({
-              role: 'user',
-              content: 'A histogram/distribution was requested. Call histogram or field_histogram for the requested metric(s) and provide a column-style chart that references those tool results via dataRef before finalizing.'
-            });
-            continue STEP_LOOP;
+          if (histogramHasData) {
+            if (!chartForResponse || !acceptableType || !histogramSeriesValid) {
+              chartRetryCount++;
+              convo.push({
+                role: 'user',
+                content: 'REMINDER: A histogram/distribution was requested. Call histogram or field_histogram for the requested metric(s) and provide a column-style chart that references those tool results via dataRef before finalizing.'
+              });
+              continue STEP_LOOP;
+            }
+          } else {
+            adaptationNotes.push('Histogram requested but no usable bins were available in the selected window.');
           }
         }
         if (heatmapRequested) {
@@ -9743,7 +10571,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             chartRetryCount++;
             convo.push({
               role: 'user',
-              content: 'A heatmap was requested. Call scope_heatmap or correlation_matrix to build heatmap data, then return a heatmap chart referencing that tool via dataRef before finalizing.'
+              content: 'REMINDER: A heatmap was requested. Call scope_heatmap or correlation_matrix to build heatmap data, then return a heatmap chart referencing that tool via dataRef before finalizing.'
             });
             continue STEP_LOOP;
           }
@@ -9786,7 +10614,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             chartRetryCount++;
             convo.push({
               role: 'user',
-              content: 'A room ranking was requested. Include a column or bar chart that references compare_rooms_on_metric (or another comparison tool) via dataRef so the busiest and underused rooms are visualized before finalizing.'
+              content: 'REMINDER: A room ranking was requested. Include a column or bar chart that references compare_rooms_on_metric (or another comparison tool) via dataRef so the busiest and underused rooms are visualized before finalizing.'
             });
             continue STEP_LOOP;
           }
@@ -9802,6 +10630,18 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         if (!dataPresent) {
           finalAnswer = 'No telemetry data was available for the selected scope and time window; adjust the range or choose a different scope.';
           chartForResponse = null;
+        }
+        if ((!chartForResponse || !chartHasRenderableSeries(chartForResponse)) && needsChart) {
+          const fallbackChart = buildFallbackChartFromTrace({
+            trace,
+            question,
+            defaultRoom: room,
+            selectionRooms
+          });
+          if (fallbackChart) {
+            ensureChartData(fallbackChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
+            chartForResponse = fallbackChart;
+          }
         }
         if (chartForResponse) {
           const chartSummary = summarizeChart(chartForResponse);
@@ -9835,23 +10675,30 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         if (needsRoomComparison && !comparisonSatisfied) {
           convo.push({
             role: 'user',
-            content: `You must compare ${comparisonRoomsList || 'the selected rooms'} using compare_rooms_on_metric or compare_series_cross_room before providing the final answer.`
+            content: `REMINDER: You must compare ${comparisonRoomsList || 'the selected rooms'} using compare_rooms_on_metric or compare_series_cross_room before providing the final answer.`
           });
           continue STEP_LOOP;
         }
         if (requireRoomRanking && !rankingSatisfied) {
           convo.push({
             role: 'user',
-            content: `You must rank ${rankingRoomsList || 'the selected rooms'} using compare_rooms_on_metric (or compare_series_cross_room) before providing the final answer. Report the busiest and underused rooms.`
+            content: `REMINDER: You must rank ${rankingRoomsList || 'the selected rooms'} using compare_rooms_on_metric (or compare_series_cross_room) before providing the final answer. Report the busiest and underused rooms.`
           });
           continue STEP_LOOP;
         }
         if (histogramRequested || heatmapRequested || requireRoomRanking) {
-          convo.push({
-            role: 'user',
-            content: 'You must include the requested visualization (histogram/heatmap/ranking chart) before finalizing in plain text. Return {"action":"final","chart":{...}} with the correct chart type referencing the appropriate tool output.'
-          });
-          continue STEP_LOOP;
+          const histogramNeedsChart = histogramRequested && traceHasHistogramData(trace);
+          if (histogramNeedsChart || heatmapRequested || requireRoomRanking) {
+            convo.push({
+              role: 'user',
+              content: 'REMINDER: You must include the requested visualization (histogram/heatmap/ranking chart) before finalizing in plain text. Return {"action":"final","chart":{...}} with the correct chart type referencing the appropriate tool output.'
+            });
+            continue STEP_LOOP;
+          }
+        }
+        if (histogramRequested && !traceHasHistogramData(trace)) {
+          const note = 'Histogram requested but no usable bins were available in the selected window.';
+          if (!adaptationNotes.includes(note)) adaptationNotes.push(note);
         }
         if (!ensureFinalReferencesPlan(obj)) {
           continue STEP_LOOP;
@@ -9886,9 +10733,23 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           finalAnswer = 'No telemetry data was available for the selected scope and time window; adjust the range or choose a different scope.';
         }
         finalAnswer = enforceOverviewDetails(finalAnswer, { range: rr, trace, planStatus });
+        let finalChart = null;
+        const baseChartRequested = questionRequiresChart(question);
+        const chartNeeded = baseChartRequested || needsRoomComparison || requireRoomRanking || histogramRequested || heatmapRequested;
+        if (chartNeeded) {
+          finalChart = buildFallbackChartFromTrace({
+            trace,
+            question,
+            defaultRoom: room,
+            selectionRooms
+          });
+          if (finalChart) {
+            ensureChartData(finalChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
+          }
+        }
         return {
           message: assistantMessage(finalAnswer),
-          chart: null,
+          chart: finalChart,
           trace
         };
       } else {
@@ -9952,7 +10813,16 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         };
       }
       const trimmedLast = last.trim();
-      if (!/^Reminder:/i.test(trimmedLast) && !/^MANDATORY:/i.test(trimmedLast) && !/^CRITICAL ERROR:/i.test(trimmedLast) && !/^ERROR:/i.test(trimmedLast) &&
+      const planPromptLeak = /Include\s+"plan_status"/i.test(trimmedLast);
+      const isSystemReminder =
+        /^REMINDER:/i.test(trimmedLast) ||
+        /^MANDATORY:/i.test(trimmedLast) ||
+        /^CRITICAL ERROR:/i.test(trimmedLast) ||
+        /^ERROR:/i.test(trimmedLast) ||
+        /^PLAN STATUS:/i.test(trimmedLast) ||
+        planPromptLeak ||
+        /^You must include the requested visualization/i.test(trimmedLast);
+      if (!isSystemReminder &&
           last && last.length > 40 && !last.includes('respond with a JSON') && !last.includes('ERROR:')) {
         autoChart = buildFallbackChartFromTrace({
           trace,

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
@@ -195,25 +196,53 @@ function fixedRange(startIso, endIso) {
   return { start, end };
 }
 
-const BOLTON_FIRST_FLOOR_ZONES = [
-  'Standup',
-  'Huddle',
-  'Workshop',
-  'DJ',
+const FALLBACK_BOLTON_ZONES = [
   'Booths',
-  'Reception',
-  'Digispace',
-  'Sitdown',
-  'Comms',
-  'Cafe',
-  'Cinema',
-  'Lounge',
-  'Toilet',
-  'Kitchen',
   'Brainstorm',
-  'Goods In',
-  'Entrance'
+  'Cafe',
+  'Comms',
+  'Entrance',
+  'Huddle',
+  'Lounge',
+  'Sitdown',
+  'Standup',
+  'Toilet'
 ];
+
+function loadBoltonZonesWithData() {
+  try {
+    const snapPath = path.resolve(process.cwd(), 'data', 'graph_snapshot.avm_solutions.json');
+    const csvDir = path.resolve(process.cwd(), process.env.S3_LOCAL_DIR || 'CSVex_s3');
+    if (!fsSync.existsSync(snapPath)) return FALLBACK_BOLTON_ZONES;
+    const raw = fsSync.readFileSync(snapPath, 'utf8');
+    const snap = JSON.parse(raw);
+    const nodes = new Map((snap.nodes || []).map((n) => [n.id, n]));
+    const zones = new Set();
+    const hasCsv = (deviceId) => {
+      if (!deviceId) return false;
+      return fsSync.existsSync(path.join(csvDir, `${deviceId}.csv`));
+    };
+    for (const link of snap.links || []) {
+      if (!link || link.rel !== 'LOCATED_IN_ZONE') continue;
+      const device = nodes.get(link.source);
+      const zone = nodes.get(link.target);
+      if (!device || !zone) continue;
+      const zoneIdParts = String(zone.id || '').split(':');
+      const zoneBuilding = zoneIdParts[zoneIdParts.length - 1];
+      if (zoneBuilding !== 'Bolton') continue;
+      const deviceId = device.cloudId || device.name || device.id;
+      if (!hasCsv(deviceId)) continue;
+      zones.add(zone.name || zoneIdParts[1] || deviceId);
+    }
+    const list = Array.from(zones).filter(Boolean).sort();
+    return list.length ? list : FALLBACK_BOLTON_ZONES;
+  } catch (err) {
+    console.warn('[scope-tests] Unable to derive Bolton zones from snapshot:', err.message);
+    return FALLBACK_BOLTON_ZONES;
+  }
+}
+
+const BOLTON_FIRST_FLOOR_ZONES = loadBoltonZonesWithData();
 
 const MANUAL_SCENARIOS = [
   {
@@ -226,7 +255,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'What is the visible scope for Bolton First Floor right now? List the floors, zones, and devices you can see.',
-    range: fixedRange('2025-10-07T12:21:00Z', '2025-11-01T13:21:00Z')
+    range: fixedRange('2024-09-10T12:21:00Z', '2024-09-24T13:21:00Z')
   },
   {
     label: 'AVM Bolton First Floor scope – alternate wording',
@@ -238,7 +267,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'What is the scope for Bolton First Floor? Confirm the rooms/devices included in the current selection.',
-    range: fixedRange('2025-10-07T12:21:00Z', '2025-11-01T13:21:00Z')
+    range: fixedRange('2024-09-10T12:21:00Z', '2024-09-24T13:21:00Z')
   },
   {
     label: 'AVM Bolton Toilet NH3 trend',
@@ -252,7 +281,7 @@ const MANUAL_SCENARIOS = [
       deviceZones: { '2e857e60-58b9-11f0-a19e-8f874a1c01d3': 'Toilet' }
     }),
     question: 'Plot NH3 from the Toilet in Bolton between the selected dates and explain the trend.',
-    range: fixedRange('2025-10-07T12:21:00Z', '2025-11-01T13:21:00Z')
+    range: fixedRange('2024-09-10T12:21:00Z', '2024-09-24T13:21:00Z')
   },
   {
     label: '55 King Street Suite 6.2 vs 6.3 comparison',
@@ -263,8 +292,8 @@ const MANUAL_SCENARIOS = [
       floors: ['6th Floor'],
       zones: ['Suite 6.2', 'Suite 6.3']
     }),
-    question: 'Compare temperature between Suite 6.2 (6th Floor) and Suite 6.3 (6th Floor) and comment on the differences.',
-    range: fixedRange('2025-09-15T00:00:00Z', '2025-09-29T23:59:59Z')
+    question: 'Between 2025-09-15 and 2025-09-25, compare temperature between Suite 6.2 (6th Floor) and Suite 6.3 (6th Floor) and comment on the differences.',
+    range: fixedRange('2025-09-15T00:00:00Z', '2025-09-25T23:59:59Z')
   },
   {
     label: 'AVM Bolton comfort review',
@@ -273,10 +302,10 @@ const MANUAL_SCENARIOS = [
       building: 'Bolton',
       floor: 'First Floor',
       floors: ['First Floor'],
-      zones: ['Reception', 'Digispace', 'Standup', 'Huddle']
+      zones: ['Standup', 'Huddle', 'Lounge', 'Cafe']
     }),
-    question: 'Between 2025-10-07 and 2025-11-01, provide a comfort summary for Reception, Digispace, Standup, and Huddle in Bolton. Discuss CO₂, temperature, humidity, and call out any rooms lacking telemetry.',
-    range: fixedRange('2025-10-07T12:21:00Z', '2025-11-01T13:21:00Z')
+    question: 'Between 2024-09-10 and 2024-09-24, provide a comfort summary for Standup, Huddle, Lounge, and Cafe in Bolton. Discuss CO₂, temperature, humidity, and call out any rooms lacking telemetry.',
+    range: fixedRange('2024-09-10T12:21:00Z', '2024-09-24T13:21:00Z')
   },
   {
     label: '55 King Street Suite 6.5 multi-metric story',
@@ -299,8 +328,8 @@ const MANUAL_SCENARIOS = [
         '072b8b80-664b-11f0-a19e-8f874a1c01d3': 'Suite 6.5'
       }
     }),
-    question: 'Between 2025-10-14 and 2025-10-24, analyze Suite 6.5 by covering total kWh usage alongside temperature, humidity, and CO₂. Highlight peaks, minimums, and any ventilation concerns.',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-24T23:59:59Z')
+    question: 'Between 2025-09-15 and 2025-09-25, analyze Suite 6.5 by covering total kWh usage alongside temperature, humidity, and CO₂. Highlight peaks, minimums, and any ventilation concerns.',
+    range: fixedRange('2025-09-15T00:00:00Z', '2025-09-25T23:59:59Z')
   },
   {
     label: '55 King Street holistic insight',
@@ -310,8 +339,8 @@ const MANUAL_SCENARIOS = [
       floors: ['6th Floor', 'Ground Floor'],
       zones: ['Suite 6.5', 'Suite 6.1', 'Reception', 'Comms Room']
     }),
-    question: 'Provide a high-level narrative for the selected rooms in 55 King Street between 2025-10-14 and 2025-10-24. Cover comfort (CO₂/temperature/humidity), usage patterns, and call out any rooms missing telemetry.',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-24T23:59:59Z')
+    question: 'Provide a high-level narrative for the selected rooms in 55 King Street between 2025-09-15 and 2025-09-25. Cover comfort (CO₂/temperature/humidity), usage patterns, and call out any rooms missing telemetry.',
+    range: fixedRange('2025-09-15T00:00:00Z', '2025-09-25T23:59:59Z')
   },
   {
     label: 'Bolton unused rooms check',
@@ -323,7 +352,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'Have any of the rooms not been used today?',
-    range: fixedRange('2025-10-14T08:00:00Z', '2025-10-14T18:00:00Z')
+    range: fixedRange('2024-09-15T08:00:00Z', '2024-09-15T18:00:00Z')
   },
   {
     label: 'Bolton people forecast',
@@ -335,7 +364,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'How many people will be in Bolton today and this week?',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-21T23:59:59Z')
+    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
   },
   {
     label: 'Bolton busiest room',
@@ -347,7 +376,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'Which room will be the busiest this week?',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-21T23:59:59Z')
+    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
   },
   {
     label: 'Suite 6.5 average occupancy',
@@ -358,8 +387,8 @@ const MANUAL_SCENARIOS = [
       floors: ['6th Floor'],
       zones: ['Suite 6.5']
     }),
-    question: 'On average how many people occupy Suite 6.5?',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-24T23:59:59Z')
+    question: 'Between 2025-09-15 and 2025-09-25, on average how many people occupy Suite 6.5?',
+    range: fixedRange('2025-09-15T00:00:00Z', '2025-09-25T23:59:59Z')
   },
   {
     label: '55 King Street energy savings',
@@ -369,8 +398,8 @@ const MANUAL_SCENARIOS = [
       floors: ['6th Floor', 'Ground Floor'],
       zones: ['Suite 6.5', 'Suite 6.1', 'Reception']
     }),
-    question: 'How can I save energy in 55 King Street?',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-24T23:59:59Z')
+    question: 'Between 2025-09-15 and 2025-09-25, how can I save energy in 55 King Street?',
+    range: fixedRange('2025-09-15T00:00:00Z', '2025-09-25T23:59:59Z')
   },
   {
     label: '55 King Street energy peak time',
@@ -380,8 +409,8 @@ const MANUAL_SCENARIOS = [
       floors: ['6th Floor'],
       zones: ['Suite 6.5']
     }),
-    question: 'What date/time this week will we use the most energy, and why?',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-21T23:59:59Z')
+    question: 'Between 2025-10-18 and 2025-10-24, what date/time will we use the most energy, and why?',
+    range: fixedRange('2025-10-18T00:00:00Z', '2025-10-24T23:59:59Z')
   },
   {
     label: 'Bolton cleaning schedule',
@@ -393,7 +422,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'What is the best date/time to arrange cleaning based on occupancy?',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-21T23:59:59Z')
+    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
   },
   {
     label: 'Bolton coffee promotion',
@@ -405,7 +434,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'What time do most people leave so I can entice them with discounted coffees/teas?',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-14T23:59:59Z')
+    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-15T23:59:59Z')
   },
   {
     label: 'Bolton meeting rooms usage',
@@ -417,7 +446,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'Which meeting rooms are being used the most?',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-21T23:59:59Z')
+    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
   },
   {
     label: 'Bolton busiest day',
@@ -429,7 +458,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'What is my busiest day of the week?',
-    range: fixedRange('2025-10-07T12:21:00Z', '2025-11-01T13:21:00Z')
+    range: fixedRange('2024-09-10T12:21:00Z', '2024-09-24T13:21:00Z')
   },
   {
     label: 'Bolton comfortable temperature range',
@@ -441,7 +470,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'Are all my spaces within a comfortable temperature range?',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-21T23:59:59Z')
+    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
   },
   {
     label: 'Bolton weather correlation',
@@ -453,7 +482,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'What is the correlation between the outside weather and occupancy for the current Bolton selection?',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-21T23:59:59Z')
+    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
   },
   {
     label: 'Bolton heating lead time',
@@ -465,7 +494,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'How long does it take to heat the building and when should we turn on the heating to reach 21°C before people arrive?',
-    range: fixedRange('2025-10-14T00:00:00Z', '2025-10-21T23:59:59Z')
+    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
   }
 ];
 

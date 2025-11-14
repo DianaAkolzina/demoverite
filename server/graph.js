@@ -304,21 +304,41 @@ export function createGraphClient({ uri, username, password, database }) {
         linkCache.add(key);
         outLinks.push({ source: a, target: b, rel });
       };
+      const removeLink = (a, b, rel) => {
+        if (!a || !b || !rel) return;
+        const key = `${a}::${b}::${rel}`;
+        if (!linkCache.has(key)) return;
+        linkCache.delete(key);
+        for (let i = outLinks.length - 1; i >= 0; i -= 1) {
+          const link = outLinks[i];
+          if (link && link.source === a && link.target === b && link.rel === rel) {
+            outLinks.splice(i, 1);
+          }
+        }
+      };
       const bumpBuildingCount = (bid) => {
         if (!bid) return;
         const n = outNodes.get(bid) || null;
         if (n) { n.dataDevices = (n.dataDevices || 0) + 1; n.hasData = true; outNodes.set(bid, n); }
       };
       const zoneFloorAttachment = new Map();
-      const attachZoneFloor = (zid, fid, zoneName) => {
+      const attachZoneFloor = (zid, fid, zoneName, priority = 5) => {
         if (!zid || !fid) return;
         const existing = zoneFloorAttachment.get(zid);
-        if (existing && existing !== fid) {
-          console.warn(`[graph][snapshot] Zone ${zoneName || zid} floor had multiple attachments; defaulting to ${existing}`);
+        if (!existing) {
+          zoneFloorAttachment.set(zid, { fid, priority });
+          addLink(zid, fid, 'BELONGS_TO_FLOOR');
           return;
         }
-        zoneFloorAttachment.set(zid, fid);
-        addLink(zid, fid, 'BELONGS_TO_FLOOR');
+        if (existing.fid === fid) return;
+        if (priority < existing.priority) {
+          removeLink(zid, existing.fid, 'BELONGS_TO_FLOOR');
+          zoneFloorAttachment.set(zid, { fid, priority });
+          console.warn(`[graph][snapshot] Zone ${zoneName || zid} floor reassigned to ${fid} (higher-confidence source).`);
+          addLink(zid, fid, 'BELONGS_TO_FLOOR');
+          return;
+        }
+        console.warn(`[graph][snapshot] Zone ${zoneName || zid} floor candidate ${fid} ignored; keeping ${existing.fid}.`);
       };
       const normalizeToken = (val) => {
         if (val === null || val === undefined) return null;
@@ -426,7 +446,8 @@ export function createGraphClient({ uri, username, password, database }) {
             }
           }
           if (floorIdForZone) {
-            attachZoneFloor(zid, floorIdForZone, z.properties?.name || roomId);
+            const attachPriority = zoneFloorFromRel ? 0 : 1;
+            attachZoneFloor(zid, floorIdForZone, z.properties?.name || roomId, attachPriority);
           }
         }
       }
