@@ -12,6 +12,43 @@ NODE_STAMP_FILE="$CACHE_DIR/node.hash"
 PY_STAMP_FILE="$CACHE_DIR/python.hash"
 PYTHON_VENV="${PYTHON_VENV:-$ROOT/.venv}"
 
+load_env_file() {
+  local env_file="$1"
+  [[ -f "$env_file" ]] || return
+  local line=''
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%$'\r'}"
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+    local key=""
+    local value=""
+    if [[ "$line" =~ ^export[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+      key="${BASH_REMATCH[1]}"
+      value="${BASH_REMATCH[2]}"
+    elif [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+      key="${BASH_REMATCH[1]}"
+      value="${BASH_REMATCH[2]}"
+    else
+      continue
+    fi
+    if [[ -z "${!key+x}" ]]; then
+      value="${value#"${value%%[![:space:]]*}"}"
+      value="${value%"${value##*[![:space:]]}"}"
+      if [[ ${#value} -ge 2 ]]; then
+        local first="${value:0:1}"
+        local last="${value: -1}"
+        if { [[ "$first" == "\"" && "$last" == "\"" ]] || [[ "$first" == "'" && "$last" == "'" ]]; }; then
+          value="${value:1:-1}"
+        fi
+      fi
+      printf -v "$key" '%s' "$value"
+      export "$key"
+    fi
+  done < "$env_file"
+}
+
+load_env_file "$ROOT/.env"
+
 hash_file() {
   local target="$1"
   if [[ -f "$target" ]]; then

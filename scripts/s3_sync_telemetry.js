@@ -14,6 +14,23 @@ import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 
+const repoRoot = process.cwd();
+const envPath = path.join(repoRoot, '.env');
+if (fs.existsSync(envPath)) {
+  const raw = fs.readFileSync(envPath, 'utf8');
+  raw.split(/\r?\n/).forEach((line) => {
+    const m = line.match(/^\s*([^#=\s]+)\s*=\s*(.*)\s*$/);
+    if (!m) return;
+    const key = m[1].trim();
+    if (!key || process.env[key]) return;
+    let value = m[2].trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  });
+}
+
 const REQUIRED_ENV = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'];
 
 const encodeRfc3986 = (str) =>
@@ -203,18 +220,36 @@ async function main() {
   }
 
   let downloaded = 0;
+  const prefixNormalized = trimmedPrefix ? `${trimmedPrefix.replace(/\/+$/, '')}/` : '';
   for (const key of keys) {
-    const filename = key.split('/').pop();
-    if (!filename) continue;
-    const dest = path.join(outDir, filename);
+    let rel = key;
+    if (prefixNormalized && rel.startsWith(prefixNormalized)) rel = rel.slice(prefixNormalized.length);
+    rel = rel.replace(/^\/+/, '');
+    if (!rel) continue;
+    const safeParts = rel.split('/').filter((part) => part && part !== '..');
+    if (!safeParts.length) continue;
+    const dest = path.join(outDir, ...safeParts);
     const tmp = `${dest}.tmp`;
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
     const blob = await downloadObject(bucket, region, key);
     fs.writeFileSync(tmp, blob);
     fs.renameSync(tmp, dest);
     downloaded++;
-    console.log(`[s3-sync] wrote ${filename}`);
+    console.log(`[s3-sync] wrote ${rel}`);
   }
-  const total = fs.readdirSync(outDir).filter((f) => f.endsWith('.csv')).length;
+  const countCsv = (dir) => {
+    let totalCount = 0;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        totalCount += countCsv(full);
+      } else if (/\.csv$/i.test(entry.name)) {
+        totalCount += 1;
+      }
+    }
+    return totalCount;
+  };
+  const total = countCsv(outDir);
   console.log(`[s3-sync] Done. Downloaded: ${downloaded}, Total local: ${total}`);
 }
 

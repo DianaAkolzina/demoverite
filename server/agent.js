@@ -8969,7 +8969,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       tenant,
       building,
       floor,
-      room: effRoom,
+      room,
       rooms: selectionRooms,
       zones: selectionZones,
       metrics: routing.metrics,
