@@ -44,9 +44,16 @@ ensure_python_deps() {
   if [[ ! -f "$req_file" ]] || [[ "${SKIP_PY_DEPS:-0}" == "1" ]]; then
     return
   fi
-  if [[ ! -d "$PYTHON_VENV" ]]; then
+  if [[ ! -x "$PYTHON_VENV/bin/python3" ]]; then
+    rm -rf "$PYTHON_VENV"
     echo "[dev] Creating Python venv at $PYTHON_VENV"
-    python3 -m venv "$PYTHON_VENV"
+    if ! python3 -m venv "$PYTHON_VENV"; then
+      cat <<'EOF' >&2
+[dev] Failed to create Python virtualenv (python3-venv missing?).
+Install it via `sudo apt install python3-venv` (or distro equivalent), or run with SKIP_PY_DEPS=1.
+EOF
+      exit 1
+    fi
   fi
   local desired_hash current_hash
   desired_hash="$(hash_file "$req_file")"
@@ -67,6 +74,18 @@ ensure_python_deps() {
 ensure_local_deps() {
   ensure_node_deps
   ensure_python_deps
+}
+
+maybe_sync_s3() {
+  local should_sync="${S3_MIRROR_ON_START:-0}"
+  if [[ "$should_sync" == "1" ]]; then
+    echo "[dev] Mirroring telemetry from S3 (set S3_MIRROR_ON_START=0 to skip)..."
+    if ! sync_s3; then
+      echo "[dev] Warning: S3 mirror failed; continuing with existing CSV cache." >&2
+    fi
+  else
+    echo "[dev] Skipping S3 mirror (S3_MIRROR_ON_START=$should_sync)."
+  fi
 }
 
 maybe_index_chroma() {
@@ -99,6 +118,7 @@ start_app() {
   fi
   mkdir -p "$LOG_DIR"
   echo "Starting Node server..."
+  maybe_sync_s3
   maybe_index_chroma
   (
     cd "$ROOT"
@@ -184,6 +204,7 @@ docker_build() {
 
 docker_up() {
   mkdir -p "$ROOT/data" "$ROOT/CSVex_s3"
+  maybe_sync_s3
   maybe_index_chroma
   docker run -d \
     --name "$CONTAINER_NAME" \
@@ -238,6 +259,7 @@ Maintenance:
 Environment:
   INDEX_CHROMA_ON_START=0    Skip automatic `npm run index:chroma` before start/docker-up
   RUN_CHROMA_INDEX=1         Enable Docker build-time indexing (set CHROMA_BUILD_URL/CHROMA_URL accordingly)
+  S3_MIRROR_ON_START=1       Mirror telemetry from S3 via `npm run sync:s3` before start/docker-up
   PYTHON_VENV=/path/to/.venv  Override the default local venv location used for Python deps
   SKIP_PY_DEPS=1             Skip automatic Python dependency installation
 EOF
