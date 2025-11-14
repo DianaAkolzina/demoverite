@@ -487,15 +487,42 @@ const extractFieldValue = (row, fieldOrList) => {
     return `${header} — devices: ${deviceLines.join(' | ') || 'none'}${extra}.`;
   }
 
+  function formatScopeHeaderLine(scopeLabels = {}, selectionFloors = [], selectionZones = []) {
+    const parts = [];
+    const tenant = scopeLabels?.tenant ? String(scopeLabels.tenant).trim() : '';
+    const building = scopeLabels?.building ? String(scopeLabels.building).trim() : '';
+    const roomLabel = scopeLabels?.room ? String(scopeLabels.room).trim() : '';
+    const floorLabel = scopeLabels?.floor ? String(scopeLabels.floor).trim() : '';
+    const scopeSegment = tenant && building ? `${tenant} › ${building}` : (building || tenant || '');
+    if (scopeSegment) parts.push(scopeSegment);
+    const floors = Array.from(new Set([floorLabel, ...selectionFloors].filter(Boolean)));
+    if (floors.length) parts.push(`Floors: ${floors.slice(0, 4).join(', ')}${floors.length > 4 ? '…' : ''}`);
+    const zones = Array.from(new Set([roomLabel, ...selectionZones].filter(Boolean)));
+    if (zones.length) parts.push(`Zones: ${zones.slice(0, 4).join(', ')}${zones.length > 4 ? '…' : ''}`);
+    return parts.length ? `Scope: ${parts.join(' · ')}` : '';
+  }
+
   function buildScopeSnapshotContextSummary({
     selectionZones = [],
     selectionRooms = [],
+    selectionFloors = [],
     scopeDeviceZones = {},
     scopeLabels = {},
     limit = 3
   } = {}) {
     if (!snapshotIndex) return '';
     const lines = [];
+    const headerParts = [];
+    if (scopeLabels?.tenant) headerParts.push(`tenant: ${scopeLabels.tenant}`);
+    if (scopeLabels?.building) headerParts.push(`building: ${scopeLabels.building}`);
+    const floorSet = new Set();
+    (selectionFloors || []).forEach((f) => { if (f) floorSet.add(String(f)); });
+    if (scopeLabels?.floor) floorSet.add(String(scopeLabels.floor));
+    if (floorSet.size) headerParts.push(`floors: ${Array.from(floorSet).join(', ')}`);
+    if (selectionZones?.length) {
+      const zoneList = selectionZones.slice(0, 6).join(', ');
+      headerParts.push(`zones: ${zoneList}${selectionZones.length > 6 ? '…' : ''}`);
+    }
     const seenZones = new Set();
     const pushZone = (zoneRecord) => {
       if (!zoneRecord || !zoneRecord.id || seenZones.has(zoneRecord.id)) return;
@@ -533,6 +560,9 @@ const extractFieldValue = (row, fieldOrList) => {
       }
     }
     const sections = [];
+    if (headerParts.length) {
+      sections.push(`Scope focus → ${headerParts.join(' · ')}`);
+    }
     if (trimmedZones.length) {
       sections.push('Scope snapshot:');
       sections.push(...trimmedZones);
@@ -550,6 +580,7 @@ const extractFieldValue = (row, fieldOrList) => {
   let currentScopeContext = {
     selectionRooms: [],
     selectionZones: [],
+    selectionFloors: [],
     scopeDeviceZones: {},
     scopeLabels: {},
     range: null
@@ -560,6 +591,15 @@ const extractFieldValue = (row, fieldOrList) => {
       ? { ...scope.scopeDeviceZones }
       : {};
     const rooms = Array.isArray(scope.selectionRooms) ? scope.selectionRooms : [];
+    const looksGenericLabel = (value) => {
+      if (value == null) return true;
+      const str = String(value).trim();
+      if (!str) return true;
+      if (/^(unknown|default)$/i.test(str)) return true;
+      if (/^\d+$/.test(str)) return true;
+      if (/^zone\s*\d+$/i.test(str)) return true;
+      return false;
+    };
     for (const deviceId of rooms) {
       const key = String(deviceId || '').trim();
       if (!key || source[key]) continue;
@@ -568,6 +608,16 @@ const extractFieldValue = (row, fieldOrList) => {
         source[key] = meta.zoneName;
       } else if (meta?.name) {
         source[key] = meta.name;
+      }
+    }
+    for (const [deviceId, label] of Object.entries(source)) {
+      const needsHydration = looksGenericLabel(label);
+      if (!needsHydration) continue;
+      const meta = lookupDeviceHierarchy(deviceId);
+      if (meta?.zoneName) {
+        source[deviceId] = meta.zoneName;
+      } else if (meta?.name) {
+        source[deviceId] = meta.name;
       }
     }
     return source;
@@ -617,6 +667,7 @@ const extractFieldValue = (row, fieldOrList) => {
     currentScopeContext = {
       selectionRooms: Array.isArray(ctx.selectionRooms) ? [...ctx.selectionRooms] : [],
       selectionZones: Array.isArray(ctx.selectionZones) ? [...ctx.selectionZones] : [],
+      selectionFloors: Array.isArray(ctx.selectionFloors) ? [...ctx.selectionFloors] : [],
       scopeDeviceZones: hydrateScopeDeviceZones(ctx),
       scopeLabels: ctx.scopeLabels && typeof ctx.scopeLabels === 'object' ? { ...ctx.scopeLabels } : {},
       range: ctx.range && typeof ctx.range === 'object' ? { ...ctx.range } : null
@@ -832,6 +883,13 @@ const extractFieldValue = (row, fieldOrList) => {
           if (typeof clone[key] === 'string') {
             clone[key] = normalizeFieldBinding(clone[key], clone.room || args.room || originalRoom);
           }
+        }
+        if (!clone.name) {
+          clone.name = friendlySeriesLabel(
+            clone.room || args.room || originalRoom,
+            clone.field || args.field || '',
+            entry?.room || entry?.name || originalRoom
+          );
         }
         return clone;
       });
@@ -1329,6 +1387,15 @@ const extractFieldValue = (row, fieldOrList) => {
     if (entry.zoneName) return `${entry.zoneName} — ${name}`;
     if (entry.buildingName) return `${entry.buildingName} — ${name}`;
     return name;
+  }
+
+  function friendlySeriesLabel(deviceId, field = '', fallback = null) {
+    const base = deviceFriendlyName(deviceId);
+    const metric = field ? humanizeMetricName(field) : '';
+    if (metric && base) return `${base} (${metric})`;
+    if (base) return base;
+    if (metric) return metric;
+    return fallback || deviceId || 'unknown';
   }
 
   function normalizeFieldName(field) {
@@ -8828,6 +8895,7 @@ function parseFieldsFromQuestion(question, availableSets) {
     const scopeSnapshotSummary = buildScopeSnapshotContextSummary({
       selectionRooms,
       selectionZones,
+      selectionFloors,
       scopeDeviceZones,
       scopeLabels
     });
@@ -8843,6 +8911,15 @@ function parseFieldsFromQuestion(question, availableSets) {
       _retrievedDocs: retrieved
     };
     if (scopeSnapshotSummary) ctx.scopeSnapshot = scopeSnapshotSummary;
+    const scopeHeaderLine = formatScopeHeaderLine(scopeLabels, selectionFloors, selectionZones);
+    const applyScopeHeader = (text) => {
+      if (!scopeHeaderLine) return text;
+      const base = typeof text === 'string' ? text.trim() : '';
+      if (!base) return scopeHeaderLine;
+      const normalizedHeader = scopeHeaderLine.toLowerCase();
+      if (base.toLowerCase().includes(normalizedHeader)) return text;
+      return `${scopeHeaderLine}\n\n${base}`;
+    };
     return ctx;
   }
 	
@@ -9058,7 +9135,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       fallbackRoom: room
     });
     rr = telemetryAlignment.range;
-    setScopeContext({ selectionRooms, selectionZones, scopeDeviceZones, scopeLabels, range: rr });
+    setScopeContext({ selectionRooms, selectionZones, selectionFloors, scopeDeviceZones, scopeLabels, range: rr });
     const adaptationNotes = [];
     if (telemetryAlignment.changed) {
       adaptationNotes.push(`Adjusted time window to available telemetry (${describeRangeWindow(rr)}).`);
@@ -9420,6 +9497,78 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       done: !!step.done,
       note: step.note || null
     }));
+
+    const findTraceEntryForPlanStep = (stepRef) => {
+      if (!stepRef) return null;
+      const key = canonicalPlanStepId(stepRef);
+      if (!key) return null;
+      for (let i = trace.length - 1; i >= 0; i -= 1) {
+        const entry = trace[i];
+        if (!entry || !entry.planStepId) continue;
+        const entryKey = canonicalPlanStepId(entry.planStepId);
+        if (entryKey && entryKey === key) return entry;
+      }
+      return null;
+    };
+
+    const chartFromSupportingData = (items = []) => {
+      if (!Array.isArray(items) || !items.length) return null;
+      const series = [];
+      let chartType = null;
+      let chartTitle = null;
+      let axisType = null;
+      let yLabel = null;
+      for (const item of items) {
+        if (!item) continue;
+        chartType = chartType || item.chartType || 'line';
+        chartTitle = chartTitle || item.title || item.name || 'Supporting Data';
+        const mappings = item.mappings || {};
+        if (!axisType) axisType = mappings.x ? (mappings.x === 'ts' ? 'datetime' : 'linear') : 'datetime';
+        if (!yLabel && mappings.yLabel) yLabel = mappings.yLabel;
+        let dataRef = null;
+        if (item.dataRef && typeof item.dataRef === 'object') {
+          dataRef = { ...item.dataRef };
+        } else {
+          const refKey = item.dataRef || item.planStep || item.plan_step || item.step;
+          if (refKey) {
+            const entry = findTraceEntryForPlanStep(refKey);
+            if (entry) {
+              const args = entry.args || {};
+              const inferredY = mappings.y || args.field || (Array.isArray(args.fields) ? args.fields[0] : null);
+              dataRef = {
+                tool: entry.tool,
+                room: args.room || null,
+                table: args.table || args.table1 || args.table2 || null,
+                fields: args.fields,
+                xField: mappings.x || 'ts',
+                yField: inferredY || 'value'
+              };
+            }
+          }
+        }
+        if (!dataRef && typeof item.tool === 'string') {
+          dataRef = {
+            tool: resolveToolName(item.tool),
+            xField: mappings.x || 'ts',
+            yField: mappings.y || 'value'
+          };
+        }
+        if (!dataRef || !dataRef.tool) continue;
+        if (!dataRef.xField) dataRef.xField = 'ts';
+        if (!dataRef.yField) dataRef.yField = 'value';
+        const name = item.name || item.title || `Series ${series.length + 1}`;
+        series.push({ name, dataRef });
+      }
+      if (!series.length) return null;
+      const chart = {
+        chart: { type: chartType || 'line' },
+        title: { text: chartTitle || 'Supporting Data' },
+        series
+      };
+      if (axisType) chart.xAxis = { type: axisType };
+      if (yLabel) chart.yAxis = { title: { text: yLabel } };
+      return chart;
+    };
 
     const normalizePlanSteps = (rawSteps = []) => {
       const normalized = [];
@@ -10268,10 +10417,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             const summary = Object.fromEntries(
               Object.entries(tables).map(([k, v]) => [k, Object.keys((v||[])[0] || {})])
             );
-            const answer = `Available data for room ${r}: ` + 
+            let answer = `Available data for room ${r}: ` + 
               Object.entries(summary)
                 .map(([t, cols]) => `${t} [${cols.join(', ')}]`)
                 .join('; ');
+            answer = applyScopeHeader(answer);
             const evalMetrics = evaluateQA({ question, answer, retrievedDocs: ctx._retrievedDocs || [] });
             return { 
               message: assistantMessage(answer), 
@@ -10283,7 +10433,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         }
         continue STEP_LOOP;
         
-      } else if (obj.action === 'final' || obj.action === 'finish') {
+      } else if (obj.action === 'final' || obj.action === 'finish' || obj.action === 'finalize') {
         planLoopWarnings = 0;
         log('Finalizing answer. Chart provided?', !!obj.chart);
 
@@ -10314,7 +10464,8 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
                 notes: [`Plan steps ${incompleteSteps.map((s) => s.id).join(', ')} were not executed; summarizing available telemetry instead.`],
                 range: rr
               });
-              const overviewAnswer = enforceOverviewDetails(fallbackAnswer, { range: rr, trace, planStatus });
+              let overviewAnswer = enforceOverviewDetails(fallbackAnswer, { range: rr, trace, planStatus });
+              overviewAnswer = applyScopeHeader(overviewAnswer);
               return {
                 message: assistantMessage(overviewAnswer),
                 chart: autoChart,
@@ -10582,7 +10733,14 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         }
 
         const dataPresent = traceHasData(trace);
-        const llmAnswer = typeof obj.answer === 'string' ? obj.answer.trim() : '';
+        if (!obj.chart && Array.isArray(obj.supportingData) && obj.supportingData.length) {
+          const supportChart = chartFromSupportingData(obj.supportingData);
+          if (supportChart) obj.chart = supportChart;
+        }
+
+        const baseAnswer = typeof obj.answer === 'string' ? obj.answer.trim() : '';
+        const summaryAnswer = typeof obj.summary === 'string' ? obj.summary.trim() : '';
+        const llmAnswer = baseAnswer || summaryAnswer;
         let finalAnswer = llmAnswer && !isPlaceholderAnswer(llmAnswer)
           ? llmAnswer
           : buildDefaultAnswer({
@@ -10652,6 +10810,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           }
         }
         finalAnswer = enforceOverviewDetails(finalAnswer, { range: rr, trace, planStatus });
+        finalAnswer = applyScopeHeader(finalAnswer);
 
         try {
           const evalMetrics = evaluateQA({ question, answer: finalAnswer, retrievedDocs: ctx._retrievedDocs || [] });
@@ -10730,10 +10889,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             finalAnswer += ' ' + adaptationNotes.join(' ');
           }
         }
-        if (!traceHasData(trace)) {
-          finalAnswer = 'No telemetry data was available for the selected scope and time window; adjust the range or choose a different scope.';
-        }
-        finalAnswer = enforceOverviewDetails(finalAnswer, { range: rr, trace, planStatus });
+      if (!traceHasData(trace)) {
+        finalAnswer = 'No telemetry data was available for the selected scope and time window; adjust the range or choose a different scope.';
+      }
+      finalAnswer = enforceOverviewDetails(finalAnswer, { range: rr, trace, planStatus });
+      finalAnswer = applyScopeHeader(finalAnswer);
         let finalChart = null;
         const baseChartRequested = questionRequiresChart(question);
         const chartNeeded = baseChartRequested || needsRoomComparison || requireRoomRanking || histogramRequested || heatmapRequested;
@@ -10748,11 +10908,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             ensureChartData(finalChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
           }
         }
-        return {
-          message: assistantMessage(finalAnswer),
-          chart: finalChart,
-          trace
-        };
+      return {
+        message: assistantMessage(finalAnswer),
+        chart: finalChart,
+        trace
+      };
       } else {
         // Unknown → continue
         log('Unknown action from LLM:', obj.action);
@@ -10806,7 +10966,8 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           notes: adaptationNotes,
           range
         });
-        const overviewAnswer = enforceOverviewDetails(answer, { range: rr, trace, planStatus });
+        let overviewAnswer = enforceOverviewDetails(answer, { range: rr, trace, planStatus });
+        overviewAnswer = applyScopeHeader(overviewAnswer);
         return {
           message: assistantMessage(overviewAnswer),
           chart: fallbackChart,
@@ -10851,6 +11012,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           }
         }
         safeAnswer = enforceOverviewDetails(safeAnswer, { range: rr, trace, planStatus });
+        safeAnswer = applyScopeHeader(safeAnswer);
         return { message: assistantMessage(safeAnswer), chart: autoChart, trace };
       }
     }
@@ -10897,6 +11059,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
     }
 
     finalFallback = enforceOverviewDetails(finalFallback, { range: rr, trace, planStatus });
+    finalFallback = applyScopeHeader(finalFallback);
 
     return { 
       message: assistantMessage(finalFallback), 
