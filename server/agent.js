@@ -8976,7 +8976,26 @@ function parseFieldsFromQuestion(question, availableSets) {
       timeHints: routing.timeHints
     };
 
-    const hybridHits = (ctx._retrievedDocs && ctx._retrievedDocs.length)
+    const ctx = await buildContextSnippet(
+      question,
+      room && room !== 'ALL' ? room : null,
+      range,
+      selectionRooms,
+      {
+        selectionZones,
+        scopeDeviceZones,
+        scopeLabels,
+        retrievalHints: {
+          preferCategories,
+          metrics: routing.metrics,
+          timeHints: routing.timeHints,
+          scope: retrievalScope,
+          k: routing?.pipeline?.retrieval?.k || 6
+        }
+      }
+    );
+
+    const hybridHits = (ctx && ctx._retrievedDocs && ctx._retrievedDocs.length)
       ? ctx._retrievedDocs
       : await hybridRetrieve({
           query: question,
@@ -9028,24 +9047,6 @@ function parseFieldsFromQuestion(question, availableSets) {
       return null;
     }
 
-    const ctx = await buildContextSnippet(
-      question,
-      room && room !== 'ALL' ? room : null,
-      range,
-      selectionRooms,
-      {
-        selectionZones,
-        scopeDeviceZones,
-        scopeLabels,
-        retrievalHints: {
-          preferCategories,
-          metrics: routing.metrics,
-          timeHints: routing.timeHints,
-          scope: retrievalScope,
-          k: routing?.pipeline?.retrieval?.k || 6
-        }
-      }
-    );
     log('Question:', '<redacted>');
     if (DEBUG) log('Context snippet schema keys:', Object.keys(ctx.schema));
 
