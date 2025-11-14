@@ -76,9 +76,29 @@ ensure_local_deps() {
   ensure_python_deps
 }
 
+ensure_dirs() {
+  local dirs=("$LOG_DIR" "$ROOT/data" "$ROOT/CSVex_s3" "$ROOT/CSVex_s3/weather_buildings")
+  for dir in "${dirs[@]}"; do
+    if [[ -d "$dir" ]]; then
+      if [[ ! -w "$dir" ]]; then
+        local owner
+        owner="$(stat -c '%U:%G' "$dir" 2>/dev/null || echo 'unknown')"
+        cat <<EOF >&2
+[dev] Directory $dir is not writable (owner $owner).
+[dev] Fix with: sudo chown -R $(id -un):$(id -gn) "$dir"
+EOF
+        exit 1
+      fi
+    else
+      mkdir -p "$dir"
+    fi
+  done
+}
+
 maybe_sync_s3() {
   local should_sync="${S3_MIRROR_ON_START:-0}"
   if [[ "$should_sync" == "1" ]]; then
+    ensure_dirs
     echo "[dev] Mirroring telemetry from S3 (set S3_MIRROR_ON_START=0 to skip)..."
     if ! sync_s3; then
       echo "[dev] Warning: S3 mirror failed; continuing with existing CSV cache." >&2
@@ -108,6 +128,7 @@ run_npm() {
 
 start_app() {
   ensure_node_deps
+  ensure_dirs
   if [[ -f "$PID_FILE" ]]; then
     local existing_pid
     existing_pid="$(cat "$PID_FILE")"
@@ -167,6 +188,7 @@ tail_logs() {
 }
 
 sync_s3() {
+  ensure_dirs
   ensure_node_deps
   run_npm run sync:s3
 }
@@ -203,7 +225,10 @@ docker_build() {
 }
 
 docker_up() {
-  mkdir -p "$ROOT/data" "$ROOT/CSVex_s3"
+  ensure_dirs
+  if [[ "${AUTO_DOCKER_BUILD:-0}" == "1" ]]; then
+    docker_build
+  fi
   maybe_sync_s3
   maybe_index_chroma
   docker run -d \
@@ -249,6 +274,7 @@ Data & tests:
   pipeline         Run full regression pipeline
 
 Docker helpers:
+  up               Convenience alias for docker-up (honors AUTO_DOCKER_BUILD)
   docker-build     Build the Docker image
   docker-up        Run the Docker container (requires built image)
   docker-down      Stop & remove the container
@@ -260,6 +286,7 @@ Environment:
   INDEX_CHROMA_ON_START=0    Skip automatic `npm run index:chroma` before start/docker-up
   RUN_CHROMA_INDEX=1         Enable Docker build-time indexing (set CHROMA_BUILD_URL/CHROMA_URL accordingly)
   S3_MIRROR_ON_START=1       Mirror telemetry from S3 via `npm run sync:s3` before start/docker-up
+  AUTO_DOCKER_BUILD=1        Rebuild the Docker image automatically before docker-up
   PYTHON_VENV=/path/to/.venv  Override the default local venv location used for Python deps
   SKIP_PY_DEPS=1             Skip automatic Python dependency installation
 EOF
@@ -276,6 +303,7 @@ case "$cmd" in
   index-chroma) index_chroma ;;
   test) run_tests ;;
   pipeline) run_pipeline ;;
+  up) docker_up ;;
   docker-build) docker_build ;;
   docker-up) docker_up ;;
   docker-down) docker_down ;;

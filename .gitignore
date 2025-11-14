@@ -15,6 +15,8 @@ data/weather_buildings/
 data/tests/
 data/traces/
 data/pipeline_tmp/
+.devcache/
+.devserver.pid
 
 # Logs and caches
 *.log
