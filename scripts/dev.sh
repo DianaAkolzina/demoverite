@@ -49,6 +49,62 @@ load_env_file() {
 
 load_env_file "$ROOT/.env"
 
+DOCKER_COMPOSE_CMD=()
+if docker compose version >/dev/null 2>&1; then
+  DOCKER_COMPOSE_CMD=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+  DOCKER_COMPOSE_CMD=(docker-compose)
+fi
+
+ensure_container_running() {
+  local name="$1"
+  if ! command -v docker >/dev/null 2>&1; then return 1; fi
+  if docker ps --filter "name=^/${name}$" --format '{{.Names}}' | grep -Fxq "$name"; then
+    return 0
+  fi
+  if docker ps -a --filter "name=^/${name}$" --format '{{.Names}}' | grep -Fxq "$name"; then
+    docker start "$name"
+    return $?
+  fi
+  if [[ -f "$ROOT/docker-compose.yml" && ${#DOCKER_COMPOSE_CMD[@]} -gt 0 ]]; then
+    echo "[dev] Starting $name via docker compose..."
+    (cd "$ROOT" && "${DOCKER_COMPOSE_CMD[@]}" up -d "$name")
+    return $?
+  fi
+  return 1
+}
+
+maybe_start_local_chroma() {
+  local target="${CHROMA_URL:-}"
+  local need_local=0
+  if [[ -z "$target" ]]; then
+    need_local=1
+  elif [[ "$target" =~ localhost ]] || [[ "$target" =~ 127\.0\.0\.1 ]] || [[ "$target" =~ ://chroma(:|/|$) ]]; then
+    need_local=1
+  fi
+  if [[ "$need_local" -eq 1 ]]; then
+    if ! ensure_container_running "chroma"; then
+      echo "[dev] Warning: Unable to start 'chroma' container automatically. Start it with 'docker compose up -d chroma'." >&2
+    fi
+  fi
+}
+
+resolve_docker_network() {
+  local explicit="${DEV_DOCKER_NETWORK:-${DOCKER_NETWORK:-}}"
+  if [[ -n "$explicit" ]]; then
+    echo "$explicit"
+    return
+  fi
+  if ! command -v docker >/dev/null 2>&1; then
+    return
+  fi
+  local project="${COMPOSE_PROJECT_NAME:-$(basename "$ROOT")}"
+  local candidate="${project}_default"
+  if docker network ls --format '{{.Name}}' | grep -Fxq "$candidate"; then
+    echo "$candidate"
+  fi
+}
+
 hash_file() {
   local target="$1"
   if [[ -f "$target" ]]; then
@@ -148,7 +204,7 @@ maybe_sync_s3() {
 maybe_index_chroma() {
   local should_index="${INDEX_CHROMA_ON_START:-1}"
   if [[ "$should_index" == "1" ]]; then
-    ensure_local_deps
+    maybe_start_local_chroma
     echo "[dev] Indexing Chroma before start (set INDEX_CHROMA_ON_START=0 to skip)..."
     if ! index_chroma; then
       echo "[dev] Warning: Chroma indexing failed; continuing anyway." >&2
@@ -176,6 +232,7 @@ start_app() {
   fi
   mkdir -p "$LOG_DIR"
   echo "Starting Node server..."
+  maybe_start_local_chroma
   maybe_sync_s3
   maybe_index_chroma
   (
@@ -237,7 +294,18 @@ populate_neo4j() {
 
 index_chroma() {
   ensure_local_deps
-  run_npm run index:chroma
+  local host_override="${CHROMA_INDEX_URL:-${HOST_CHROMA_URL:-}}"
+  if [[ -z "$host_override" ]]; then
+    if [[ "${CHROMA_URL:-}" =~ ://chroma(:|/|$) ]]; then
+      host_override="http://localhost:8000"
+    fi
+  fi
+  if [[ -n "$host_override" ]]; then
+    echo "[dev] Indexing Chroma via host override: $host_override"
+    (cd "$ROOT" && CHROMA_URL="$host_override" npm run index:chroma)
+  else
+    run_npm run index:chroma
+  fi
 }
 
 run_tests() {
@@ -263,19 +331,26 @@ docker_build() {
 
 docker_up() {
   ensure_dirs
+  maybe_start_local_chroma
   if [[ "${AUTO_DOCKER_BUILD:-0}" == "1" ]]; then
     docker_build
   fi
   maybe_sync_s3
   maybe_index_chroma
-  docker run -d \
-    --name "$CONTAINER_NAME" \
-    -p "${PORT:-3000}:3000" \
-    --env-file "$ROOT/.env" \
-    -v "$ROOT/data:/app/data" \
-    -v "$ROOT/CSVex_s3:/app/CSVex_s3" \
-    -v "$ROOT/knowledge:/app/knowledge:ro" \
-    "$IMAGE_NAME"
+  local docker_net="$(resolve_docker_network)"
+  local docker_cmd=(docker run -d
+    --name "$CONTAINER_NAME"
+    -p "${PORT:-3000}:3000"
+    --env-file "$ROOT/.env"
+    -v "$ROOT/data:/app/data"
+    -v "$ROOT/CSVex_s3:/app/CSVex_s3"
+    -v "$ROOT/knowledge:/app/knowledge:ro")
+  if [[ -n "$docker_net" ]]; then
+    echo "[dev] Using Docker network: $docker_net"
+    docker_cmd+=(--network "$docker_net")
+  fi
+  docker_cmd+=("$IMAGE_NAME")
+  "${docker_cmd[@]}"
 }
 
 docker_down() {
