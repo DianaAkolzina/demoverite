@@ -1,5 +1,5 @@
 {
-  "generatedAt": 1763001698789,
+  "generatedAt": 1763137071754,
   "tenant": "ARNE",
   "nodes": [
     {
@@ -47,7 +47,7 @@
       "y": 220
     },
     {
-      "id": "Zone:Side Entrance:Arne Retail - Liverpool",
+      "id": "Zone:186:77",
       "label": "Zone",
       "name": "Side Entrance",
       "nodeType": "Zone",
@@ -57,7 +57,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Main Entrance:Arne Retail - Liverpool",
+      "id": "Zone:187:77",
       "label": "Zone",
       "name": "Main Entrance",
       "nodeType": "Zone",
@@ -94,28 +94,28 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Side Entrance:Arne Retail - Liverpool",
+      "source": "Zone:186:77",
       "target": "Building:Arne Retail - Liverpool",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Side Entrance:Arne Retail - Liverpool",
+      "source": "Zone:186:77",
       "target": "Floor:119:77",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Main Entrance:Arne Retail - Liverpool",
+      "source": "Zone:187:77",
       "target": "Building:Arne Retail - Liverpool",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Main Entrance:Arne Retail - Liverpool",
+      "source": "Zone:187:77",
       "target": "Floor:119:77",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
       "source": "Device:40",
-      "target": "Zone:Side Entrance:Arne Retail - Liverpool",
+      "target": "Zone:186:77",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -130,7 +130,7 @@
     },
     {
       "source": "Device:41",
-      "target": "Zone:Main Entrance:Arne Retail - Liverpool",
+      "target": "Zone:187:77",
       "rel": "LOCATED_IN_ZONE"
     },
     {

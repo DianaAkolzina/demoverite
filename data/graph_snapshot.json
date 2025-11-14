@@ -1,5 +1,5 @@
 {
-  "generatedAt": 1763001697387,
+  "generatedAt": 1763137070354,
   "nodes": [
     {
       "id": "Building:Pall Mall",
@@ -148,7 +148,7 @@
       "y": 220
     },
     {
-      "id": "Zone:Terrace:Pall Mall",
+      "id": "Zone:1:1",
       "label": "Zone",
       "name": "Terrace",
       "nodeType": "Zone",
@@ -158,7 +158,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Lounge :Pall Mall",
+      "id": "Zone:2:1",
       "label": "Zone",
       "name": "Lounge ",
       "nodeType": "Zone",
@@ -168,7 +168,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Comms:Pall Mall",
+      "id": "Zone:3:1",
       "label": "Zone",
       "name": "Comms",
       "nodeType": "Zone",
@@ -178,7 +178,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Gym :Pall Mall",
+      "id": "Zone:4:1",
       "label": "Zone",
       "name": "Gym ",
       "nodeType": "Zone",
@@ -188,7 +188,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Reception:Pall Mall",
+      "id": "Zone:5:1",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -344,7 +344,7 @@
       "y": 220
     },
     {
-      "id": "Zone:Gym:Cornerblock",
+      "id": "Zone:6:2",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -354,7 +354,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Hospitality:Cornerblock",
+      "id": "Zone:7:2",
       "label": "Zone",
       "name": "Hospitality",
       "nodeType": "Zone",
@@ -364,7 +364,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Roofbar:Cornerblock",
+      "id": "Zone:8:2",
       "label": "Zone",
       "name": "Roofbar",
       "nodeType": "Zone",
@@ -374,7 +374,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Reception:Cornerblock",
+      "id": "Zone:9:2",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -428,7 +428,7 @@
       "y": 220
     },
     {
-      "id": "Zone:Lounge:Booths Park 1",
+      "id": "Zone:10:3",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -516,7 +516,7 @@
       "y": 220
     },
     {
-      "id": "Zone:Gym + Showers:Mclaren Building",
+      "id": "Zone:11:4",
       "label": "Zone",
       "name": "Gym + Showers",
       "nodeType": "Zone",
@@ -526,7 +526,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Reception + Lounge:Mclaren Building",
+      "id": "Zone:12:4",
       "label": "Zone",
       "name": "Reception + Lounge",
       "nodeType": "Zone",
@@ -580,7 +580,7 @@
       "y": 880
     },
     {
-      "id": "Zone:Shower & Vanity:Landmark House",
+      "id": "Zone:13:5",
       "label": "Zone",
       "name": "Shower & Vanity",
       "nodeType": "Zone",
@@ -590,7 +590,7 @@
       "y": 1100
     },
     {
-      "id": "Zone:Comms Room:Landmark House",
+      "id": "Zone:14:5",
       "label": "Zone",
       "name": "Comms Room",
       "nodeType": "Zone",
@@ -600,7 +600,7 @@
       "y": 1100
     },
     {
-      "id": "Zone:Reception + Lounge:Landmark House",
+      "id": "Zone:15:5",
       "label": "Zone",
       "name": "Reception + Lounge",
       "nodeType": "Zone",
@@ -610,7 +610,7 @@
       "y": 1100
     },
     {
-      "id": "Zone:Gym:Landmark House",
+      "id": "Zone:16:5",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -698,7 +698,7 @@
       "y": 880
     },
     {
-      "id": "Zone:Reception:Centurion House",
+      "id": "Zone:17:6",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -708,7 +708,7 @@
       "y": 1100
     },
     {
-      "id": "Zone:Lounge:Centurion House",
+      "id": "Zone:18:6",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -762,7 +762,7 @@
       "y": 880
     },
     {
-      "id": "Zone:Reception:Cotton House - Manchester",
+      "id": "Zone:19:7",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -884,7 +884,7 @@
       "y": 880
     },
     {
-      "id": "Zone:Changing Room + Bike Store:West Village - Leeds",
+      "id": "Zone:20:8",
       "label": "Zone",
       "name": "Changing Room + Bike Store",
       "nodeType": "Zone",
@@ -894,7 +894,7 @@
       "y": 1100
     },
     {
-      "id": "Zone:Middle Lounge:West Village - Leeds",
+      "id": "Zone:21:8",
       "label": "Zone",
       "name": "Middle Lounge",
       "nodeType": "Zone",
@@ -904,7 +904,7 @@
       "y": 1100
     },
     {
-      "id": "Zone:Reception + Cafe:West Village - Leeds",
+      "id": "Zone:22:8",
       "label": "Zone",
       "name": "Reception + Cafe",
       "nodeType": "Zone",
@@ -914,7 +914,7 @@
       "y": 1100
     },
     {
-      "id": "Zone:Lower Lounge:West Village - Leeds",
+      "id": "Zone:23:8",
       "label": "Zone",
       "name": "Lower Lounge",
       "nodeType": "Zone",
@@ -924,7 +924,7 @@
       "y": 1100
     },
     {
-      "id": "Zone:Studio:West Village - Leeds",
+      "id": "Zone:24:8",
       "label": "Zone",
       "name": "Studio",
       "nodeType": "Zone",
@@ -934,7 +934,7 @@
       "y": 1100
     },
     {
-      "id": "Zone:Service Space:West Village - Leeds",
+      "id": "Zone:25:8",
       "label": "Zone",
       "name": "Service Space",
       "nodeType": "Zone",
@@ -944,7 +944,7 @@
       "y": 1100
     },
     {
-      "id": "Zone:Comms Room:West Village - Leeds",
+      "id": "Zone:26:8",
       "label": "Zone",
       "name": "Comms Room",
       "nodeType": "Zone",
@@ -998,7 +998,7 @@
       "y": 1540
     },
     {
-      "id": "Zone:Reception:MSP - Bright Building",
+      "id": "Zone:27:9",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -1120,7 +1120,7 @@
       "y": 1540
     },
     {
-      "id": "Zone:Kitchen:Blackfriars",
+      "id": "Zone:28:10",
       "label": "Zone",
       "name": "Kitchen",
       "nodeType": "Zone",
@@ -1130,7 +1130,7 @@
       "y": 1760
     },
     {
-      "id": "Zone:Lounge + Cafe:Blackfriars",
+      "id": "Zone:29:10",
       "label": "Zone",
       "name": "Lounge + Cafe",
       "nodeType": "Zone",
@@ -1140,7 +1140,7 @@
       "y": 1760
     },
     {
-      "id": "Zone:Ground Floor - Comms Room:Blackfriars",
+      "id": "Zone:30:10",
       "label": "Zone",
       "name": "Ground Floor - Comms Room",
       "nodeType": "Zone",
@@ -1150,7 +1150,7 @@
       "y": 1760
     },
     {
-      "id": "Zone:Gym:Blackfriars",
+      "id": "Zone:31:10",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -1160,7 +1160,7 @@
       "y": 1760
     },
     {
-      "id": "Zone:Basement - Comms Room:Blackfriars",
+      "id": "Zone:32:10",
       "label": "Zone",
       "name": "Basement - Comms Room",
       "nodeType": "Zone",
@@ -1170,7 +1170,7 @@
       "y": 1760
     },
     {
-      "id": "Zone:Lockers + Common Space:Blackfriars",
+      "id": "Zone:33:10",
       "label": "Zone",
       "name": "Lockers + Common Space",
       "nodeType": "Zone",
@@ -1180,7 +1180,7 @@
       "y": 1760
     },
     {
-      "id": "Zone:Roof - Roof Bar:Blackfriars",
+      "id": "Zone:34:10",
       "label": "Zone",
       "name": "Roof - Roof Bar",
       "nodeType": "Zone",
@@ -1234,7 +1234,7 @@
       "y": 1540
     },
     {
-      "id": "Zone:Reception:Lancastrian",
+      "id": "Zone:35:11",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -1322,7 +1322,7 @@
       "y": 1540
     },
     {
-      "id": "Zone:Cafe:Renold",
+      "id": "Zone:36:12",
       "label": "Zone",
       "name": "Cafe",
       "nodeType": "Zone",
@@ -1332,7 +1332,7 @@
       "y": 1760
     },
     {
-      "id": "Zone:Entrance:Renold",
+      "id": "Zone:37:12",
       "label": "Zone",
       "name": "Entrance",
       "nodeType": "Zone",
@@ -1342,7 +1342,7 @@
       "y": 1760
     },
     {
-      "id": "Zone:Comms Room:Renold",
+      "id": "Zone:38:12",
       "label": "Zone",
       "name": "Comms Room",
       "nodeType": "Zone",
@@ -1396,7 +1396,7 @@
       "y": 2200
     },
     {
-      "id": "Zone:Reception:Alderley Park - Block 22",
+      "id": "Zone:39:13",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -1450,7 +1450,7 @@
       "y": 2200
     },
     {
-      "id": "Zone:Lounge:Trafford House",
+      "id": "Zone:40:14",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -1460,7 +1460,7 @@
       "y": 2420
     },
     {
-      "id": "Zone:Reception:Trafford House",
+      "id": "Zone:41:14",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -1514,7 +1514,7 @@
       "y": 2200
     },
     {
-      "id": "Zone:Restaurant:Alderley Park - Block 27",
+      "id": "Zone:42:15",
       "label": "Zone",
       "name": "Restaurant",
       "nodeType": "Zone",
@@ -1568,7 +1568,7 @@
       "y": 2200
     },
     {
-      "id": "Zone:Reception:5 New York Street",
+      "id": "Zone:43:16",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -1622,7 +1622,7 @@
       "y": 2860
     },
     {
-      "id": "Zone:Reception:CityLabs 4.0",
+      "id": "Zone:44:17",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -1676,7 +1676,7 @@
       "y": 2860
     },
     {
-      "id": "Zone:Reception:Manchester One",
+      "id": "Zone:45:18",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -1730,7 +1730,7 @@
       "y": 2860
     },
     {
-      "id": "Zone:Reception:Cloister",
+      "id": "Zone:46:19",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -1784,7 +1784,7 @@
       "y": 2860
     },
     {
-      "id": "Zone:Lounge:Booths Park 3",
+      "id": "Zone:47:20",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -1872,7 +1872,7 @@
       "y": 3520
     },
     {
-      "id": "Zone:Reception, Lounge and Vanity Area:Bond",
+      "id": "Zone:48:21",
       "label": "Zone",
       "name": "Reception, Lounge and Vanity Area",
       "nodeType": "Zone",
@@ -1882,7 +1882,7 @@
       "y": 3740
     },
     {
-      "id": "Zone:Gym:Bond",
+      "id": "Zone:49:21",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -1936,7 +1936,7 @@
       "y": 3520
     },
     {
-      "id": "Zone:Reception:Heron House",
+      "id": "Zone:50:22",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -1990,7 +1990,7 @@
       "y": 3520
     },
     {
-      "id": "Zone:Reception:Turing House",
+      "id": "Zone:51:23",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -2044,7 +2044,7 @@
       "y": 3520
     },
     {
-      "id": "Zone:Reception:Innovation Brimingham - iCentrum",
+      "id": "Zone:52:24",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -2132,13 +2132,23 @@
       "y": 4180
     },
     {
-      "id": "Zone:Reception:South Central",
+      "id": "Zone:53:25",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
       "roomId": "53",
       "zoneType": null,
       "x": -90,
+      "y": 4400
+    },
+    {
+      "id": "Zone:54:25",
+      "label": "Zone",
+      "name": "Reception",
+      "nodeType": "Zone",
+      "roomId": "54",
+      "zoneType": null,
+      "x": 90,
       "y": 4400
     },
     {
@@ -2186,7 +2196,7 @@
       "y": 4180
     },
     {
-      "id": "Zone:Reception:Faulkner House",
+      "id": "Zone:55:26",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -2240,7 +2250,7 @@
       "y": 4180
     },
     {
-      "id": "Zone:Reception:Oxford House",
+      "id": "Zone:56:27",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -2294,7 +2304,7 @@
       "y": 4180
     },
     {
-      "id": "Zone:Reception:Innovation Birmingham - Faraday Wharf",
+      "id": "Zone:57:28",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -2416,7 +2426,7 @@
       "y": 4840
     },
     {
-      "id": "Zone:Reception:Circle Square No 1",
+      "id": "Zone:58:29",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -2426,7 +2436,7 @@
       "y": 5060
     },
     {
-      "id": "Zone:Nomad Lounge:Circle Square No 1",
+      "id": "Zone:59:29",
       "label": "Zone",
       "name": "Nomad Lounge",
       "nodeType": "Zone",
@@ -2436,7 +2446,7 @@
       "y": 5060
     },
     {
-      "id": "Zone:Gym:Circle Square No 1",
+      "id": "Zone:60:29",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -2592,7 +2602,7 @@
       "y": 4840
     },
     {
-      "id": "Zone:2nd Floor Lounge:Union",
+      "id": "Zone:61:30",
       "label": "Zone",
       "name": "2nd Floor Lounge",
       "nodeType": "Zone",
@@ -2602,7 +2612,7 @@
       "y": 5060
     },
     {
-      "id": "Zone:Main Entrance:Union",
+      "id": "Zone:62:30",
       "label": "Zone",
       "name": "Main Entrance",
       "nodeType": "Zone",
@@ -2612,7 +2622,7 @@
       "y": 5060
     },
     {
-      "id": "Zone:Vanity:Union",
+      "id": "Zone:63:30",
       "label": "Zone",
       "name": "Vanity",
       "nodeType": "Zone",
@@ -2622,7 +2632,7 @@
       "y": 5060
     },
     {
-      "id": "Zone:Gym:Union",
+      "id": "Zone:64:30",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -2632,7 +2642,7 @@
       "y": 5060
     },
     {
-      "id": "Zone:Gym Entrance:Union",
+      "id": "Zone:65:30",
       "label": "Zone",
       "name": "Gym Entrance",
       "nodeType": "Zone",
@@ -2642,7 +2652,7 @@
       "y": 5060
     },
     {
-      "id": "Zone:3rd Floor Lounge:Union",
+      "id": "Zone:66:30",
       "label": "Zone",
       "name": "3rd Floor Lounge",
       "nodeType": "Zone",
@@ -2730,7 +2740,7 @@
       "y": 4840
     },
     {
-      "id": "Zone:Comms:Circle Square No 3",
+      "id": "Zone:67:31",
       "label": "Zone",
       "name": "Comms",
       "nodeType": "Zone",
@@ -2740,7 +2750,7 @@
       "y": 5060
     },
     {
-      "id": "Zone:Terrace:Circle Square No 3",
+      "id": "Zone:68:31",
       "label": "Zone",
       "name": "Terrace",
       "nodeType": "Zone",
@@ -2750,7 +2760,7 @@
       "y": 5060
     },
     {
-      "id": "Zone:Reception:Circle Square No 3",
+      "id": "Zone:69:31",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -2804,7 +2814,7 @@
       "y": 4840
     },
     {
-      "id": "Zone:Reception:Oxford Place",
+      "id": "Zone:70:32",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -2858,7 +2868,7 @@
       "y": 5500
     },
     {
-      "id": "Zone:Reception:Alderley Park - Block 24",
+      "id": "Zone:71:33",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -2912,7 +2922,7 @@
       "y": 5500
     },
     {
-      "id": "Zone:Kitchen:Alderley Park - Block 23",
+      "id": "Zone:72:34",
       "label": "Zone",
       "name": "Kitchen",
       "nodeType": "Zone",
@@ -3034,7 +3044,7 @@
       "y": 5500
     },
     {
-      "id": "Zone:Vanity + Showers:King's House",
+      "id": "Zone:73:35",
       "label": "Zone",
       "name": "Vanity + Showers",
       "nodeType": "Zone",
@@ -3044,7 +3054,7 @@
       "y": 5720
     },
     {
-      "id": "Zone:Gym:King's House",
+      "id": "Zone:74:35",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -3054,7 +3064,7 @@
       "y": 5720
     },
     {
-      "id": "Zone:Loft:King's House",
+      "id": "Zone:75:35",
       "label": "Zone",
       "name": "Loft",
       "nodeType": "Zone",
@@ -3064,7 +3074,7 @@
       "y": 5720
     },
     {
-      "id": "Zone:Reception:King's House",
+      "id": "Zone:76:35",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -3074,7 +3084,7 @@
       "y": 5720
     },
     {
-      "id": "Zone:Comms:King's House",
+      "id": "Zone:77:35",
       "label": "Zone",
       "name": "Comms",
       "nodeType": "Zone",
@@ -3128,7 +3138,7 @@
       "y": 5500
     },
     {
-      "id": "Zone:Reception:100 Wellington St",
+      "id": "Zone:78:36",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -3182,7 +3192,7 @@
       "y": 6160
     },
     {
-      "id": "Zone:Conference-Centre:Alderley Park - Block 28",
+      "id": "Zone:79:37",
       "label": "Zone",
       "name": "Conference-Centre",
       "nodeType": "Zone",
@@ -3270,7 +3280,7 @@
       "y": 6160
     },
     {
-      "id": "Zone:Gym + Studio:Centre City",
+      "id": "Zone:80:38",
       "label": "Zone",
       "name": "Gym + Studio",
       "nodeType": "Zone",
@@ -3280,7 +3290,7 @@
       "y": 6380
     },
     {
-      "id": "Zone:Corridor:Centre City",
+      "id": "Zone:81:38",
       "label": "Zone",
       "name": "Corridor",
       "nodeType": "Zone",
@@ -3290,7 +3300,7 @@
       "y": 6380
     },
     {
-      "id": "Zone:Reception:Centre City",
+      "id": "Zone:82:38",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -3300,7 +3310,7 @@
       "y": 6380
     },
     {
-      "id": "Zone:Lift Lobby:Centre City",
+      "id": "Zone:83:38",
       "label": "Zone",
       "name": "Lift Lobby",
       "nodeType": "Zone",
@@ -3310,7 +3320,7 @@
       "y": 6380
     },
     {
-      "id": "Zone:Atrium:Centre City",
+      "id": "Zone:84:38",
       "label": "Zone",
       "name": "Atrium",
       "nodeType": "Zone",
@@ -3320,7 +3330,7 @@
       "y": 6380
     },
     {
-      "id": "Zone:Comms:Centre City",
+      "id": "Zone:85:38",
       "label": "Zone",
       "name": "Comms",
       "nodeType": "Zone",
@@ -3330,7 +3340,7 @@
       "y": 6380
     },
     {
-      "id": "Zone:Lounge:Centre City",
+      "id": "Zone:86:38",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -3340,7 +3350,7 @@
       "y": 6380
     },
     {
-      "id": "Zone:Co-Working:Centre City",
+      "id": "Zone:87:38",
       "label": "Zone",
       "name": "Co-Working",
       "nodeType": "Zone",
@@ -3394,7 +3404,7 @@
       "y": 6160
     },
     {
-      "id": "Zone:Reception:Alderley Park - Block 23/24/19D",
+      "id": "Zone:88:39",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -3448,7 +3458,7 @@
       "y": 6160
     },
     {
-      "id": "Zone:Reception:Citylabs",
+      "id": "Zone:89:40",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -3502,7 +3512,7 @@
       "y": 6820
     },
     {
-      "id": "Zone:Lounge:Booths Park 5",
+      "id": "Zone:90:41",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -3556,7 +3566,7 @@
       "y": 6820
     },
     {
-      "id": "Zone:Kitchen:Alderley Park - Block 11",
+      "id": "Zone:91:42",
       "label": "Zone",
       "name": "Kitchen",
       "nodeType": "Zone",
@@ -3610,7 +3620,7 @@
       "y": 6820
     },
     {
-      "id": "Zone:Reception:57 Spring Gardens",
+      "id": "Zone:92:43",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -3664,7 +3674,7 @@
       "y": 6820
     },
     {
-      "id": "Zone:Basement - Co-Working + Vanity:Exchange Court",
+      "id": "Zone:93:44",
       "label": "Zone",
       "name": "Basement - Co-Working + Vanity",
       "nodeType": "Zone",
@@ -3752,7 +3762,7 @@
       "y": 7480
     },
     {
-      "id": "Zone:Comms Room:117-119 Portland Street",
+      "id": "Zone:94:45",
       "label": "Zone",
       "name": "Comms Room",
       "nodeType": "Zone",
@@ -3762,7 +3772,7 @@
       "y": 7700
     },
     {
-      "id": "Zone:Gym:117-119 Portland Street",
+      "id": "Zone:95:45",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -3772,7 +3782,7 @@
       "y": 7700
     },
     {
-      "id": "Zone:Showers + Lounge:117-119 Portland Street",
+      "id": "Zone:96:45",
       "label": "Zone",
       "name": "Showers + Lounge",
       "nodeType": "Zone",
@@ -3782,7 +3792,7 @@
       "y": 7700
     },
     {
-      "id": "Zone:Reception:117-119 Portland Street",
+      "id": "Zone:97:45",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -3836,7 +3846,7 @@
       "y": 7480
     },
     {
-      "id": "Zone:Reception:Atria",
+      "id": "Zone:98:46",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -3924,7 +3934,7 @@
       "y": 7480
     },
     {
-      "id": "Zone:Lounge:Station House",
+      "id": "Zone:99:47",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -3934,7 +3944,7 @@
       "y": 7700
     },
     {
-      "id": "Zone:Reception:Station House",
+      "id": "Zone:100:47",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -3988,7 +3998,7 @@
       "y": 7480
     },
     {
-      "id": "Zone:Reception:The Exchange",
+      "id": "Zone:101:48",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -4110,7 +4120,7 @@
       "y": 8140
     },
     {
-      "id": "Zone:Gym:Neo",
+      "id": "Zone:102:49",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -4120,7 +4130,7 @@
       "y": 8360
     },
     {
-      "id": "Zone:Lounge:Neo",
+      "id": "Zone:103:49",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -4130,7 +4140,7 @@
       "y": 8360
     },
     {
-      "id": "Zone:Reception:Neo",
+      "id": "Zone:104:49",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -4184,7 +4194,7 @@
       "y": 8140
     },
     {
-      "id": "Zone:Cafe + Reception:BHIC",
+      "id": "Zone:105:50",
       "label": "Zone",
       "name": "Cafe + Reception",
       "nodeType": "Zone",
@@ -4194,7 +4204,7 @@
       "y": 8360
     },
     {
-      "id": "Zone:Comms Room:BHIC",
+      "id": "Zone:106:50",
       "label": "Zone",
       "name": "Comms Room",
       "nodeType": "Zone",
@@ -4316,7 +4326,7 @@
       "y": 8140
     },
     {
-      "id": "Zone:Nomad Lounge:Circle Square No 2",
+      "id": "Zone:107:51",
       "label": "Zone",
       "name": "Nomad Lounge",
       "nodeType": "Zone",
@@ -4326,13 +4336,23 @@
       "y": 8360
     },
     {
-      "id": "Zone:Reception:Circle Square No 2",
+      "id": "Zone:108:51",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
       "roomId": "108",
       "zoneType": null,
       "x": 720,
+      "y": 8360
+    },
+    {
+      "id": "Zone:109:51",
+      "label": "Zone",
+      "name": "Nomad Lounge",
+      "nodeType": "Zone",
+      "roomId": "109",
+      "zoneType": null,
+      "x": 900,
       "y": 8360
     },
     {
@@ -4414,7 +4434,7 @@
       "y": 8140
     },
     {
-      "id": "Zone:Comms Room:Bloc",
+      "id": "Zone:110:52",
       "label": "Zone",
       "name": "Comms Room",
       "nodeType": "Zone",
@@ -4424,7 +4444,7 @@
       "y": 8360
     },
     {
-      "id": "Zone:Lounge:Bloc",
+      "id": "Zone:111:52",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -4434,33 +4454,43 @@
       "y": 8360
     },
     {
-      "id": "Zone:Reception:Bloc",
+      "id": "Zone:112:52",
+      "label": "Zone",
+      "name": "Lounge",
+      "nodeType": "Zone",
+      "roomId": "112",
+      "zoneType": null,
+      "x": 960,
+      "y": 8360
+    },
+    {
+      "id": "Zone:113:52",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
       "roomId": "113",
       "zoneType": null,
-      "x": 1030,
+      "x": 1100,
       "y": 8360
     },
     {
-      "id": "Zone:Eatery:Bloc",
+      "id": "Zone:114:52",
       "label": "Zone",
       "name": "Eatery",
       "nodeType": "Zone",
       "roomId": "114",
       "zoneType": null,
-      "x": 1170,
+      "x": 1240,
       "y": 8360
     },
     {
-      "id": "Zone:Meeting Lounge:Bloc",
+      "id": "Zone:115:52",
       "label": "Zone",
       "name": "Meeting Lounge",
       "nodeType": "Zone",
       "roomId": "115",
       "zoneType": null,
-      "x": 1310,
+      "x": 1380,
       "y": 8360
     },
     {
@@ -4508,7 +4538,7 @@
       "y": 8800
     },
     {
-      "id": "Zone:Reception:Whitehouse",
+      "id": "Zone:116:53",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -4518,7 +4548,7 @@
       "y": 9020
     },
     {
-      "id": "Zone:Orangery:Whitehouse",
+      "id": "Zone:117:53",
       "label": "Zone",
       "name": "Orangery",
       "nodeType": "Zone",
@@ -4606,13 +4636,23 @@
       "y": 8800
     },
     {
-      "id": "Zone:Lounge:The Plaza",
+      "id": "Zone:118:54",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
       "roomId": "118",
       "zoneType": null,
       "x": 270,
+      "y": 9020
+    },
+    {
+      "id": "Zone:119:54",
+      "label": "Zone",
+      "name": "Lounge",
+      "nodeType": "Zone",
+      "roomId": "119",
+      "zoneType": null,
+      "x": 450,
       "y": 9020
     },
     {
@@ -4660,7 +4700,7 @@
       "y": 8800
     },
     {
-      "id": "Zone:Lounge:Booths Park 2",
+      "id": "Zone:120:55",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -4748,7 +4788,7 @@
       "y": 8800
     },
     {
-      "id": "Zone:Reception - Changing Rooms:Foundation",
+      "id": "Zone:121:56",
       "label": "Zone",
       "name": "Reception - Changing Rooms",
       "nodeType": "Zone",
@@ -4758,7 +4798,7 @@
       "y": 9020
     },
     {
-      "id": "Zone:Gym:Foundation",
+      "id": "Zone:122:56",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -4812,7 +4852,7 @@
       "y": 9460
     },
     {
-      "id": "Zone:Reception and Terrace:Base",
+      "id": "Zone:123:57",
       "label": "Zone",
       "name": "Reception and Terrace",
       "nodeType": "Zone",
@@ -4866,7 +4906,7 @@
       "y": 9460
     },
     {
-      "id": "Zone:Main - Reception:Alderley Park - Block 30",
+      "id": "Zone:124:58",
       "label": "Zone",
       "name": "Main - Reception",
       "nodeType": "Zone",
@@ -4954,7 +4994,7 @@
       "y": 9460
     },
     {
-      "id": "Zone:Nest Room 3:Alderly Park - Glasshouse",
+      "id": "Zone:125:59",
       "label": "Zone",
       "name": "Nest Room 3",
       "nodeType": "Zone",
@@ -4964,7 +5004,7 @@
       "y": 9680
     },
     {
-      "id": "Zone:Nest Comms Room:Alderly Park - Glasshouse",
+      "id": "Zone:126:59",
       "label": "Zone",
       "name": "Nest Comms Room",
       "nodeType": "Zone",
@@ -4974,7 +5014,7 @@
       "y": 9680
     },
     {
-      "id": "Zone:Atrium:Alderly Park - Glasshouse",
+      "id": "Zone:127:59",
       "label": "Zone",
       "name": "Atrium",
       "nodeType": "Zone",
@@ -4984,7 +5024,7 @@
       "y": 9680
     },
     {
-      "id": "Zone:Nest Room 4:Alderly Park - Glasshouse",
+      "id": "Zone:128:59",
       "label": "Zone",
       "name": "Nest Room 4",
       "nodeType": "Zone",
@@ -4994,7 +5034,7 @@
       "y": 9680
     },
     {
-      "id": "Zone:Nest Communal Area :Alderly Park - Glasshouse",
+      "id": "Zone:129:59",
       "label": "Zone",
       "name": "Nest Communal Area ",
       "nodeType": "Zone",
@@ -5004,7 +5044,7 @@
       "y": 9680
     },
     {
-      "id": "Zone:Nest Wellness Suite :Alderly Park - Glasshouse",
+      "id": "Zone:130:59",
       "label": "Zone",
       "name": "Nest Wellness Suite ",
       "nodeType": "Zone",
@@ -5014,7 +5054,7 @@
       "y": 9680
     },
     {
-      "id": "Zone:Nest Room 2:Alderly Park - Glasshouse",
+      "id": "Zone:131:59",
       "label": "Zone",
       "name": "Nest Room 2",
       "nodeType": "Zone",
@@ -5024,7 +5064,7 @@
       "y": 9680
     },
     {
-      "id": "Zone:Main Comms Room:Alderly Park - Glasshouse",
+      "id": "Zone:132:59",
       "label": "Zone",
       "name": "Main Comms Room",
       "nodeType": "Zone",
@@ -5034,7 +5074,7 @@
       "y": 9680
     },
     {
-      "id": "Zone:Reception:Alderly Park - Glasshouse",
+      "id": "Zone:133:59",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -5122,7 +5162,7 @@
       "y": 9460
     },
     {
-      "id": "Zone:Lounge:Platform",
+      "id": "Zone:134:60",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -5132,7 +5172,7 @@
       "y": 9680
     },
     {
-      "id": "Zone:Roof Terrace:Platform",
+      "id": "Zone:135:60",
       "label": "Zone",
       "name": "Roof Terrace",
       "nodeType": "Zone",
@@ -5186,7 +5226,7 @@
       "y": 10120
     },
     {
-      "id": "Zone:Cafe:Alderley Park - Block 51",
+      "id": "Zone:136:61",
       "label": "Zone",
       "name": "Cafe",
       "nodeType": "Zone",
@@ -5240,7 +5280,7 @@
       "y": 10120
     },
     {
-      "id": "Zone:Reception:King St",
+      "id": "Zone:137:62",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -5294,7 +5334,7 @@
       "y": 10120
     },
     {
-      "id": "Zone:Reception:York House",
+      "id": "Zone:138:63",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -5348,7 +5388,7 @@
       "y": 10120
     },
     {
-      "id": "Zone:Bixteth Street Reception:Cotton Exchange - Liverpool",
+      "id": "Zone:139:64",
       "label": "Zone",
       "name": "Bixteth Street Reception",
       "nodeType": "Zone",
@@ -5358,7 +5398,7 @@
       "y": 10340
     },
     {
-      "id": "Zone:Cotton House Reception:Cotton Exchange - Liverpool",
+      "id": "Zone:140:64",
       "label": "Zone",
       "name": "Cotton House Reception",
       "nodeType": "Zone",
@@ -5412,7 +5452,7 @@
       "y": 10780
     },
     {
-      "id": "Zone:Room 2:111 Piccadilly",
+      "id": "Zone:141:65",
       "label": "Zone",
       "name": "Room 2",
       "nodeType": "Zone",
@@ -5422,7 +5462,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Room 5:111 Piccadilly",
+      "id": "Zone:142:65",
       "label": "Zone",
       "name": "Room 5",
       "nodeType": "Zone",
@@ -5432,7 +5472,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Booths:111 Piccadilly",
+      "id": "Zone:143:65",
       "label": "Zone",
       "name": "Booths",
       "nodeType": "Zone",
@@ -5442,7 +5482,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Room 8:111 Piccadilly",
+      "id": "Zone:144:65",
       "label": "Zone",
       "name": "Room 8",
       "nodeType": "Zone",
@@ -5452,7 +5492,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Reception:111 Piccadilly",
+      "id": "Zone:145:65",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -5462,7 +5502,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Room 4:111 Piccadilly",
+      "id": "Zone:146:65",
       "label": "Zone",
       "name": "Room 4",
       "nodeType": "Zone",
@@ -5472,7 +5512,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Coworking:111 Piccadilly",
+      "id": "Zone:147:65",
       "label": "Zone",
       "name": "Coworking",
       "nodeType": "Zone",
@@ -5482,7 +5522,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Gem:111 Piccadilly",
+      "id": "Zone:148:65",
       "label": "Zone",
       "name": "Gem",
       "nodeType": "Zone",
@@ -5492,7 +5532,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Room 6:111 Piccadilly",
+      "id": "Zone:149:65",
       "label": "Zone",
       "name": "Room 6",
       "nodeType": "Zone",
@@ -5502,7 +5542,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Room 1:111 Piccadilly",
+      "id": "Zone:150:65",
       "label": "Zone",
       "name": "Room 1",
       "nodeType": "Zone",
@@ -5512,7 +5552,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Room 3:111 Piccadilly",
+      "id": "Zone:151:65",
       "label": "Zone",
       "name": "Room 3",
       "nodeType": "Zone",
@@ -5522,7 +5562,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Room 7:111 Piccadilly",
+      "id": "Zone:152:65",
       "label": "Zone",
       "name": "Room 7",
       "nodeType": "Zone",
@@ -5532,7 +5572,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Comms:111 Piccadilly",
+      "id": "Zone:153:65",
       "label": "Zone",
       "name": "Comms",
       "nodeType": "Zone",
@@ -5542,7 +5582,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Lounge:111 Piccadilly",
+      "id": "Zone:154:65",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -5596,7 +5636,7 @@
       "y": 10780
     },
     {
-      "id": "Zone:Reception:127 Portland Street",
+      "id": "Zone:155:66",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -5606,7 +5646,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Lounge:127 Portland Street",
+      "id": "Zone:156:66",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -5694,7 +5734,7 @@
       "y": 10780
     },
     {
-      "id": "Zone:Studio:West Gate",
+      "id": "Zone:157:67",
       "label": "Zone",
       "name": "Studio",
       "nodeType": "Zone",
@@ -5704,7 +5744,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Reception:West Gate",
+      "id": "Zone:158:67",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -5792,7 +5832,7 @@
       "y": 10780
     },
     {
-      "id": "Zone:Reception:Innovation Birmingham - Enterprise Wharf",
+      "id": "Zone:159:68",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -5802,7 +5842,7 @@
       "y": 11000
     },
     {
-      "id": "Zone:Gym:Innovation Birmingham - Enterprise Wharf",
+      "id": "Zone:160:68",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -5856,7 +5896,7 @@
       "y": 11440
     },
     {
-      "id": "Zone:Lounge:The Plaza - Unlimited",
+      "id": "Zone:161:69",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -5866,7 +5906,7 @@
       "y": 11660
     },
     {
-      "id": "Zone:Cafe:The Plaza - Unlimited",
+      "id": "Zone:162:69",
       "label": "Zone",
       "name": "Cafe",
       "nodeType": "Zone",
@@ -5876,7 +5916,7 @@
       "y": 11660
     },
     {
-      "id": "Zone:Comms Room:The Plaza - Unlimited",
+      "id": "Zone:163:69",
       "label": "Zone",
       "name": "Comms Room",
       "nodeType": "Zone",
@@ -5886,7 +5926,7 @@
       "y": 11660
     },
     {
-      "id": "Zone:Restaurant:The Plaza - Unlimited",
+      "id": "Zone:164:69",
       "label": "Zone",
       "name": "Restaurant",
       "nodeType": "Zone",
@@ -5896,7 +5936,7 @@
       "y": 11660
     },
     {
-      "id": "Zone:Bar:The Plaza - Unlimited",
+      "id": "Zone:165:69",
       "label": "Zone",
       "name": "Bar",
       "nodeType": "Zone",
@@ -5906,7 +5946,7 @@
       "y": 11660
     },
     {
-      "id": "Zone:Retail:The Plaza - Unlimited",
+      "id": "Zone:166:69",
       "label": "Zone",
       "name": "Retail",
       "nodeType": "Zone",
@@ -5916,7 +5956,7 @@
       "y": 11660
     },
     {
-      "id": "Zone:Changing Rooms:The Plaza - Unlimited",
+      "id": "Zone:167:69",
       "label": "Zone",
       "name": "Changing Rooms",
       "nodeType": "Zone",
@@ -5970,7 +6010,7 @@
       "y": 11440
     },
     {
-      "id": "Zone:Reception:Delphian House",
+      "id": "Zone:168:70",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -6024,7 +6064,7 @@
       "y": 11440
     },
     {
-      "id": "Zone:Reception:St James",
+      "id": "Zone:169:71",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -6078,7 +6118,7 @@
       "y": 11440
     },
     {
-      "id": "Zone:Reception:Cornwall Building",
+      "id": "Zone:170:72",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -6132,7 +6172,7 @@
       "y": 12100
     },
     {
-      "id": "Zone:Cafe - Co-working - Space:Alderley Park - Block 1",
+      "id": "Zone:171:73",
       "label": "Zone",
       "name": "Cafe - Co-working - Space",
       "nodeType": "Zone",
@@ -6220,7 +6260,7 @@
       "y": 12100
     },
     {
-      "id": "Zone:Ground Floor Reception + Lobby:Regent House",
+      "id": "Zone:172:74",
       "label": "Zone",
       "name": "Ground Floor Reception + Lobby",
       "nodeType": "Zone",
@@ -6230,7 +6270,7 @@
       "y": 12320
     },
     {
-      "id": "Zone:11th Floor Reception + Hub:Regent House",
+      "id": "Zone:173:74",
       "label": "Zone",
       "name": "11th Floor Reception + Hub",
       "nodeType": "Zone",
@@ -6420,7 +6460,7 @@
       "y": 12100
     },
     {
-      "id": "Zone:Suite 6.1:55 King Street",
+      "id": "Zone:174:75",
       "label": "Zone",
       "name": "Suite 6.1",
       "nodeType": "Zone",
@@ -6430,7 +6470,7 @@
       "y": 12320
     },
     {
-      "id": "Zone:Corridor:55 King Street",
+      "id": "Zone:175:75",
       "label": "Zone",
       "name": "Corridor",
       "nodeType": "Zone",
@@ -6440,7 +6480,7 @@
       "y": 12320
     },
     {
-      "id": "Zone:Orbit Suit:55 King Street",
+      "id": "Zone:176:75",
       "label": "Zone",
       "name": "Orbit Suit",
       "nodeType": "Zone",
@@ -6450,7 +6490,7 @@
       "y": 12320
     },
     {
-      "id": "Zone:Suite 6.2:55 King Street",
+      "id": "Zone:177:75",
       "label": "Zone",
       "name": "Suite 6.2",
       "nodeType": "Zone",
@@ -6460,7 +6500,7 @@
       "y": 12320
     },
     {
-      "id": "Zone:Suite 6.3:55 King Street",
+      "id": "Zone:178:75",
       "label": "Zone",
       "name": "Suite 6.3",
       "nodeType": "Zone",
@@ -6470,7 +6510,7 @@
       "y": 12320
     },
     {
-      "id": "Zone:Suite 6.4:55 King Street",
+      "id": "Zone:179:75",
       "label": "Zone",
       "name": "Suite 6.4",
       "nodeType": "Zone",
@@ -6480,7 +6520,7 @@
       "y": 12320
     },
     {
-      "id": "Zone:Suite 6.5:55 King Street",
+      "id": "Zone:180:75",
       "label": "Zone",
       "name": "Suite 6.5",
       "nodeType": "Zone",
@@ -6490,7 +6530,7 @@
       "y": 12320
     },
     {
-      "id": "Zone:Reception:55 King Street",
+      "id": "Zone:181:75",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -6500,13 +6540,33 @@
       "y": 12320
     },
     {
-      "id": "Zone:Comms Room:55 King Street",
+      "id": "Zone:182:75",
       "label": "Zone",
       "name": "Comms Room",
       "nodeType": "Zone",
       "roomId": "182",
       "zoneType": null,
       "x": 720,
+      "y": 12320
+    },
+    {
+      "id": "Zone:183:75",
+      "label": "Zone",
+      "name": "Corridor",
+      "nodeType": "Zone",
+      "roomId": "183",
+      "zoneType": null,
+      "x": 900,
+      "y": 12320
+    },
+    {
+      "id": "Zone:184:75",
+      "label": "Zone",
+      "name": "Corridor",
+      "nodeType": "Zone",
+      "roomId": "184",
+      "zoneType": null,
+      "x": 1080,
       "y": 12320
     },
     {
@@ -6554,7 +6614,7 @@
       "y": 12100
     },
     {
-      "id": "Zone:Ground Floor Audio:Futura Park",
+      "id": "Zone:185:76",
       "label": "Zone",
       "name": "Ground Floor Audio",
       "nodeType": "Zone",
@@ -6608,7 +6668,7 @@
       "y": 12760
     },
     {
-      "id": "Zone:Side Entrance:Arne Retail - Liverpool",
+      "id": "Zone:186:77",
       "label": "Zone",
       "name": "Side Entrance",
       "nodeType": "Zone",
@@ -6618,7 +6678,7 @@
       "y": 12980
     },
     {
-      "id": "Zone:Main Entrance:Arne Retail - Liverpool",
+      "id": "Zone:187:77",
       "label": "Zone",
       "name": "Main Entrance",
       "nodeType": "Zone",
@@ -6672,7 +6732,7 @@
       "y": 12760
     },
     {
-      "id": "Zone:Gym:Element",
+      "id": "Zone:188:78",
       "label": "Zone",
       "name": "Gym",
       "nodeType": "Zone",
@@ -6682,7 +6742,7 @@
       "y": 12980
     },
     {
-      "id": "Zone:Reception + Cafe:Element",
+      "id": "Zone:189:78",
       "label": "Zone",
       "name": "Reception + Cafe",
       "nodeType": "Zone",
@@ -6872,7 +6932,7 @@
       "y": 12760
     },
     {
-      "id": "Zone:Lobby:SoapWorks",
+      "id": "Zone:190:79",
       "label": "Zone",
       "name": "Lobby",
       "nodeType": "Zone",
@@ -6882,23 +6942,63 @@
       "y": 12980
     },
     {
-      "id": "Zone:Cafe:SoapWorks",
+      "id": "Zone:191:79",
+      "label": "Zone",
+      "name": "Lobby",
+      "nodeType": "Zone",
+      "roomId": "191",
+      "zoneType": null,
+      "x": 540,
+      "y": 12980
+    },
+    {
+      "id": "Zone:192:79",
+      "label": "Zone",
+      "name": "Lobby",
+      "nodeType": "Zone",
+      "roomId": "192",
+      "zoneType": null,
+      "x": 720,
+      "y": 12980
+    },
+    {
+      "id": "Zone:193:79",
       "label": "Zone",
       "name": "Cafe",
       "nodeType": "Zone",
       "roomId": "193",
       "zoneType": null,
-      "x": 830,
+      "x": 760,
       "y": 12980
     },
     {
-      "id": "Zone:Comms:SoapWorks",
+      "id": "Zone:194:79",
       "label": "Zone",
       "name": "Comms",
       "nodeType": "Zone",
       "roomId": "194",
       "zoneType": null,
-      "x": 970,
+      "x": 900,
+      "y": 12980
+    },
+    {
+      "id": "Zone:195:79",
+      "label": "Zone",
+      "name": "Lobby",
+      "nodeType": "Zone",
+      "roomId": "195",
+      "zoneType": null,
+      "x": 1040,
+      "y": 12980
+    },
+    {
+      "id": "Zone:196:79",
+      "label": "Zone",
+      "name": "Lobby",
+      "nodeType": "Zone",
+      "roomId": "196",
+      "zoneType": null,
+      "x": 1080,
       "y": 12980
     },
     {
@@ -6946,7 +7046,7 @@
       "y": 12760
     },
     {
-      "id": "Zone:Portable:Site Monitoring Kit 2",
+      "id": "Zone:197:80",
       "label": "Zone",
       "name": "Portable",
       "nodeType": "Zone",
@@ -7000,7 +7100,7 @@
       "y": 13420
     },
     {
-      "id": "Zone:Portable:Site Monitoring Kit 1",
+      "id": "Zone:198:81",
       "label": "Zone",
       "name": "Portable",
       "nodeType": "Zone",
@@ -7088,7 +7188,7 @@
       "y": 13420
     },
     {
-      "id": "Zone:Office Space:Salford Office",
+      "id": "Zone:199:82",
       "label": "Zone",
       "name": "Office Space",
       "nodeType": "Zone",
@@ -7098,7 +7198,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Reception:Salford Office",
+      "id": "Zone:200:82",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -7108,7 +7208,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Entrance:Salford Office",
+      "id": "Zone:201:82",
       "label": "Zone",
       "name": "Entrance",
       "nodeType": "Zone",
@@ -7118,7 +7218,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Utility Room:Salford Office",
+      "id": "Zone:202:82",
       "label": "Zone",
       "name": "Utility Room",
       "nodeType": "Zone",
@@ -7206,7 +7306,7 @@
       "y": 13420
     },
     {
-      "id": "Zone:Standup:Bolton",
+      "id": "Zone:203:83",
       "label": "Zone",
       "name": "Standup",
       "nodeType": "Zone",
@@ -7216,7 +7316,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Huddle:Bolton",
+      "id": "Zone:204:83",
       "label": "Zone",
       "name": "Huddle",
       "nodeType": "Zone",
@@ -7226,7 +7326,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Workshop:Bolton",
+      "id": "Zone:205:83",
       "label": "Zone",
       "name": "Workshop",
       "nodeType": "Zone",
@@ -7236,7 +7336,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:DJ:Bolton",
+      "id": "Zone:206:83",
       "label": "Zone",
       "name": "DJ",
       "nodeType": "Zone",
@@ -7246,7 +7346,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Booths:Bolton",
+      "id": "Zone:207:83",
       "label": "Zone",
       "name": "Booths",
       "nodeType": "Zone",
@@ -7256,7 +7356,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Reception:Bolton",
+      "id": "Zone:208:83",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -7266,7 +7366,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Digispace:Bolton",
+      "id": "Zone:209:83",
       "label": "Zone",
       "name": "Digispace",
       "nodeType": "Zone",
@@ -7276,7 +7376,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Sitdown:Bolton",
+      "id": "Zone:210:83",
       "label": "Zone",
       "name": "Sitdown",
       "nodeType": "Zone",
@@ -7286,7 +7386,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Comms:Bolton",
+      "id": "Zone:211:83",
       "label": "Zone",
       "name": "Comms",
       "nodeType": "Zone",
@@ -7296,7 +7396,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Cafe:Bolton",
+      "id": "Zone:212:83",
       "label": "Zone",
       "name": "Cafe",
       "nodeType": "Zone",
@@ -7306,7 +7406,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Cinema:Bolton",
+      "id": "Zone:213:83",
       "label": "Zone",
       "name": "Cinema",
       "nodeType": "Zone",
@@ -7316,7 +7416,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Lounge:Bolton",
+      "id": "Zone:214:83",
       "label": "Zone",
       "name": "Lounge",
       "nodeType": "Zone",
@@ -7326,7 +7426,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Toilet:Bolton",
+      "id": "Zone:215:83",
       "label": "Zone",
       "name": "Toilet",
       "nodeType": "Zone",
@@ -7336,7 +7436,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Kitchen:Bolton",
+      "id": "Zone:216:83",
       "label": "Zone",
       "name": "Kitchen",
       "nodeType": "Zone",
@@ -7346,7 +7446,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Brainstorm:Bolton",
+      "id": "Zone:217:83",
       "label": "Zone",
       "name": "Brainstorm",
       "nodeType": "Zone",
@@ -7356,7 +7456,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Entrance:Bolton",
+      "id": "Zone:218:83",
       "label": "Zone",
       "name": "Entrance",
       "nodeType": "Zone",
@@ -7366,7 +7466,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Goods In:Bolton",
+      "id": "Zone:219:83",
       "label": "Zone",
       "name": "Goods In",
       "nodeType": "Zone",
@@ -7420,7 +7520,7 @@
       "y": 13420
     },
     {
-      "id": "Zone:Social Hub:Island",
+      "id": "Zone:220:84",
       "label": "Zone",
       "name": "Social Hub",
       "nodeType": "Zone",
@@ -7430,7 +7530,7 @@
       "y": 13640
     },
     {
-      "id": "Zone:Event Space:Island",
+      "id": "Zone:221:84",
       "label": "Zone",
       "name": "Event Space",
       "nodeType": "Zone",
@@ -7484,7 +7584,7 @@
       "y": 14080
     },
     {
-      "id": "Zone:Reception:Transmission building ",
+      "id": "Zone:222:85",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -7528,7 +7628,7 @@
       "y": 11440
     },
     {
-      "id": "Zone:Comms Room:Cornwall Building",
+      "id": "Zone:223:86",
       "label": "Zone",
       "name": "Comms Room",
       "nodeType": "Zone",
@@ -7538,7 +7638,7 @@
       "y": 11660
     },
     {
-      "id": "Zone:Cafe + Lounge:Cornwall Building",
+      "id": "Zone:224:86",
       "label": "Zone",
       "name": "Cafe + Lounge",
       "nodeType": "Zone",
@@ -7548,7 +7648,7 @@
       "y": 11660
     },
     {
-      "id": "Zone:Workspace:Cornwall Building",
+      "id": "Zone:225:86",
       "label": "Zone",
       "name": "Workspace",
       "nodeType": "Zone",
@@ -7974,7 +8074,7 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3",
-      "x": 970,
+      "x": 900,
       "y": 13200
     },
     {
@@ -8280,52 +8380,52 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Terrace:Pall Mall",
+      "source": "Zone:1:1",
       "target": "Building:Pall Mall",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Terrace:Pall Mall",
+      "source": "Zone:1:1",
       "target": "Floor:1:1",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lounge :Pall Mall",
+      "source": "Zone:2:1",
       "target": "Building:Pall Mall",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge :Pall Mall",
+      "source": "Zone:2:1",
       "target": "Floor:2:1",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms:Pall Mall",
+      "source": "Zone:3:1",
       "target": "Building:Pall Mall",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms:Pall Mall",
+      "source": "Zone:3:1",
       "target": "Floor:3:1",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gym :Pall Mall",
+      "source": "Zone:4:1",
       "target": "Building:Pall Mall",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym :Pall Mall",
+      "source": "Zone:4:1",
       "target": "Floor:3:1",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Pall Mall",
+      "source": "Zone:5:1",
       "target": "Building:Pall Mall",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Pall Mall",
+      "source": "Zone:5:1",
       "target": "Floor:4:1",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8350,42 +8450,42 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Cornerblock",
+      "source": "Zone:6:2",
       "target": "Building:Cornerblock",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Cornerblock",
+      "source": "Zone:6:2",
       "target": "Floor:5:2",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Hospitality:Cornerblock",
+      "source": "Zone:7:2",
       "target": "Building:Cornerblock",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Hospitality:Cornerblock",
+      "source": "Zone:7:2",
       "target": "Floor:6:2",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Roofbar:Cornerblock",
+      "source": "Zone:8:2",
       "target": "Building:Cornerblock",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Roofbar:Cornerblock",
+      "source": "Zone:8:2",
       "target": "Floor:7:2",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Cornerblock",
+      "source": "Zone:9:2",
       "target": "Building:Cornerblock",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Cornerblock",
+      "source": "Zone:9:2",
       "target": "Floor:8:2",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8395,12 +8495,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Booths Park 1",
+      "source": "Zone:10:3",
       "target": "Building:Booths Park 1",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Booths Park 1",
+      "source": "Zone:10:3",
       "target": "Floor:9:3",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8415,22 +8515,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym + Showers:Mclaren Building",
+      "source": "Zone:11:4",
       "target": "Building:Mclaren Building",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym + Showers:Mclaren Building",
+      "source": "Zone:11:4",
       "target": "Floor:10:4",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception + Lounge:Mclaren Building",
+      "source": "Zone:12:4",
       "target": "Building:Mclaren Building",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception + Lounge:Mclaren Building",
+      "source": "Zone:12:4",
       "target": "Floor:11:4",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8440,42 +8540,42 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Shower & Vanity:Landmark House",
+      "source": "Zone:13:5",
       "target": "Building:Landmark House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Shower & Vanity:Landmark House",
+      "source": "Zone:13:5",
       "target": "Floor:12:5",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms Room:Landmark House",
+      "source": "Zone:14:5",
       "target": "Building:Landmark House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:Landmark House",
+      "source": "Zone:14:5",
       "target": "Floor:12:5",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception + Lounge:Landmark House",
+      "source": "Zone:15:5",
       "target": "Building:Landmark House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception + Lounge:Landmark House",
+      "source": "Zone:15:5",
       "target": "Floor:12:5",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gym:Landmark House",
+      "source": "Zone:16:5",
       "target": "Building:Landmark House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Landmark House",
+      "source": "Zone:16:5",
       "target": "Floor:12:5",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8490,22 +8590,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Centurion House",
+      "source": "Zone:17:6",
       "target": "Building:Centurion House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Centurion House",
+      "source": "Zone:17:6",
       "target": "Floor:13:6",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lounge:Centurion House",
+      "source": "Zone:18:6",
       "target": "Building:Centurion House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Centurion House",
+      "source": "Zone:18:6",
       "target": "Floor:14:6",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8515,12 +8615,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Cotton House - Manchester",
+      "source": "Zone:19:7",
       "target": "Building:Cotton House - Manchester",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Cotton House - Manchester",
+      "source": "Zone:19:7",
       "target": "Floor:15:7",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8540,72 +8640,72 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Changing Room + Bike Store:West Village - Leeds",
+      "source": "Zone:20:8",
       "target": "Building:West Village - Leeds",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Changing Room + Bike Store:West Village - Leeds",
+      "source": "Zone:20:8",
       "target": "Floor:16:8",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Middle Lounge:West Village - Leeds",
+      "source": "Zone:21:8",
       "target": "Building:West Village - Leeds",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Middle Lounge:West Village - Leeds",
+      "source": "Zone:21:8",
       "target": "Floor:16:8",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception + Cafe:West Village - Leeds",
+      "source": "Zone:22:8",
       "target": "Building:West Village - Leeds",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception + Cafe:West Village - Leeds",
+      "source": "Zone:22:8",
       "target": "Floor:16:8",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lower Lounge:West Village - Leeds",
+      "source": "Zone:23:8",
       "target": "Building:West Village - Leeds",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lower Lounge:West Village - Leeds",
+      "source": "Zone:23:8",
       "target": "Floor:16:8",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Studio:West Village - Leeds",
+      "source": "Zone:24:8",
       "target": "Building:West Village - Leeds",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Studio:West Village - Leeds",
+      "source": "Zone:24:8",
       "target": "Floor:16:8",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Service Space:West Village - Leeds",
+      "source": "Zone:25:8",
       "target": "Building:West Village - Leeds",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Service Space:West Village - Leeds",
+      "source": "Zone:25:8",
       "target": "Floor:17:8",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms Room:West Village - Leeds",
+      "source": "Zone:26:8",
       "target": "Building:West Village - Leeds",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:West Village - Leeds",
+      "source": "Zone:26:8",
       "target": "Floor:18:8",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8615,12 +8715,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:MSP - Bright Building",
+      "source": "Zone:27:9",
       "target": "Building:MSP - Bright Building",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:MSP - Bright Building",
+      "source": "Zone:27:9",
       "target": "Floor:19:9",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8640,72 +8740,72 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Kitchen:Blackfriars",
+      "source": "Zone:28:10",
       "target": "Building:Blackfriars",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Kitchen:Blackfriars",
+      "source": "Zone:28:10",
       "target": "Floor:20:10",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lounge + Cafe:Blackfriars",
+      "source": "Zone:29:10",
       "target": "Building:Blackfriars",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge + Cafe:Blackfriars",
+      "source": "Zone:29:10",
       "target": "Floor:20:10",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Ground Floor - Comms Room:Blackfriars",
+      "source": "Zone:30:10",
       "target": "Building:Blackfriars",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Ground Floor - Comms Room:Blackfriars",
+      "source": "Zone:30:10",
       "target": "Floor:20:10",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gym:Blackfriars",
+      "source": "Zone:31:10",
       "target": "Building:Blackfriars",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Blackfriars",
+      "source": "Zone:31:10",
       "target": "Floor:21:10",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Basement - Comms Room:Blackfriars",
+      "source": "Zone:32:10",
       "target": "Building:Blackfriars",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Basement - Comms Room:Blackfriars",
+      "source": "Zone:32:10",
       "target": "Floor:21:10",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lockers + Common Space:Blackfriars",
+      "source": "Zone:33:10",
       "target": "Building:Blackfriars",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lockers + Common Space:Blackfriars",
+      "source": "Zone:33:10",
       "target": "Floor:21:10",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Roof - Roof Bar:Blackfriars",
+      "source": "Zone:34:10",
       "target": "Building:Blackfriars",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Roof - Roof Bar:Blackfriars",
+      "source": "Zone:34:10",
       "target": "Floor:22:10",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8715,12 +8815,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Lancastrian",
+      "source": "Zone:35:11",
       "target": "Building:Lancastrian",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Lancastrian",
+      "source": "Zone:35:11",
       "target": "Floor:23:11",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8735,32 +8835,32 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe:Renold",
+      "source": "Zone:36:12",
       "target": "Building:Renold",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe:Renold",
+      "source": "Zone:36:12",
       "target": "Floor:24:12",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Entrance:Renold",
+      "source": "Zone:37:12",
       "target": "Building:Renold",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Entrance:Renold",
+      "source": "Zone:37:12",
       "target": "Floor:25:12",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms Room:Renold",
+      "source": "Zone:38:12",
       "target": "Building:Renold",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:Renold",
+      "source": "Zone:38:12",
       "target": "Floor:25:12",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8770,12 +8870,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Alderley Park - Block 22",
+      "source": "Zone:39:13",
       "target": "Building:Alderley Park - Block 22",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Alderley Park - Block 22",
+      "source": "Zone:39:13",
       "target": "Floor:26:13",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8785,22 +8885,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Trafford House",
+      "source": "Zone:40:14",
       "target": "Building:Trafford House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Trafford House",
+      "source": "Zone:40:14",
       "target": "Floor:27:14",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Trafford House",
+      "source": "Zone:41:14",
       "target": "Building:Trafford House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Trafford House",
+      "source": "Zone:41:14",
       "target": "Floor:27:14",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8810,12 +8910,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Restaurant:Alderley Park - Block 27",
+      "source": "Zone:42:15",
       "target": "Building:Alderley Park - Block 27",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Restaurant:Alderley Park - Block 27",
+      "source": "Zone:42:15",
       "target": "Floor:28:15",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8825,12 +8925,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:5 New York Street",
+      "source": "Zone:43:16",
       "target": "Building:5 New York Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:5 New York Street",
+      "source": "Zone:43:16",
       "target": "Floor:29:16",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8840,12 +8940,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:CityLabs 4.0",
+      "source": "Zone:44:17",
       "target": "Building:CityLabs 4.0",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:CityLabs 4.0",
+      "source": "Zone:44:17",
       "target": "Floor:30:17",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8855,12 +8955,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Manchester One",
+      "source": "Zone:45:18",
       "target": "Building:Manchester One",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Manchester One",
+      "source": "Zone:45:18",
       "target": "Floor:31:18",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8870,12 +8970,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Cloister",
+      "source": "Zone:46:19",
       "target": "Building:Cloister",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Cloister",
+      "source": "Zone:46:19",
       "target": "Floor:32:19",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8885,12 +8985,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Booths Park 3",
+      "source": "Zone:47:20",
       "target": "Building:Booths Park 3",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Booths Park 3",
+      "source": "Zone:47:20",
       "target": "Floor:33:20",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8905,22 +9005,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception, Lounge and Vanity Area:Bond",
+      "source": "Zone:48:21",
       "target": "Building:Bond",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception, Lounge and Vanity Area:Bond",
+      "source": "Zone:48:21",
       "target": "Floor:34:21",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gym:Bond",
+      "source": "Zone:49:21",
       "target": "Building:Bond",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Bond",
+      "source": "Zone:49:21",
       "target": "Floor:35:21",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8930,12 +9030,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Heron House",
+      "source": "Zone:50:22",
       "target": "Building:Heron House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Heron House",
+      "source": "Zone:50:22",
       "target": "Floor:36:22",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8945,12 +9045,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Turing House",
+      "source": "Zone:51:23",
       "target": "Building:Turing House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Turing House",
+      "source": "Zone:51:23",
       "target": "Floor:37:23",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8960,12 +9060,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Innovation Brimingham - iCentrum",
+      "source": "Zone:52:24",
       "target": "Building:Innovation Brimingham - iCentrum",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Innovation Brimingham - iCentrum",
+      "source": "Zone:52:24",
       "target": "Floor:38:24",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -8980,13 +9080,23 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:South Central",
+      "source": "Zone:53:25",
       "target": "Building:South Central",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:South Central",
+      "source": "Zone:53:25",
       "target": "Floor:39:25",
+      "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Zone:54:25",
+      "target": "Building:South Central",
+      "rel": "LOCATED_IN_BUILDING"
+    },
+    {
+      "source": "Zone:54:25",
+      "target": "Floor:40:25",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
@@ -8995,12 +9105,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Faulkner House",
+      "source": "Zone:55:26",
       "target": "Building:Faulkner House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Faulkner House",
+      "source": "Zone:55:26",
       "target": "Floor:41:26",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9010,12 +9120,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Oxford House",
+      "source": "Zone:56:27",
       "target": "Building:Oxford House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Oxford House",
+      "source": "Zone:56:27",
       "target": "Floor:42:27",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9025,12 +9135,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Innovation Birmingham - Faraday Wharf",
+      "source": "Zone:57:28",
       "target": "Building:Innovation Birmingham - Faraday Wharf",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Innovation Birmingham - Faraday Wharf",
+      "source": "Zone:57:28",
       "target": "Floor:43:28",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9050,32 +9160,32 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Circle Square No 1",
+      "source": "Zone:58:29",
       "target": "Building:Circle Square No 1",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Circle Square No 1",
+      "source": "Zone:58:29",
       "target": "Floor:44:29",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Nomad Lounge:Circle Square No 1",
+      "source": "Zone:59:29",
       "target": "Building:Circle Square No 1",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Nomad Lounge:Circle Square No 1",
+      "source": "Zone:59:29",
       "target": "Floor:45:29",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gym:Circle Square No 1",
+      "source": "Zone:60:29",
       "target": "Building:Circle Square No 1",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Circle Square No 1",
+      "source": "Zone:60:29",
       "target": "Floor:46:29",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9100,62 +9210,62 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:2nd Floor Lounge:Union",
+      "source": "Zone:61:30",
       "target": "Building:Union",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:2nd Floor Lounge:Union",
+      "source": "Zone:61:30",
       "target": "Floor:47:30",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Main Entrance:Union",
+      "source": "Zone:62:30",
       "target": "Building:Union",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Main Entrance:Union",
+      "source": "Zone:62:30",
       "target": "Floor:48:30",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Vanity:Union",
+      "source": "Zone:63:30",
       "target": "Building:Union",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Vanity:Union",
+      "source": "Zone:63:30",
       "target": "Floor:49:30",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gym:Union",
+      "source": "Zone:64:30",
       "target": "Building:Union",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Union",
+      "source": "Zone:64:30",
       "target": "Floor:49:30",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gym Entrance:Union",
+      "source": "Zone:65:30",
       "target": "Building:Union",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym Entrance:Union",
+      "source": "Zone:65:30",
       "target": "Floor:49:30",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:3rd Floor Lounge:Union",
+      "source": "Zone:66:30",
       "target": "Building:Union",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:3rd Floor Lounge:Union",
+      "source": "Zone:66:30",
       "target": "Floor:50:30",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9170,32 +9280,32 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms:Circle Square No 3",
+      "source": "Zone:67:31",
       "target": "Building:Circle Square No 3",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms:Circle Square No 3",
+      "source": "Zone:67:31",
       "target": "Floor:51:31",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Terrace:Circle Square No 3",
+      "source": "Zone:68:31",
       "target": "Building:Circle Square No 3",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Terrace:Circle Square No 3",
+      "source": "Zone:68:31",
       "target": "Floor:51:31",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Circle Square No 3",
+      "source": "Zone:69:31",
       "target": "Building:Circle Square No 3",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Circle Square No 3",
+      "source": "Zone:69:31",
       "target": "Floor:52:31",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9205,12 +9315,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Oxford Place",
+      "source": "Zone:70:32",
       "target": "Building:Oxford Place",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Oxford Place",
+      "source": "Zone:70:32",
       "target": "Floor:53:32",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9220,12 +9330,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Alderley Park - Block 24",
+      "source": "Zone:71:33",
       "target": "Building:Alderley Park - Block 24",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Alderley Park - Block 24",
+      "source": "Zone:71:33",
       "target": "Floor:54:33",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9235,12 +9345,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Kitchen:Alderley Park - Block 23",
+      "source": "Zone:72:34",
       "target": "Building:Alderley Park - Block 23",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Kitchen:Alderley Park - Block 23",
+      "source": "Zone:72:34",
       "target": "Floor:55:34",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9260,52 +9370,52 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Vanity + Showers:King's House",
+      "source": "Zone:73:35",
       "target": "Building:King's House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Vanity + Showers:King's House",
+      "source": "Zone:73:35",
       "target": "Floor:56:35",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gym:King's House",
+      "source": "Zone:74:35",
       "target": "Building:King's House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:King's House",
+      "source": "Zone:74:35",
       "target": "Floor:56:35",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Loft:King's House",
+      "source": "Zone:75:35",
       "target": "Building:King's House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Loft:King's House",
+      "source": "Zone:75:35",
       "target": "Floor:57:35",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:King's House",
+      "source": "Zone:76:35",
       "target": "Building:King's House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:King's House",
+      "source": "Zone:76:35",
       "target": "Floor:58:35",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms:King's House",
+      "source": "Zone:77:35",
       "target": "Building:King's House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms:King's House",
+      "source": "Zone:77:35",
       "target": "Floor:58:35",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9315,12 +9425,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:100 Wellington St",
+      "source": "Zone:78:36",
       "target": "Building:100 Wellington St",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:100 Wellington St",
+      "source": "Zone:78:36",
       "target": "Floor:59:36",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9330,12 +9440,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Conference-Centre:Alderley Park - Block 28",
+      "source": "Zone:79:37",
       "target": "Building:Alderley Park - Block 28",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Conference-Centre:Alderley Park - Block 28",
+      "source": "Zone:79:37",
       "target": "Floor:60:37",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9350,82 +9460,82 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym + Studio:Centre City",
+      "source": "Zone:80:38",
       "target": "Building:Centre City",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym + Studio:Centre City",
+      "source": "Zone:80:38",
       "target": "Floor:61:38",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Corridor:Centre City",
+      "source": "Zone:81:38",
       "target": "Building:Centre City",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Corridor:Centre City",
+      "source": "Zone:81:38",
       "target": "Floor:61:38",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Centre City",
+      "source": "Zone:82:38",
       "target": "Building:Centre City",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Centre City",
+      "source": "Zone:82:38",
       "target": "Floor:62:38",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lift Lobby:Centre City",
+      "source": "Zone:83:38",
       "target": "Building:Centre City",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lift Lobby:Centre City",
+      "source": "Zone:83:38",
       "target": "Floor:62:38",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Atrium:Centre City",
+      "source": "Zone:84:38",
       "target": "Building:Centre City",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Atrium:Centre City",
+      "source": "Zone:84:38",
       "target": "Floor:62:38",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms:Centre City",
+      "source": "Zone:85:38",
       "target": "Building:Centre City",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms:Centre City",
+      "source": "Zone:85:38",
       "target": "Floor:62:38",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lounge:Centre City",
+      "source": "Zone:86:38",
       "target": "Building:Centre City",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Centre City",
+      "source": "Zone:86:38",
       "target": "Floor:62:38",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Co-Working:Centre City",
+      "source": "Zone:87:38",
       "target": "Building:Centre City",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Co-Working:Centre City",
+      "source": "Zone:87:38",
       "target": "Floor:62:38",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9435,12 +9545,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Alderley Park - Block 23/24/19D",
+      "source": "Zone:88:39",
       "target": "Building:Alderley Park - Block 23/24/19D",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Alderley Park - Block 23/24/19D",
+      "source": "Zone:88:39",
       "target": "Floor:63:39",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9450,12 +9560,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Citylabs",
+      "source": "Zone:89:40",
       "target": "Building:Citylabs",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Citylabs",
+      "source": "Zone:89:40",
       "target": "Floor:64:40",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9465,12 +9575,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Booths Park 5",
+      "source": "Zone:90:41",
       "target": "Building:Booths Park 5",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Booths Park 5",
+      "source": "Zone:90:41",
       "target": "Floor:65:41",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9480,12 +9590,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Kitchen:Alderley Park - Block 11",
+      "source": "Zone:91:42",
       "target": "Building:Alderley Park - Block 11",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Kitchen:Alderley Park - Block 11",
+      "source": "Zone:91:42",
       "target": "Floor:66:42",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9495,12 +9605,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:57 Spring Gardens",
+      "source": "Zone:92:43",
       "target": "Building:57 Spring Gardens",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:57 Spring Gardens",
+      "source": "Zone:92:43",
       "target": "Floor:67:43",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9510,12 +9620,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Basement - Co-Working + Vanity:Exchange Court",
+      "source": "Zone:93:44",
       "target": "Building:Exchange Court",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Basement - Co-Working + Vanity:Exchange Court",
+      "source": "Zone:93:44",
       "target": "Floor:68:44",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9530,42 +9640,42 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:117-119 Portland Street",
+      "source": "Zone:94:45",
       "target": "Building:117-119 Portland Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:117-119 Portland Street",
+      "source": "Zone:94:45",
       "target": "Floor:69:45",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gym:117-119 Portland Street",
+      "source": "Zone:95:45",
       "target": "Building:117-119 Portland Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:117-119 Portland Street",
+      "source": "Zone:95:45",
       "target": "Floor:69:45",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Showers + Lounge:117-119 Portland Street",
+      "source": "Zone:96:45",
       "target": "Building:117-119 Portland Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Showers + Lounge:117-119 Portland Street",
+      "source": "Zone:96:45",
       "target": "Floor:69:45",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:117-119 Portland Street",
+      "source": "Zone:97:45",
       "target": "Building:117-119 Portland Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:117-119 Portland Street",
+      "source": "Zone:97:45",
       "target": "Floor:70:45",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9575,12 +9685,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Atria",
+      "source": "Zone:98:46",
       "target": "Building:Atria",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Atria",
+      "source": "Zone:98:46",
       "target": "Floor:71:46",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9595,22 +9705,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Station House",
+      "source": "Zone:99:47",
       "target": "Building:Station House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Station House",
+      "source": "Zone:99:47",
       "target": "Floor:72:47",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Station House",
+      "source": "Zone:100:47",
       "target": "Building:Station House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Station House",
+      "source": "Zone:100:47",
       "target": "Floor:73:47",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9620,12 +9730,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:The Exchange",
+      "source": "Zone:101:48",
       "target": "Building:The Exchange",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:The Exchange",
+      "source": "Zone:101:48",
       "target": "Floor:74:48",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9645,32 +9755,32 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Neo",
+      "source": "Zone:102:49",
       "target": "Building:Neo",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Neo",
+      "source": "Zone:102:49",
       "target": "Floor:75:49",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lounge:Neo",
+      "source": "Zone:103:49",
       "target": "Building:Neo",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Neo",
+      "source": "Zone:103:49",
       "target": "Floor:76:49",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Neo",
+      "source": "Zone:104:49",
       "target": "Building:Neo",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Neo",
+      "source": "Zone:104:49",
       "target": "Floor:77:49",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9680,22 +9790,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe + Reception:BHIC",
+      "source": "Zone:105:50",
       "target": "Building:BHIC",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe + Reception:BHIC",
+      "source": "Zone:105:50",
       "target": "Floor:78:50",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms Room:BHIC",
+      "source": "Zone:106:50",
       "target": "Building:BHIC",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:BHIC",
+      "source": "Zone:106:50",
       "target": "Floor:78:50",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9715,23 +9825,33 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Nomad Lounge:Circle Square No 2",
+      "source": "Zone:107:51",
       "target": "Building:Circle Square No 2",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Nomad Lounge:Circle Square No 2",
+      "source": "Zone:107:51",
       "target": "Floor:79:51",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Circle Square No 2",
+      "source": "Zone:108:51",
       "target": "Building:Circle Square No 2",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Circle Square No 2",
+      "source": "Zone:108:51",
       "target": "Floor:80:51",
+      "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Zone:109:51",
+      "target": "Building:Circle Square No 2",
+      "rel": "LOCATED_IN_BUILDING"
+    },
+    {
+      "source": "Zone:109:51",
+      "target": "Floor:81:51",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
@@ -9745,52 +9865,62 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:Bloc",
+      "source": "Zone:110:52",
       "target": "Building:Bloc",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:Bloc",
+      "source": "Zone:110:52",
       "target": "Floor:82:52",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lounge:Bloc",
+      "source": "Zone:111:52",
       "target": "Building:Bloc",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Bloc",
+      "source": "Zone:111:52",
       "target": "Floor:82:52",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Bloc",
+      "source": "Zone:112:52",
       "target": "Building:Bloc",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Bloc",
+      "source": "Zone:112:52",
       "target": "Floor:83:52",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Eatery:Bloc",
+      "source": "Zone:113:52",
       "target": "Building:Bloc",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Eatery:Bloc",
+      "source": "Zone:113:52",
       "target": "Floor:83:52",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Meeting Lounge:Bloc",
+      "source": "Zone:114:52",
       "target": "Building:Bloc",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Meeting Lounge:Bloc",
+      "source": "Zone:114:52",
+      "target": "Floor:83:52",
+      "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Zone:115:52",
+      "target": "Building:Bloc",
+      "rel": "LOCATED_IN_BUILDING"
+    },
+    {
+      "source": "Zone:115:52",
       "target": "Floor:83:52",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9800,22 +9930,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Whitehouse",
+      "source": "Zone:116:53",
       "target": "Building:Whitehouse",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Whitehouse",
+      "source": "Zone:116:53",
       "target": "Floor:84:53",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Orangery:Whitehouse",
+      "source": "Zone:117:53",
       "target": "Building:Whitehouse",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Orangery:Whitehouse",
+      "source": "Zone:117:53",
       "target": "Floor:84:53",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9830,13 +9960,23 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:The Plaza",
+      "source": "Zone:118:54",
       "target": "Building:The Plaza",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:The Plaza",
+      "source": "Zone:118:54",
       "target": "Floor:85:54",
+      "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Zone:119:54",
+      "target": "Building:The Plaza",
+      "rel": "LOCATED_IN_BUILDING"
+    },
+    {
+      "source": "Zone:119:54",
+      "target": "Floor:86:54",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
@@ -9845,12 +9985,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Booths Park 2",
+      "source": "Zone:120:55",
       "target": "Building:Booths Park 2",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Booths Park 2",
+      "source": "Zone:120:55",
       "target": "Floor:87:55",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9865,22 +10005,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception - Changing Rooms:Foundation",
+      "source": "Zone:121:56",
       "target": "Building:Foundation",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception - Changing Rooms:Foundation",
+      "source": "Zone:121:56",
       "target": "Floor:88:56",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gym:Foundation",
+      "source": "Zone:122:56",
       "target": "Building:Foundation",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Foundation",
+      "source": "Zone:122:56",
       "target": "Floor:89:56",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9890,12 +10030,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception and Terrace:Base",
+      "source": "Zone:123:57",
       "target": "Building:Base",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception and Terrace:Base",
+      "source": "Zone:123:57",
       "target": "Floor:90:57",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9905,12 +10045,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Main - Reception:Alderley Park - Block 30",
+      "source": "Zone:124:58",
       "target": "Building:Alderley Park - Block 30",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Main - Reception:Alderley Park - Block 30",
+      "source": "Zone:124:58",
       "target": "Floor:91:58",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -9925,92 +10065,92 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Nest Room 3:Alderly Park - Glasshouse",
+      "source": "Zone:125:59",
       "target": "Building:Alderly Park - Glasshouse",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Nest Room 3:Alderly Park - Glasshouse",
+      "source": "Zone:125:59",
       "target": "Floor:92:59",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Nest Comms Room:Alderly Park - Glasshouse",
+      "source": "Zone:126:59",
       "target": "Building:Alderly Park - Glasshouse",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Nest Comms Room:Alderly Park - Glasshouse",
+      "source": "Zone:126:59",
       "target": "Floor:92:59",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Atrium:Alderly Park - Glasshouse",
+      "source": "Zone:127:59",
       "target": "Building:Alderly Park - Glasshouse",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Atrium:Alderly Park - Glasshouse",
+      "source": "Zone:127:59",
       "target": "Floor:92:59",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Nest Room 4:Alderly Park - Glasshouse",
+      "source": "Zone:128:59",
       "target": "Building:Alderly Park - Glasshouse",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Nest Room 4:Alderly Park - Glasshouse",
+      "source": "Zone:128:59",
       "target": "Floor:92:59",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Nest Communal Area :Alderly Park - Glasshouse",
+      "source": "Zone:129:59",
       "target": "Building:Alderly Park - Glasshouse",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Nest Communal Area :Alderly Park - Glasshouse",
+      "source": "Zone:129:59",
       "target": "Floor:92:59",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Nest Wellness Suite :Alderly Park - Glasshouse",
+      "source": "Zone:130:59",
       "target": "Building:Alderly Park - Glasshouse",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Nest Wellness Suite :Alderly Park - Glasshouse",
+      "source": "Zone:130:59",
       "target": "Floor:92:59",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Nest Room 2:Alderly Park - Glasshouse",
+      "source": "Zone:131:59",
       "target": "Building:Alderly Park - Glasshouse",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Nest Room 2:Alderly Park - Glasshouse",
+      "source": "Zone:131:59",
       "target": "Floor:92:59",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Main Comms Room:Alderly Park - Glasshouse",
+      "source": "Zone:132:59",
       "target": "Building:Alderly Park - Glasshouse",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Main Comms Room:Alderly Park - Glasshouse",
+      "source": "Zone:132:59",
       "target": "Floor:92:59",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Alderly Park - Glasshouse",
+      "source": "Zone:133:59",
       "target": "Building:Alderly Park - Glasshouse",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Alderly Park - Glasshouse",
+      "source": "Zone:133:59",
       "target": "Floor:93:59",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10025,22 +10165,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Platform",
+      "source": "Zone:134:60",
       "target": "Building:Platform",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Platform",
+      "source": "Zone:134:60",
       "target": "Floor:94:60",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Roof Terrace:Platform",
+      "source": "Zone:135:60",
       "target": "Building:Platform",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Roof Terrace:Platform",
+      "source": "Zone:135:60",
       "target": "Floor:95:60",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10050,12 +10190,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe:Alderley Park - Block 51",
+      "source": "Zone:136:61",
       "target": "Building:Alderley Park - Block 51",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe:Alderley Park - Block 51",
+      "source": "Zone:136:61",
       "target": "Floor:96:61",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10065,12 +10205,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:King St",
+      "source": "Zone:137:62",
       "target": "Building:King St",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:King St",
+      "source": "Zone:137:62",
       "target": "Floor:97:62",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10080,12 +10220,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:York House",
+      "source": "Zone:138:63",
       "target": "Building:York House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:York House",
+      "source": "Zone:138:63",
       "target": "Floor:98:63",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10095,22 +10235,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Bixteth Street Reception:Cotton Exchange - Liverpool",
+      "source": "Zone:139:64",
       "target": "Building:Cotton Exchange - Liverpool",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Bixteth Street Reception:Cotton Exchange - Liverpool",
+      "source": "Zone:139:64",
       "target": "Floor:99:64",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Cotton House Reception:Cotton Exchange - Liverpool",
+      "source": "Zone:140:64",
       "target": "Building:Cotton Exchange - Liverpool",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cotton House Reception:Cotton Exchange - Liverpool",
+      "source": "Zone:140:64",
       "target": "Floor:99:64",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10120,142 +10260,142 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Room 2:111 Piccadilly",
+      "source": "Zone:141:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Room 2:111 Piccadilly",
+      "source": "Zone:141:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Room 5:111 Piccadilly",
+      "source": "Zone:142:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Room 5:111 Piccadilly",
+      "source": "Zone:142:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Booths:111 Piccadilly",
+      "source": "Zone:143:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Booths:111 Piccadilly",
+      "source": "Zone:143:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Room 8:111 Piccadilly",
+      "source": "Zone:144:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Room 8:111 Piccadilly",
+      "source": "Zone:144:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:111 Piccadilly",
+      "source": "Zone:145:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:111 Piccadilly",
+      "source": "Zone:145:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Room 4:111 Piccadilly",
+      "source": "Zone:146:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Room 4:111 Piccadilly",
+      "source": "Zone:146:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Coworking:111 Piccadilly",
+      "source": "Zone:147:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Coworking:111 Piccadilly",
+      "source": "Zone:147:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gem:111 Piccadilly",
+      "source": "Zone:148:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gem:111 Piccadilly",
+      "source": "Zone:148:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Room 6:111 Piccadilly",
+      "source": "Zone:149:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Room 6:111 Piccadilly",
+      "source": "Zone:149:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Room 1:111 Piccadilly",
+      "source": "Zone:150:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Room 1:111 Piccadilly",
+      "source": "Zone:150:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Room 3:111 Piccadilly",
+      "source": "Zone:151:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Room 3:111 Piccadilly",
+      "source": "Zone:151:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Room 7:111 Piccadilly",
+      "source": "Zone:152:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Room 7:111 Piccadilly",
+      "source": "Zone:152:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms:111 Piccadilly",
+      "source": "Zone:153:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms:111 Piccadilly",
+      "source": "Zone:153:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lounge:111 Piccadilly",
+      "source": "Zone:154:65",
       "target": "Building:111 Piccadilly",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:111 Piccadilly",
+      "source": "Zone:154:65",
       "target": "Floor:100:65",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10265,22 +10405,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:127 Portland Street",
+      "source": "Zone:155:66",
       "target": "Building:127 Portland Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:127 Portland Street",
+      "source": "Zone:155:66",
       "target": "Floor:101:66",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lounge:127 Portland Street",
+      "source": "Zone:156:66",
       "target": "Building:127 Portland Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:127 Portland Street",
+      "source": "Zone:156:66",
       "target": "Floor:101:66",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10295,22 +10435,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Studio:West Gate",
+      "source": "Zone:157:67",
       "target": "Building:West Gate",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Studio:West Gate",
+      "source": "Zone:157:67",
       "target": "Floor:102:67",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:West Gate",
+      "source": "Zone:158:67",
       "target": "Building:West Gate",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:West Gate",
+      "source": "Zone:158:67",
       "target": "Floor:103:67",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10325,22 +10465,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Innovation Birmingham - Enterprise Wharf",
+      "source": "Zone:159:68",
       "target": "Building:Innovation Birmingham - Enterprise Wharf",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Innovation Birmingham - Enterprise Wharf",
+      "source": "Zone:159:68",
       "target": "Floor:105:68",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Gym:Innovation Birmingham - Enterprise Wharf",
+      "source": "Zone:160:68",
       "target": "Building:Innovation Birmingham - Enterprise Wharf",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Innovation Birmingham - Enterprise Wharf",
+      "source": "Zone:160:68",
       "target": "Floor:105:68",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10350,72 +10490,72 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:The Plaza - Unlimited",
+      "source": "Zone:161:69",
       "target": "Building:The Plaza - Unlimited",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:The Plaza - Unlimited",
+      "source": "Zone:161:69",
       "target": "Floor:106:69",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Cafe:The Plaza - Unlimited",
+      "source": "Zone:162:69",
       "target": "Building:The Plaza - Unlimited",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe:The Plaza - Unlimited",
+      "source": "Zone:162:69",
       "target": "Floor:106:69",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms Room:The Plaza - Unlimited",
+      "source": "Zone:163:69",
       "target": "Building:The Plaza - Unlimited",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:The Plaza - Unlimited",
+      "source": "Zone:163:69",
       "target": "Floor:106:69",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Restaurant:The Plaza - Unlimited",
+      "source": "Zone:164:69",
       "target": "Building:The Plaza - Unlimited",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Restaurant:The Plaza - Unlimited",
+      "source": "Zone:164:69",
       "target": "Floor:106:69",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Bar:The Plaza - Unlimited",
+      "source": "Zone:165:69",
       "target": "Building:The Plaza - Unlimited",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Bar:The Plaza - Unlimited",
+      "source": "Zone:165:69",
       "target": "Floor:106:69",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Retail:The Plaza - Unlimited",
+      "source": "Zone:166:69",
       "target": "Building:The Plaza - Unlimited",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Retail:The Plaza - Unlimited",
+      "source": "Zone:166:69",
       "target": "Floor:106:69",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Changing Rooms:The Plaza - Unlimited",
+      "source": "Zone:167:69",
       "target": "Building:The Plaza - Unlimited",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Changing Rooms:The Plaza - Unlimited",
+      "source": "Zone:167:69",
       "target": "Floor:106:69",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10425,12 +10565,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Delphian House",
+      "source": "Zone:168:70",
       "target": "Building:Delphian House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Delphian House",
+      "source": "Zone:168:70",
       "target": "Floor:107:70",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10440,12 +10580,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:St James",
+      "source": "Zone:169:71",
       "target": "Building:St James",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:St James",
+      "source": "Zone:169:71",
       "target": "Floor:108:71",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10455,12 +10595,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Cornwall Building",
+      "source": "Zone:170:72",
       "target": "Building:Cornwall Building",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Cornwall Building",
+      "source": "Zone:170:72",
       "target": "Floor:109:72",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10470,12 +10610,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe - Co-working - Space:Alderley Park - Block 1",
+      "source": "Zone:171:73",
       "target": "Building:Alderley Park - Block 1",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe - Co-working - Space:Alderley Park - Block 1",
+      "source": "Zone:171:73",
       "target": "Floor:110:73",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10490,22 +10630,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Ground Floor Reception + Lobby:Regent House",
+      "source": "Zone:172:74",
       "target": "Building:Regent House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Ground Floor Reception + Lobby:Regent House",
+      "source": "Zone:172:74",
       "target": "Floor:111:74",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:11th Floor Reception + Hub:Regent House",
+      "source": "Zone:173:74",
       "target": "Building:Regent House",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:11th Floor Reception + Hub:Regent House",
+      "source": "Zone:173:74",
       "target": "Floor:112:74",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10535,93 +10675,113 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Suite 6.1:55 King Street",
+      "source": "Zone:174:75",
       "target": "Building:55 King Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Suite 6.1:55 King Street",
+      "source": "Zone:174:75",
       "target": "Floor:113:75",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Corridor:55 King Street",
+      "source": "Zone:175:75",
       "target": "Building:55 King Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Corridor:55 King Street",
+      "source": "Zone:175:75",
       "target": "Floor:113:75",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Orbit Suit:55 King Street",
+      "source": "Zone:176:75",
       "target": "Building:55 King Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Orbit Suit:55 King Street",
+      "source": "Zone:176:75",
       "target": "Floor:113:75",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Suite 6.2:55 King Street",
+      "source": "Zone:177:75",
       "target": "Building:55 King Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Suite 6.2:55 King Street",
+      "source": "Zone:177:75",
       "target": "Floor:113:75",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Suite 6.3:55 King Street",
+      "source": "Zone:178:75",
       "target": "Building:55 King Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Suite 6.3:55 King Street",
+      "source": "Zone:178:75",
       "target": "Floor:113:75",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Suite 6.4:55 King Street",
+      "source": "Zone:179:75",
       "target": "Building:55 King Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Suite 6.4:55 King Street",
+      "source": "Zone:179:75",
       "target": "Floor:113:75",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Suite 6.5:55 King Street",
+      "source": "Zone:180:75",
       "target": "Building:55 King Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Suite 6.5:55 King Street",
+      "source": "Zone:180:75",
       "target": "Floor:113:75",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:55 King Street",
+      "source": "Zone:181:75",
       "target": "Building:55 King Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:55 King Street",
+      "source": "Zone:181:75",
       "target": "Floor:114:75",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms Room:55 King Street",
+      "source": "Zone:182:75",
       "target": "Building:55 King Street",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:55 King Street",
+      "source": "Zone:182:75",
       "target": "Floor:115:75",
+      "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Zone:183:75",
+      "target": "Building:55 King Street",
+      "rel": "LOCATED_IN_BUILDING"
+    },
+    {
+      "source": "Zone:183:75",
+      "target": "Floor:116:75",
+      "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Zone:184:75",
+      "target": "Building:55 King Street",
+      "rel": "LOCATED_IN_BUILDING"
+    },
+    {
+      "source": "Zone:184:75",
+      "target": "Floor:117:75",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
@@ -10630,12 +10790,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Ground Floor Audio:Futura Park",
+      "source": "Zone:185:76",
       "target": "Building:Futura Park",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Ground Floor Audio:Futura Park",
+      "source": "Zone:185:76",
       "target": "Floor:118:76",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10645,22 +10805,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Side Entrance:Arne Retail - Liverpool",
+      "source": "Zone:186:77",
       "target": "Building:Arne Retail - Liverpool",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Side Entrance:Arne Retail - Liverpool",
+      "source": "Zone:186:77",
       "target": "Floor:119:77",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Main Entrance:Arne Retail - Liverpool",
+      "source": "Zone:187:77",
       "target": "Building:Arne Retail - Liverpool",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Main Entrance:Arne Retail - Liverpool",
+      "source": "Zone:187:77",
       "target": "Floor:119:77",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10670,22 +10830,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Element",
+      "source": "Zone:188:78",
       "target": "Building:Element",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Gym:Element",
+      "source": "Zone:188:78",
       "target": "Floor:120:78",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception + Cafe:Element",
+      "source": "Zone:189:78",
       "target": "Building:Element",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception + Cafe:Element",
+      "source": "Zone:189:78",
       "target": "Floor:120:78",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10715,33 +10875,73 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lobby:SoapWorks",
+      "source": "Zone:190:79",
       "target": "Building:SoapWorks",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lobby:SoapWorks",
+      "source": "Zone:190:79",
       "target": "Floor:121:79",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Cafe:SoapWorks",
+      "source": "Zone:191:79",
       "target": "Building:SoapWorks",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe:SoapWorks",
+      "source": "Zone:191:79",
+      "target": "Floor:122:79",
+      "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Zone:192:79",
+      "target": "Building:SoapWorks",
+      "rel": "LOCATED_IN_BUILDING"
+    },
+    {
+      "source": "Zone:192:79",
+      "target": "Floor:123:79",
+      "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Zone:193:79",
+      "target": "Building:SoapWorks",
+      "rel": "LOCATED_IN_BUILDING"
+    },
+    {
+      "source": "Zone:193:79",
       "target": "Floor:124:79",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms:SoapWorks",
+      "source": "Zone:194:79",
       "target": "Building:SoapWorks",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms:SoapWorks",
+      "source": "Zone:194:79",
       "target": "Floor:124:79",
+      "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Zone:195:79",
+      "target": "Building:SoapWorks",
+      "rel": "LOCATED_IN_BUILDING"
+    },
+    {
+      "source": "Zone:195:79",
+      "target": "Floor:124:79",
+      "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Zone:196:79",
+      "target": "Building:SoapWorks",
+      "rel": "LOCATED_IN_BUILDING"
+    },
+    {
+      "source": "Zone:196:79",
+      "target": "Floor:125:79",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
@@ -10750,12 +10950,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Portable:Site Monitoring Kit 2",
+      "source": "Zone:197:80",
       "target": "Building:Site Monitoring Kit 2",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Portable:Site Monitoring Kit 2",
+      "source": "Zone:197:80",
       "target": "Floor:126:80",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10765,12 +10965,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Portable:Site Monitoring Kit 1",
+      "source": "Zone:198:81",
       "target": "Building:Site Monitoring Kit 1",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Portable:Site Monitoring Kit 1",
+      "source": "Zone:198:81",
       "target": "Floor:127:81",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10785,42 +10985,42 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Office Space:Salford Office",
+      "source": "Zone:199:82",
       "target": "Building:Salford Office",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Office Space:Salford Office",
+      "source": "Zone:199:82",
       "target": "Floor:128:82",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Salford Office",
+      "source": "Zone:200:82",
       "target": "Building:Salford Office",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Salford Office",
+      "source": "Zone:200:82",
       "target": "Floor:129:82",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Entrance:Salford Office",
+      "source": "Zone:201:82",
       "target": "Building:Salford Office",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Entrance:Salford Office",
+      "source": "Zone:201:82",
       "target": "Floor:129:82",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Utility Room:Salford Office",
+      "source": "Zone:202:82",
       "target": "Building:Salford Office",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Utility Room:Salford Office",
+      "source": "Zone:202:82",
       "target": "Floor:129:82",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -10835,172 +11035,172 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Standup:Bolton",
+      "source": "Zone:203:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Standup:Bolton",
+      "source": "Zone:203:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Huddle:Bolton",
+      "source": "Zone:204:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Huddle:Bolton",
+      "source": "Zone:204:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Workshop:Bolton",
+      "source": "Zone:205:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Workshop:Bolton",
+      "source": "Zone:205:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:DJ:Bolton",
+      "source": "Zone:206:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:DJ:Bolton",
+      "source": "Zone:206:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Booths:Bolton",
+      "source": "Zone:207:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Booths:Bolton",
+      "source": "Zone:207:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Bolton",
+      "source": "Zone:208:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Bolton",
+      "source": "Zone:208:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Digispace:Bolton",
+      "source": "Zone:209:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Digispace:Bolton",
+      "source": "Zone:209:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Sitdown:Bolton",
+      "source": "Zone:210:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Sitdown:Bolton",
+      "source": "Zone:210:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Comms:Bolton",
+      "source": "Zone:211:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms:Bolton",
+      "source": "Zone:211:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Cafe:Bolton",
+      "source": "Zone:212:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe:Bolton",
+      "source": "Zone:212:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Cinema:Bolton",
+      "source": "Zone:213:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cinema:Bolton",
+      "source": "Zone:213:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Lounge:Bolton",
+      "source": "Zone:214:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Lounge:Bolton",
+      "source": "Zone:214:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Toilet:Bolton",
+      "source": "Zone:215:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Toilet:Bolton",
+      "source": "Zone:215:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Kitchen:Bolton",
+      "source": "Zone:216:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Kitchen:Bolton",
+      "source": "Zone:216:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Brainstorm:Bolton",
+      "source": "Zone:217:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Brainstorm:Bolton",
+      "source": "Zone:217:83",
       "target": "Floor:130:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Entrance:Bolton",
+      "source": "Zone:218:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Entrance:Bolton",
+      "source": "Zone:218:83",
       "target": "Floor:131:83",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Goods In:Bolton",
+      "source": "Zone:219:83",
       "target": "Building:Bolton",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Goods In:Bolton",
+      "source": "Zone:219:83",
       "target": "Floor:131:83",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -11010,22 +11210,22 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Social Hub:Island",
+      "source": "Zone:220:84",
       "target": "Building:Island",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Social Hub:Island",
+      "source": "Zone:220:84",
       "target": "Floor:132:84",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Event Space:Island",
+      "source": "Zone:221:84",
       "target": "Building:Island",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Event Space:Island",
+      "source": "Zone:221:84",
       "target": "Floor:132:84",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -11035,12 +11235,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Transmission building ",
+      "source": "Zone:222:85",
       "target": "Building:Transmission building ",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Transmission building ",
+      "source": "Zone:222:85",
       "target": "Floor:133:85",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -11050,38 +11250,38 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:Cornwall Building",
+      "source": "Zone:223:86",
       "target": "Building:Cornwall Building",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Comms Room:Cornwall Building",
+      "source": "Zone:223:86",
       "target": "Floor:134:86",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Cafe + Lounge:Cornwall Building",
+      "source": "Zone:224:86",
       "target": "Building:Cornwall Building",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Cafe + Lounge:Cornwall Building",
+      "source": "Zone:224:86",
       "target": "Floor:134:86",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Workspace:Cornwall Building",
+      "source": "Zone:225:86",
       "target": "Building:Cornwall Building",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Workspace:Cornwall Building",
+      "source": "Zone:225:86",
       "target": "Floor:134:86",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
       "source": "Device:1",
-      "target": "Zone:Reception:Circle Square No 1",
+      "target": "Zone:58:29",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11096,7 +11296,7 @@
     },
     {
       "source": "Device:2",
-      "target": "Zone:Main Entrance:Union",
+      "target": "Zone:62:30",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11111,7 +11311,7 @@
     },
     {
       "source": "Device:3",
-      "target": "Zone:Gym Entrance:Union",
+      "target": "Zone:65:30",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11126,7 +11326,7 @@
     },
     {
       "source": "Device:4",
-      "target": "Zone:Nest Room 3:Alderly Park - Glasshouse",
+      "target": "Zone:125:59",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11141,7 +11341,7 @@
     },
     {
       "source": "Device:5",
-      "target": "Zone:Nest Room 3:Alderly Park - Glasshouse",
+      "target": "Zone:125:59",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11156,7 +11356,7 @@
     },
     {
       "source": "Device:6",
-      "target": "Zone:Atrium:Alderly Park - Glasshouse",
+      "target": "Zone:127:59",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11171,7 +11371,7 @@
     },
     {
       "source": "Device:7",
-      "target": "Zone:Nest Room 4:Alderly Park - Glasshouse",
+      "target": "Zone:128:59",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11186,7 +11386,7 @@
     },
     {
       "source": "Device:8",
-      "target": "Zone:Nest Room 4:Alderly Park - Glasshouse",
+      "target": "Zone:128:59",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11201,7 +11401,7 @@
     },
     {
       "source": "Device:9",
-      "target": "Zone:Nest Communal Area :Alderly Park - Glasshouse",
+      "target": "Zone:129:59",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11216,7 +11416,7 @@
     },
     {
       "source": "Device:10",
-      "target": "Zone:Nest Room 2:Alderly Park - Glasshouse",
+      "target": "Zone:131:59",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11231,7 +11431,7 @@
     },
     {
       "source": "Device:11",
-      "target": "Zone:Nest Room 2:Alderly Park - Glasshouse",
+      "target": "Zone:131:59",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11246,7 +11446,7 @@
     },
     {
       "source": "Device:12",
-      "target": "Zone:Room 2:111 Piccadilly",
+      "target": "Zone:141:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11261,7 +11461,7 @@
     },
     {
       "source": "Device:13",
-      "target": "Zone:Room 5:111 Piccadilly",
+      "target": "Zone:142:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11276,7 +11476,7 @@
     },
     {
       "source": "Device:14",
-      "target": "Zone:Room 8:111 Piccadilly",
+      "target": "Zone:144:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11291,7 +11491,7 @@
     },
     {
       "source": "Device:15",
-      "target": "Zone:Room 4:111 Piccadilly",
+      "target": "Zone:146:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11306,7 +11506,7 @@
     },
     {
       "source": "Device:16",
-      "target": "Zone:Coworking:111 Piccadilly",
+      "target": "Zone:147:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11321,7 +11521,7 @@
     },
     {
       "source": "Device:17",
-      "target": "Zone:Gem:111 Piccadilly",
+      "target": "Zone:148:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11336,7 +11536,7 @@
     },
     {
       "source": "Device:18",
-      "target": "Zone:Room 6:111 Piccadilly",
+      "target": "Zone:149:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11351,7 +11551,7 @@
     },
     {
       "source": "Device:19",
-      "target": "Zone:Room 1:111 Piccadilly",
+      "target": "Zone:150:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11366,7 +11566,7 @@
     },
     {
       "source": "Device:20",
-      "target": "Zone:Room 3:111 Piccadilly",
+      "target": "Zone:151:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11381,7 +11581,7 @@
     },
     {
       "source": "Device:21",
-      "target": "Zone:Room 7:111 Piccadilly",
+      "target": "Zone:152:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11396,7 +11596,7 @@
     },
     {
       "source": "Device:22",
-      "target": "Zone:Comms:111 Piccadilly",
+      "target": "Zone:153:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11411,7 +11611,7 @@
     },
     {
       "source": "Device:23",
-      "target": "Zone:Comms:111 Piccadilly",
+      "target": "Zone:153:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11426,7 +11626,7 @@
     },
     {
       "source": "Device:24",
-      "target": "Zone:Comms:111 Piccadilly",
+      "target": "Zone:153:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11441,7 +11641,7 @@
     },
     {
       "source": "Device:25",
-      "target": "Zone:Lounge:111 Piccadilly",
+      "target": "Zone:154:65",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11456,7 +11656,7 @@
     },
     {
       "source": "Device:26",
-      "target": "Zone:Retail:The Plaza - Unlimited",
+      "target": "Zone:166:69",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11471,7 +11671,7 @@
     },
     {
       "source": "Device:27",
-      "target": "Zone:Suite 6.1:55 King Street",
+      "target": "Zone:174:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11486,7 +11686,7 @@
     },
     {
       "source": "Device:28",
-      "target": "Zone:Suite 6.1:55 King Street",
+      "target": "Zone:174:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11501,7 +11701,7 @@
     },
     {
       "source": "Device:29",
-      "target": "Zone:Suite 6.1:55 King Street",
+      "target": "Zone:174:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11516,7 +11716,7 @@
     },
     {
       "source": "Device:30",
-      "target": "Zone:Suite 6.1:55 King Street",
+      "target": "Zone:174:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11531,7 +11731,7 @@
     },
     {
       "source": "Device:31",
-      "target": "Zone:Orbit Suit:55 King Street",
+      "target": "Zone:176:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11546,7 +11746,7 @@
     },
     {
       "source": "Device:32",
-      "target": "Zone:Suite 6.2:55 King Street",
+      "target": "Zone:177:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11561,7 +11761,7 @@
     },
     {
       "source": "Device:33",
-      "target": "Zone:Suite 6.3:55 King Street",
+      "target": "Zone:178:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11576,7 +11776,7 @@
     },
     {
       "source": "Device:34",
-      "target": "Zone:Suite 6.4:55 King Street",
+      "target": "Zone:179:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11591,7 +11791,7 @@
     },
     {
       "source": "Device:35",
-      "target": "Zone:Suite 6.5:55 King Street",
+      "target": "Zone:180:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11606,7 +11806,7 @@
     },
     {
       "source": "Device:36",
-      "target": "Zone:Suite 6.5:55 King Street",
+      "target": "Zone:180:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11621,7 +11821,7 @@
     },
     {
       "source": "Device:37",
-      "target": "Zone:Suite 6.5:55 King Street",
+      "target": "Zone:180:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11636,7 +11836,7 @@
     },
     {
       "source": "Device:38",
-      "target": "Zone:Suite 6.5:55 King Street",
+      "target": "Zone:180:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11651,7 +11851,7 @@
     },
     {
       "source": "Device:39",
-      "target": "Zone:Suite 6.5:55 King Street",
+      "target": "Zone:180:75",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11666,7 +11866,7 @@
     },
     {
       "source": "Device:40",
-      "target": "Zone:Side Entrance:Arne Retail - Liverpool",
+      "target": "Zone:186:77",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11681,7 +11881,7 @@
     },
     {
       "source": "Device:41",
-      "target": "Zone:Main Entrance:Arne Retail - Liverpool",
+      "target": "Zone:187:77",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11696,7 +11896,7 @@
     },
     {
       "source": "Device:42",
-      "target": "Zone:Comms:SoapWorks",
+      "target": "Zone:194:79",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11711,7 +11911,7 @@
     },
     {
       "source": "Device:43",
-      "target": "Zone:Portable:Site Monitoring Kit 2",
+      "target": "Zone:197:80",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11726,7 +11926,7 @@
     },
     {
       "source": "Device:44",
-      "target": "Zone:Portable:Site Monitoring Kit 2",
+      "target": "Zone:197:80",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11741,7 +11941,7 @@
     },
     {
       "source": "Device:45",
-      "target": "Zone:Portable:Site Monitoring Kit 2",
+      "target": "Zone:197:80",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11756,7 +11956,7 @@
     },
     {
       "source": "Device:46",
-      "target": "Zone:Portable:Site Monitoring Kit 2",
+      "target": "Zone:197:80",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11771,7 +11971,7 @@
     },
     {
       "source": "Device:47",
-      "target": "Zone:Portable:Site Monitoring Kit 2",
+      "target": "Zone:197:80",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11786,7 +11986,7 @@
     },
     {
       "source": "Device:48",
-      "target": "Zone:Portable:Site Monitoring Kit 1",
+      "target": "Zone:198:81",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11801,7 +12001,7 @@
     },
     {
       "source": "Device:49",
-      "target": "Zone:Portable:Site Monitoring Kit 1",
+      "target": "Zone:198:81",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11816,7 +12016,7 @@
     },
     {
       "source": "Device:50",
-      "target": "Zone:Portable:Site Monitoring Kit 1",
+      "target": "Zone:198:81",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11831,7 +12031,7 @@
     },
     {
       "source": "Device:51",
-      "target": "Zone:Office Space:Salford Office",
+      "target": "Zone:199:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11846,7 +12046,7 @@
     },
     {
       "source": "Device:52",
-      "target": "Zone:Reception:Salford Office",
+      "target": "Zone:200:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11861,7 +12061,7 @@
     },
     {
       "source": "Device:53",
-      "target": "Zone:Entrance:Salford Office",
+      "target": "Zone:201:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11876,7 +12076,7 @@
     },
     {
       "source": "Device:54",
-      "target": "Zone:Utility Room:Salford Office",
+      "target": "Zone:202:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11891,7 +12091,7 @@
     },
     {
       "source": "Device:55",
-      "target": "Zone:Utility Room:Salford Office",
+      "target": "Zone:202:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11906,7 +12106,7 @@
     },
     {
       "source": "Device:56",
-      "target": "Zone:Utility Room:Salford Office",
+      "target": "Zone:202:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11921,7 +12121,7 @@
     },
     {
       "source": "Device:57",
-      "target": "Zone:Standup:Bolton",
+      "target": "Zone:203:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11936,7 +12136,7 @@
     },
     {
       "source": "Device:58",
-      "target": "Zone:Huddle:Bolton",
+      "target": "Zone:204:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11951,7 +12151,7 @@
     },
     {
       "source": "Device:59",
-      "target": "Zone:Booths:Bolton",
+      "target": "Zone:207:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11966,7 +12166,7 @@
     },
     {
       "source": "Device:60",
-      "target": "Zone:Sitdown:Bolton",
+      "target": "Zone:210:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11981,7 +12181,7 @@
     },
     {
       "source": "Device:61",
-      "target": "Zone:Comms:Bolton",
+      "target": "Zone:211:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -11996,7 +12196,7 @@
     },
     {
       "source": "Device:62",
-      "target": "Zone:Comms:Bolton",
+      "target": "Zone:211:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -12011,7 +12211,7 @@
     },
     {
       "source": "Device:63",
-      "target": "Zone:Cafe:Bolton",
+      "target": "Zone:212:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -12026,7 +12226,7 @@
     },
     {
       "source": "Device:64",
-      "target": "Zone:Cafe:Bolton",
+      "target": "Zone:212:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -12041,7 +12241,7 @@
     },
     {
       "source": "Device:65",
-      "target": "Zone:Lounge:Bolton",
+      "target": "Zone:214:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -12056,7 +12256,7 @@
     },
     {
       "source": "Device:66",
-      "target": "Zone:Toilet:Bolton",
+      "target": "Zone:215:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -12071,7 +12271,7 @@
     },
     {
       "source": "Device:67",
-      "target": "Zone:Toilet:Bolton",
+      "target": "Zone:215:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -12086,7 +12286,7 @@
     },
     {
       "source": "Device:68",
-      "target": "Zone:Brainstorm:Bolton",
+      "target": "Zone:217:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -12101,7 +12301,7 @@
     },
     {
       "source": "Device:69",
-      "target": "Zone:Brainstorm:Bolton",
+      "target": "Zone:217:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -12116,7 +12316,7 @@
     },
     {
       "source": "Device:70",
-      "target": "Zone:Entrance:Bolton",
+      "target": "Zone:218:83",
       "rel": "LOCATED_IN_ZONE"
     },
     {

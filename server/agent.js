@@ -502,6 +502,15 @@ const extractFieldValue = (row, fieldOrList) => {
     return parts.length ? `Scope: ${parts.join(' · ')}` : '';
   }
 
+  function applyScopeHeaderText(text, scopeHeaderLine) {
+    if (!scopeHeaderLine) return text;
+    const base = typeof text === 'string' ? text.trim() : '';
+    if (!base) return scopeHeaderLine;
+    const normalizedHeader = scopeHeaderLine.toLowerCase();
+    if (base.toLowerCase().includes(normalizedHeader)) return text;
+    return `${scopeHeaderLine}\n\n${base}`;
+  }
+
   function buildScopeSnapshotContextSummary({
     selectionZones = [],
     selectionRooms = [],
@@ -8912,15 +8921,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       _retrievedDocs: retrieved
     };
     if (scopeSnapshotSummary) ctx.scopeSnapshot = scopeSnapshotSummary;
-    const scopeHeaderLine = formatScopeHeaderLine(scopeLabels, selectionFloors, selectionZones);
-    const applyScopeHeader = (text) => {
-      if (!scopeHeaderLine) return text;
-      const base = typeof text === 'string' ? text.trim() : '';
-      if (!base) return scopeHeaderLine;
-      const normalizedHeader = scopeHeaderLine.toLowerCase();
-      if (base.toLowerCase().includes(normalizedHeader)) return text;
-      return `${scopeHeaderLine}\n\n${base}`;
-    };
+    ctx.scopeHeaderLine = formatScopeHeaderLine(scopeLabels, selectionFloors, selectionZones);
     return ctx;
   }
 	
@@ -9033,6 +9034,8 @@ function parseFieldsFromQuestion(question, availableSets) {
   }) {
     const question = messages[messages.length - 1]?.content || '';
     const questionLower = String(question || '').toLowerCase();
+    let scopeHeaderLine = '';
+    const applyScopeHeader = (text) => applyScopeHeaderText(text, scopeHeaderLine);
 
     try {
 
@@ -9043,6 +9046,8 @@ function parseFieldsFromQuestion(question, availableSets) {
     const filters = suggestRetrievalFilters(routing.level, routing);
     const preferCategories = filters?.preferCategories || [];
     const routerDirectives = buildAnalysisDirectives(routing);
+    const selectionFloors = Array.isArray(scopeFloors) ? [...scopeFloors] : [];
+
     const retrievalScope = {
       tenant,
       building,
@@ -9073,6 +9078,8 @@ function parseFieldsFromQuestion(question, availableSets) {
         }
       }
     );
+
+    scopeHeaderLine = ctx?.scopeHeaderLine || scopeHeaderLine;
 
     const hybridHits = (ctx && ctx._retrievedDocs && ctx._retrievedDocs.length)
       ? ctx._retrievedDocs

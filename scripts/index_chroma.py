@@ -163,6 +163,10 @@ def coerce_meta_value(value):
 
 def index_knowledge(client):
     name = os.environ.get('CHROMA_COLLECTION', 'knowledge')
+    try:
+        client.delete_collection(name)
+    except Exception:
+        pass
     coll = client.get_or_create_collection(name=name, embedding_function=EF)
     files = [f for f in glob.glob('knowledge/**/*.*', recursive=True) if f.lower().endswith(('.md','.txt'))]
     docs, ids, metas = [], [], []
@@ -198,6 +202,10 @@ def make_profile_doc(building, room, metric, horizon, summary):
 
 def index_profiles(client):
     name = os.environ.get('CHROMA_COLLECTION_PROFILES', 'profiles')
+    try:
+        client.delete_collection(name)
+    except Exception:
+        pass
     coll = client.get_or_create_collection(name=name, embedding_function=EF)
     buildings = ['Alpha Tower','Alpha Annex','Beta Plaza','Beta Lofts']
     base_rooms = ['Cafe 1','Boardroom 1','Lab 1','Toilet 1','Cafe 2','Boardroom 2']

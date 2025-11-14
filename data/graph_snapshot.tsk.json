@@ -1,5 +1,5 @@
 {
-  "generatedAt": 1763001708241,
+  "generatedAt": 1763137077484,
   "tenant": "TSK",
   "nodes": [
     {
@@ -47,7 +47,7 @@
       "y": 220
     },
     {
-      "id": "Zone:Portable:Site Monitoring Kit 2",
+      "id": "Zone:197:80",
       "label": "Zone",
       "name": "Portable",
       "nodeType": "Zone",
@@ -101,7 +101,7 @@
       "y": 220
     },
     {
-      "id": "Zone:Portable:Site Monitoring Kit 1",
+      "id": "Zone:198:81",
       "label": "Zone",
       "name": "Portable",
       "nodeType": "Zone",
@@ -189,7 +189,7 @@
       "y": 220
     },
     {
-      "id": "Zone:Office Space:Salford Office",
+      "id": "Zone:199:82",
       "label": "Zone",
       "name": "Office Space",
       "nodeType": "Zone",
@@ -199,7 +199,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Reception:Salford Office",
+      "id": "Zone:200:82",
       "label": "Zone",
       "name": "Reception",
       "nodeType": "Zone",
@@ -209,7 +209,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Entrance:Salford Office",
+      "id": "Zone:201:82",
       "label": "Zone",
       "name": "Entrance",
       "nodeType": "Zone",
@@ -219,7 +219,7 @@
       "y": 440
     },
     {
-      "id": "Zone:Utility Room:Salford Office",
+      "id": "Zone:202:82",
       "label": "Zone",
       "name": "Utility Room",
       "nodeType": "Zone",
@@ -376,12 +376,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Portable:Site Monitoring Kit 2",
+      "source": "Zone:197:80",
       "target": "Building:Site Monitoring Kit 2",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Portable:Site Monitoring Kit 2",
+      "source": "Zone:197:80",
       "target": "Floor:126:80",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -391,12 +391,12 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Portable:Site Monitoring Kit 1",
+      "source": "Zone:198:81",
       "target": "Building:Site Monitoring Kit 1",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Portable:Site Monitoring Kit 1",
+      "source": "Zone:198:81",
       "target": "Floor:127:81",
       "rel": "BELONGS_TO_FLOOR"
     },
@@ -411,48 +411,48 @@
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Office Space:Salford Office",
+      "source": "Zone:199:82",
       "target": "Building:Salford Office",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Office Space:Salford Office",
+      "source": "Zone:199:82",
       "target": "Floor:128:82",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Reception:Salford Office",
+      "source": "Zone:200:82",
       "target": "Building:Salford Office",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Reception:Salford Office",
+      "source": "Zone:200:82",
       "target": "Floor:129:82",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Entrance:Salford Office",
+      "source": "Zone:201:82",
       "target": "Building:Salford Office",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Entrance:Salford Office",
+      "source": "Zone:201:82",
       "target": "Floor:129:82",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
-      "source": "Zone:Utility Room:Salford Office",
+      "source": "Zone:202:82",
       "target": "Building:Salford Office",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
-      "source": "Zone:Utility Room:Salford Office",
+      "source": "Zone:202:82",
       "target": "Floor:129:82",
       "rel": "BELONGS_TO_FLOOR"
     },
     {
       "source": "Device:43",
-      "target": "Zone:Portable:Site Monitoring Kit 2",
+      "target": "Zone:197:80",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -467,7 +467,7 @@
     },
     {
       "source": "Device:44",
-      "target": "Zone:Portable:Site Monitoring Kit 2",
+      "target": "Zone:197:80",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -482,7 +482,7 @@
     },
     {
       "source": "Device:45",
-      "target": "Zone:Portable:Site Monitoring Kit 2",
+      "target": "Zone:197:80",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -497,7 +497,7 @@
     },
     {
       "source": "Device:46",
-      "target": "Zone:Portable:Site Monitoring Kit 2",
+      "target": "Zone:197:80",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -512,7 +512,7 @@
     },
     {
       "source": "Device:47",
-      "target": "Zone:Portable:Site Monitoring Kit 2",
+      "target": "Zone:197:80",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -527,7 +527,7 @@
     },
     {
       "source": "Device:48",
-      "target": "Zone:Portable:Site Monitoring Kit 1",
+      "target": "Zone:198:81",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -542,7 +542,7 @@
     },
     {
       "source": "Device:49",
-      "target": "Zone:Portable:Site Monitoring Kit 1",
+      "target": "Zone:198:81",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -557,7 +557,7 @@
     },
     {
       "source": "Device:50",
-      "target": "Zone:Portable:Site Monitoring Kit 1",
+      "target": "Zone:198:81",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -572,7 +572,7 @@
     },
     {
       "source": "Device:51",
-      "target": "Zone:Office Space:Salford Office",
+      "target": "Zone:199:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -587,7 +587,7 @@
     },
     {
       "source": "Device:52",
-      "target": "Zone:Reception:Salford Office",
+      "target": "Zone:200:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -602,7 +602,7 @@
     },
     {
       "source": "Device:53",
-      "target": "Zone:Entrance:Salford Office",
+      "target": "Zone:201:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -617,7 +617,7 @@
     },
     {
       "source": "Device:54",
-      "target": "Zone:Utility Room:Salford Office",
+      "target": "Zone:202:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -632,7 +632,7 @@
     },
     {
       "source": "Device:55",
-      "target": "Zone:Utility Room:Salford Office",
+      "target": "Zone:202:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {
@@ -647,7 +647,7 @@
     },
     {
       "source": "Device:56",
-      "target": "Zone:Utility Room:Salford Office",
+      "target": "Zone:202:82",
       "rel": "LOCATED_IN_ZONE"
     },
     {

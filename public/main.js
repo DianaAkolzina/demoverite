@@ -171,7 +171,6 @@ function appendMessage(container, role, text, chartOptions) {
   return wrap;
 }
 
-// new helper renders charts in the right sidebar
 function renderChartSidebar(chartOptions, opts = {}) {
   try {
     const chartsSidebar = document.getElementById('chart-sidebar');
@@ -200,7 +199,6 @@ function renderChartSidebar(chartOptions, opts = {}) {
     requestAnimationFrame(() => {
       try {
         const cfg = {
-          // nice defaults; backend-provided options still win
           credits: { enabled: false },
           accessibility: { enabled: false, ...(chartOptions.accessibility || {}) },
           chart: {
@@ -235,7 +233,6 @@ function clearAgentCharts() {
 }
 
 async function init() {
-  // Room selection is now driven by graph (no dropdown)
   const startEl = document.getElementById('start');
   const endEl = document.getElementById('end');
   const chatEl = document.getElementById('chat');
@@ -245,8 +242,6 @@ async function init() {
   const sidebar = document.querySelector('.sidebar');
   const statusEl = document.getElementById('status-card');
   const queryLevelEl = document.getElementById('query-level');
-  // Toggle buttons removed
-  // graphSummaryEl removed (no sidebar graph summary)
   const graphViewTitle = document.getElementById('graph-view-title');
   const graphViewChartId = 'graph-view-chart';
   const buildingSelect = document.getElementById('building-select');
@@ -334,13 +329,12 @@ async function init() {
   renderScopePill();
   updateSendButtonState();
 
-  // Toggle handlers for visibility
   const graphView = document.getElementById('graph-view');
   const chartsSidebar = document.getElementById('chart-sidebar');
   try {
     if (deviceSelect) deviceSelect.style.display = 'none';
   } catch {}
-  // Lightweight cache + abort controllers for snappy dropdowns
+
   const _reqCache = new Map();
   const _snapshotStatus = new Map();
   function _cacheKey(url) { return url; }
@@ -384,14 +378,13 @@ async function init() {
     try { if (abortDevices) abortDevices.abort(); } catch {}
     abortBuildings = abortFloors = abortZones = abortDevices = null;
   }
-  // No toggles; charts sidebar always visible
-  // Populate cascading dropdowns
+
   async function populateBuildings() {
     try {
-      // Prefer snapshot to compute buildings with devices
+
       let arr = [];
       try {
-        // Prefer local snapshot file for instant results; fallback to API
+      
         let nodes = [], links = [];
         const snap = await fetchSnapshot(selection.tenant);
         if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
@@ -416,7 +409,7 @@ async function init() {
         const names = buildings.filter(b => buildingHasDevice.has(b.id)).map(b => b.name).filter(Boolean);
         arr = Array.from(new Set(names));
       } catch {}
-      // Fallback to scope/metrics groups
+    
       if (!arr.length) {
         if (selection.tenant) {
           try {
@@ -449,10 +442,10 @@ async function init() {
     deviceSelect.innerHTML = '<option value="">Select device…</option>';
     if (!building) return;
     try {
-      // Prefer /api/scope/metrics to collect floors with devices
+     
       let floors = [];
       try {
-        // 0) Snapshot path
+      
         const snap = await fetchSnapshot(selection.tenant);
         if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
           const nodes = snap.nodes, links = snap.links;
@@ -470,7 +463,7 @@ async function init() {
             floors = floorNodes.filter(n => hasDeviceFloorIds.has(n.id)).map(n => n.name).filter(Boolean);
           }
         }
-        // 1) Scope metrics
+      
         if (!floors.length) {
           if (abortFloors) { try { abortFloors.abort(); } catch {} }
           abortFloors = new AbortController();
@@ -484,7 +477,7 @@ async function init() {
           }
         }
       } catch {}
-      // Fallback to topology and snapshot if still empty
+    
       if (!floors.length) {
         try {
           const topo = await cachedFetchJSON(`/api/topology${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`, { ttlMs: 20000, controller: abortFloors });
@@ -499,7 +492,6 @@ async function init() {
           const b = nodes.find(n => (n.nodeType||n.label)==='Building' && n.name===building);
           if (b) {
             const floorNodes = nodes.filter(n => (n.nodeType||n.label)==='Floor' && links.some(l => l.source===n.id && l.rel==='LOCATED_IN_BUILDING' && l.target===b.id));
-            // Keep only floors with at least one device under any zone for this floor
             const floorIds = new Set(floorNodes.map(n=>n.id));
             const zones = nodes.filter(n => (n.nodeType||n.label)==='Zone' && links.some(l => l.source===n.id && l.rel==='BELONGS_TO_FLOOR' && floorIds.has(l.target)));
             const zoneIds = new Set(zones.map(n=>n.id));
@@ -522,10 +514,10 @@ async function init() {
     deviceSelect.innerHTML = '<option value="">Select device…</option>';
     if (!building || !floor) return;
     try {
-      // Prefer /api/scope/metrics to collect zones with devices
+      
       let zones = [];
       try {
-        // 0) Snapshot path
+       
         const snap = await fetchSnapshot(selection.tenant);
         if (snap && Array.isArray(snap.nodes) && Array.isArray(snap.links)) {
           const nodes = snap.nodes, links = snap.links;
@@ -538,7 +530,7 @@ async function init() {
             zones = zoneNodes.filter(n => devZoneIds.has(n.id)).map(n => n.name).filter(Boolean);
           }
         }
-        // 1) Scope metrics
+        
         if (!zones.length) {
           if (abortZones) { try { abortZones.abort(); } catch {} }
           abortZones = new AbortController();
@@ -553,7 +545,7 @@ async function init() {
           }
         }
       } catch {}
-      // Fallback to topology filtered by devices if still empty
+      
       if (!zones.length) {
         try {
           const topo = await cachedFetchJSON(`/api/topology${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`, { ttlMs: 20000, controller: abortZones });
@@ -563,7 +555,7 @@ async function init() {
           }
         } catch {}
       }
-      // Fallback to snapshot zones under floor with devices
+      
       if (!zones.length) {
         try {
           const g = await cachedFetchJSON(`/api/graph/full${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`, { ttlMs: 20000, controller: abortZones });
@@ -597,14 +589,14 @@ async function init() {
       abortDevices = new AbortController();
       const sm = await cachedFetchJSON(`/api/scope/metrics?${qp.join('&')}`, { ttlMs: 15000, controller: abortDevices });
       let devs = Array.isArray(sm.deviceIndex) ? sm.deviceIndex : [];
-      // Fallback: derive devices under the selected zone from snapshot when deviceIndex empty
+     
       if ((!devs || !devs.length) && zone) {
         try {
           const g = await cachedFetchJSON(`/api/graph/full${selection.tenant ? ('?tenant='+encodeURIComponent(selection.tenant)) : ''}`, { ttlMs: 20000 });
           const nodes = g.nodes || []; const links = g.links || [];
           const byId = new Map(nodes.map(n => [n.id, n]));
           const bNode = nodes.find(n => (n.nodeType||n.label)==='Building' && n.name===building);
-          // Try floor match; if none, ignore floor filter
+         
           const fNodes = floor && bNode ? nodes.filter(n => (n.nodeType||n.label)==='Floor' && n.name===floor && links.some(l => l.source===n.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)) : [];
           const zNodes = nodes.filter(n => (n.nodeType||n.label)==='Zone' && n.name===zone && ( (!floor && bNode && links.some(l => l.source===n.id && l.rel==='LOCATED_IN_BUILDING' && l.target===bNode.id)) || (fNodes.length && links.some(l => l.source===n.id && l.rel==='BELONGS_TO_FLOOR' && fNodes.some(f=>f.id===l.target))) ));
           const zIds = new Set(zNodes.map(z => z.id));
@@ -617,7 +609,7 @@ async function init() {
           });
         } catch {}
       }
-      // Group devices by profile/type; include telemetry keys in label
+    
       const byType = new Map();
       for (const d of devs) {
         const t = d.type || 'Device';
@@ -636,7 +628,7 @@ async function init() {
         parts.push('</optgroup>');
       }
       deviceSelect.innerHTML = parts.join('');
-      // Show the device dropdown only if there are devices to pick from
+    
       deviceSelect.style.display = devs.length ? '' : 'none';
     } catch {}
   }
@@ -695,11 +687,11 @@ async function init() {
     await refreshGraphView();
   });
   deviceSelect?.addEventListener('change', async () => {
-    // device selection does not alter selectionRooms (handled server-side); leave as extra context
+  
     refreshMetrics();
   });
 
-  // Inject tenant selector at top of sidebar
+
   let tenantSelect = document.getElementById('tenant-select');
   if (!tenantSelect) {
     tenantSelect = document.createElement('select');
@@ -709,7 +701,7 @@ async function init() {
     tenantSelect.innerHTML = '<option value="">All tenants…</option>';
     if (sidebar) sidebar.insertBefore(tenantSelect, sidebar.firstChild);
   }
-  // Populate tenants
+ 
   try {
     const t = await fetchJSON('/api/tenants');
     const tenants = (t.tenants || []).sort();
@@ -717,7 +709,7 @@ async function init() {
   } catch {}
   tenantSelect.addEventListener('change', async () => {
     selection.tenant = tenantSelect.value || null;
-    // Reset deeper scope when tenant changes
+
     selection.building = null; selection.floor = null; selection.room = null; selection.roomLabel = null; selection.roomId = null; graphLevel = 'buildings'; selectionConfirmed = false;
     if (buildingSelect) buildingSelect.innerHTML = '<option value="">Select building…</option>';
     if (floorSelect) floorSelect.innerHTML = '<option value="">Select floor…</option>';
@@ -781,7 +773,7 @@ async function init() {
         const endParam = normalizeTimestamp(endTs);
         try {
           if (!room || room === 'ALL' || selection.building || selection.floor || selection.tenant) {
-            // Scope selection: fetch an extract table for this metric with ts
+           
             const params = [
               selection.tenant ? `tenant=${encodeURIComponent(selection.tenant)}` : '',
               selection.building ? `building=${encodeURIComponent(selection.building)}` : '',
@@ -816,7 +808,7 @@ async function init() {
     return dd;
   }
 
-  // No room dropdown to populate
+
 
   const now = new Date();
   const startInit = new Date(now);
@@ -903,14 +895,14 @@ async function init() {
       if (Array.isArray(meta?.metrics) && meta.metrics.length) {
         meta.metrics.forEach(f => { if (f !== 'ts') fieldSet.add(f); });
       }
-      // Fallbacks from byZone/byFloor if metrics empty
+    
       if (!fieldSet.size && meta && meta.byZone) {
         Object.values(meta.byZone).forEach(arr => (arr||[]).forEach(f => { if (f !== 'ts') fieldSet.add(f); }));
       }
       if (!fieldSet.size && meta && meta.byFloor) {
         Object.values(meta.byFloor).forEach(arr => (arr||[]).forEach(f => { if (f !== 'ts') fieldSet.add(f); }));
       }
-      // Per-room meta fallback (legacy)
+     
       if (!fieldSet.size) {
         Object.values(meta.tables || {}).forEach(info => { (info.fields || []).forEach(f => { if (f !== 'ts') fieldSet.add(f); }); });
       }
@@ -922,14 +914,13 @@ async function init() {
         const label = (z||f) ? `${v} (${z} zones, ${f} floors)` : v;
         return `<option value="${v}">${label}</option>`;
       }).join('');
-      // On first load, ensure the dropdown visibly has metrics (no auto-fetch)
+   
       if (!window._metricsInit) {
         window._metricsInit = true;
-        // Do not trigger change to avoid spamming; just ensure it's visible
+    
         dd.style.display = '';
       }
 
-      // Render scope extract as nested list: Building -> Floor -> Zone -> Device (metrics)
       try {
         const groups = Array.isArray(meta?.groups) ? meta.groups : [];
         const title = document.createElement('div');
@@ -1097,10 +1088,9 @@ async function init() {
     messages.push(res.message);
 
     const answer = res.message?.content || '';
-    const chart = res.chart || null; // already resolved from dataRef by backend
+    const chart = res.chart || null; 
     appendMessage(chatEl, 'assistant', answer, chart);
 
-    // extras (background tool outputs)
     if (Array.isArray(res.extras)) {
       for (const ex of res.extras) {
         const exMsg = ex?.message?.content || null;
@@ -1118,7 +1108,6 @@ async function init() {
     updateSendButtonState();
   }
 
-  // No room dropdown to populate
 
   const messages = [];
 
@@ -1169,9 +1158,6 @@ async function init() {
     }
   }
 
-  // Removed small graph summary in sidebar
-
-  // roomToZoneType removed (no longer needed in UI)
 
   async function refreshGraphView() {
     const target = document.getElementById(graphViewChartId);
@@ -1444,11 +1430,10 @@ async function init() {
       send();
     }
   });
-  // No room dropdown; graph interactions drive selection
+ 
   startEl.addEventListener('change', () => { updateSelectedRangeDisplay(); refreshMetrics(); });
   endEl.addEventListener('change', () => { updateSelectedRangeDisplay(); refreshMetrics(); });
 
-  // initial metrics load
   updateSelectedRangeDisplay();
   await populateBuildings();
   syncDropdownsFromSelection();
@@ -1456,7 +1441,7 @@ async function init() {
   refreshMetrics();
   refreshStatus();
   setInterval(refreshStatus, 30000);
-  // Confirm/Clear scope controls
+
   if (confirmBtn) confirmBtn.addEventListener('click', () => {
     selectionConfirmed = !!(selection.building || selection.floor || selection.room);
     renderScopePill();
@@ -1488,14 +1473,14 @@ async function init() {
 }
 
 async function loadRoomMetrics(room) {
-  // Try room-specific JSON first, fallback to global data
+
   let url = `/data/room/${room}.json`;
   let data;
   try {
     const res = await fetch(url);
     data = await res.json();
   } catch {
-    // fallback to /data/${room}.json or /data.json
+
     try {
       const res = await fetch(`/data/${room}.json`);
       data = await res.json();
@@ -1504,7 +1489,7 @@ async function loadRoomMetrics(room) {
       data = await res.json();
     }
   }
-  // Collect all unique metric keys from all tables
+
   const metrics = new Set();
   for (const table of Object.values(data)) {
     if (Array.isArray(table) && table.length > 0) {
