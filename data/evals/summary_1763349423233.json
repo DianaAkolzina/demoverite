@@ -1,0 +1,399 @@
+{
+  "generatedAt": "2025-11-17T03:17:03.233Z",
+  "root": "/home/diana/avmsolutions",
+  "tracesDir": "/home/diana/avmsolutions/data/traces",
+  "total": 50,
+  "passes": 0,
+  "fails": 50,
+  "failDetails": [
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-35-25_b-Bolton_z-Entrance.json",
+      "issues": [
+        "missing_plan",
+        "no_tools",
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-35-49_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_plan",
+        "no_tools",
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-36-51_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-41-03_b-Bolton_z-Brainstorm.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-41-40_b-Bolton_z-Brainstorm.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-44-46_b-Bolton_z-Cafe.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-45-44_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-45-56_b-Bolton_z-Brainstorm.json",
+      "issues": [
+        "missing_plan",
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-47-18_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-52-35_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-55-41_b-Bolton_z-Brainstorm.json",
+      "issues": [
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_01-56-56_b-Bolton_z-Brainstorm.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-01-00_b-Bolton_z-Lounge.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-02-44_b-Bolton_z-Comms.json",
+      "issues": [
+        "missing_overview",
+        "fallback_answer"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-03-23_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "missing_details",
+        "fallback_answer"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-04-35_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "missing_details",
+        "fallback_answer"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-05-35_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "fallback_answer"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-07-32_b-Bolton_z-Brainstorm.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-11-48_b-Bolton_z-Lounge.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-14-27_b-Bolton_z-Cafe.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-16-15_b-Bolton_z-Brainstorm.json",
+      "issues": [
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-16-58_b-Bolton_z-Brainstorm.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-18-24_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "missing_details",
+        "chart_embedded_array"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-19-39_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "fallback_answer"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-23-05_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-25-38_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-27-46_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "chart_embedded_array"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-28-06_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_plan",
+        "no_tools",
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-32-49_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-37-35_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-41-20_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-43-36_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-45-20_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-47-36_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-48-42_b-Bolton_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "chart_missing_dataRef"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-49-08_b-111_Piccadilly_z-Comms.json",
+      "issues": [
+        "missing_plan",
+        "no_tools",
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-49-36_b-111_Piccadilly_z-ALL.json",
+      "issues": [
+        "missing_plan",
+        "no_tools",
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-51-37_b-111_Piccadilly_z-ALL.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-54-56_b-111_Piccadilly_z-Room_6.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-56-15_b-111_Piccadilly_z-Room_6.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-58-33_b-111_Piccadilly_z-Room_6.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-59-24_b-111_Piccadilly_z-ALL.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_02-59-39_b-111_Piccadilly_z-Room_6.json",
+      "issues": [
+        "missing_plan",
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_03-00-40_b-111_Piccadilly_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "missing_details",
+        "fallback_answer"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_03-04-58_b-111_Piccadilly_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_03-08-00_b-111_Piccadilly_z-Room_6.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_03-11-17_b-111_Piccadilly_z-Room_6.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_03-12-57_b-111_Piccadilly_z-Comms.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_03-13-57_b-111_Piccadilly_z-ALL.json",
+      "issues": [
+        "missing_overview",
+        "missing_details"
+      ],
+      "status": "fail"
+    },
+    {
+      "file": "/home/diana/avmsolutions/data/traces/trace_2025-11-17_03-15-27_b-111_Piccadilly_z-Room_6.json",
+      "issues": [
+        "missing_overview"
+      ],
+      "status": "fail"
+    }
+  ]
+}

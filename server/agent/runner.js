@@ -192,26 +192,6 @@ export function createAgentRunner(ctx) {
     if (telemetryAlignment.changed) {
       adaptationNotes.push(`Adjusted time window to available telemetry (${describeRangeWindow(rr)}).`);
     }
-    if (questionIsScopeInquiry(question)) {
-      const scopeSummaryText = buildScopeSummary({
-        selectionRooms,
-        selectionZones,
-        selectionFloors,
-        scopeDeviceZones,
-        selectionLabels: scopeLabels,
-        range: rr
-      }) || '';
-      const snapshotNote = ctx?.scopeSnapshot || '';
-      let scopeMessage = scopeSummaryText || snapshotNote || 'Scope is not defined for the current selection.';
-      if (scopeSummaryText && snapshotNote && !scopeSummaryText.includes(snapshotNote)) {
-        scopeMessage = `${scopeSummaryText}\n\n${snapshotNote}`;
-      }
-      const headerLineFinal = scopeHeaderLine || formatScopeHeaderLine(scopeLabels, selectionFloors, selectionZones);
-      if (headerLineFinal) scopeHeaderLine = headerLineFinal;
-      scopeMessage = applyScopeHeader(scopeMessage);
-      if (!scopeMessage.trim()) scopeMessage = 'Scope is not defined for the current selection.';
-      return { message: assistantMessage(scopeMessage, { preserveWhitespace: true }), chart: null, trace };
-    }
     // Inject knowledge enrichment into system prompt
     const startDate = rr.start ? new Date(rr.start) : null;
     const endDate = rr.end ? new Date(rr.end) : null;

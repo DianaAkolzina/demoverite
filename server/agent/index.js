@@ -471,6 +471,9 @@ const extractFieldValue = (row, fieldOrList) => {
     if (!base) return scopeHeaderLine;
     const normalizedHeader = scopeHeaderLine.toLowerCase();
     if (base.toLowerCase().includes(normalizedHeader)) return text;
+    if (/^overview:/i.test(base)) {
+      return `${base}\n\n${scopeHeaderLine}`;
+    }
     return `${scopeHeaderLine}\n\n${base}`;
   }
 
