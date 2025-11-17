@@ -1,6 +1,888 @@
 {
-  "generatedAt": 1763137077484,
   "tenant": "TSK",
+  "generatedAt": 1763339583741,
+  "buildings": [
+    {
+      "id": "Building:Site Monitoring Kit 2",
+      "name": "Site Monitoring Kit 2",
+      "label": "Building",
+      "properties": {
+        "floorCount": 1,
+        "name": "Site Monitoring Kit 2",
+        "id": 80,
+        "originalId": 2,
+        "isActive": true,
+        "lat": 53.4753895,
+        "long": -2.2964077
+      },
+      "devices": [
+        {
+          "id": "Device:43",
+          "name": "IAQ2_s9YPaKXl0puP",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "c0267380-5e52-11f0-a19e-8f874a1c01d3",
+            "name": "IAQ2_s9YPaKXl0puP",
+            "id": 43,
+            "originalId": 14,
+            "label": "IAQ2",
+            "isActive": true
+          },
+          "cloudId": "c0267380-5e52-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:44",
+          "name": "IAQ3_Uf9G16GNKXXu",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "d12a39a0-5e52-11f0-a19e-8f874a1c01d3",
+            "name": "IAQ3_Uf9G16GNKXXu",
+            "id": 44,
+            "originalId": 15,
+            "label": "IAQ3",
+            "isActive": true
+          },
+          "cloudId": "d12a39a0-5e52-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:45",
+          "name": "Energy_CjZE7eOwq4wa",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "8e12c790-5e52-11f0-a19e-8f874a1c01d3",
+            "name": "Energy_CjZE7eOwq4wa",
+            "id": 45,
+            "originalId": 12,
+            "label": "Energy",
+            "isActive": true
+          },
+          "cloudId": "8e12c790-5e52-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:46",
+          "name": "IAQ1_vYzYpoY7u1CN",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "a01a4210-5e52-11f0-a19e-8f874a1c01d3",
+            "name": "IAQ1_vYzYpoY7u1CN",
+            "id": 46,
+            "originalId": 13,
+            "label": "IAQ1",
+            "isActive": true
+          },
+          "cloudId": "a01a4210-5e52-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:47",
+          "name": "Water Meter_MbiKu6lQAq1Y",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+            "name": "Water Meter_MbiKu6lQAq1Y",
+            "id": 47,
+            "originalId": 17,
+            "label": "Water Meter",
+            "isActive": true
+          },
+          "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+        }
+      ],
+      "floors": [
+        {
+          "id": "Floor:126:80",
+          "name": "Default",
+          "label": "Floor",
+          "properties": {
+            "name": "Default",
+            "zoneCount": 1,
+            "id": 126,
+            "originalId": 4,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:197:80",
+              "name": "Portable",
+              "label": "Zone",
+              "roomId": "197",
+              "properties": {
+                "deviceCount": 6,
+                "name": "Portable",
+                "id": 197,
+                "originalId": 6,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:43",
+                  "name": "IAQ2_s9YPaKXl0puP",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "c0267380-5e52-11f0-a19e-8f874a1c01d3",
+                    "name": "IAQ2_s9YPaKXl0puP",
+                    "id": 43,
+                    "originalId": 14,
+                    "label": "IAQ2",
+                    "isActive": true
+                  },
+                  "cloudId": "c0267380-5e52-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:44",
+                  "name": "IAQ3_Uf9G16GNKXXu",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "d12a39a0-5e52-11f0-a19e-8f874a1c01d3",
+                    "name": "IAQ3_Uf9G16GNKXXu",
+                    "id": 44,
+                    "originalId": 15,
+                    "label": "IAQ3",
+                    "isActive": true
+                  },
+                  "cloudId": "d12a39a0-5e52-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:45",
+                  "name": "Energy_CjZE7eOwq4wa",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "8e12c790-5e52-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy_CjZE7eOwq4wa",
+                    "id": 45,
+                    "originalId": 12,
+                    "label": "Energy",
+                    "isActive": true
+                  },
+                  "cloudId": "8e12c790-5e52-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:46",
+                  "name": "IAQ1_vYzYpoY7u1CN",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "a01a4210-5e52-11f0-a19e-8f874a1c01d3",
+                    "name": "IAQ1_vYzYpoY7u1CN",
+                    "id": 46,
+                    "originalId": 13,
+                    "label": "IAQ1",
+                    "isActive": true
+                  },
+                  "cloudId": "a01a4210-5e52-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            }
+          ],
+          "devices": [
+            {
+              "id": "Device:43",
+              "name": "IAQ2_s9YPaKXl0puP",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "c0267380-5e52-11f0-a19e-8f874a1c01d3",
+                "name": "IAQ2_s9YPaKXl0puP",
+                "id": 43,
+                "originalId": 14,
+                "label": "IAQ2",
+                "isActive": true
+              },
+              "cloudId": "c0267380-5e52-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:44",
+              "name": "IAQ3_Uf9G16GNKXXu",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "d12a39a0-5e52-11f0-a19e-8f874a1c01d3",
+                "name": "IAQ3_Uf9G16GNKXXu",
+                "id": 44,
+                "originalId": 15,
+                "label": "IAQ3",
+                "isActive": true
+              },
+              "cloudId": "d12a39a0-5e52-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:45",
+              "name": "Energy_CjZE7eOwq4wa",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "8e12c790-5e52-11f0-a19e-8f874a1c01d3",
+                "name": "Energy_CjZE7eOwq4wa",
+                "id": 45,
+                "originalId": 12,
+                "label": "Energy",
+                "isActive": true
+              },
+              "cloudId": "8e12c790-5e52-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:46",
+              "name": "IAQ1_vYzYpoY7u1CN",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "a01a4210-5e52-11f0-a19e-8f874a1c01d3",
+                "name": "IAQ1_vYzYpoY7u1CN",
+                "id": 46,
+                "originalId": 13,
+                "label": "IAQ1",
+                "isActive": true
+              },
+              "cloudId": "a01a4210-5e52-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:47",
+              "name": "Water Meter_MbiKu6lQAq1Y",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                "name": "Water Meter_MbiKu6lQAq1Y",
+                "id": 47,
+                "originalId": 17,
+                "label": "Water Meter",
+                "isActive": true
+              },
+              "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Building:Site Monitoring Kit 1",
+      "name": "Site Monitoring Kit 1",
+      "label": "Building",
+      "properties": {
+        "floorCount": 1,
+        "name": "Site Monitoring Kit 1",
+        "id": 81,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.4753895,
+        "long": -2.2964077
+      },
+      "devices": [
+        {
+          "id": "Device:48",
+          "name": "Water_JTTcwf8VtSgM",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "fd0fc870-5e50-11f0-a19e-8f874a1c01d3",
+            "name": "Water_JTTcwf8VtSgM",
+            "id": 48,
+            "originalId": 8,
+            "label": "Water",
+            "isActive": true
+          },
+          "cloudId": "fd0fc870-5e50-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:49",
+          "name": "Energy_kN0RKEsJ3Ovx",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "382a8d00-5e51-11f0-a19e-8f874a1c01d3",
+            "name": "Energy_kN0RKEsJ3Ovx",
+            "id": 49,
+            "originalId": 10,
+            "label": "Energy",
+            "isActive": true
+          },
+          "cloudId": "382a8d00-5e51-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:50",
+          "name": "IAQ_d2UHqNNnIEif",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "4edb6b50-5e51-11f0-a19e-8f874a1c01d3",
+            "name": "IAQ_d2UHqNNnIEif",
+            "id": 50,
+            "originalId": 11,
+            "label": "IAQ",
+            "isActive": true
+          },
+          "cloudId": "4edb6b50-5e51-11f0-a19e-8f874a1c01d3"
+        }
+      ],
+      "floors": [
+        {
+          "id": "Floor:127:81",
+          "name": "Default",
+          "label": "Floor",
+          "properties": {
+            "name": "Default",
+            "zoneCount": 1,
+            "id": 127,
+            "originalId": 3,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:198:81",
+              "name": "Portable",
+              "label": "Zone",
+              "roomId": "198",
+              "properties": {
+                "deviceCount": 4,
+                "name": "Portable",
+                "id": 198,
+                "originalId": 5,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:48",
+                  "name": "Water_JTTcwf8VtSgM",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "fd0fc870-5e50-11f0-a19e-8f874a1c01d3",
+                    "name": "Water_JTTcwf8VtSgM",
+                    "id": 48,
+                    "originalId": 8,
+                    "label": "Water",
+                    "isActive": true
+                  },
+                  "cloudId": "fd0fc870-5e50-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:49",
+                  "name": "Energy_kN0RKEsJ3Ovx",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "382a8d00-5e51-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy_kN0RKEsJ3Ovx",
+                    "id": 49,
+                    "originalId": 10,
+                    "label": "Energy",
+                    "isActive": true
+                  },
+                  "cloudId": "382a8d00-5e51-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:50",
+                  "name": "IAQ_d2UHqNNnIEif",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "4edb6b50-5e51-11f0-a19e-8f874a1c01d3",
+                    "name": "IAQ_d2UHqNNnIEif",
+                    "id": 50,
+                    "originalId": 11,
+                    "label": "IAQ",
+                    "isActive": true
+                  },
+                  "cloudId": "4edb6b50-5e51-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            }
+          ],
+          "devices": [
+            {
+              "id": "Device:48",
+              "name": "Water_JTTcwf8VtSgM",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "fd0fc870-5e50-11f0-a19e-8f874a1c01d3",
+                "name": "Water_JTTcwf8VtSgM",
+                "id": 48,
+                "originalId": 8,
+                "label": "Water",
+                "isActive": true
+              },
+              "cloudId": "fd0fc870-5e50-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:49",
+              "name": "Energy_kN0RKEsJ3Ovx",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "382a8d00-5e51-11f0-a19e-8f874a1c01d3",
+                "name": "Energy_kN0RKEsJ3Ovx",
+                "id": 49,
+                "originalId": 10,
+                "label": "Energy",
+                "isActive": true
+              },
+              "cloudId": "382a8d00-5e51-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:50",
+              "name": "IAQ_d2UHqNNnIEif",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "4edb6b50-5e51-11f0-a19e-8f874a1c01d3",
+                "name": "IAQ_d2UHqNNnIEif",
+                "id": 50,
+                "originalId": 11,
+                "label": "IAQ",
+                "isActive": true
+              },
+              "cloudId": "4edb6b50-5e51-11f0-a19e-8f874a1c01d3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Building:Salford Office",
+      "name": "Salford Office",
+      "label": "Building",
+      "properties": {
+        "floorCount": 2,
+        "name": "Salford Office",
+        "id": 82,
+        "originalId": 3,
+        "isActive": true,
+        "lat": 53.4753725,
+        "long": -2.2964079
+      },
+      "devices": [
+        {
+          "id": "Device:51",
+          "name": "IAQ_UXqnXikCoxCo",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3",
+            "name": "IAQ_UXqnXikCoxCo",
+            "id": 51,
+            "originalId": 1,
+            "label": "IAQ",
+            "isActive": true
+          },
+          "cloudId": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:52",
+          "name": "IAQ_QTnlLHfN4fdi",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3",
+            "name": "IAQ_QTnlLHfN4fdi",
+            "id": 52,
+            "originalId": 5,
+            "label": "IAQ",
+            "isActive": true
+          },
+          "cloudId": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:53",
+          "name": "People Counter_aUjiPbTe0N41",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "940c81c0-5da5-11f0-a19e-8f874a1c01d3",
+            "name": "People Counter_aUjiPbTe0N41",
+            "id": 53,
+            "originalId": 7,
+            "label": "People Counter",
+            "isActive": true
+          },
+          "cloudId": "940c81c0-5da5-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:54",
+          "name": "Energy_1_bU9Kpvhdb1ha",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3",
+            "name": "Energy_1_bU9Kpvhdb1ha",
+            "id": 54,
+            "originalId": 2,
+            "label": "Energy 1",
+            "isActive": true
+          },
+          "cloudId": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:55",
+          "name": "Energy_2_APK6EFUywGsZ",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "24085c00-5da5-11f0-a19e-8f874a1c01d3",
+            "name": "Energy_2_APK6EFUywGsZ",
+            "id": 55,
+            "originalId": 3,
+            "label": "Energy 2",
+            "isActive": true
+          },
+          "cloudId": "24085c00-5da5-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:56",
+          "name": "Energy_3_chWgZ8ejd6wv",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "3dec03b0-5da5-11f0-a19e-8f874a1c01d3",
+            "name": "Energy_3_chWgZ8ejd6wv",
+            "id": 56,
+            "originalId": 4,
+            "label": "Energy 3",
+            "isActive": true
+          },
+          "cloudId": "3dec03b0-5da5-11f0-a19e-8f874a1c01d3"
+        }
+      ],
+      "floors": [
+        {
+          "id": "Floor:128:82",
+          "name": "1st Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "1st Floor",
+            "zoneCount": 1,
+            "id": 128,
+            "originalId": 2,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:199:82",
+              "name": "Office Space",
+              "label": "Zone",
+              "roomId": "199",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Office Space",
+                "id": 199,
+                "originalId": 1,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:51",
+                  "name": "IAQ_UXqnXikCoxCo",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3",
+                    "name": "IAQ_UXqnXikCoxCo",
+                    "id": 51,
+                    "originalId": 1,
+                    "label": "IAQ",
+                    "isActive": true
+                  },
+                  "cloudId": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            }
+          ],
+          "devices": [
+            {
+              "id": "Device:51",
+              "name": "IAQ_UXqnXikCoxCo",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3",
+                "name": "IAQ_UXqnXikCoxCo",
+                "id": 51,
+                "originalId": 1,
+                "label": "IAQ",
+                "isActive": true
+              },
+              "cloudId": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3"
+            }
+          ]
+        },
+        {
+          "id": "Floor:129:82",
+          "name": "Ground Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Ground Floor",
+            "zoneCount": 3,
+            "id": 129,
+            "originalId": 1,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:200:82",
+              "name": "Reception",
+              "label": "Zone",
+              "roomId": "200",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Reception",
+                "id": 200,
+                "originalId": 4,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:52",
+                  "name": "IAQ_QTnlLHfN4fdi",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3",
+                    "name": "IAQ_QTnlLHfN4fdi",
+                    "id": 52,
+                    "originalId": 5,
+                    "label": "IAQ",
+                    "isActive": true
+                  },
+                  "cloudId": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:201:82",
+              "name": "Entrance",
+              "label": "Zone",
+              "roomId": "201",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Entrance",
+                "id": 201,
+                "originalId": 2,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:53",
+                  "name": "People Counter_aUjiPbTe0N41",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "940c81c0-5da5-11f0-a19e-8f874a1c01d3",
+                    "name": "People Counter_aUjiPbTe0N41",
+                    "id": 53,
+                    "originalId": 7,
+                    "label": "People Counter",
+                    "isActive": true
+                  },
+                  "cloudId": "940c81c0-5da5-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:202:82",
+              "name": "Utility Room",
+              "label": "Zone",
+              "roomId": "202",
+              "properties": {
+                "deviceCount": 3,
+                "name": "Utility Room",
+                "id": 202,
+                "originalId": 3,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:54",
+                  "name": "Energy_1_bU9Kpvhdb1ha",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy_1_bU9Kpvhdb1ha",
+                    "id": 54,
+                    "originalId": 2,
+                    "label": "Energy 1",
+                    "isActive": true
+                  },
+                  "cloudId": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:55",
+                  "name": "Energy_2_APK6EFUywGsZ",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "24085c00-5da5-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy_2_APK6EFUywGsZ",
+                    "id": 55,
+                    "originalId": 3,
+                    "label": "Energy 2",
+                    "isActive": true
+                  },
+                  "cloudId": "24085c00-5da5-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:56",
+                  "name": "Energy_3_chWgZ8ejd6wv",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "3dec03b0-5da5-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy_3_chWgZ8ejd6wv",
+                    "id": 56,
+                    "originalId": 4,
+                    "label": "Energy 3",
+                    "isActive": true
+                  },
+                  "cloudId": "3dec03b0-5da5-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            }
+          ],
+          "devices": [
+            {
+              "id": "Device:52",
+              "name": "IAQ_QTnlLHfN4fdi",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3",
+                "name": "IAQ_QTnlLHfN4fdi",
+                "id": 52,
+                "originalId": 5,
+                "label": "IAQ",
+                "isActive": true
+              },
+              "cloudId": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:53",
+              "name": "People Counter_aUjiPbTe0N41",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "940c81c0-5da5-11f0-a19e-8f874a1c01d3",
+                "name": "People Counter_aUjiPbTe0N41",
+                "id": 53,
+                "originalId": 7,
+                "label": "People Counter",
+                "isActive": true
+              },
+              "cloudId": "940c81c0-5da5-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:54",
+              "name": "Energy_1_bU9Kpvhdb1ha",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3",
+                "name": "Energy_1_bU9Kpvhdb1ha",
+                "id": 54,
+                "originalId": 2,
+                "label": "Energy 1",
+                "isActive": true
+              },
+              "cloudId": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:55",
+              "name": "Energy_2_APK6EFUywGsZ",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "24085c00-5da5-11f0-a19e-8f874a1c01d3",
+                "name": "Energy_2_APK6EFUywGsZ",
+                "id": 55,
+                "originalId": 3,
+                "label": "Energy 2",
+                "isActive": true
+              },
+              "cloudId": "24085c00-5da5-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:56",
+              "name": "Energy_3_chWgZ8ejd6wv",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "3dec03b0-5da5-11f0-a19e-8f874a1c01d3",
+                "name": "Energy_3_chWgZ8ejd6wv",
+                "id": 56,
+                "originalId": 4,
+                "label": "Energy 3",
+                "isActive": true
+              },
+              "cloudId": "3dec03b0-5da5-11f0-a19e-8f874a1c01d3"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "nodes": [
     {
       "id": "Building:Site Monitoring Kit 2",
@@ -8,7 +890,16 @@
       "name": "Site Monitoring Kit 2",
       "nodeType": "Building",
       "hasData": true,
-      "dataDevices": 5,
+      "dataDevices": 1,
+      "properties": {
+        "floorCount": 1,
+        "name": "Site Monitoring Kit 2",
+        "id": 80,
+        "originalId": 2,
+        "isActive": true,
+        "lat": 53.4753895,
+        "long": -2.2964077
+      },
       "x": 0,
       "y": 0
     },
@@ -43,6 +934,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:289"
       },
+      "properties": {
+        "name": "Default",
+        "zoneCount": 1,
+        "id": 126,
+        "originalId": 4,
+        "isActive": true
+      },
       "x": 0,
       "y": 220
     },
@@ -53,6 +951,13 @@
       "nodeType": "Zone",
       "roomId": "197",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 6,
+        "name": "Portable",
+        "id": 197,
+        "originalId": 6,
+        "isActive": true
+      },
       "x": 0,
       "y": 440
     },
@@ -62,7 +967,16 @@
       "name": "Site Monitoring Kit 1",
       "nodeType": "Building",
       "hasData": true,
-      "dataDevices": 3,
+      "dataDevices": 1,
+      "properties": {
+        "floorCount": 1,
+        "name": "Site Monitoring Kit 1",
+        "id": 81,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.4753895,
+        "long": -2.2964077
+      },
       "x": 360,
       "y": 0
     },
@@ -97,6 +1011,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:290"
       },
+      "properties": {
+        "name": "Default",
+        "zoneCount": 1,
+        "id": 127,
+        "originalId": 3,
+        "isActive": true
+      },
       "x": 360,
       "y": 220
     },
@@ -107,6 +1028,13 @@
       "nodeType": "Zone",
       "roomId": "198",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 4,
+        "name": "Portable",
+        "id": 198,
+        "originalId": 5,
+        "isActive": true
+      },
       "x": 360,
       "y": 440
     },
@@ -116,7 +1044,16 @@
       "name": "Salford Office",
       "nodeType": "Building",
       "hasData": true,
-      "dataDevices": 6,
+      "dataDevices": 1,
+      "properties": {
+        "floorCount": 2,
+        "name": "Salford Office",
+        "id": 82,
+        "originalId": 3,
+        "isActive": true,
+        "lat": 53.4753725,
+        "long": -2.2964079
+      },
       "x": 720,
       "y": 0
     },
@@ -150,6 +1087,13 @@
           "isActive": true
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:291"
+      },
+      "properties": {
+        "name": "1st Floor",
+        "zoneCount": 1,
+        "id": 128,
+        "originalId": 2,
+        "isActive": true
       },
       "x": 630,
       "y": 220
@@ -185,6 +1129,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:292"
       },
+      "properties": {
+        "name": "Ground Floor",
+        "zoneCount": 3,
+        "id": 129,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 810,
       "y": 220
     },
@@ -195,6 +1146,13 @@
       "nodeType": "Zone",
       "roomId": "199",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Office Space",
+        "id": 199,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 630,
       "y": 440
     },
@@ -205,6 +1163,13 @@
       "nodeType": "Zone",
       "roomId": "200",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Reception",
+        "id": 200,
+        "originalId": 4,
+        "isActive": true
+      },
       "x": 670,
       "y": 440
     },
@@ -215,6 +1180,13 @@
       "nodeType": "Zone",
       "roomId": "201",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Entrance",
+        "id": 201,
+        "originalId": 2,
+        "isActive": true
+      },
       "x": 810,
       "y": 440
     },
@@ -225,6 +1197,13 @@
       "nodeType": "Zone",
       "roomId": "202",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 3,
+        "name": "Utility Room",
+        "id": 202,
+        "originalId": 3,
+        "isActive": true
+      },
       "x": 950,
       "y": 440
     },
@@ -235,6 +1214,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "c0267380-5e52-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "c0267380-5e52-11f0-a19e-8f874a1c01d3",
+        "name": "IAQ2_s9YPaKXl0puP",
+        "id": 43,
+        "originalId": 14,
+        "label": "IAQ2",
+        "isActive": true
+      },
       "x": -200,
       "y": 660
     },
@@ -245,6 +1233,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "d12a39a0-5e52-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "d12a39a0-5e52-11f0-a19e-8f874a1c01d3",
+        "name": "IAQ3_Uf9G16GNKXXu",
+        "id": 44,
+        "originalId": 15,
+        "label": "IAQ3",
+        "isActive": true
+      },
       "x": -100,
       "y": 660
     },
@@ -255,6 +1252,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "8e12c790-5e52-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "8e12c790-5e52-11f0-a19e-8f874a1c01d3",
+        "name": "Energy_CjZE7eOwq4wa",
+        "id": 45,
+        "originalId": 12,
+        "label": "Energy",
+        "isActive": true
+      },
       "x": 0,
       "y": 660
     },
@@ -265,6 +1271,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "a01a4210-5e52-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "a01a4210-5e52-11f0-a19e-8f874a1c01d3",
+        "name": "IAQ1_vYzYpoY7u1CN",
+        "id": 46,
+        "originalId": 13,
+        "label": "IAQ1",
+        "isActive": true
+      },
       "x": 100,
       "y": 660
     },
@@ -275,6 +1290,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+        "name": "Water Meter_MbiKu6lQAq1Y",
+        "id": 47,
+        "originalId": 17,
+        "label": "Water Meter",
+        "isActive": true
+      },
       "x": 200,
       "y": 660
     },
@@ -285,6 +1309,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "fd0fc870-5e50-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "fd0fc870-5e50-11f0-a19e-8f874a1c01d3",
+        "name": "Water_JTTcwf8VtSgM",
+        "id": 48,
+        "originalId": 8,
+        "label": "Water",
+        "isActive": true
+      },
       "x": 260,
       "y": 660
     },
@@ -295,6 +1328,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "382a8d00-5e51-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "382a8d00-5e51-11f0-a19e-8f874a1c01d3",
+        "name": "Energy_kN0RKEsJ3Ovx",
+        "id": 49,
+        "originalId": 10,
+        "label": "Energy",
+        "isActive": true
+      },
       "x": 360,
       "y": 660
     },
@@ -305,6 +1347,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "4edb6b50-5e51-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "4edb6b50-5e51-11f0-a19e-8f874a1c01d3",
+        "name": "IAQ_d2UHqNNnIEif",
+        "id": 50,
+        "originalId": 11,
+        "label": "IAQ",
+        "isActive": true
+      },
       "x": 460,
       "y": 660
     },
@@ -315,6 +1366,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3",
+        "name": "IAQ_UXqnXikCoxCo",
+        "id": 51,
+        "originalId": 1,
+        "label": "IAQ",
+        "isActive": true
+      },
       "x": 630,
       "y": 660
     },
@@ -325,6 +1385,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3",
+        "name": "IAQ_QTnlLHfN4fdi",
+        "id": 52,
+        "originalId": 5,
+        "label": "IAQ",
+        "isActive": true
+      },
       "x": 670,
       "y": 660
     },
@@ -335,6 +1404,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "940c81c0-5da5-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "940c81c0-5da5-11f0-a19e-8f874a1c01d3",
+        "name": "People Counter_aUjiPbTe0N41",
+        "id": 53,
+        "originalId": 7,
+        "label": "People Counter",
+        "isActive": true
+      },
       "x": 810,
       "y": 660
     },
@@ -345,6 +1423,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3",
+        "name": "Energy_1_bU9Kpvhdb1ha",
+        "id": 54,
+        "originalId": 2,
+        "label": "Energy 1",
+        "isActive": true
+      },
       "x": 850,
       "y": 660
     },
@@ -355,6 +1442,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "24085c00-5da5-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "24085c00-5da5-11f0-a19e-8f874a1c01d3",
+        "name": "Energy_2_APK6EFUywGsZ",
+        "id": 55,
+        "originalId": 3,
+        "label": "Energy 2",
+        "isActive": true
+      },
       "x": 950,
       "y": 660
     },
@@ -365,6 +1461,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "3dec03b0-5da5-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "3dec03b0-5da5-11f0-a19e-8f874a1c01d3",
+        "name": "Energy_3_chWgZ8ejd6wv",
+        "id": 56,
+        "originalId": 4,
+        "label": "Energy 3",
+        "isActive": true
+      },
       "x": 1050,
       "y": 660
     }

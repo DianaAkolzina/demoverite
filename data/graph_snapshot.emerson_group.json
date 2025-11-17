@@ -1,6 +1,1007 @@
 {
-  "generatedAt": 1763137075490,
   "tenant": "Emerson Group",
+  "generatedAt": 1763339580191,
+  "buildings": [
+    {
+      "id": "Building:Regent House",
+      "name": "Regent House",
+      "label": "Building",
+      "properties": {
+        "floorCount": 2,
+        "name": "Regent House",
+        "id": 74,
+        "originalId": 2,
+        "isActive": true,
+        "lat": 53.4095173,
+        "long": -2.1641114
+      },
+      "devices": [],
+      "floors": [
+        {
+          "id": "Floor:111:74",
+          "name": "Ground Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Ground Floor",
+            "zoneCount": 1,
+            "id": 111,
+            "originalId": 5,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:172:74",
+              "name": "Ground Floor Reception + Lobby",
+              "label": "Zone",
+              "roomId": "172",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Ground Floor Reception + Lobby",
+                "id": 172,
+                "originalId": 11,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        },
+        {
+          "id": "Floor:112:74",
+          "name": "11th Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "11th Floor",
+            "zoneCount": 1,
+            "id": 112,
+            "originalId": 6,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:173:74",
+              "name": "11th Floor Reception + Hub",
+              "label": "Zone",
+              "roomId": "173",
+              "properties": {
+                "deviceCount": 1,
+                "name": "11th Floor Reception + Hub",
+                "id": 173,
+                "originalId": 12,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        }
+      ]
+    },
+    {
+      "id": "Building:55 King Street",
+      "name": "55 King Street",
+      "label": "Building",
+      "properties": {
+        "floorCount": 5,
+        "name": "55 King Street",
+        "id": 75,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.4811345,
+        "long": -2.2436608
+      },
+      "devices": [
+        {
+          "id": "Device:27",
+          "name": "CO2_ErFIKXsDjzLn",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "44e34970-6648-11f0-a19e-8f874a1c01d3",
+            "name": "CO2_ErFIKXsDjzLn",
+            "id": 27,
+            "originalId": 11,
+            "label": "CO2",
+            "isActive": true
+          },
+          "cloudId": "44e34970-6648-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:28",
+          "name": "Humidity_0CCXiSsa35UF",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "60470170-6648-11f0-a19e-8f874a1c01d3",
+            "name": "Humidity_0CCXiSsa35UF",
+            "id": 28,
+            "originalId": 12,
+            "label": "Humidity",
+            "isActive": true
+          },
+          "cloudId": "60470170-6648-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:29",
+          "name": "Temperature_n2HWkemA5Ps9",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "89ad2670-6648-11f0-a19e-8f874a1c01d3",
+            "name": "Temperature_n2HWkemA5Ps9",
+            "id": 29,
+            "originalId": 13,
+            "label": "Temperature",
+            "isActive": true
+          },
+          "cloudId": "89ad2670-6648-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:30",
+          "name": "Energy_JIYQV161Yotw",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "cf271990-6648-11f0-a19e-8f874a1c01d3",
+            "name": "Energy_JIYQV161Yotw",
+            "id": 30,
+            "originalId": 15,
+            "label": "Energy",
+            "isActive": true
+          },
+          "cloudId": "cf271990-6648-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:31",
+          "name": "Energy_6Dg3CB7CR8iy",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "fa5d8730-6647-11f0-a19e-8f874a1c01d3",
+            "name": "Energy_6Dg3CB7CR8iy",
+            "id": 31,
+            "originalId": 9,
+            "label": "Energy",
+            "isActive": true
+          },
+          "cloudId": "fa5d8730-6647-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:32",
+          "name": "Energy_3Z99vDWK76va",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "600552a0-664a-11f0-a19e-8f874a1c01d3",
+            "name": "Energy_3Z99vDWK76va",
+            "id": 32,
+            "originalId": 20,
+            "label": "Energy",
+            "isActive": true
+          },
+          "cloudId": "600552a0-664a-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:33",
+          "name": "Energy_vDBYNqYhdDm5",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3",
+            "name": "Energy_vDBYNqYhdDm5",
+            "id": 33,
+            "originalId": 21,
+            "label": "Energy",
+            "isActive": true
+          },
+          "cloudId": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:34",
+          "name": "Energy_vACnx5Y8XoGG",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "ae728840-664a-11f0-a19e-8f874a1c01d3",
+            "name": "Energy_vACnx5Y8XoGG",
+            "id": 34,
+            "originalId": 23,
+            "label": "Energy",
+            "isActive": true
+          },
+          "cloudId": "ae728840-664a-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:35",
+          "name": "CO2_qafxEt2K6qLZ",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "072b8b80-664b-11f0-a19e-8f874a1c01d3",
+            "name": "CO2_qafxEt2K6qLZ",
+            "id": 35,
+            "originalId": 26,
+            "label": "CO2",
+            "isActive": true
+          },
+          "cloudId": "072b8b80-664b-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:36",
+          "name": "Humidity_GmHKeXkhhER5",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "183915a0-664b-11f0-a19e-8f874a1c01d3",
+            "name": "Humidity_GmHKeXkhhER5",
+            "id": 36,
+            "originalId": 27,
+            "label": "Humidity",
+            "isActive": true
+          },
+          "cloudId": "183915a0-664b-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:37",
+          "name": "Temperature_n86EEaC4v1YC",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "31831560-664b-11f0-a19e-8f874a1c01d3",
+            "name": "Temperature_n86EEaC4v1YC",
+            "id": 37,
+            "originalId": 28,
+            "label": "Temperature",
+            "isActive": true
+          },
+          "cloudId": "31831560-664b-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:38",
+          "name": "Energy 1_AhSbBfdzW11o",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "21072930-66d5-11f0-a19e-8f874a1c01d3",
+            "name": "Energy 1_AhSbBfdzW11o",
+            "id": 38,
+            "originalId": 33,
+            "label": "Energy 1",
+            "isActive": true
+          },
+          "cloudId": "21072930-66d5-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:39",
+          "name": "Energy 2_lyx4NPLa9vaH",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "548e6250-66d5-11f0-a19e-8f874a1c01d3",
+            "name": "Energy 2_lyx4NPLa9vaH",
+            "id": 39,
+            "originalId": 35,
+            "label": "Energy 2",
+            "isActive": true
+          },
+          "cloudId": "548e6250-66d5-11f0-a19e-8f874a1c01d3"
+        }
+      ],
+      "floors": [
+        {
+          "id": "Floor:113:75",
+          "name": "6th Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "6th Floor",
+            "zoneCount": 7,
+            "id": 113,
+            "originalId": 4,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:174:75",
+              "name": "Suite 6.1",
+              "label": "Zone",
+              "roomId": "174",
+              "properties": {
+                "deviceCount": 6,
+                "name": "Suite 6.1",
+                "id": 174,
+                "originalId": 5,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:27",
+                  "name": "CO2_ErFIKXsDjzLn",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "44e34970-6648-11f0-a19e-8f874a1c01d3",
+                    "name": "CO2_ErFIKXsDjzLn",
+                    "id": 27,
+                    "originalId": 11,
+                    "label": "CO2",
+                    "isActive": true
+                  },
+                  "cloudId": "44e34970-6648-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:28",
+                  "name": "Humidity_0CCXiSsa35UF",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "60470170-6648-11f0-a19e-8f874a1c01d3",
+                    "name": "Humidity_0CCXiSsa35UF",
+                    "id": 28,
+                    "originalId": 12,
+                    "label": "Humidity",
+                    "isActive": true
+                  },
+                  "cloudId": "60470170-6648-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:29",
+                  "name": "Temperature_n2HWkemA5Ps9",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "89ad2670-6648-11f0-a19e-8f874a1c01d3",
+                    "name": "Temperature_n2HWkemA5Ps9",
+                    "id": 29,
+                    "originalId": 13,
+                    "label": "Temperature",
+                    "isActive": true
+                  },
+                  "cloudId": "89ad2670-6648-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:30",
+                  "name": "Energy_JIYQV161Yotw",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "cf271990-6648-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy_JIYQV161Yotw",
+                    "id": 30,
+                    "originalId": 15,
+                    "label": "Energy",
+                    "isActive": true
+                  },
+                  "cloudId": "cf271990-6648-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:175:75",
+              "name": "Corridor",
+              "label": "Zone",
+              "roomId": "175",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Corridor",
+                "id": 175,
+                "originalId": 4,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:176:75",
+              "name": "Orbit Suit",
+              "label": "Zone",
+              "roomId": "176",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Orbit Suit",
+                "id": 176,
+                "originalId": 10,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:31",
+                  "name": "Energy_6Dg3CB7CR8iy",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "fa5d8730-6647-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy_6Dg3CB7CR8iy",
+                    "id": 31,
+                    "originalId": 9,
+                    "label": "Energy",
+                    "isActive": true
+                  },
+                  "cloudId": "fa5d8730-6647-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:177:75",
+              "name": "Suite 6.2",
+              "label": "Zone",
+              "roomId": "177",
+              "properties": {
+                "deviceCount": 4,
+                "name": "Suite 6.2",
+                "id": 177,
+                "originalId": 6,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:32",
+                  "name": "Energy_3Z99vDWK76va",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "600552a0-664a-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy_3Z99vDWK76va",
+                    "id": 32,
+                    "originalId": 20,
+                    "label": "Energy",
+                    "isActive": true
+                  },
+                  "cloudId": "600552a0-664a-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:178:75",
+              "name": "Suite 6.3",
+              "label": "Zone",
+              "roomId": "178",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Suite 6.3",
+                "id": 178,
+                "originalId": 7,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:33",
+                  "name": "Energy_vDBYNqYhdDm5",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy_vDBYNqYhdDm5",
+                    "id": 33,
+                    "originalId": 21,
+                    "label": "Energy",
+                    "isActive": true
+                  },
+                  "cloudId": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:179:75",
+              "name": "Suite 6.4",
+              "label": "Zone",
+              "roomId": "179",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Suite 6.4",
+                "id": 179,
+                "originalId": 8,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:34",
+                  "name": "Energy_vACnx5Y8XoGG",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "ae728840-664a-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy_vACnx5Y8XoGG",
+                    "id": 34,
+                    "originalId": 23,
+                    "label": "Energy",
+                    "isActive": true
+                  },
+                  "cloudId": "ae728840-664a-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:180:75",
+              "name": "Suite 6.5",
+              "label": "Zone",
+              "roomId": "180",
+              "properties": {
+                "deviceCount": 12,
+                "name": "Suite 6.5",
+                "id": 180,
+                "originalId": 9,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:35",
+                  "name": "CO2_qafxEt2K6qLZ",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "072b8b80-664b-11f0-a19e-8f874a1c01d3",
+                    "name": "CO2_qafxEt2K6qLZ",
+                    "id": 35,
+                    "originalId": 26,
+                    "label": "CO2",
+                    "isActive": true
+                  },
+                  "cloudId": "072b8b80-664b-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:36",
+                  "name": "Humidity_GmHKeXkhhER5",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "183915a0-664b-11f0-a19e-8f874a1c01d3",
+                    "name": "Humidity_GmHKeXkhhER5",
+                    "id": 36,
+                    "originalId": 27,
+                    "label": "Humidity",
+                    "isActive": true
+                  },
+                  "cloudId": "183915a0-664b-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:37",
+                  "name": "Temperature_n86EEaC4v1YC",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "31831560-664b-11f0-a19e-8f874a1c01d3",
+                    "name": "Temperature_n86EEaC4v1YC",
+                    "id": 37,
+                    "originalId": 28,
+                    "label": "Temperature",
+                    "isActive": true
+                  },
+                  "cloudId": "31831560-664b-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:38",
+                  "name": "Energy 1_AhSbBfdzW11o",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "21072930-66d5-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy 1_AhSbBfdzW11o",
+                    "id": 38,
+                    "originalId": 33,
+                    "label": "Energy 1",
+                    "isActive": true
+                  },
+                  "cloudId": "21072930-66d5-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:39",
+                  "name": "Energy 2_lyx4NPLa9vaH",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "548e6250-66d5-11f0-a19e-8f874a1c01d3",
+                    "name": "Energy 2_lyx4NPLa9vaH",
+                    "id": 39,
+                    "originalId": 35,
+                    "label": "Energy 2",
+                    "isActive": true
+                  },
+                  "cloudId": "548e6250-66d5-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            }
+          ],
+          "devices": [
+            {
+              "id": "Device:27",
+              "name": "CO2_ErFIKXsDjzLn",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "44e34970-6648-11f0-a19e-8f874a1c01d3",
+                "name": "CO2_ErFIKXsDjzLn",
+                "id": 27,
+                "originalId": 11,
+                "label": "CO2",
+                "isActive": true
+              },
+              "cloudId": "44e34970-6648-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:28",
+              "name": "Humidity_0CCXiSsa35UF",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "60470170-6648-11f0-a19e-8f874a1c01d3",
+                "name": "Humidity_0CCXiSsa35UF",
+                "id": 28,
+                "originalId": 12,
+                "label": "Humidity",
+                "isActive": true
+              },
+              "cloudId": "60470170-6648-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:29",
+              "name": "Temperature_n2HWkemA5Ps9",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "89ad2670-6648-11f0-a19e-8f874a1c01d3",
+                "name": "Temperature_n2HWkemA5Ps9",
+                "id": 29,
+                "originalId": 13,
+                "label": "Temperature",
+                "isActive": true
+              },
+              "cloudId": "89ad2670-6648-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:30",
+              "name": "Energy_JIYQV161Yotw",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "cf271990-6648-11f0-a19e-8f874a1c01d3",
+                "name": "Energy_JIYQV161Yotw",
+                "id": 30,
+                "originalId": 15,
+                "label": "Energy",
+                "isActive": true
+              },
+              "cloudId": "cf271990-6648-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:31",
+              "name": "Energy_6Dg3CB7CR8iy",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "fa5d8730-6647-11f0-a19e-8f874a1c01d3",
+                "name": "Energy_6Dg3CB7CR8iy",
+                "id": 31,
+                "originalId": 9,
+                "label": "Energy",
+                "isActive": true
+              },
+              "cloudId": "fa5d8730-6647-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:32",
+              "name": "Energy_3Z99vDWK76va",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "600552a0-664a-11f0-a19e-8f874a1c01d3",
+                "name": "Energy_3Z99vDWK76va",
+                "id": 32,
+                "originalId": 20,
+                "label": "Energy",
+                "isActive": true
+              },
+              "cloudId": "600552a0-664a-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:33",
+              "name": "Energy_vDBYNqYhdDm5",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3",
+                "name": "Energy_vDBYNqYhdDm5",
+                "id": 33,
+                "originalId": 21,
+                "label": "Energy",
+                "isActive": true
+              },
+              "cloudId": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:34",
+              "name": "Energy_vACnx5Y8XoGG",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "ae728840-664a-11f0-a19e-8f874a1c01d3",
+                "name": "Energy_vACnx5Y8XoGG",
+                "id": 34,
+                "originalId": 23,
+                "label": "Energy",
+                "isActive": true
+              },
+              "cloudId": "ae728840-664a-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:35",
+              "name": "CO2_qafxEt2K6qLZ",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "072b8b80-664b-11f0-a19e-8f874a1c01d3",
+                "name": "CO2_qafxEt2K6qLZ",
+                "id": 35,
+                "originalId": 26,
+                "label": "CO2",
+                "isActive": true
+              },
+              "cloudId": "072b8b80-664b-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:36",
+              "name": "Humidity_GmHKeXkhhER5",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "183915a0-664b-11f0-a19e-8f874a1c01d3",
+                "name": "Humidity_GmHKeXkhhER5",
+                "id": 36,
+                "originalId": 27,
+                "label": "Humidity",
+                "isActive": true
+              },
+              "cloudId": "183915a0-664b-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:37",
+              "name": "Temperature_n86EEaC4v1YC",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "31831560-664b-11f0-a19e-8f874a1c01d3",
+                "name": "Temperature_n86EEaC4v1YC",
+                "id": 37,
+                "originalId": 28,
+                "label": "Temperature",
+                "isActive": true
+              },
+              "cloudId": "31831560-664b-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:38",
+              "name": "Energy 1_AhSbBfdzW11o",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "21072930-66d5-11f0-a19e-8f874a1c01d3",
+                "name": "Energy 1_AhSbBfdzW11o",
+                "id": 38,
+                "originalId": 33,
+                "label": "Energy 1",
+                "isActive": true
+              },
+              "cloudId": "21072930-66d5-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:39",
+              "name": "Energy 2_lyx4NPLa9vaH",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "548e6250-66d5-11f0-a19e-8f874a1c01d3",
+                "name": "Energy 2_lyx4NPLa9vaH",
+                "id": 39,
+                "originalId": 35,
+                "label": "Energy 2",
+                "isActive": true
+              },
+              "cloudId": "548e6250-66d5-11f0-a19e-8f874a1c01d3"
+            }
+          ]
+        },
+        {
+          "id": "Floor:114:75",
+          "name": "Ground Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Ground Floor",
+            "zoneCount": 1,
+            "id": 114,
+            "originalId": 2,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:181:75",
+              "name": "Reception",
+              "label": "Zone",
+              "roomId": "181",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Reception",
+                "id": 181,
+                "originalId": 2,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        },
+        {
+          "id": "Floor:115:75",
+          "name": "Basement",
+          "label": "Floor",
+          "properties": {
+            "name": "Basement",
+            "zoneCount": 1,
+            "id": 115,
+            "originalId": 1,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:182:75",
+              "name": "Comms Room",
+              "label": "Zone",
+              "roomId": "182",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Comms Room",
+                "id": 182,
+                "originalId": 1,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        },
+        {
+          "id": "Floor:116:75",
+          "name": "3rd Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "3rd Floor",
+            "zoneCount": 1,
+            "id": 116,
+            "originalId": 8,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:183:75",
+              "name": "Corridor",
+              "label": "Zone",
+              "roomId": "183",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Corridor",
+                "id": 183,
+                "originalId": 14,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        },
+        {
+          "id": "Floor:117:75",
+          "name": "4th Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "4th Floor",
+            "zoneCount": 1,
+            "id": 117,
+            "originalId": 3,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:184:75",
+              "name": "Corridor",
+              "label": "Zone",
+              "roomId": "184",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Corridor",
+                "id": 184,
+                "originalId": 3,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        }
+      ]
+    },
+    {
+      "id": "Building:Futura Park",
+      "name": "Futura Park",
+      "label": "Building",
+      "properties": {
+        "floorCount": 1,
+        "name": "Futura Park",
+        "id": 76,
+        "originalId": 3,
+        "isActive": true,
+        "lat": 53.5859993,
+        "long": -2.540975
+      },
+      "devices": [],
+      "floors": [
+        {
+          "id": "Floor:118:76",
+          "name": "Ground Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Ground Floor",
+            "zoneCount": 1,
+            "id": 118,
+            "originalId": 7,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:185:76",
+              "name": "Ground Floor Audio",
+              "label": "Zone",
+              "roomId": "185",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Ground Floor Audio",
+                "id": 185,
+                "originalId": 13,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        }
+      ]
+    }
+  ],
   "nodes": [
     {
       "id": "Building:Regent House",
@@ -9,6 +1010,15 @@
       "nodeType": "Building",
       "hasData": false,
       "dataDevices": 0,
+      "properties": {
+        "floorCount": 2,
+        "name": "Regent House",
+        "id": 74,
+        "originalId": 2,
+        "isActive": true,
+        "lat": 53.4095173,
+        "long": -2.1641114
+      },
       "x": 0,
       "y": 0
     },
@@ -42,6 +1052,13 @@
           "isActive": true
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:274"
+      },
+      "properties": {
+        "name": "Ground Floor",
+        "zoneCount": 1,
+        "id": 111,
+        "originalId": 5,
+        "isActive": true
       },
       "x": -90,
       "y": 220
@@ -77,6 +1094,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:275"
       },
+      "properties": {
+        "name": "11th Floor",
+        "zoneCount": 1,
+        "id": 112,
+        "originalId": 6,
+        "isActive": true
+      },
       "x": 90,
       "y": 220
     },
@@ -87,6 +1111,13 @@
       "nodeType": "Zone",
       "roomId": "172",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Ground Floor Reception + Lobby",
+        "id": 172,
+        "originalId": 11,
+        "isActive": true
+      },
       "x": -90,
       "y": 440
     },
@@ -97,6 +1128,13 @@
       "nodeType": "Zone",
       "roomId": "173",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "11th Floor Reception + Hub",
+        "id": 173,
+        "originalId": 12,
+        "isActive": true
+      },
       "x": 90,
       "y": 440
     },
@@ -106,7 +1144,16 @@
       "name": "55 King Street",
       "nodeType": "Building",
       "hasData": true,
-      "dataDevices": 13,
+      "dataDevices": 1,
+      "properties": {
+        "floorCount": 5,
+        "name": "55 King Street",
+        "id": 75,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.4811345,
+        "long": -2.2436608
+      },
       "x": 360,
       "y": 0
     },
@@ -140,6 +1187,13 @@
           "isActive": true
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:276"
+      },
+      "properties": {
+        "name": "6th Floor",
+        "zoneCount": 7,
+        "id": 113,
+        "originalId": 4,
+        "isActive": true
       },
       "x": 0,
       "y": 220
@@ -175,6 +1229,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:277"
       },
+      "properties": {
+        "name": "Ground Floor",
+        "zoneCount": 1,
+        "id": 114,
+        "originalId": 2,
+        "isActive": true
+      },
       "x": 180,
       "y": 220
     },
@@ -208,6 +1269,13 @@
           "isActive": true
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:278"
+      },
+      "properties": {
+        "name": "Basement",
+        "zoneCount": 1,
+        "id": 115,
+        "originalId": 1,
+        "isActive": true
       },
       "x": 360,
       "y": 220
@@ -243,6 +1311,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:279"
       },
+      "properties": {
+        "name": "3rd Floor",
+        "zoneCount": 1,
+        "id": 116,
+        "originalId": 8,
+        "isActive": true
+      },
       "x": 540,
       "y": 220
     },
@@ -277,6 +1352,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:280"
       },
+      "properties": {
+        "name": "4th Floor",
+        "zoneCount": 1,
+        "id": 117,
+        "originalId": 3,
+        "isActive": true
+      },
       "x": 720,
       "y": 220
     },
@@ -287,6 +1369,13 @@
       "nodeType": "Zone",
       "roomId": "174",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 6,
+        "name": "Suite 6.1",
+        "id": 174,
+        "originalId": 5,
+        "isActive": true
+      },
       "x": -420,
       "y": 440
     },
@@ -297,6 +1386,13 @@
       "nodeType": "Zone",
       "roomId": "175",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Corridor",
+        "id": 175,
+        "originalId": 4,
+        "isActive": true
+      },
       "x": -280,
       "y": 440
     },
@@ -307,6 +1403,13 @@
       "nodeType": "Zone",
       "roomId": "176",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Orbit Suit",
+        "id": 176,
+        "originalId": 10,
+        "isActive": true
+      },
       "x": -140,
       "y": 440
     },
@@ -317,6 +1420,13 @@
       "nodeType": "Zone",
       "roomId": "177",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 4,
+        "name": "Suite 6.2",
+        "id": 177,
+        "originalId": 6,
+        "isActive": true
+      },
       "x": 0,
       "y": 440
     },
@@ -327,6 +1437,13 @@
       "nodeType": "Zone",
       "roomId": "178",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Suite 6.3",
+        "id": 178,
+        "originalId": 7,
+        "isActive": true
+      },
       "x": 140,
       "y": 440
     },
@@ -337,6 +1454,13 @@
       "nodeType": "Zone",
       "roomId": "179",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Suite 6.4",
+        "id": 179,
+        "originalId": 8,
+        "isActive": true
+      },
       "x": 280,
       "y": 440
     },
@@ -347,6 +1471,13 @@
       "nodeType": "Zone",
       "roomId": "180",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 12,
+        "name": "Suite 6.5",
+        "id": 180,
+        "originalId": 9,
+        "isActive": true
+      },
       "x": 420,
       "y": 440
     },
@@ -357,6 +1488,13 @@
       "nodeType": "Zone",
       "roomId": "181",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Reception",
+        "id": 181,
+        "originalId": 2,
+        "isActive": true
+      },
       "x": 180,
       "y": 440
     },
@@ -367,6 +1505,13 @@
       "nodeType": "Zone",
       "roomId": "182",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Comms Room",
+        "id": 182,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 360,
       "y": 440
     },
@@ -377,6 +1522,13 @@
       "nodeType": "Zone",
       "roomId": "183",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Corridor",
+        "id": 183,
+        "originalId": 14,
+        "isActive": true
+      },
       "x": 540,
       "y": 440
     },
@@ -387,6 +1539,13 @@
       "nodeType": "Zone",
       "roomId": "184",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Corridor",
+        "id": 184,
+        "originalId": 3,
+        "isActive": true
+      },
       "x": 720,
       "y": 440
     },
@@ -397,6 +1556,15 @@
       "nodeType": "Building",
       "hasData": false,
       "dataDevices": 0,
+      "properties": {
+        "floorCount": 1,
+        "name": "Futura Park",
+        "id": 76,
+        "originalId": 3,
+        "isActive": true,
+        "lat": 53.5859993,
+        "long": -2.540975
+      },
       "x": 720,
       "y": 0
     },
@@ -431,6 +1599,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:281"
       },
+      "properties": {
+        "name": "Ground Floor",
+        "zoneCount": 1,
+        "id": 118,
+        "originalId": 7,
+        "isActive": true
+      },
       "x": 720,
       "y": 220
     },
@@ -441,6 +1616,13 @@
       "nodeType": "Zone",
       "roomId": "185",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Ground Floor Audio",
+        "id": 185,
+        "originalId": 13,
+        "isActive": true
+      },
       "x": 720,
       "y": 440
     },
@@ -451,6 +1633,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "44e34970-6648-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "44e34970-6648-11f0-a19e-8f874a1c01d3",
+        "name": "CO2_ErFIKXsDjzLn",
+        "id": 27,
+        "originalId": 11,
+        "label": "CO2",
+        "isActive": true
+      },
       "x": -570,
       "y": 660
     },
@@ -461,6 +1652,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "60470170-6648-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "60470170-6648-11f0-a19e-8f874a1c01d3",
+        "name": "Humidity_0CCXiSsa35UF",
+        "id": 28,
+        "originalId": 12,
+        "label": "Humidity",
+        "isActive": true
+      },
       "x": -470,
       "y": 660
     },
@@ -471,6 +1671,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "89ad2670-6648-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "89ad2670-6648-11f0-a19e-8f874a1c01d3",
+        "name": "Temperature_n2HWkemA5Ps9",
+        "id": 29,
+        "originalId": 13,
+        "label": "Temperature",
+        "isActive": true
+      },
       "x": -370,
       "y": 660
     },
@@ -481,6 +1690,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "cf271990-6648-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "cf271990-6648-11f0-a19e-8f874a1c01d3",
+        "name": "Energy_JIYQV161Yotw",
+        "id": 30,
+        "originalId": 15,
+        "label": "Energy",
+        "isActive": true
+      },
       "x": -270,
       "y": 660
     },
@@ -491,6 +1709,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "fa5d8730-6647-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "fa5d8730-6647-11f0-a19e-8f874a1c01d3",
+        "name": "Energy_6Dg3CB7CR8iy",
+        "id": 31,
+        "originalId": 9,
+        "label": "Energy",
+        "isActive": true
+      },
       "x": -140,
       "y": 660
     },
@@ -501,6 +1728,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "600552a0-664a-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "600552a0-664a-11f0-a19e-8f874a1c01d3",
+        "name": "Energy_3Z99vDWK76va",
+        "id": 32,
+        "originalId": 20,
+        "label": "Energy",
+        "isActive": true
+      },
       "x": 0,
       "y": 660
     },
@@ -511,6 +1747,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3",
+        "name": "Energy_vDBYNqYhdDm5",
+        "id": 33,
+        "originalId": 21,
+        "label": "Energy",
+        "isActive": true
+      },
       "x": 140,
       "y": 660
     },
@@ -521,6 +1766,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "ae728840-664a-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "ae728840-664a-11f0-a19e-8f874a1c01d3",
+        "name": "Energy_vACnx5Y8XoGG",
+        "id": 34,
+        "originalId": 23,
+        "label": "Energy",
+        "isActive": true
+      },
       "x": 280,
       "y": 660
     },
@@ -531,6 +1785,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "072b8b80-664b-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "072b8b80-664b-11f0-a19e-8f874a1c01d3",
+        "name": "CO2_qafxEt2K6qLZ",
+        "id": 35,
+        "originalId": 26,
+        "label": "CO2",
+        "isActive": true
+      },
       "x": 220,
       "y": 660
     },
@@ -541,6 +1804,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "183915a0-664b-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "183915a0-664b-11f0-a19e-8f874a1c01d3",
+        "name": "Humidity_GmHKeXkhhER5",
+        "id": 36,
+        "originalId": 27,
+        "label": "Humidity",
+        "isActive": true
+      },
       "x": 320,
       "y": 660
     },
@@ -551,6 +1823,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "31831560-664b-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "31831560-664b-11f0-a19e-8f874a1c01d3",
+        "name": "Temperature_n86EEaC4v1YC",
+        "id": 37,
+        "originalId": 28,
+        "label": "Temperature",
+        "isActive": true
+      },
       "x": 420,
       "y": 660
     },
@@ -561,6 +1842,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "21072930-66d5-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "21072930-66d5-11f0-a19e-8f874a1c01d3",
+        "name": "Energy 1_AhSbBfdzW11o",
+        "id": 38,
+        "originalId": 33,
+        "label": "Energy 1",
+        "isActive": true
+      },
       "x": 520,
       "y": 660
     },
@@ -571,6 +1861,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "548e6250-66d5-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "548e6250-66d5-11f0-a19e-8f874a1c01d3",
+        "name": "Energy 2_lyx4NPLa9vaH",
+        "id": 39,
+        "originalId": 35,
+        "label": "Energy 2",
+        "isActive": true
+      },
       "x": 620,
       "y": 660
     }

@@ -4,7 +4,7 @@ import path from 'path';
 import url from 'url';
 import { spawn } from 'child_process';
 import { randomUUID } from 'crypto';
-import { createAgent } from './agent.js';
+import { createAgent } from './agent/index.js';
 import { createGraphFromEnv } from './graph.js';
 import { createVectorClient } from './vector.js';
 import { ConversationStore } from './conversation_state.js';
@@ -232,11 +232,18 @@ async function ensureDatastores() {
       console.warn('[startup][graph] Adapter not configured or missing fullHierarchy; writing empty snapshot for UI baselines');
     }
     const snapPath = path.join(outDir, 'graph_snapshot.json');
+    const snapshotPayload = {
+      tenant: snap?.tenant || null,
+      generatedAt: Date.now(),
+      buildings: Array.isArray(snap?.buildings) ? snap.buildings : [],
+      nodes: Array.isArray(snap?.nodes) ? snap.nodes : [],
+      links: Array.isArray(snap?.links) ? snap.links : []
+    };
     // Preserve existing snapshot if new one is empty
-    if ((snap.nodes || []).length === 0 && (snap.links || []).length === 0 && fs.existsSync(snapPath)) {
+    if (snapshotPayload.nodes.length === 0 && snapshotPayload.links.length === 0 && fs.existsSync(snapPath)) {
       console.warn('[startup][graph] New snapshot is empty; preserving existing cache at', snapPath);
     } else {
-      fs.writeFileSync(snapPath, JSON.stringify({ generatedAt: Date.now(), ...snap }, null, 2));
+      fs.writeFileSync(snapPath, JSON.stringify(snapshotPayload, null, 2));
       console.log('[startup][graph] Wrote snapshot to', snapPath);
     }
 
@@ -251,7 +258,14 @@ async function ensureDatastores() {
             const tsnap = await g.fullHierarchy(t);
             const file = path.join(outDir, `graph_snapshot.${slug(t)}.json`);
             if ((tsnap.nodes || []).length || (tsnap.links || []).length) {
-              fs.writeFileSync(file, JSON.stringify({ generatedAt: Date.now(), tenant: t, ...tsnap }, null, 2));
+              const payload = {
+                tenant: tsnap?.tenant || t || null,
+                generatedAt: Date.now(),
+                buildings: Array.isArray(tsnap?.buildings) ? tsnap.buildings : [],
+                nodes: Array.isArray(tsnap?.nodes) ? tsnap.nodes : [],
+                links: Array.isArray(tsnap?.links) ? tsnap.links : []
+              };
+              fs.writeFileSync(file, JSON.stringify(payload, null, 2));
               console.log('[startup][graph] Wrote tenant snapshot:', file);
             }
           } catch (e) { console.warn('[startup][graph] Tenant snapshot failed:', t, String(e)); }
@@ -384,13 +398,7 @@ function parseCSV(filePath) {
     if (tsValid && row.ts != null) rows.push(row);
   }
 
-  rows = rows.filter((r) => {
-    if (!Number.isFinite(r.ts)) return false;
-    const d = new Date(r.ts);
-    if (Number.isNaN(d.getTime())) return false;
-    const cutoff = Date.UTC(d.getUTCFullYear(), 8, 1); // September of the row's year
-    return r.ts >= cutoff;
-  });
+  rows = rows.filter((r) => Number.isFinite(r.ts));
   if (!rows.length) return rows;
 
   const hasData = new Array(headers.length).fill(false);

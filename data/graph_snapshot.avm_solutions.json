@@ -1,6 +1,978 @@
 {
-  "generatedAt": 1763137072741,
   "tenant": "AVM Solutions",
+  "generatedAt": 1763339577401,
+  "buildings": [
+    {
+      "id": "Building:Bolton",
+      "name": "Bolton",
+      "label": "Building",
+      "properties": {
+        "floorCount": 2,
+        "name": "Bolton",
+        "id": 83,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.5549407,
+        "long": -2.4219033
+      },
+      "devices": [
+        {
+          "id": "Device:57",
+          "name": "Temperature_UPLJJkzTgF4v",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "64214e60-479c-11f0-bf13-bf19a72566f6",
+            "name": "Temperature_UPLJJkzTgF4v",
+            "id": 57,
+            "originalId": 28,
+            "label": "Temperature Sensor",
+            "isActive": true
+          },
+          "cloudId": "64214e60-479c-11f0-bf13-bf19a72566f6"
+        },
+        {
+          "id": "Device:58",
+          "name": "People Counter_eTcrozehAwoZ",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "29436890-4798-11f0-bf13-bf19a72566f6",
+            "name": "People Counter_eTcrozehAwoZ",
+            "id": 58,
+            "originalId": 7,
+            "label": "People Counter",
+            "isActive": true
+          },
+          "cloudId": "29436890-4798-11f0-bf13-bf19a72566f6"
+        },
+        {
+          "id": "Device:59",
+          "name": "IAQ Sensor_FCBFWLgFwj7k",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "c27807e0-4799-11f0-bf13-bf19a72566f6",
+            "name": "IAQ Sensor_FCBFWLgFwj7k",
+            "id": 59,
+            "originalId": 15,
+            "label": "IAQ Sensor",
+            "isActive": true
+          },
+          "cloudId": "c27807e0-4799-11f0-bf13-bf19a72566f6"
+        },
+        {
+          "id": "Device:60",
+          "name": "Occupancy_lzDbZpSWkLkT",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "b19aae20-479c-11f0-bf13-bf19a72566f6",
+            "name": "Occupancy_lzDbZpSWkLkT",
+            "id": 60,
+            "originalId": 30,
+            "label": "Occupancy",
+            "isActive": true
+          },
+          "cloudId": "b19aae20-479c-11f0-bf13-bf19a72566f6"
+        },
+        {
+          "id": "Device:61",
+          "name": "Energy_BGi4Bzh1KWkJ",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "8e00d400-479a-11f0-bf13-bf19a72566f6",
+            "name": "Energy_BGi4Bzh1KWkJ",
+            "id": 61,
+            "originalId": 19,
+            "label": "Energy Clamp",
+            "isActive": true
+          },
+          "cloudId": "8e00d400-479a-11f0-bf13-bf19a72566f6"
+        },
+        {
+          "id": "Device:62",
+          "name": "Water Meter_AmRUN3AzIrJd",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "4a829030-58b9-11f0-a19e-8f874a1c01d3",
+            "name": "Water Meter_AmRUN3AzIrJd",
+            "id": 62,
+            "originalId": 51,
+            "label": "Water meter",
+            "isActive": true
+          },
+          "cloudId": "4a829030-58b9-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:63",
+          "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "abc73b80-4797-11f0-bf13-bf19a72566f6",
+            "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+            "id": 63,
+            "originalId": 4,
+            "label": "IAQ Sensor",
+            "isActive": true
+          },
+          "cloudId": "abc73b80-4797-11f0-bf13-bf19a72566f6"
+        },
+        {
+          "id": "Device:64",
+          "name": "People Counter_xNrPaURS4r6p",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": false,
+            "cloudId": "ab5fb660-872d-11f0-a19e-8f874a1c01d3",
+            "name": "People Counter_xNrPaURS4r6p",
+            "id": 64,
+            "originalId": 52,
+            "label": "People Counter",
+            "isActive": true
+          },
+          "cloudId": "ab5fb660-872d-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:65",
+          "name": "People Counter_BcLWOpRh4Byz",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "7318f830-4799-11f0-bf13-bf19a72566f6",
+            "name": "People Counter_BcLWOpRh4Byz",
+            "id": 65,
+            "originalId": 13,
+            "label": "People Counter",
+            "isActive": true
+          },
+          "cloudId": "7318f830-4799-11f0-bf13-bf19a72566f6"
+        },
+        {
+          "id": "Device:66",
+          "name": "Odor _hjtgm3AUNSdO",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "2e857e60-58b9-11f0-a19e-8f874a1c01d3",
+            "name": "Odor _hjtgm3AUNSdO",
+            "id": 66,
+            "originalId": 50,
+            "label": "Odor",
+            "isActive": true
+          },
+          "cloudId": "2e857e60-58b9-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:67",
+          "name": "Water Leak_MdGf5j3Ae9Zs",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "002f9dc0-58b9-11f0-a19e-8f874a1c01d3",
+            "name": "Water Leak_MdGf5j3Ae9Zs",
+            "id": 67,
+            "originalId": 49,
+            "label": "Water Leak Detector",
+            "isActive": true
+          },
+          "cloudId": "002f9dc0-58b9-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:68",
+          "name": "Occupancy_MLcfNY8PE5WL",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "6ef94be0-479b-11f0-bf13-bf19a72566f6",
+            "name": "Occupancy_MLcfNY8PE5WL",
+            "id": 68,
+            "originalId": 21,
+            "label": "Occupancy",
+            "isActive": true
+          },
+          "cloudId": "6ef94be0-479b-11f0-bf13-bf19a72566f6"
+        },
+        {
+          "id": "Device:69",
+          "name": "Temperature_AvYwOcSkqEZb",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "f22ffa70-47a2-11f0-bf13-bf19a72566f6",
+            "name": "Temperature_AvYwOcSkqEZb",
+            "id": 69,
+            "originalId": 46,
+            "label": "Temperature Sensor",
+            "isActive": true
+          },
+          "cloudId": "f22ffa70-47a2-11f0-bf13-bf19a72566f6"
+        },
+        {
+          "id": "Device:70",
+          "name": "People Flow_waTDvSKxFbK4",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "d9b00270-4797-11f0-bf13-bf19a72566f6",
+            "name": "People Flow_waTDvSKxFbK4",
+            "id": 70,
+            "originalId": 5,
+            "label": "People Flow",
+            "isActive": true
+          },
+          "cloudId": "d9b00270-4797-11f0-bf13-bf19a72566f6"
+        }
+      ],
+      "floors": [
+        {
+          "id": "Floor:130:83",
+          "name": "First Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "First Floor",
+            "zoneCount": 15,
+            "id": 130,
+            "originalId": 2,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:203:83",
+              "name": "Standup",
+              "label": "Zone",
+              "roomId": "203",
+              "properties": {
+                "deviceCount": 6,
+                "name": "Standup",
+                "id": 203,
+                "originalId": 15,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:57",
+                  "name": "Temperature_UPLJJkzTgF4v",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "64214e60-479c-11f0-bf13-bf19a72566f6",
+                    "name": "Temperature_UPLJJkzTgF4v",
+                    "id": 57,
+                    "originalId": 28,
+                    "label": "Temperature Sensor",
+                    "isActive": true
+                  },
+                  "cloudId": "64214e60-479c-11f0-bf13-bf19a72566f6"
+                }
+              ]
+            },
+            {
+              "id": "Zone:204:83",
+              "name": "Huddle",
+              "label": "Zone",
+              "roomId": "204",
+              "properties": {
+                "deviceCount": 4,
+                "name": "Huddle",
+                "id": 204,
+                "originalId": 4,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:58",
+                  "name": "People Counter_eTcrozehAwoZ",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "29436890-4798-11f0-bf13-bf19a72566f6",
+                    "name": "People Counter_eTcrozehAwoZ",
+                    "id": 58,
+                    "originalId": 7,
+                    "label": "People Counter",
+                    "isActive": true
+                  },
+                  "cloudId": "29436890-4798-11f0-bf13-bf19a72566f6"
+                }
+              ]
+            },
+            {
+              "id": "Zone:205:83",
+              "name": "Workshop",
+              "label": "Zone",
+              "roomId": "205",
+              "properties": {
+                "deviceCount": 0,
+                "name": "Workshop",
+                "id": 205,
+                "originalId": 10,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:206:83",
+              "name": "DJ",
+              "label": "Zone",
+              "roomId": "206",
+              "properties": {
+                "deviceCount": 1,
+                "name": "DJ",
+                "id": 206,
+                "originalId": 6,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:207:83",
+              "name": "Booths",
+              "label": "Zone",
+              "roomId": "207",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Booths",
+                "id": 207,
+                "originalId": 13,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:59",
+                  "name": "IAQ Sensor_FCBFWLgFwj7k",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "c27807e0-4799-11f0-bf13-bf19a72566f6",
+                    "name": "IAQ Sensor_FCBFWLgFwj7k",
+                    "id": 59,
+                    "originalId": 15,
+                    "label": "IAQ Sensor",
+                    "isActive": true
+                  },
+                  "cloudId": "c27807e0-4799-11f0-bf13-bf19a72566f6"
+                }
+              ]
+            },
+            {
+              "id": "Zone:208:83",
+              "name": "Reception",
+              "label": "Zone",
+              "roomId": "208",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Reception",
+                "id": 208,
+                "originalId": 2,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:209:83",
+              "name": "Digispace",
+              "label": "Zone",
+              "roomId": "209",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Digispace",
+                "id": 209,
+                "originalId": 7,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:210:83",
+              "name": "Sitdown",
+              "label": "Zone",
+              "roomId": "210",
+              "properties": {
+                "deviceCount": 9,
+                "name": "Sitdown",
+                "id": 210,
+                "originalId": 1,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:60",
+                  "name": "Occupancy_lzDbZpSWkLkT",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "b19aae20-479c-11f0-bf13-bf19a72566f6",
+                    "name": "Occupancy_lzDbZpSWkLkT",
+                    "id": 60,
+                    "originalId": 30,
+                    "label": "Occupancy",
+                    "isActive": true
+                  },
+                  "cloudId": "b19aae20-479c-11f0-bf13-bf19a72566f6"
+                }
+              ]
+            },
+            {
+              "id": "Zone:211:83",
+              "name": "Comms",
+              "label": "Zone",
+              "roomId": "211",
+              "properties": {
+                "deviceCount": 4,
+                "name": "Comms",
+                "id": 211,
+                "originalId": 8,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:61",
+                  "name": "Energy_BGi4Bzh1KWkJ",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "8e00d400-479a-11f0-bf13-bf19a72566f6",
+                    "name": "Energy_BGi4Bzh1KWkJ",
+                    "id": 61,
+                    "originalId": 19,
+                    "label": "Energy Clamp",
+                    "isActive": true
+                  },
+                  "cloudId": "8e00d400-479a-11f0-bf13-bf19a72566f6"
+                },
+                {
+                  "id": "Device:62",
+                  "name": "Water Meter_AmRUN3AzIrJd",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "4a829030-58b9-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_AmRUN3AzIrJd",
+                    "id": 62,
+                    "originalId": 51,
+                    "label": "Water meter",
+                    "isActive": true
+                  },
+                  "cloudId": "4a829030-58b9-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:212:83",
+              "name": "Cafe",
+              "label": "Zone",
+              "roomId": "212",
+              "properties": {
+                "deviceCount": 7,
+                "name": "Cafe",
+                "id": 212,
+                "originalId": 11,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:63",
+                  "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "abc73b80-4797-11f0-bf13-bf19a72566f6",
+                    "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+                    "id": 63,
+                    "originalId": 4,
+                    "label": "IAQ Sensor",
+                    "isActive": true
+                  },
+                  "cloudId": "abc73b80-4797-11f0-bf13-bf19a72566f6"
+                },
+                {
+                  "id": "Device:64",
+                  "name": "People Counter_xNrPaURS4r6p",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": false,
+                    "cloudId": "ab5fb660-872d-11f0-a19e-8f874a1c01d3",
+                    "name": "People Counter_xNrPaURS4r6p",
+                    "id": 64,
+                    "originalId": 52,
+                    "label": "People Counter",
+                    "isActive": true
+                  },
+                  "cloudId": "ab5fb660-872d-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:213:83",
+              "name": "Cinema",
+              "label": "Zone",
+              "roomId": "213",
+              "properties": {
+                "deviceCount": 3,
+                "name": "Cinema",
+                "id": 213,
+                "originalId": 9,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:214:83",
+              "name": "Lounge",
+              "label": "Zone",
+              "roomId": "214",
+              "properties": {
+                "deviceCount": 6,
+                "name": "Lounge",
+                "id": 214,
+                "originalId": 3,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:65",
+                  "name": "People Counter_BcLWOpRh4Byz",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "7318f830-4799-11f0-bf13-bf19a72566f6",
+                    "name": "People Counter_BcLWOpRh4Byz",
+                    "id": 65,
+                    "originalId": 13,
+                    "label": "People Counter",
+                    "isActive": true
+                  },
+                  "cloudId": "7318f830-4799-11f0-bf13-bf19a72566f6"
+                }
+              ]
+            },
+            {
+              "id": "Zone:215:83",
+              "name": "Toilet",
+              "label": "Zone",
+              "roomId": "215",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Toilet",
+                "id": 215,
+                "originalId": 17,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:66",
+                  "name": "Odor _hjtgm3AUNSdO",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e857e60-58b9-11f0-a19e-8f874a1c01d3",
+                    "name": "Odor _hjtgm3AUNSdO",
+                    "id": 66,
+                    "originalId": 50,
+                    "label": "Odor",
+                    "isActive": true
+                  },
+                  "cloudId": "2e857e60-58b9-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:67",
+                  "name": "Water Leak_MdGf5j3Ae9Zs",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "002f9dc0-58b9-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Leak_MdGf5j3Ae9Zs",
+                    "id": 67,
+                    "originalId": 49,
+                    "label": "Water Leak Detector",
+                    "isActive": true
+                  },
+                  "cloudId": "002f9dc0-58b9-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:216:83",
+              "name": "Kitchen",
+              "label": "Zone",
+              "roomId": "216",
+              "properties": {
+                "deviceCount": 0,
+                "name": "Kitchen",
+                "id": 216,
+                "originalId": 16,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:217:83",
+              "name": "Brainstorm",
+              "label": "Zone",
+              "roomId": "217",
+              "properties": {
+                "deviceCount": 6,
+                "name": "Brainstorm",
+                "id": 217,
+                "originalId": 12,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:68",
+                  "name": "Occupancy_MLcfNY8PE5WL",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "6ef94be0-479b-11f0-bf13-bf19a72566f6",
+                    "name": "Occupancy_MLcfNY8PE5WL",
+                    "id": 68,
+                    "originalId": 21,
+                    "label": "Occupancy",
+                    "isActive": true
+                  },
+                  "cloudId": "6ef94be0-479b-11f0-bf13-bf19a72566f6"
+                },
+                {
+                  "id": "Device:69",
+                  "name": "Temperature_AvYwOcSkqEZb",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "f22ffa70-47a2-11f0-bf13-bf19a72566f6",
+                    "name": "Temperature_AvYwOcSkqEZb",
+                    "id": 69,
+                    "originalId": 46,
+                    "label": "Temperature Sensor",
+                    "isActive": true
+                  },
+                  "cloudId": "f22ffa70-47a2-11f0-bf13-bf19a72566f6"
+                }
+              ]
+            }
+          ],
+          "devices": [
+            {
+              "id": "Device:57",
+              "name": "Temperature_UPLJJkzTgF4v",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "64214e60-479c-11f0-bf13-bf19a72566f6",
+                "name": "Temperature_UPLJJkzTgF4v",
+                "id": 57,
+                "originalId": 28,
+                "label": "Temperature Sensor",
+                "isActive": true
+              },
+              "cloudId": "64214e60-479c-11f0-bf13-bf19a72566f6"
+            },
+            {
+              "id": "Device:58",
+              "name": "People Counter_eTcrozehAwoZ",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "29436890-4798-11f0-bf13-bf19a72566f6",
+                "name": "People Counter_eTcrozehAwoZ",
+                "id": 58,
+                "originalId": 7,
+                "label": "People Counter",
+                "isActive": true
+              },
+              "cloudId": "29436890-4798-11f0-bf13-bf19a72566f6"
+            },
+            {
+              "id": "Device:59",
+              "name": "IAQ Sensor_FCBFWLgFwj7k",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "c27807e0-4799-11f0-bf13-bf19a72566f6",
+                "name": "IAQ Sensor_FCBFWLgFwj7k",
+                "id": 59,
+                "originalId": 15,
+                "label": "IAQ Sensor",
+                "isActive": true
+              },
+              "cloudId": "c27807e0-4799-11f0-bf13-bf19a72566f6"
+            },
+            {
+              "id": "Device:60",
+              "name": "Occupancy_lzDbZpSWkLkT",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "b19aae20-479c-11f0-bf13-bf19a72566f6",
+                "name": "Occupancy_lzDbZpSWkLkT",
+                "id": 60,
+                "originalId": 30,
+                "label": "Occupancy",
+                "isActive": true
+              },
+              "cloudId": "b19aae20-479c-11f0-bf13-bf19a72566f6"
+            },
+            {
+              "id": "Device:61",
+              "name": "Energy_BGi4Bzh1KWkJ",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "8e00d400-479a-11f0-bf13-bf19a72566f6",
+                "name": "Energy_BGi4Bzh1KWkJ",
+                "id": 61,
+                "originalId": 19,
+                "label": "Energy Clamp",
+                "isActive": true
+              },
+              "cloudId": "8e00d400-479a-11f0-bf13-bf19a72566f6"
+            },
+            {
+              "id": "Device:62",
+              "name": "Water Meter_AmRUN3AzIrJd",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "4a829030-58b9-11f0-a19e-8f874a1c01d3",
+                "name": "Water Meter_AmRUN3AzIrJd",
+                "id": 62,
+                "originalId": 51,
+                "label": "Water meter",
+                "isActive": true
+              },
+              "cloudId": "4a829030-58b9-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:63",
+              "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "abc73b80-4797-11f0-bf13-bf19a72566f6",
+                "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+                "id": 63,
+                "originalId": 4,
+                "label": "IAQ Sensor",
+                "isActive": true
+              },
+              "cloudId": "abc73b80-4797-11f0-bf13-bf19a72566f6"
+            },
+            {
+              "id": "Device:64",
+              "name": "People Counter_xNrPaURS4r6p",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": false,
+                "cloudId": "ab5fb660-872d-11f0-a19e-8f874a1c01d3",
+                "name": "People Counter_xNrPaURS4r6p",
+                "id": 64,
+                "originalId": 52,
+                "label": "People Counter",
+                "isActive": true
+              },
+              "cloudId": "ab5fb660-872d-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:65",
+              "name": "People Counter_BcLWOpRh4Byz",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "7318f830-4799-11f0-bf13-bf19a72566f6",
+                "name": "People Counter_BcLWOpRh4Byz",
+                "id": 65,
+                "originalId": 13,
+                "label": "People Counter",
+                "isActive": true
+              },
+              "cloudId": "7318f830-4799-11f0-bf13-bf19a72566f6"
+            },
+            {
+              "id": "Device:66",
+              "name": "Odor _hjtgm3AUNSdO",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "2e857e60-58b9-11f0-a19e-8f874a1c01d3",
+                "name": "Odor _hjtgm3AUNSdO",
+                "id": 66,
+                "originalId": 50,
+                "label": "Odor",
+                "isActive": true
+              },
+              "cloudId": "2e857e60-58b9-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:67",
+              "name": "Water Leak_MdGf5j3Ae9Zs",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "002f9dc0-58b9-11f0-a19e-8f874a1c01d3",
+                "name": "Water Leak_MdGf5j3Ae9Zs",
+                "id": 67,
+                "originalId": 49,
+                "label": "Water Leak Detector",
+                "isActive": true
+              },
+              "cloudId": "002f9dc0-58b9-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:68",
+              "name": "Occupancy_MLcfNY8PE5WL",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "6ef94be0-479b-11f0-bf13-bf19a72566f6",
+                "name": "Occupancy_MLcfNY8PE5WL",
+                "id": 68,
+                "originalId": 21,
+                "label": "Occupancy",
+                "isActive": true
+              },
+              "cloudId": "6ef94be0-479b-11f0-bf13-bf19a72566f6"
+            },
+            {
+              "id": "Device:69",
+              "name": "Temperature_AvYwOcSkqEZb",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "f22ffa70-47a2-11f0-bf13-bf19a72566f6",
+                "name": "Temperature_AvYwOcSkqEZb",
+                "id": 69,
+                "originalId": 46,
+                "label": "Temperature Sensor",
+                "isActive": true
+              },
+              "cloudId": "f22ffa70-47a2-11f0-bf13-bf19a72566f6"
+            }
+          ]
+        },
+        {
+          "id": "Floor:131:83",
+          "name": "Ground Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Ground Floor",
+            "zoneCount": 2,
+            "id": 131,
+            "originalId": 1,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:218:83",
+              "name": "Entrance",
+              "label": "Zone",
+              "roomId": "218",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Entrance",
+                "id": 218,
+                "originalId": 5,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:70",
+                  "name": "People Flow_waTDvSKxFbK4",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "d9b00270-4797-11f0-bf13-bf19a72566f6",
+                    "name": "People Flow_waTDvSKxFbK4",
+                    "id": 70,
+                    "originalId": 5,
+                    "label": "People Flow",
+                    "isActive": true
+                  },
+                  "cloudId": "d9b00270-4797-11f0-bf13-bf19a72566f6"
+                }
+              ]
+            },
+            {
+              "id": "Zone:219:83",
+              "name": "Goods In",
+              "label": "Zone",
+              "roomId": "219",
+              "properties": {
+                "deviceCount": 0,
+                "name": "Goods In",
+                "id": 219,
+                "originalId": 14,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": [
+            {
+              "id": "Device:70",
+              "name": "People Flow_waTDvSKxFbK4",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "d9b00270-4797-11f0-bf13-bf19a72566f6",
+                "name": "People Flow_waTDvSKxFbK4",
+                "id": 70,
+                "originalId": 5,
+                "label": "People Flow",
+                "isActive": true
+              },
+              "cloudId": "d9b00270-4797-11f0-bf13-bf19a72566f6"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "nodes": [
     {
       "id": "Building:Bolton",
@@ -8,7 +980,16 @@
       "name": "Bolton",
       "nodeType": "Building",
       "hasData": true,
-      "dataDevices": 14,
+      "dataDevices": 1,
+      "properties": {
+        "floorCount": 2,
+        "name": "Bolton",
+        "id": 83,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.5549407,
+        "long": -2.4219033
+      },
       "x": 0,
       "y": 0
     },
@@ -42,6 +1023,13 @@
           "isActive": true
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:293"
+      },
+      "properties": {
+        "name": "First Floor",
+        "zoneCount": 15,
+        "id": 130,
+        "originalId": 2,
+        "isActive": true
       },
       "x": -90,
       "y": 220
@@ -77,6 +1065,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:294"
       },
+      "properties": {
+        "name": "Ground Floor",
+        "zoneCount": 2,
+        "id": 131,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 90,
       "y": 220
     },
@@ -87,6 +1082,13 @@
       "nodeType": "Zone",
       "roomId": "203",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 6,
+        "name": "Standup",
+        "id": 203,
+        "originalId": 15,
+        "isActive": true
+      },
       "x": -1070,
       "y": 440
     },
@@ -97,6 +1099,13 @@
       "nodeType": "Zone",
       "roomId": "204",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 4,
+        "name": "Huddle",
+        "id": 204,
+        "originalId": 4,
+        "isActive": true
+      },
       "x": -930,
       "y": 440
     },
@@ -107,6 +1116,13 @@
       "nodeType": "Zone",
       "roomId": "205",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 0,
+        "name": "Workshop",
+        "id": 205,
+        "originalId": 10,
+        "isActive": true
+      },
       "x": -790,
       "y": 440
     },
@@ -117,6 +1133,13 @@
       "nodeType": "Zone",
       "roomId": "206",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "DJ",
+        "id": 206,
+        "originalId": 6,
+        "isActive": true
+      },
       "x": -650,
       "y": 440
     },
@@ -127,6 +1150,13 @@
       "nodeType": "Zone",
       "roomId": "207",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Booths",
+        "id": 207,
+        "originalId": 13,
+        "isActive": true
+      },
       "x": -510,
       "y": 440
     },
@@ -137,6 +1167,13 @@
       "nodeType": "Zone",
       "roomId": "208",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Reception",
+        "id": 208,
+        "originalId": 2,
+        "isActive": true
+      },
       "x": -370,
       "y": 440
     },
@@ -147,6 +1184,13 @@
       "nodeType": "Zone",
       "roomId": "209",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Digispace",
+        "id": 209,
+        "originalId": 7,
+        "isActive": true
+      },
       "x": -230,
       "y": 440
     },
@@ -157,6 +1201,13 @@
       "nodeType": "Zone",
       "roomId": "210",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 9,
+        "name": "Sitdown",
+        "id": 210,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": -90,
       "y": 440
     },
@@ -167,6 +1218,13 @@
       "nodeType": "Zone",
       "roomId": "211",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 4,
+        "name": "Comms",
+        "id": 211,
+        "originalId": 8,
+        "isActive": true
+      },
       "x": 50,
       "y": 440
     },
@@ -177,6 +1235,13 @@
       "nodeType": "Zone",
       "roomId": "212",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 7,
+        "name": "Cafe",
+        "id": 212,
+        "originalId": 11,
+        "isActive": true
+      },
       "x": 190,
       "y": 440
     },
@@ -187,6 +1252,13 @@
       "nodeType": "Zone",
       "roomId": "213",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 3,
+        "name": "Cinema",
+        "id": 213,
+        "originalId": 9,
+        "isActive": true
+      },
       "x": 330,
       "y": 440
     },
@@ -197,6 +1269,13 @@
       "nodeType": "Zone",
       "roomId": "214",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 6,
+        "name": "Lounge",
+        "id": 214,
+        "originalId": 3,
+        "isActive": true
+      },
       "x": 470,
       "y": 440
     },
@@ -207,6 +1286,13 @@
       "nodeType": "Zone",
       "roomId": "215",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Toilet",
+        "id": 215,
+        "originalId": 17,
+        "isActive": true
+      },
       "x": 610,
       "y": 440
     },
@@ -217,6 +1303,13 @@
       "nodeType": "Zone",
       "roomId": "216",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 0,
+        "name": "Kitchen",
+        "id": 216,
+        "originalId": 16,
+        "isActive": true
+      },
       "x": 750,
       "y": 440
     },
@@ -227,6 +1320,13 @@
       "nodeType": "Zone",
       "roomId": "217",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 6,
+        "name": "Brainstorm",
+        "id": 217,
+        "originalId": 12,
+        "isActive": true
+      },
       "x": 890,
       "y": 440
     },
@@ -237,6 +1337,13 @@
       "nodeType": "Zone",
       "roomId": "218",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Entrance",
+        "id": 218,
+        "originalId": 5,
+        "isActive": true
+      },
       "x": 20,
       "y": 440
     },
@@ -247,6 +1354,13 @@
       "nodeType": "Zone",
       "roomId": "219",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 0,
+        "name": "Goods In",
+        "id": 219,
+        "originalId": 14,
+        "isActive": true
+      },
       "x": 160,
       "y": 440
     },
@@ -257,6 +1371,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "64214e60-479c-11f0-bf13-bf19a72566f6",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "64214e60-479c-11f0-bf13-bf19a72566f6",
+        "name": "Temperature_UPLJJkzTgF4v",
+        "id": 57,
+        "originalId": 28,
+        "label": "Temperature Sensor",
+        "isActive": true
+      },
       "x": -1070,
       "y": 660
     },
@@ -267,6 +1390,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "29436890-4798-11f0-bf13-bf19a72566f6",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "29436890-4798-11f0-bf13-bf19a72566f6",
+        "name": "People Counter_eTcrozehAwoZ",
+        "id": 58,
+        "originalId": 7,
+        "label": "People Counter",
+        "isActive": true
+      },
       "x": -930,
       "y": 660
     },
@@ -277,6 +1409,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "c27807e0-4799-11f0-bf13-bf19a72566f6",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "c27807e0-4799-11f0-bf13-bf19a72566f6",
+        "name": "IAQ Sensor_FCBFWLgFwj7k",
+        "id": 59,
+        "originalId": 15,
+        "label": "IAQ Sensor",
+        "isActive": true
+      },
       "x": -510,
       "y": 660
     },
@@ -287,6 +1428,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "b19aae20-479c-11f0-bf13-bf19a72566f6",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "b19aae20-479c-11f0-bf13-bf19a72566f6",
+        "name": "Occupancy_lzDbZpSWkLkT",
+        "id": 60,
+        "originalId": 30,
+        "label": "Occupancy",
+        "isActive": true
+      },
       "x": -90,
       "y": 660
     },
@@ -297,6 +1447,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "8e00d400-479a-11f0-bf13-bf19a72566f6",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "8e00d400-479a-11f0-bf13-bf19a72566f6",
+        "name": "Energy_BGi4Bzh1KWkJ",
+        "id": 61,
+        "originalId": 19,
+        "label": "Energy Clamp",
+        "isActive": true
+      },
       "x": 0,
       "y": 660
     },
@@ -307,6 +1466,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "4a829030-58b9-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "4a829030-58b9-11f0-a19e-8f874a1c01d3",
+        "name": "Water Meter_AmRUN3AzIrJd",
+        "id": 62,
+        "originalId": 51,
+        "label": "Water meter",
+        "isActive": true
+      },
       "x": 100,
       "y": 660
     },
@@ -317,6 +1485,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "abc73b80-4797-11f0-bf13-bf19a72566f6",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "abc73b80-4797-11f0-bf13-bf19a72566f6",
+        "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+        "id": 63,
+        "originalId": 4,
+        "label": "IAQ Sensor",
+        "isActive": true
+      },
       "x": 140,
       "y": 660
     },
@@ -327,6 +1504,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "ab5fb660-872d-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": false,
+        "cloudId": "ab5fb660-872d-11f0-a19e-8f874a1c01d3",
+        "name": "People Counter_xNrPaURS4r6p",
+        "id": 64,
+        "originalId": 52,
+        "label": "People Counter",
+        "isActive": true
+      },
       "x": 240,
       "y": 660
     },
@@ -337,6 +1523,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "7318f830-4799-11f0-bf13-bf19a72566f6",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "7318f830-4799-11f0-bf13-bf19a72566f6",
+        "name": "People Counter_BcLWOpRh4Byz",
+        "id": 65,
+        "originalId": 13,
+        "label": "People Counter",
+        "isActive": true
+      },
       "x": 470,
       "y": 660
     },
@@ -347,6 +1542,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "2e857e60-58b9-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "2e857e60-58b9-11f0-a19e-8f874a1c01d3",
+        "name": "Odor _hjtgm3AUNSdO",
+        "id": 66,
+        "originalId": 50,
+        "label": "Odor",
+        "isActive": true
+      },
       "x": 560,
       "y": 660
     },
@@ -357,6 +1561,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "002f9dc0-58b9-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "002f9dc0-58b9-11f0-a19e-8f874a1c01d3",
+        "name": "Water Leak_MdGf5j3Ae9Zs",
+        "id": 67,
+        "originalId": 49,
+        "label": "Water Leak Detector",
+        "isActive": true
+      },
       "x": 660,
       "y": 660
     },
@@ -367,6 +1580,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "6ef94be0-479b-11f0-bf13-bf19a72566f6",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "6ef94be0-479b-11f0-bf13-bf19a72566f6",
+        "name": "Occupancy_MLcfNY8PE5WL",
+        "id": 68,
+        "originalId": 21,
+        "label": "Occupancy",
+        "isActive": true
+      },
       "x": 840,
       "y": 660
     },
@@ -377,6 +1599,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "f22ffa70-47a2-11f0-bf13-bf19a72566f6",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "f22ffa70-47a2-11f0-bf13-bf19a72566f6",
+        "name": "Temperature_AvYwOcSkqEZb",
+        "id": 69,
+        "originalId": 46,
+        "label": "Temperature Sensor",
+        "isActive": true
+      },
       "x": 940,
       "y": 660
     },
@@ -387,6 +1618,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "d9b00270-4797-11f0-bf13-bf19a72566f6",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "d9b00270-4797-11f0-bf13-bf19a72566f6",
+        "name": "People Flow_waTDvSKxFbK4",
+        "id": 70,
+        "originalId": 5,
+        "label": "People Flow",
+        "isActive": true
+      },
       "x": 20,
       "y": 660
     }

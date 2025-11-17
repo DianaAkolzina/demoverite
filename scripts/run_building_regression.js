@@ -46,20 +46,38 @@ function loadSnapshot() {
 }
 
 function buildIndex(snapshot) {
-  const nodeMap = new Map(snapshot.nodes.map((n) => [n.id, n]));
+  const nodeMap = new Map((snapshot.nodes || []).map((n) => [n.id, n]));
   const buildingZones = new Map();
   const deviceZone = new Map();
+  const zoneToBuilding = new Map();
 
   for (const link of snapshot.links || []) {
-    if (link.rel !== 'LOCATED_IN_ZONE') continue;
+    if (!link || !link.rel) continue;
+    if (link.rel === 'LOCATED_IN_BUILDING' || link.rel === 'PART_OF_BUILDING') {
+      const zoneNode = nodeMap.get(link.source);
+      const buildingNode = nodeMap.get(link.target);
+      if (!zoneNode || !buildingNode) continue;
+      if ((zoneNode.nodeType || zoneNode.label) !== 'Zone') continue;
+      if ((buildingNode.nodeType || buildingNode.label) !== 'Building') continue;
+      const buildingName = buildingNode.name || buildingNode.properties?.name || buildingNode.id;
+      if (buildingName) zoneToBuilding.set(zoneNode.id, buildingName);
+    }
+  }
+
+  for (const link of snapshot.links || []) {
+    if (!link || link.rel !== 'LOCATED_IN_ZONE') continue;
     const deviceNode = nodeMap.get(link.source);
     const zoneNode = nodeMap.get(link.target);
     if (!deviceNode || !zoneNode) continue;
     const cloudId = deviceNode.cloudId;
     if (!cloudId) continue;
-    const zoneParts = zoneNode.id.split(':');
-    const zoneName = zoneNode.name || zoneParts.slice(1, -1).join(':') || zoneParts[1] || null;
-    const buildingName = zoneParts[zoneParts.length - 1];
+    const zoneIdParts = String(zoneNode.id || '').split(':');
+    const zoneName = zoneNode.name || zoneNode.properties?.name || zoneIdParts.slice(1, -1).join(':') || zoneIdParts[1] || null;
+    const buildingName =
+      zoneToBuilding.get(zoneNode.id) ||
+      zoneNode.properties?.building ||
+      zoneNode.properties?.buildingName ||
+      (zoneIdParts.length > 2 ? zoneIdParts.slice(2).join(':') : zoneIdParts[zoneIdParts.length - 1]);
     if (!zoneName || !buildingName) continue;
     if (!buildingZones.has(buildingName)) buildingZones.set(buildingName, new Map());
     const zoneMap = buildingZones.get(buildingName);

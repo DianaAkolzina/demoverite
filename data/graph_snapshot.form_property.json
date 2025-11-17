@@ -1,6 +1,54 @@
 {
-  "generatedAt": 1763137076269,
   "tenant": "Form Property",
+  "generatedAt": 1763339580898,
+  "buildings": [
+    {
+      "id": "Building:Transmission building ",
+      "name": "Transmission building ",
+      "label": "Building",
+      "properties": {
+        "floorCount": 1,
+        "name": "Transmission building ",
+        "id": 85,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.47837130000001,
+        "long": -2.2550535
+      },
+      "devices": [],
+      "floors": [
+        {
+          "id": "Floor:133:85",
+          "name": "Ground floor ",
+          "label": "Floor",
+          "properties": {
+            "name": "Ground floor ",
+            "zoneCount": 1,
+            "id": 133,
+            "originalId": 1,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:222:85",
+              "name": "Reception",
+              "label": "Zone",
+              "roomId": "222",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Reception",
+                "id": 222,
+                "originalId": 1,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        }
+      ]
+    }
+  ],
   "nodes": [
     {
       "id": "Building:Transmission building ",
@@ -9,6 +57,15 @@
       "nodeType": "Building",
       "hasData": false,
       "dataDevices": 0,
+      "properties": {
+        "floorCount": 1,
+        "name": "Transmission building ",
+        "id": 85,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.47837130000001,
+        "long": -2.2550535
+      },
       "x": 0,
       "y": 0
     },
@@ -43,6 +100,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:296"
       },
+      "properties": {
+        "name": "Ground floor ",
+        "zoneCount": 1,
+        "id": 133,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 0,
       "y": 220
     },
@@ -53,6 +117,13 @@
       "nodeType": "Zone",
       "roomId": "222",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Reception",
+        "id": 222,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 0,
       "y": 440
     }

@@ -23,6 +23,28 @@ export function createGraphClient({ uri, username, password, database }) {
   async function close() { try { await driver?.close?.(); } catch {}
   }
 
+  const toPlainValue = (value) => {
+    if (value == null) return value;
+    if (Array.isArray(value)) return value.map((item) => toPlainValue(item));
+    if (typeof value === 'object') {
+      if (typeof value.toNumber === 'function') {
+        try { return value.toNumber(); } catch { /* ignore */ }
+      }
+      if (typeof value.low === 'number' && typeof value.high === 'number') {
+        if (value.high === 0 || value.high == null) return value.low;
+        const combined = value.low + value.high * 4294967296;
+        return combined;
+      }
+      return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, toPlainValue(v)]));
+    }
+    return value;
+  };
+
+  const plainProps = (props = {}) => {
+    if (!props || typeof props !== 'object') return {};
+    return Object.fromEntries(Object.entries(props).map(([k, v]) => [k, toPlainValue(v)]));
+  };
+
   async function runQuery(cypher, params = {}) {
     const ok = await ensure();
     if (!ok) return { records: [], error: 'neo4j-driver not available' };
@@ -295,7 +317,20 @@ export function createGraphClient({ uri, username, password, database }) {
     async fullHierarchy(tenant = null) {
       const outNodes = new Map();
       const outLinks = [];
-      const addNode = (id, props) => { if (!outNodes.has(id)) outNodes.set(id, { id, ...props }); };
+      const addNode = (id, props = {}) => {
+        if (!id) return null;
+        const existing = outNodes.get(id);
+        if (existing) {
+          const merged = { ...existing, ...props };
+          if (existing.properties || props.properties) {
+            merged.properties = { ...(existing.properties || {}), ...(props.properties || {}) };
+          }
+          outNodes.set(id, merged);
+          return id;
+        }
+        outNodes.set(id, { id, ...props });
+        return id;
+      };
       const linkCache = new Set();
       const neoElementId = (node) => {
         if (!node) return null;
@@ -415,7 +450,7 @@ export function createGraphClient({ uri, username, password, database }) {
         const fKeyRaw = floorNode.properties?.id ?? floorNode.properties?.floorID ?? floorNode.properties?.name ?? '';
         if (!fKeyRaw) return null;
         const fid = `Floor:${String(fKeyRaw)}:${String(buildingKey)}`;
-        addNode(fid, { label: 'Floor', name: floorNode.properties?.name, nodeType: 'Floor', node: floorNode });
+        addNode(fid, { label: 'Floor', name: floorNode.properties?.name, nodeType: 'Floor', node: floorNode, properties: plainProps(floorNode.properties || {}) });
         if (buildingNode) addLink(fid, bid, 'LOCATED_IN_BUILDING');
         if (floorMap && !floorMap.has(fid)) floorMap.set(fid, floorNode);
         return fid;
@@ -449,7 +484,7 @@ export function createGraphClient({ uri, username, password, database }) {
         RETURN b, floors, z, zf
       `;
       const { records, error } = await runQuery(q, tenant ? { tenant } : {});
-      if (error) return { nodes: [], links: [], error };
+      if (error) return { tenant: tenant || null, buildings: [], nodes: [], links: [], error };
       const logged = new Set();
       const includedDevices = new Set();
       for (const r of records) {
@@ -461,7 +496,7 @@ export function createGraphClient({ uri, username, password, database }) {
         const bName = b.properties?.name || String(b.properties?.buildingID || b.properties?.id || 'Building');
         const bid = `Building:${bName}`;
         const bKeyId = buildingKeyId(b) || bName || '';
-        addNode(bid, { label: 'Building', name: bName, nodeType: 'Building', hasData: false, dataDevices: 0 });
+        addNode(bid, { label: 'Building', name: bName, nodeType: 'Building', hasData: false, dataDevices: 0, properties: plainProps(b.properties || {}) });
         if (!buildingFloorsCache.has(bid) || (floorsRaw.length && (buildingFloorsCache.get(bid)?.size || 0) === 0)) {
           const floorMap = buildingFloorsCache.get(bid) || new Map();
           for (const floorNode of floorsRaw) {
@@ -480,7 +515,7 @@ export function createGraphClient({ uri, username, password, database }) {
           const zoneDisplayName = z.properties?.name || roomId;
           const zid = zoneIdentifier(z, bKeyId, zoneDisplayName);
           if (!zid) continue;
-          addNode(zid, { label: 'Zone', name: zoneDisplayName, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null });
+          addNode(zid, { label: 'Zone', name: zoneDisplayName, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null, properties: plainProps(z.properties || {}) });
           addLink(zid, bid, 'LOCATED_IN_BUILDING');
           let floorIdForZone = zoneFloorFromRel;
           if (!floorIdForZone && !zoneFloorFromRel && floorMap && floorMap.size) {
@@ -523,43 +558,44 @@ export function createGraphClient({ uri, username, password, database }) {
         ${tenant ? 'WITH d, z, f, b OPTIONAL MATCH (bt:Tenant)<-[:BELONGS_TO_TENANT]-(b) WITH d, z, f, b, bt WHERE bt.name=$tenant OR $tenant IS NULL' : ''}
         RETURN d, z, f, b
       `;
-      const { records: devRows, error: devErr } = await runQuery(qDevices, tenant ? { tenant } : {});
-      if (devErr) return { nodes: Array.from(outNodes.values()), links: outLinks, error: devErr };
-      for (const r of devRows) {
-        const d = r.get('d'); const z = r.get('z'); const f = r.get('f'); const b = r.get('b');
-        const cloudId = d?.properties?.cloud_id || d?.properties?.cloudId || d?.properties?.cloudID || null;
-        const includeDevice = d ? (cloudId ? s3Ids.has(String(cloudId)) : false) : false;
-        if (!includeDevice) continue;
-        const did = `Device:${d.properties?.id || d.properties?.name}`;
-        const bid = b ? `Building:${b.properties?.name}` : null;
-        const bKeyId = b ? (buildingKeyId(b) || b.properties?.name || '') : '';
-        const fKeyRaw = f ? (f.properties?.id ?? f.properties?.floorID ?? f.properties?.name ?? '') : '';
-        const fid = f ? `Floor:${String(fKeyRaw)}:${String(bKeyId)}` : null;
-        const zoneDisplayName = z?.properties?.name || (z?.properties?.roomId != null ? String(z.properties.roomId) : null);
-        const zid = z ? zoneIdentifier(z, bKeyId, zoneDisplayName) : null;
-        if (b) {
-          const bName = b.properties?.name || String(b.properties?.buildingID || b.properties?.id || 'Building');
-          addNode(bid, { label: 'Building', name: bName, nodeType: 'Building', hasData: false, dataDevices: 0 });
+      const { records: devRows = [], error: devErr } = await runQuery(qDevices, tenant ? { tenant } : {});
+      if (!devErr) {
+        for (const r of devRows) {
+          const d = r.get('d'); const z = r.get('z'); const f = r.get('f'); const b = r.get('b');
+          const cloudId = d?.properties?.cloud_id || d?.properties?.cloudId || d?.properties?.cloudID || null;
+          const includeDevice = d ? (cloudId ? s3Ids.has(String(cloudId)) : false) : false;
+          if (!includeDevice) continue;
+          const did = `Device:${d.properties?.id || d.properties?.name}`;
+          const bid = b ? `Building:${b.properties?.name}` : null;
+          const bKeyId = b ? (buildingKeyId(b) || b.properties?.name || '') : '';
+          const fKeyRaw = f ? (f.properties?.id ?? f.properties?.floorID ?? f.properties?.name ?? '') : '';
+          const fid = f ? `Floor:${String(fKeyRaw)}:${String(bKeyId)}` : null;
+          const zoneDisplayName = z?.properties?.name || (z?.properties?.roomId != null ? String(z.properties.roomId) : null);
+          const zid = z ? zoneIdentifier(z, bKeyId, zoneDisplayName) : null;
+          if (b) {
+            const bName = b.properties?.name || String(b.properties?.buildingID || b.properties?.id || 'Building');
+            addNode(bid, { label: 'Building', name: bName, nodeType: 'Building', hasData: false, dataDevices: 0, properties: plainProps(b?.properties || {}) });
+          }
+          if (f) addNode(fid, { label: 'Floor', name: f.properties?.name, nodeType: 'Floor', properties: plainProps(f.properties || {}) });
+          if (z) {
+            const rawRid = (z.properties?.roomId != null ? z.properties.roomId : (z.properties?.id != null ? z.properties.id : null));
+            const roomId = rawRid != null ? String(rawRid) : null;
+            if (zid) addNode(zid, { label: 'Zone', name: z.properties?.name || roomId, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null, properties: plainProps(z.properties || {}) });
+          }
+          addNode(did, { label: 'Device', name: d.properties?.name, nodeType: 'Device', deviceType: d.properties?.type || null, cloudId, properties: plainProps(d.properties || {}) });
+          includedDevices.add(did);
+          if (f && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
+          if (z && fid && zid) attachZoneFloor(zid, fid, z.properties?.name);
+          if (z && bid && zid) addLink(zid, bid, 'LOCATED_IN_BUILDING');
+          if (z && zid) addLink(did, zid, 'LOCATED_IN_ZONE');
+          if (f) addLink(did, fid, 'LOCATED_ON_FLOOR');
+          if (b) { addLink(did, bid, 'IN_BUILDING'); bumpBuildingCount(bid); }
+          const bName = (b?.properties?.name) || String(b?.properties?.buildingID || b?.properties?.id || '') || null;
+          const fName = f?.properties?.name || null;
+          const zName = z?.properties?.name || null;
+          const key = `${cloudId}|${bName}|${fName}|${zName}`;
+          if (cloudId && !logged.has(key)) { console.log('[s3-match][snapshot]', cloudId, 'building=', bName||'n/a', 'floor=', fName||'n/a', 'zone=', zName||'n/a'); logged.add(key); }
         }
-        if (f) addNode(fid, { label: 'Floor', name: f.properties?.name, nodeType: 'Floor' });
-        if (z) {
-          const rawRid = (z.properties?.roomId != null ? z.properties.roomId : (z.properties?.id != null ? z.properties.id : null));
-          const roomId = rawRid != null ? String(rawRid) : null;
-          if (zid) addNode(zid, { label: 'Zone', name: z.properties?.name || roomId, nodeType: 'Zone', roomId, zoneType: z.properties?.type || null });
-        }
-        addNode(did, { label: 'Device', name: d.properties?.name, nodeType: 'Device', deviceType: d.properties?.type || null, cloudId });
-        includedDevices.add(did);
-        if (f && b) addLink(fid, bid, 'LOCATED_IN_BUILDING');
-        if (z && fid && zid) attachZoneFloor(zid, fid, z.properties?.name);
-        if (z && bid && zid) addLink(zid, bid, 'LOCATED_IN_BUILDING');
-        if (z && zid) addLink(did, zid, 'LOCATED_IN_ZONE');
-        if (f) addLink(did, fid, 'LOCATED_ON_FLOOR');
-        if (b) { addLink(did, bid, 'IN_BUILDING'); bumpBuildingCount(bid); }
-        const bName = (b?.properties?.name) || String(b?.properties?.buildingID || b?.properties?.id || '') || null;
-        const fName = f?.properties?.name || null;
-        const zName = z?.properties?.name || null;
-        const key = `${cloudId}|${bName}|${fName}|${zName}`;
-        if (cloudId && !logged.has(key)) { console.log('[s3-match][snapshot]', cloudId, 'building=', bName||'n/a', 'floor=', fName||'n/a', 'zone=', zName||'n/a'); logged.add(key); }
       }
 
       // Attach TelemetryKey nodes for included devices; add both HAS_TELEMETRY_KEY and MEASURES links
@@ -586,7 +622,137 @@ export function createGraphClient({ uri, username, password, database }) {
           }
         }
       } catch {}
-      // Position nodes: buildings in rows, floors below buildings, zones below floors, devices below zones
+      const buildHierarchy = (nodesList, linksList) => {
+        const nodesById = new Map(nodesList.map((n) => [n.id, n]));
+        const linksByTarget = new Map();
+        const linksBySource = new Map();
+        for (const link of linksList) {
+          if (!link || !link.target || !link.source) continue;
+          if (!linksByTarget.has(link.target)) linksByTarget.set(link.target, []);
+          linksByTarget.get(link.target).push(link);
+          if (!linksBySource.has(link.source)) linksBySource.set(link.source, []);
+          linksBySource.get(link.source).push(link);
+        }
+        const labelOf = (node) => node?.nodeType || node?.label || null;
+        const DEVICE_ZONE_REL = new Set(['LOCATED_IN_ZONE', 'IN_ZONE']);
+        const DEVICE_FLOOR_REL = new Set(['LOCATED_ON_FLOOR', 'ON_FLOOR']);
+        const DEVICE_BUILDING_REL = new Set(['IN_BUILDING']);
+        const FLOOR_BUILDING_REL = new Set(['LOCATED_IN_BUILDING', 'PART_OF_BUILDING']);
+        const ZONE_FLOOR_REL = new Set(['BELONGS_TO_FLOOR', 'PART_OF_FLOOR']);
+        const deviceCache = new Map();
+        const zoneCache = new Map();
+        const floorCache = new Map();
+
+        const buildDevice = (deviceId) => {
+          if (deviceCache.has(deviceId)) return deviceCache.get(deviceId);
+          const node = nodesById.get(deviceId);
+          if (!node) return null;
+          const obj = {
+            id: node.id,
+            name: node.name || node.properties?.name || null,
+            label: labelOf(node),
+            type: node.deviceType || node.properties?.type || null,
+            properties: node.properties || {},
+            cloudId: node.cloudId || node.properties?.cloudId || null
+          };
+          deviceCache.set(deviceId, obj);
+          return obj;
+        };
+
+        const buildZone = (zoneId) => {
+          if (zoneCache.has(zoneId)) return zoneCache.get(zoneId);
+          const node = nodesById.get(zoneId);
+          if (!node) return null;
+          const incoming = linksByTarget.get(zoneId) || [];
+          const deviceIds = incoming
+            .filter((link) => DEVICE_ZONE_REL.has(link.rel) && labelOf(nodesById.get(link.source)) === 'Device')
+            .map((link) => link.source);
+          const obj = {
+            id: node.id,
+            name: node.name || node.properties?.name || null,
+            label: labelOf(node),
+            roomId: node.roomId || node.properties?.roomId || null,
+            properties: node.properties || {},
+            devices: deviceIds.map((id) => buildDevice(id)).filter(Boolean)
+          };
+          zoneCache.set(zoneId, obj);
+          return obj;
+        };
+
+        const buildFloor = (floorId) => {
+          if (floorCache.has(floorId)) return floorCache.get(floorId);
+          const node = nodesById.get(floorId);
+          if (!node) return null;
+          const incoming = linksByTarget.get(floorId) || [];
+          const zoneIds = incoming
+            .filter((link) => ZONE_FLOOR_REL.has(link.rel) && labelOf(nodesById.get(link.source)) === 'Zone')
+            .map((link) => link.source);
+          const deviceIds = incoming
+            .filter((link) => DEVICE_FLOOR_REL.has(link.rel) && labelOf(nodesById.get(link.source)) === 'Device')
+            .map((link) => link.source);
+          const obj = {
+            id: node.id,
+            name: node.name || node.properties?.name || null,
+            label: labelOf(node),
+            properties: node.properties || {},
+            zones: zoneIds.map((id) => buildZone(id)).filter(Boolean),
+            devices: deviceIds.map((id) => buildDevice(id)).filter(Boolean)
+          };
+          floorCache.set(floorId, obj);
+          return obj;
+        };
+
+        const zoneHasFloor = (zoneId) => {
+          const outgoing = linksBySource.get(zoneId) || [];
+          return outgoing.some((link) => ZONE_FLOOR_REL.has(link.rel));
+        };
+
+        const buildBuilding = (node) => {
+          if (!node) return null;
+          const buildingId = node.id;
+          const incoming = linksByTarget.get(buildingId) || [];
+          const floorIds = incoming
+            .filter((link) => FLOOR_BUILDING_REL.has(link.rel) && labelOf(nodesById.get(link.source)) === 'Floor')
+            .map((link) => link.source);
+          const zoneIds = incoming
+            .filter((link) => FLOOR_BUILDING_REL.has(link.rel) && labelOf(nodesById.get(link.source)) === 'Zone')
+            .map((link) => link.source);
+          const deviceIds = incoming
+            .filter((link) => DEVICE_BUILDING_REL.has(link.rel) && labelOf(nodesById.get(link.source)) === 'Device')
+            .map((link) => link.source);
+          const floors = floorIds.map((id) => buildFloor(id)).filter(Boolean);
+          const orphanZones = zoneIds.filter((zoneId) => !zoneHasFloor(zoneId));
+          if (orphanZones.length) {
+            floors.push({
+              id: `${buildingId}::unassigned`,
+              name: 'Unassigned',
+              label: 'Floor',
+              properties: { synthetic: true },
+              zones: orphanZones.map((id) => buildZone(id)).filter(Boolean),
+              devices: []
+            });
+          }
+          return {
+            id: node.id,
+            name: node.name || node.properties?.name || null,
+            label: labelOf(node),
+            properties: node.properties || {},
+            devices: deviceIds.map((id) => buildDevice(id)).filter(Boolean),
+            floors
+          };
+        };
+
+        const buildingNodes = nodesList.filter((n) => labelOf(n) === 'Building');
+        return buildingNodes.map((node) => buildBuilding(node)).filter(Boolean);
+      };
+
+      if (devErr) {
+        const nodesNow = Array.from(outNodes.values());
+        const buildingsNow = buildHierarchy(nodesNow, outLinks);
+        return { tenant: tenant || null, buildings: buildingsNow, nodes: nodesNow, links: outLinks, error: devErr };
+      }
+
+      let laidOutNodes;
       try {
         const nodes = Array.from(outNodes.values());
         const links = outLinks;
@@ -594,10 +760,9 @@ export function createGraphClient({ uri, username, password, database }) {
         const children = new Map();
         const addChild = (p, c) => { if (!p || !c) return; if (!children.has(p)) children.set(p, []); children.get(p).push(c); };
         for (const l of links) addChild(l.target, l.source);
-        const buildings = nodes.filter(n => n.nodeType === 'Building');
-        // layout params
+        const buildingsLayout = nodes.filter(n => n.nodeType === 'Building');
         const B_COLS = 4, X_B = 360, Y_STEP = 220, X_F = 180, X_Z = 140, X_D = 100;
-        buildings.forEach((b, i) => {
+        buildingsLayout.forEach((b, i) => {
           const row = Math.floor(i / B_COLS), col = i % B_COLS;
           b.x = col * X_B; b.y = row * (Y_STEP * 3);
           const floors = (children.get(b.id) || []).map(cid => byId.get(cid)).filter(n => n && n.nodeType === 'Floor');
@@ -611,12 +776,13 @@ export function createGraphClient({ uri, username, password, database }) {
             });
           });
         });
-        // Fallback: any nodes without position
         let rr = 0; for (const n of nodes) if (typeof n.x !== 'number') { n.x = rr * 50; n.y = 0; rr++; }
-        return { nodes, links };
+        laidOutNodes = nodes;
       } catch {
-        return { nodes: Array.from(outNodes.values()), links: outLinks };
+        laidOutNodes = Array.from(outNodes.values());
       }
+      const buildings = buildHierarchy(laidOutNodes, outLinks);
+      return { tenant: tenant || null, buildings, nodes: laidOutNodes, links: outLinks };
     },
     runQuery,
     stats,

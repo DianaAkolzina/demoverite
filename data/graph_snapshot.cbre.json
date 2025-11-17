@@ -1,6 +1,68 @@
 {
-  "generatedAt": 1763137074544,
   "tenant": "CBRE",
+  "generatedAt": 1763339579322,
+  "buildings": [
+    {
+      "id": "Building:Island",
+      "name": "Island",
+      "label": "Building",
+      "properties": {
+        "floorCount": 1,
+        "name": "Island",
+        "id": 84,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.4806787,
+        "long": -2.2468076
+      },
+      "devices": [],
+      "floors": [
+        {
+          "id": "Floor:132:84",
+          "name": "Ground Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Ground Floor",
+            "zoneCount": 2,
+            "id": 132,
+            "originalId": 1,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:220:84",
+              "name": "Social Hub",
+              "label": "Zone",
+              "roomId": "220",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Social Hub",
+                "id": 220,
+                "originalId": 2,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:221:84",
+              "name": "Event Space",
+              "label": "Zone",
+              "roomId": "221",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Event Space",
+                "id": 221,
+                "originalId": 1,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        }
+      ]
+    }
+  ],
   "nodes": [
     {
       "id": "Building:Island",
@@ -9,6 +71,15 @@
       "nodeType": "Building",
       "hasData": false,
       "dataDevices": 0,
+      "properties": {
+        "floorCount": 1,
+        "name": "Island",
+        "id": 84,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.4806787,
+        "long": -2.2468076
+      },
       "x": 0,
       "y": 0
     },
@@ -43,6 +114,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:295"
       },
+      "properties": {
+        "name": "Ground Floor",
+        "zoneCount": 2,
+        "id": 132,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 0,
       "y": 220
     },
@@ -53,6 +131,13 @@
       "nodeType": "Zone",
       "roomId": "220",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Social Hub",
+        "id": 220,
+        "originalId": 2,
+        "isActive": true
+      },
       "x": -70,
       "y": 440
     },
@@ -63,6 +148,13 @@
       "nodeType": "Zone",
       "roomId": "221",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Event Space",
+        "id": 221,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 70,
       "y": 440
     }

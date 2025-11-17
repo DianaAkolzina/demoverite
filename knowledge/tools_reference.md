@@ -1,7 +1,7 @@
 
 # Tools Reference (auto-synced)
 
-This reference mirrors the tool list declared in `server/agent.js::toolDefs()`. Each description stays in lockstep with the code. Guardrails:
+This reference mirrors the tool list declared in `server/agent/index.js::toolDefs()`. Each description stays in lockstep with the code. Guardrails:
 - Respect the server-provided scope & time window for every tool call.
 - Prefer `dataRef` charts pointing at the tool that produced the data.
 - When a tool returns zero rows, run `fetch_table_meta`, adjust to available data, and explain the adaptation.

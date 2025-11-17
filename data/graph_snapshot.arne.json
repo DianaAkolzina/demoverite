@@ -1,6 +1,168 @@
 {
-  "generatedAt": 1763137071754,
   "tenant": "ARNE",
+  "generatedAt": 1763339576348,
+  "buildings": [
+    {
+      "id": "Building:Arne Retail - Liverpool",
+      "name": "Arne Retail - Liverpool",
+      "label": "Building",
+      "properties": {
+        "floorCount": 1,
+        "name": "Arne Retail - Liverpool",
+        "id": 77,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.4042093,
+        "long": -2.9849201
+      },
+      "devices": [
+        {
+          "id": "Device:40",
+          "name": "Side Entrance_RMgwn2Q7zLeu",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "71908fe0-8d68-11f0-a19e-8f874a1c01d3",
+            "name": "Side Entrance_RMgwn2Q7zLeu",
+            "id": 40,
+            "originalId": 4,
+            "label": "Side Entrance",
+            "isActive": true
+          },
+          "cloudId": "71908fe0-8d68-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:41",
+          "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "64e52540-8c95-11f0-a19e-8f874a1c01d3",
+            "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+            "id": 41,
+            "originalId": 1,
+            "label": "Main Entrance",
+            "isActive": true
+          },
+          "cloudId": "64e52540-8c95-11f0-a19e-8f874a1c01d3"
+        }
+      ],
+      "floors": [
+        {
+          "id": "Floor:119:77",
+          "name": "Ground Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Ground Floor",
+            "zoneCount": 2,
+            "id": 119,
+            "originalId": 1,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:186:77",
+              "name": "Side Entrance",
+              "label": "Zone",
+              "roomId": "186",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Side Entrance",
+                "id": 186,
+                "originalId": 2,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:40",
+                  "name": "Side Entrance_RMgwn2Q7zLeu",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "71908fe0-8d68-11f0-a19e-8f874a1c01d3",
+                    "name": "Side Entrance_RMgwn2Q7zLeu",
+                    "id": 40,
+                    "originalId": 4,
+                    "label": "Side Entrance",
+                    "isActive": true
+                  },
+                  "cloudId": "71908fe0-8d68-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:187:77",
+              "name": "Main Entrance",
+              "label": "Zone",
+              "roomId": "187",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Main Entrance",
+                "id": 187,
+                "originalId": 1,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:41",
+                  "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "64e52540-8c95-11f0-a19e-8f874a1c01d3",
+                    "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+                    "id": 41,
+                    "originalId": 1,
+                    "label": "Main Entrance",
+                    "isActive": true
+                  },
+                  "cloudId": "64e52540-8c95-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            }
+          ],
+          "devices": [
+            {
+              "id": "Device:40",
+              "name": "Side Entrance_RMgwn2Q7zLeu",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "71908fe0-8d68-11f0-a19e-8f874a1c01d3",
+                "name": "Side Entrance_RMgwn2Q7zLeu",
+                "id": 40,
+                "originalId": 4,
+                "label": "Side Entrance",
+                "isActive": true
+              },
+              "cloudId": "71908fe0-8d68-11f0-a19e-8f874a1c01d3"
+            },
+            {
+              "id": "Device:41",
+              "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "64e52540-8c95-11f0-a19e-8f874a1c01d3",
+                "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+                "id": 41,
+                "originalId": 1,
+                "label": "Main Entrance",
+                "isActive": true
+              },
+              "cloudId": "64e52540-8c95-11f0-a19e-8f874a1c01d3"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "nodes": [
     {
       "id": "Building:Arne Retail - Liverpool",
@@ -8,7 +170,16 @@
       "name": "Arne Retail - Liverpool",
       "nodeType": "Building",
       "hasData": true,
-      "dataDevices": 2,
+      "dataDevices": 1,
+      "properties": {
+        "floorCount": 1,
+        "name": "Arne Retail - Liverpool",
+        "id": 77,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.4042093,
+        "long": -2.9849201
+      },
       "x": 0,
       "y": 0
     },
@@ -43,6 +214,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:282"
       },
+      "properties": {
+        "name": "Ground Floor",
+        "zoneCount": 2,
+        "id": 119,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 0,
       "y": 220
     },
@@ -53,6 +231,13 @@
       "nodeType": "Zone",
       "roomId": "186",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Side Entrance",
+        "id": 186,
+        "originalId": 2,
+        "isActive": true
+      },
       "x": -70,
       "y": 440
     },
@@ -63,6 +248,13 @@
       "nodeType": "Zone",
       "roomId": "187",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Main Entrance",
+        "id": 187,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 70,
       "y": 440
     },
@@ -73,6 +265,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "71908fe0-8d68-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "71908fe0-8d68-11f0-a19e-8f874a1c01d3",
+        "name": "Side Entrance_RMgwn2Q7zLeu",
+        "id": 40,
+        "originalId": 4,
+        "label": "Side Entrance",
+        "isActive": true
+      },
       "x": -70,
       "y": 660
     },
@@ -83,6 +284,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "64e52540-8c95-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "64e52540-8c95-11f0-a19e-8f874a1c01d3",
+        "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+        "id": 41,
+        "originalId": 1,
+        "label": "Main Entrance",
+        "isActive": true
+      },
       "x": 70,
       "y": 660
     }

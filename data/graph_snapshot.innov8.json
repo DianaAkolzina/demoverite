@@ -1,6 +1,309 @@
 {
-  "generatedAt": 1763137077170,
   "tenant": "Innov8",
+  "generatedAt": 1763339581665,
+  "buildings": [
+    {
+      "id": "Building:Element",
+      "name": "Element",
+      "label": "Building",
+      "properties": {
+        "floorCount": 1,
+        "name": "Element",
+        "id": 78,
+        "originalId": 2,
+        "isActive": true,
+        "lat": 53.4308695,
+        "long": -2.5241922
+      },
+      "devices": [],
+      "floors": [
+        {
+          "id": "Floor:120:78",
+          "name": "Ground Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Ground Floor",
+            "zoneCount": 3,
+            "id": 120,
+            "originalId": 6,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:188:78",
+              "name": "Gym",
+              "label": "Zone",
+              "roomId": "188",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Gym",
+                "id": 188,
+                "originalId": 10,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:189:78",
+              "name": "Reception + Cafe",
+              "label": "Zone",
+              "roomId": "189",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Reception + Cafe",
+                "id": 189,
+                "originalId": 9,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        }
+      ]
+    },
+    {
+      "id": "Building:SoapWorks",
+      "name": "SoapWorks",
+      "label": "Building",
+      "properties": {
+        "floorCount": 5,
+        "name": "SoapWorks",
+        "id": 79,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.466784,
+        "long": -2.2796728
+      },
+      "devices": [
+        {
+          "id": "Device:42",
+          "name": "Basement Mechanical_MRty02BgMoo3",
+          "label": "Device",
+          "type": null,
+          "properties": {
+            "licenseStatus": true,
+            "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3",
+            "name": "Basement Mechanical_MRty02BgMoo3",
+            "id": 42,
+            "originalId": 1,
+            "label": "Basement Mechanical",
+            "isActive": true
+          },
+          "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3"
+        }
+      ],
+      "floors": [
+        {
+          "id": "Floor:121:79",
+          "name": "Fourth Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Fourth Floor",
+            "zoneCount": 1,
+            "id": 121,
+            "originalId": 5,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:190:79",
+              "name": "Lobby",
+              "label": "Zone",
+              "roomId": "190",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Lobby",
+                "id": 190,
+                "originalId": 7,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        },
+        {
+          "id": "Floor:122:79",
+          "name": "Third Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Third Floor",
+            "zoneCount": 1,
+            "id": 122,
+            "originalId": 4,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:191:79",
+              "name": "Lobby",
+              "label": "Zone",
+              "roomId": "191",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Lobby",
+                "id": 191,
+                "originalId": 6,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        },
+        {
+          "id": "Floor:123:79",
+          "name": "First Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "First Floor",
+            "zoneCount": 1,
+            "id": 123,
+            "originalId": 2,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:192:79",
+              "name": "Lobby",
+              "label": "Zone",
+              "roomId": "192",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Lobby",
+                "id": 192,
+                "originalId": 4,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        },
+        {
+          "id": "Floor:124:79",
+          "name": "Ground Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Ground Floor",
+            "zoneCount": 3,
+            "id": 124,
+            "originalId": 1,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:193:79",
+              "name": "Cafe",
+              "label": "Zone",
+              "roomId": "193",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Cafe",
+                "id": 193,
+                "originalId": 2,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:194:79",
+              "name": "Comms",
+              "label": "Zone",
+              "roomId": "194",
+              "properties": {
+                "deviceCount": 3,
+                "name": "Comms",
+                "id": 194,
+                "originalId": 1,
+                "isActive": true
+              },
+              "devices": [
+                {
+                  "id": "Device:42",
+                  "name": "Basement Mechanical_MRty02BgMoo3",
+                  "label": "Device",
+                  "type": null,
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3",
+                    "name": "Basement Mechanical_MRty02BgMoo3",
+                    "id": 42,
+                    "originalId": 1,
+                    "label": "Basement Mechanical",
+                    "isActive": true
+                  },
+                  "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3"
+                }
+              ]
+            },
+            {
+              "id": "Zone:195:79",
+              "name": "Lobby",
+              "label": "Zone",
+              "roomId": "195",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Lobby",
+                "id": 195,
+                "originalId": 3,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": [
+            {
+              "id": "Device:42",
+              "name": "Basement Mechanical_MRty02BgMoo3",
+              "label": "Device",
+              "type": null,
+              "properties": {
+                "licenseStatus": true,
+                "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3",
+                "name": "Basement Mechanical_MRty02BgMoo3",
+                "id": 42,
+                "originalId": 1,
+                "label": "Basement Mechanical",
+                "isActive": true
+              },
+              "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3"
+            }
+          ]
+        },
+        {
+          "id": "Floor:125:79",
+          "name": "Second Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Second Floor",
+            "zoneCount": 1,
+            "id": 125,
+            "originalId": 3,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:196:79",
+              "name": "Lobby",
+              "label": "Zone",
+              "roomId": "196",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Lobby",
+                "id": 196,
+                "originalId": 5,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        }
+      ]
+    }
+  ],
   "nodes": [
     {
       "id": "Building:Element",
@@ -9,6 +312,15 @@
       "nodeType": "Building",
       "hasData": false,
       "dataDevices": 0,
+      "properties": {
+        "floorCount": 1,
+        "name": "Element",
+        "id": 78,
+        "originalId": 2,
+        "isActive": true,
+        "lat": 53.4308695,
+        "long": -2.5241922
+      },
       "x": 0,
       "y": 0
     },
@@ -43,6 +355,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:283"
       },
+      "properties": {
+        "name": "Ground Floor",
+        "zoneCount": 3,
+        "id": 120,
+        "originalId": 6,
+        "isActive": true
+      },
       "x": 0,
       "y": 220
     },
@@ -53,6 +372,13 @@
       "nodeType": "Zone",
       "roomId": "188",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Gym",
+        "id": 188,
+        "originalId": 10,
+        "isActive": true
+      },
       "x": -70,
       "y": 440
     },
@@ -63,6 +389,13 @@
       "nodeType": "Zone",
       "roomId": "189",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Reception + Cafe",
+        "id": 189,
+        "originalId": 9,
+        "isActive": true
+      },
       "x": 70,
       "y": 440
     },
@@ -73,6 +406,15 @@
       "nodeType": "Building",
       "hasData": true,
       "dataDevices": 1,
+      "properties": {
+        "floorCount": 5,
+        "name": "SoapWorks",
+        "id": 79,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 53.466784,
+        "long": -2.2796728
+      },
       "x": 360,
       "y": 0
     },
@@ -106,6 +448,13 @@
           "isActive": true
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:284"
+      },
+      "properties": {
+        "name": "Fourth Floor",
+        "zoneCount": 1,
+        "id": 121,
+        "originalId": 5,
+        "isActive": true
       },
       "x": 0,
       "y": 220
@@ -141,6 +490,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:285"
       },
+      "properties": {
+        "name": "Third Floor",
+        "zoneCount": 1,
+        "id": 122,
+        "originalId": 4,
+        "isActive": true
+      },
       "x": 180,
       "y": 220
     },
@@ -174,6 +530,13 @@
           "isActive": true
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:286"
+      },
+      "properties": {
+        "name": "First Floor",
+        "zoneCount": 1,
+        "id": 123,
+        "originalId": 2,
+        "isActive": true
       },
       "x": 360,
       "y": 220
@@ -209,6 +572,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:287"
       },
+      "properties": {
+        "name": "Ground Floor",
+        "zoneCount": 3,
+        "id": 124,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 540,
       "y": 220
     },
@@ -243,6 +613,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:288"
       },
+      "properties": {
+        "name": "Second Floor",
+        "zoneCount": 1,
+        "id": 125,
+        "originalId": 3,
+        "isActive": true
+      },
       "x": 720,
       "y": 220
     },
@@ -253,6 +630,13 @@
       "nodeType": "Zone",
       "roomId": "190",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Lobby",
+        "id": 190,
+        "originalId": 7,
+        "isActive": true
+      },
       "x": 0,
       "y": 440
     },
@@ -263,6 +647,13 @@
       "nodeType": "Zone",
       "roomId": "191",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Lobby",
+        "id": 191,
+        "originalId": 6,
+        "isActive": true
+      },
       "x": 180,
       "y": 440
     },
@@ -273,6 +664,13 @@
       "nodeType": "Zone",
       "roomId": "192",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Lobby",
+        "id": 192,
+        "originalId": 4,
+        "isActive": true
+      },
       "x": 360,
       "y": 440
     },
@@ -283,6 +681,13 @@
       "nodeType": "Zone",
       "roomId": "193",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Cafe",
+        "id": 193,
+        "originalId": 2,
+        "isActive": true
+      },
       "x": 400,
       "y": 440
     },
@@ -293,6 +698,13 @@
       "nodeType": "Zone",
       "roomId": "194",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 3,
+        "name": "Comms",
+        "id": 194,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 540,
       "y": 440
     },
@@ -303,6 +715,13 @@
       "nodeType": "Zone",
       "roomId": "195",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Lobby",
+        "id": 195,
+        "originalId": 3,
+        "isActive": true
+      },
       "x": 680,
       "y": 440
     },
@@ -313,6 +732,13 @@
       "nodeType": "Zone",
       "roomId": "196",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Lobby",
+        "id": 196,
+        "originalId": 5,
+        "isActive": true
+      },
       "x": 720,
       "y": 440
     },
@@ -323,6 +749,15 @@
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3",
+      "properties": {
+        "licenseStatus": true,
+        "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3",
+        "name": "Basement Mechanical_MRty02BgMoo3",
+        "id": 42,
+        "originalId": 1,
+        "label": "Basement Mechanical",
+        "isActive": true
+      },
       "x": 540,
       "y": 660
     }

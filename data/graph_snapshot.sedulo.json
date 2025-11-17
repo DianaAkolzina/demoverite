@@ -1,6 +1,82 @@
 {
-  "generatedAt": 1763137077758,
   "tenant": "Sedulo",
+  "generatedAt": 1763339583007,
+  "buildings": [
+    {
+      "id": "Building:Cornwall Building",
+      "name": "Cornwall Building",
+      "label": "Building",
+      "properties": {
+        "floorCount": 1,
+        "name": "Cornwall Building",
+        "id": 86,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 52.482125,
+        "long": -1.9026252
+      },
+      "devices": [],
+      "floors": [
+        {
+          "id": "Floor:134:86",
+          "name": "Ground Floor",
+          "label": "Floor",
+          "properties": {
+            "name": "Ground Floor",
+            "zoneCount": 4,
+            "id": 134,
+            "originalId": 1,
+            "isActive": true
+          },
+          "zones": [
+            {
+              "id": "Zone:223:86",
+              "name": "Comms Room",
+              "label": "Zone",
+              "roomId": "223",
+              "properties": {
+                "deviceCount": 2,
+                "name": "Comms Room",
+                "id": 223,
+                "originalId": 4,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:224:86",
+              "name": "Cafe + Lounge",
+              "label": "Zone",
+              "roomId": "224",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Cafe + Lounge",
+                "id": 224,
+                "originalId": 1,
+                "isActive": true
+              },
+              "devices": []
+            },
+            {
+              "id": "Zone:225:86",
+              "name": "Workspace",
+              "label": "Zone",
+              "roomId": "225",
+              "properties": {
+                "deviceCount": 1,
+                "name": "Workspace",
+                "id": 225,
+                "originalId": 3,
+                "isActive": true
+              },
+              "devices": []
+            }
+          ],
+          "devices": []
+        }
+      ]
+    }
+  ],
   "nodes": [
     {
       "id": "Building:Cornwall Building",
@@ -9,6 +85,15 @@
       "nodeType": "Building",
       "hasData": false,
       "dataDevices": 0,
+      "properties": {
+        "floorCount": 1,
+        "name": "Cornwall Building",
+        "id": 86,
+        "originalId": 1,
+        "isActive": true,
+        "lat": 52.482125,
+        "long": -1.9026252
+      },
       "x": 0,
       "y": 0
     },
@@ -43,6 +128,13 @@
         },
         "elementId": "4:2b9c8d6e-6cb6-499c-bc43-d9312df6c56d:297"
       },
+      "properties": {
+        "name": "Ground Floor",
+        "zoneCount": 4,
+        "id": 134,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 0,
       "y": 220
     },
@@ -53,6 +145,13 @@
       "nodeType": "Zone",
       "roomId": "223",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 2,
+        "name": "Comms Room",
+        "id": 223,
+        "originalId": 4,
+        "isActive": true
+      },
       "x": -140,
       "y": 440
     },
@@ -63,6 +162,13 @@
       "nodeType": "Zone",
       "roomId": "224",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Cafe + Lounge",
+        "id": 224,
+        "originalId": 1,
+        "isActive": true
+      },
       "x": 0,
       "y": 440
     },
@@ -73,6 +179,13 @@
       "nodeType": "Zone",
       "roomId": "225",
       "zoneType": null,
+      "properties": {
+        "deviceCount": 1,
+        "name": "Workspace",
+        "id": 225,
+        "originalId": 3,
+        "isActive": true
+      },
       "x": 140,
       "y": 440
     }
