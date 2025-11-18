@@ -4246,6 +4246,7 @@ function buildSnapshotIndex() {
       { name: 'get_time_for_value', args: { room: 'string?', table: 'string?', field: 'string?', metric: 'string?', value: 'number?', mode: 'string?', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Locate the timestamp for a metric value (or its min/max when value omitted). Returns { ts, value, mode }' },
       { name: 'correlate', args: { room: 'string', table1: 'string', field1: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Pearson correlation between two fields from room tables. Uses time-window matching (default ±30min) to handle different sampling rates' },
       { name: 'correlate_cross_room', args: { room1: 'string', table1: 'string', field1: 'string', room2: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Correlate metrics between different rooms with time-window matching' },
+      { name: 'ratio_cross_room', args: { room1: 'string', table1: 'string', field1: 'string', room2: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?', zero_if_denominator_zero: 'boolean?' }, desc: 'Compute field1/field2 across rooms using time-window matching (default ±15min). Returns [{ts, ratio, v1, v2}] and summary stats.' },
       { name: 'correlate_weather_room', args: { room: 'string', table: 'string', field_room: 'string', field_weather: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Correlate room metric with weather metric (temp, humidity, wind_speed, clouds, etc)' },
       { name: 'weather_correlate', args: { field1: 'string', field2: 'string', start: 'number?', end: 'number?', room: 'string?', building: 'string?' }, desc: 'Pearson correlation between two weather fields (temp, humidity, wind_speed, clouds, etc) scoped to current building when available' },
       { name: 'building_temp_weather_corr', args: { rooms: 'string[]?', building: 'string?', field: 'string?', weather_field: 'string?', start: 'number?', end: 'number?', bucket_minutes: 'number?' }, desc: 'Aggregate average internal temperature across rooms and correlate it with outside weather temperature. Returns scatter-ready data and correlation stats.' },
@@ -5059,9 +5060,24 @@ function buildSnapshotIndex() {
   }
 
   function assertDataAvailable(deviceId, field, { start = null, end = null } = {}) {
-    const stats = getCsvStats(deviceId);
+    // Always recompute basic coverage to avoid stale cache
+    let stats = getCsvStats(deviceId);
     if (!stats || !Number.isFinite(stats.tsMin) || !Number.isFinite(stats.tsMax) || !stats.count) {
-      return { ok: false, reason: 'no rows for device' };
+      try {
+        const t = loadRoomTables(deviceId);
+        const anyTable = Object.values(t)[0] || [];
+        const tsVals = anyTable.map(r => r.ts).filter(Number.isFinite);
+        stats = {
+          tsMin: tsVals.length ? Math.min(...tsVals) : null,
+          tsMax: tsVals.length ? Math.max(...tsVals) : null,
+          count: tsVals.length
+        };
+      } catch {
+        stats = { tsMin: null, tsMax: null, count: 0 };
+      }
+      if (!Number.isFinite(stats.tsMin) || !Number.isFinite(stats.tsMax) || !stats.count) {
+        return { ok: false, reason: 'no rows for device' };
+      }
     }
     if (start != null && end != null && (end < stats.tsMin || start > stats.tsMax)) {
       return { ok: false, reason: 'no rows in requested range', coverage: stats };
@@ -5828,31 +5844,7 @@ function parseFieldsFromQuestion(question, availableSets) {
     });
   }
   
-  const FIELD_SYNONYMS = {
-    temperature: ['temp', 'temperaturec', 'temp_c', 'airtemp', 'ambienttemp'],
-    people_count: ['people', 'count', 'occupants', 'occupancy', 'personcount'],
-    virusrisk: ['virus_risk', 'virusrisk', 'risk'],
-    total_kwh: ['totalkwh', 'kwh_total', 'energy_total', 'total_energy'],
-    humidity: ['hum', 'rh', 'relativehumidity', 'humid'],
-    co2: ['co2ppm', 'carbondioxide', 'co2_level', 'concentration'],
-    lux: ['illuminance', 'light', 'lightlevel'],
-    pm1: ['pm_1', 'particulate1'],
-    pm25: ['pm_2_5', 'pm2.5', 'particulate25'],
-    pm10: ['pm_10', 'particulate10'],
-    pressure: ['atmpressure', 'barometricpressure'],
-    voc: ['volatileorganiccompounds', 'voc_level'],
-    nh3: ['ammonia', 'nh_3', 'nh-3'],
-    h2s: ['hydrogen_sulfide', 'hydrogensulfide', 'h_2_s', 'h-2-s'],
-    odor_level: ['odor','odour','odorlevel','smell','odor_level'],
-    airExchangeRate: ['air exchange rate','airexchangerate','airchangerate','airchange','ach','air_exch_rate','air_exch','airexchagerate'],
-    battery: ['battery_level', 'batt'],
-    rssi: ['signal', 'signalstrength'],
-    value: ['reading', 'measurement'],
-    unit: ['units'],
-    sla: ['servicelevelagreement'],
-    time: ['timestamp', 'datetime'],
-    date: ['datestamp']
-  };
+  const FIELD_SYNONYMS = CANONICAL_FIELD_ALIASES;
 
   function normalizeRoomTypeFromId(roomId) {
     const m = String(roomId || '').toLowerCase().match(/^[a-z]_f\d+_([a-z0-9]+)/);
@@ -6513,6 +6505,61 @@ function parseFieldsFromQuestion(question, availableSets) {
       };
     },
     
+    ratio_cross_room({
+      room1,
+      table1,
+      field1,
+      room2,
+      table2,
+      field2,
+      start = null,
+      end = null,
+      time_window_ms = 15 * 60 * 1000,
+      zero_if_denominator_zero = false
+    }) {
+      const resolvedRoom1 = normalizeRoomId(room1) || room1;
+      const resolvedRoom2 = normalizeRoomId(room2) || room2;
+      const tab1 = resolveTable(resolvedRoom1, table1);
+      const tab2 = resolveTable(resolvedRoom2, table2);
+      const a = (loadRoomTables(resolvedRoom1)[tab1] || []).filter(r => withinRange(r.ts, start, end));
+      const b = (loadRoomTables(resolvedRoom2)[tab2] || []).filter(r => withinRange(r.ts, start, end));
+      const f1 = resolveFieldWithAlias(resolvedRoom1, tab1, field1);
+      const f2 = resolveFieldWithAlias(resolvedRoom2, tab2, field2);
+      if (!f1 || !f2) return { error: 'field_missing', field1: f1 || field1, field2: f2 || field2, pairs: [] };
+      if (!a.length || !b.length) return { error: 'no_data', pairs: [] };
+      const bSorted = b.slice().sort((x, y) => (x.ts ?? 0) - (y.ts ?? 0));
+      const pairs = [];
+      for (const r1 of a) {
+        if (!Number.isFinite(r1.ts)) continue;
+        let lo = 0, hi = bSorted.length - 1, best = 0, bestDt = Infinity;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          const dt = Math.abs((bSorted[mid].ts ?? 0) - r1.ts);
+          if (dt < bestDt) { bestDt = dt; best = mid; }
+          if ((bSorted[mid].ts ?? 0) < r1.ts) lo = mid + 1; else hi = mid - 1;
+        }
+        if (bestDt > time_window_ms) continue;
+        const v1 = Number(r1[f1]);
+        const v2 = Number(bSorted[best][f2]);
+        if (!Number.isFinite(v1)) continue;
+        if (!Number.isFinite(v2)) {
+          if (zero_if_denominator_zero && v2 === 0) pairs.push({ ts: r1.ts, ratio: 0, v1, v2 });
+          continue;
+        }
+        if (v2 === 0) {
+          if (zero_if_denominator_zero) pairs.push({ ts: r1.ts, ratio: 0, v1, v2 });
+          continue;
+        }
+        pairs.push({ ts: r1.ts, ratio: v1 / v2, v1, v2 });
+      }
+      if (!pairs.length) return { error: 'no_pairs', pairs: [] };
+      const ratios = pairs.map(p => p.ratio).filter(Number.isFinite);
+      const avg = ratios.length ? ratios.reduce((a, c) => a + c, 0) / ratios.length : null;
+      const min = ratios.length ? Math.min(...ratios) : null;
+      const max = ratios.length ? Math.max(...ratios) : null;
+      return { pairs, stats: { count: ratios.length, avg, min, max }, field1: f1, field2: f2, room1: resolvedRoom1, room2: resolvedRoom2, table1_resolved: tab1, table2_resolved: tab2 };
+    },
+    
     correlate_weather_room({ room, table, field_room, field_weather, start = null, end = null, time_window_ms = 60 * 60 * 1000, building = null }) {
       const resolvedRoom = normalizeRoomId(room) || room;
       const t = loadRoomTables(resolvedRoom);
@@ -7015,10 +7062,24 @@ function parseFieldsFromQuestion(question, availableSets) {
 
     compare_rooms_on_metric({ rooms = null, table, field, agg = 'avg', start = null, end = null }) {
       const desiredField = field;
-      const targetRooms = scopedRoomIds(rooms, { limit: 32 });
-      if (!targetRooms.length && desiredField) {
-        const scoped = devicesWithField(desiredField, Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : []);
-        targetRooms.push(...scoped.slice(0, 12));
+      const selectionRooms = Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : [];
+      const targetRooms = [];
+      // Prefer devices that actually have the field
+      if (desiredField) {
+        const scoped = devicesWithField(desiredField, selectionRooms);
+        scoped.forEach((r) => { if (!targetRooms.includes(r)) targetRooms.push(r); });
+        if (Array.isArray(rooms)) {
+          rooms.forEach((r) => {
+            const resolved = resolveDeviceIdForRoom(r) || friendlyLookup(r) || null;
+            if (resolved && devicesWithField(desiredField, [resolved]).length && !targetRooms.includes(resolved)) {
+              targetRooms.push(resolved);
+            }
+          });
+        }
+      }
+      // Fallback to scoped list if still empty
+      if (!targetRooms.length) {
+        scopedRoomIds(rooms, { limit: 32 }).forEach((r) => { if (!targetRooms.includes(r)) targetRooms.push(r); });
       }
       const out = [];
       for (const roomId of targetRooms) {
@@ -8985,6 +9046,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       const candidates = [];
       if (field) candidates.push(field);
       candidates.push('total_kwh');
+      candidates.push('value'); // fallback for devices that expose energy as value
       const seen = new Set();
       const fieldCandidates = candidates.filter((c) => {
         const key = String(c || '').toLowerCase();
