@@ -6272,7 +6272,17 @@ function parseFieldsFromQuestion(question, availableSets) {
         }
 
         const { candidate: resolvedRoom, tab, field: validatedField, rows: arr } = selection;
-        const availability = assertDataAvailable(resolvedRoom, validatedField, { start: qStart ?? start, end: qEnd ?? end });
+        const coverageSpan = assertDataAvailable(resolvedRoom, validatedField, { start: qStart ?? start, end: qEnd ?? end });
+        if (!coverageSpan.ok && coverageSpan.coverage) {
+          // Clamp to available coverage to avoid premature no_rows
+          const cov = coverageSpan.coverage;
+          qStart = qStart ?? start;
+          qEnd = qEnd ?? end;
+          if (!Number.isFinite(qStart) || qStart < cov.tsMin) qStart = cov.tsMin;
+          if (!Number.isFinite(qEnd) || qEnd > cov.tsMax) qEnd = cov.tsMax;
+        } else if (!coverageSpan.ok) {
+          return { error: coverageSpan.reason || 'no data', room: resolvedRoom, table: tab, field: validatedField, coverage: coverageSpan.coverage || null };
+        }
         if (!availability.ok) {
           return { error: availability.reason || 'no data', room: resolvedRoom, table: tab, field: validatedField, coverage: availability.coverage || null };
         }
@@ -6306,14 +6316,25 @@ function parseFieldsFromQuestion(question, availableSets) {
               freq[key] = (freq[key] || 0) + 1;
             }
           }
+          const categories = Object.keys(freq).length ? freq : undefined;
           return {
             room: resolvedRoom,
             table: tab,
             field: validatedField,
             error: nonNumericCount ? 'non_numeric_field' : 'no_rows',
-            categories: Object.keys(freq).length ? freq : undefined,
+            categories,
             total: totalRows,
-            nonNumericCount
+            nonNumericCount,
+            chart: categories ? {
+              chart: { type: 'column' },
+              title: { text: `${deviceFriendlyName(resolvedRoom)} ${humanizeMetricName(validatedField)} (categories)` },
+              xAxis: { type: 'category', title: { text: 'Value' } },
+              yAxis: { title: { text: 'Count' } },
+              series: [{
+                name: humanizeMetricName(validatedField),
+                data: Object.entries(categories).map(([k,v]) => [k, v])
+              }]
+            } : null
           };
         }
         return {
