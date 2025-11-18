@@ -1605,21 +1605,9 @@ const extractFieldValue = (row, fieldOrList) => {
           const lines = text.split(/\r?\n/).filter(Boolean);
           if (lines.length >= 2) {
             const headers = lines[0].split(',');
-            const tracked = headers
-              .map((h, idx) => ({ name: (h || '').trim(), index: idx }))
-              .filter(({ name }) => name && name !== 'ts');
-            if (tracked.length) {
-              for (let i = 1; i < lines.length && !hasMetrics; i += 1) {
-                const parts = lines[i].split(',');
-                for (const entry of tracked) {
-                  const raw = parts[entry.index] != null ? parts[entry.index].trim() : '';
-                  if (raw && raw !== '[]' && raw !== '{}') {
-                    hasMetrics = true;
-                    break;
-                  }
-                }
-              }
-            }
+            const tracked = headers.map((h, idx) => ({ name: (h || '').trim(), index: idx })).filter(({ name }) => name && name !== 'ts');
+            // Treat presence of any non-ts column as a metric, even if values are non-numeric (categorical/heatmap).
+            hasMetrics = tracked.length > 0;
           }
         } catch (err) {
           if (DEBUG) log('csvHasMetricColumns failed', id, String(err));
@@ -6213,26 +6201,35 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
     
     stats({ room, table, field, start = null, end = null, queries = null, scopeRoomLabel = null, devices = [] }) {
-      const resolveRoomPref = (val) => {
+      const resolveRoomPref = (val, desiredField = null) => {
         if (!val) return null;
-        return resolveDeviceIdForRoom(val) || val;
+        const resolved = resolveDeviceIdForRoom(val) || friendlyLookup(val) || val;
+        if (resolved && resolved !== 'ALL') return resolved;
+        if (desiredField) {
+          const scoped = devicesWithField(desiredField, Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : []);
+          if (scoped.length) return scoped[0];
+        }
+        return resolved;
       };
-      const preferredRoom = resolveRoomPref(scopeRoomLabel) || resolveRoomPref(room) || room;
+      const preferredRoom = resolveRoomPref(scopeRoomLabel, field) || resolveRoomPref(room, field) || room;
 
       const selectRoomTableField = (targetRoom, targetTable, targetField, targetScopeLabel) => {
         const desiredField = targetField || field;
         const candidates = [];
         const push = (val) => {
-          const resolved = resolveRoomPref(val);
+          const resolved = resolveRoomPref(val, desiredField);
           if (!resolved) return;
           if (!candidates.includes(resolved)) candidates.push(resolved);
         };
-        // Order: explicit scope hint, target room, provided devices, preferred room, original room.
+        // Order: explicit scope hint, target room, provided devices, preferred room, original room, any device in scope with the field.
         push(targetScopeLabel);
         push(targetRoom);
         if (Array.isArray(devices)) devices.forEach(push);
         push(preferredRoom);
         push(room);
+        // If still nothing resolves, try any scoped device with the field.
+        const scopedWithField = desiredField ? devicesWithField(desiredField, Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : []) : [];
+        scopedWithField.forEach(push);
 
         for (const candidate of candidates) {
           const tab = resolveTable(candidate, targetTable);
@@ -6293,7 +6290,8 @@ function parseFieldsFromQuestion(question, availableSets) {
         for (const r of arr) {
           if (!withinRange(r.ts, qStart ?? start, qEnd ?? end)) continue;
           totalRows += 1;
-          const v = Number(r[validatedField]);
+          const raw = r[validatedField];
+          const v = Number(raw);
           if (!Number.isFinite(v)) continue;
           count += 1;
           sum += v;
@@ -6301,6 +6299,31 @@ function parseFieldsFromQuestion(question, availableSets) {
           if (v > max) { max = v; maxTs = r.ts ?? null; }
         }
         const avg = count ? sum / count : NaN;
+        if (count === 0) {
+          // Non-numeric handling: treat as categorical counts if we saw rows
+          const freq = {};
+          let nonNumericCount = 0;
+          for (const r of arr) {
+            if (!withinRange(r.ts, qStart ?? start, qEnd ?? end)) continue;
+            const raw = r[validatedField];
+            if (raw == null || raw === '') continue;
+            const v = Number(raw);
+            if (!Number.isFinite(v)) {
+              nonNumericCount += 1;
+              const key = String(raw);
+              freq[key] = (freq[key] || 0) + 1;
+            }
+          }
+          return {
+            room: resolvedRoom,
+            table: tab,
+            field: validatedField,
+            error: nonNumericCount ? 'non_numeric_field' : 'no_rows',
+            categories: Object.keys(freq).length ? freq : undefined,
+            total: totalRows,
+            nonNumericCount
+          };
+        }
         return {
           room: resolvedRoom,
           table: tab,
@@ -6991,7 +7014,12 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
 
     compare_rooms_on_metric({ rooms = null, table, field, agg = 'avg', start = null, end = null }) {
+      const desiredField = field;
       const targetRooms = scopedRoomIds(rooms, { limit: 32 });
+      if (!targetRooms.length && desiredField) {
+        const scoped = devicesWithField(desiredField, Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : []);
+        targetRooms.push(...scoped.slice(0, 12));
+      }
       const out = [];
       for (const roomId of targetRooms) {
         const t = loadRoomTables(roomId);
@@ -7001,19 +7029,27 @@ function parseFieldsFromQuestion(question, availableSets) {
           out.push({ room: roomId, friendlyName: deviceFriendlyName(roomId), value: null });
           continue;
         }
-        const resolvedField = resolveFieldWithAlias(roomId, tab, resolveField(rows, field) || field);
+        const resolvedField = resolveFieldWithAlias(roomId, tab, resolveField(rows, field) || resolveCanonicalField(field, availableFieldsByTable(roomId)) || field);
         if (!resolvedField) {
           out.push({ room: roomId, friendlyName: deviceFriendlyName(roomId), value: null });
           continue;
         }
-        const vals = rows.map(row => Number(row[resolvedField])).filter(Number.isFinite);
-        if (!vals.length) {
-          out.push({ room: roomId, friendlyName: deviceFriendlyName(roomId), value: null });
+        const numeric = rows.map(row => Number(row[resolvedField])).filter(Number.isFinite);
+        if (!numeric.length) {
+          // Categorical fallback: count occurrences
+          const freq = {};
+          for (const r of rows) {
+            const raw = r[resolvedField];
+            if (raw == null || raw === '') continue;
+            const key = String(raw);
+            freq[key] = (freq[key] || 0) + 1;
+          }
+          out.push({ room: roomId, friendlyName: deviceFriendlyName(roomId), value: null, categories: freq });
           continue;
         }
-        const sum = vals.reduce((a,b)=>a+b,0);
-        const avg = sum / vals.length;
-        const peak = Math.max(...vals);
+        const sum = numeric.reduce((a,b)=>a+b,0);
+        const avg = sum / numeric.length;
+        const peak = Math.max(...numeric);
         const map = { sum, avg, peak };
         out.push({
           room: roomId,
