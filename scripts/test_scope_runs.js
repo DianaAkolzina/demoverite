@@ -255,7 +255,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'What is the visible scope for Bolton First Floor right now? List the floors, zones, and devices you can see.',
-    range: fixedRange('2024-09-10T12:21:00Z', '2024-09-24T13:21:00Z')
+    range: fixedRange('2024-09-05T00:00:00Z', '2024-09-19T23:59:59Z')
   },
   {
     label: 'AVM Bolton First Floor scope – alternate wording',
@@ -267,7 +267,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'What is the scope for Bolton First Floor? Confirm the rooms/devices included in the current selection.',
-    range: fixedRange('2024-09-10T12:21:00Z', '2024-09-24T13:21:00Z')
+    range: fixedRange('2024-09-05T00:00:00Z', '2024-09-19T23:59:59Z')
   },
   {
     label: 'AVM Bolton Toilet NH3 trend',
@@ -281,7 +281,7 @@ const MANUAL_SCENARIOS = [
       deviceZones: { '2e857e60-58b9-11f0-a19e-8f874a1c01d3': 'Toilet' }
     }),
     question: 'Plot NH3 from the Toilet in Bolton between the selected dates and explain the trend.',
-    range: fixedRange('2024-09-10T12:21:00Z', '2024-09-24T13:21:00Z')
+    range: fixedRange('2024-09-07T00:00:00Z', '2024-09-21T23:59:59Z')
   },
   {
     label: '55 King Street Suite 6.2 vs 6.3 comparison',
@@ -292,8 +292,8 @@ const MANUAL_SCENARIOS = [
       floors: ['6th Floor'],
       zones: ['Suite 6.2', 'Suite 6.3']
     }),
-    question: 'Between 2025-09-15 and 2025-09-25, compare temperature between Suite 6.2 (6th Floor) and Suite 6.3 (6th Floor) and comment on the differences.',
-    range: fixedRange('2025-09-15T00:00:00Z', '2025-09-25T23:59:59Z')
+    question: 'Between 2024-09-10 and 2024-09-24, compare temperature between Suite 6.2 and Suite 6.3 on the 6th floor and call out differences.',
+    range: fixedRange('2024-09-10T00:00:00Z', '2024-09-24T23:59:59Z')
   },
   {
     label: 'AVM Bolton comfort review',
@@ -304,8 +304,8 @@ const MANUAL_SCENARIOS = [
       floors: ['First Floor'],
       zones: ['Standup', 'Huddle', 'Lounge', 'Cafe']
     }),
-    question: 'Between 2024-09-10 and 2024-09-24, provide a comfort summary for Standup, Huddle, Lounge, and Cafe in Bolton. Discuss CO₂, temperature, humidity, and call out any rooms lacking telemetry.',
-    range: fixedRange('2024-09-10T12:21:00Z', '2024-09-24T13:21:00Z')
+    question: 'Between 2024-09-08 and 2024-09-22, give a simple comfort summary (temp/CO₂/humidity) for Standup, Huddle, Lounge, and Cafe, noting any rooms without data.',
+    range: fixedRange('2024-09-08T00:00:00Z', '2024-09-22T23:59:59Z')
   },
   {
     label: '55 King Street Suite 6.5 multi-metric story',
@@ -328,8 +328,8 @@ const MANUAL_SCENARIOS = [
         '072b8b80-664b-11f0-a19e-8f874a1c01d3': 'Suite 6.5'
       }
     }),
-    question: 'Between 2025-09-15 and 2025-09-25, analyze Suite 6.5 by covering total kWh usage alongside temperature, humidity, and CO₂. Highlight peaks, minimums, and any ventilation concerns.',
-    range: fixedRange('2025-09-15T00:00:00Z', '2025-09-25T23:59:59Z')
+    question: 'Between 2024-09-10 and 2024-09-24, summarize Suite 6.5 energy (kWh) alongside temp, humidity, and CO₂; mention peaks and lows.',
+    range: fixedRange('2024-09-10T00:00:00Z', '2024-09-24T23:59:59Z')
   },
   {
     label: '55 King Street holistic insight',
@@ -339,8 +339,8 @@ const MANUAL_SCENARIOS = [
       floors: ['6th Floor', 'Ground Floor'],
       zones: ['Suite 6.5', 'Suite 6.1', 'Reception', 'Comms Room']
     }),
-    question: 'Provide a high-level narrative for the selected rooms in 55 King Street between 2025-09-15 and 2025-09-25. Cover comfort (CO₂/temperature/humidity), usage patterns, and call out any rooms missing telemetry.',
-    range: fixedRange('2025-09-15T00:00:00Z', '2025-09-25T23:59:59Z')
+    question: 'Give a high-level comfort/usage story for the selected rooms in 55 King Street between 2024-09-10 and 2024-09-24; note any missing telemetry.',
+    range: fixedRange('2024-09-10T00:00:00Z', '2024-09-24T23:59:59Z')
   },
   {
     label: 'Bolton unused rooms check',
@@ -352,7 +352,7 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'Have any of the rooms not been used today?',
-    range: fixedRange('2024-09-15T08:00:00Z', '2024-09-15T18:00:00Z')
+    range: fixedRange('2024-09-12T08:00:00Z', '2024-09-12T18:00:00Z')
   },
   {
     label: 'Bolton people forecast',
@@ -364,7 +364,8 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'How many people will be in Bolton today and this week?',
-    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
+    question: 'Estimate people in Bolton for today and this week (short summary).',
+    range: fixedRange('2024-09-12T00:00:00Z', '2024-09-19T23:59:59Z')
   },
   {
     label: 'Bolton busiest room',
@@ -376,7 +377,8 @@ const MANUAL_SCENARIOS = [
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
     question: 'Which room will be the busiest this week?',
-    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
+    question: 'Which room is busiest this week?',
+    range: fixedRange('2024-09-12T00:00:00Z', '2024-09-19T23:59:59Z')
   },
   {
     label: 'Suite 6.5 average occupancy',
@@ -387,8 +389,8 @@ const MANUAL_SCENARIOS = [
       floors: ['6th Floor'],
       zones: ['Suite 6.5']
     }),
-    question: 'Between 2025-09-15 and 2025-09-25, on average how many people occupy Suite 6.5?',
-    range: fixedRange('2025-09-15T00:00:00Z', '2025-09-25T23:59:59Z')
+    question: 'Between 2024-09-10 and 2024-09-24, what is the average people count in Suite 6.5?',
+    range: fixedRange('2024-09-10T00:00:00Z', '2024-09-24T23:59:59Z')
   },
   {
     label: '55 King Street energy savings',
@@ -398,8 +400,8 @@ const MANUAL_SCENARIOS = [
       floors: ['6th Floor', 'Ground Floor'],
       zones: ['Suite 6.5', 'Suite 6.1', 'Reception']
     }),
-    question: 'Between 2025-09-15 and 2025-09-25, how can I save energy in 55 King Street?',
-    range: fixedRange('2025-09-15T00:00:00Z', '2025-09-25T23:59:59Z')
+    question: 'Between 2024-09-10 and 2024-09-24, give simple energy-saving tips for 55 King Street using current data.',
+    range: fixedRange('2024-09-10T00:00:00Z', '2024-09-24T23:59:59Z')
   },
   {
     label: '55 King Street energy peak time',
@@ -409,8 +411,8 @@ const MANUAL_SCENARIOS = [
       floors: ['6th Floor'],
       zones: ['Suite 6.5']
     }),
-    question: 'Between 2025-10-18 and 2025-10-24, what date/time will we use the most energy, and why?',
-    range: fixedRange('2025-10-18T00:00:00Z', '2025-10-24T23:59:59Z')
+    question: 'Between 2024-09-20 and 2024-10-05, when is energy use highest and why?',
+    range: fixedRange('2024-09-20T00:00:00Z', '2024-10-05T23:59:59Z')
   },
   {
     label: 'Bolton cleaning schedule',

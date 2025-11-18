@@ -44,7 +44,7 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
     timeZone: UI_TIMEZONE
   });
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+  const DAY_MS = 24 * 60 * 60 * 1000;
 const DAYPART_WINDOWS = [
   { id: '08-12', startHour: 8, endHour: 12 },
   { id: '12-16', startHour: 12, endHour: 16 },
@@ -550,6 +550,41 @@ const extractFieldValue = (row, fieldOrList) => {
     return text.length > 1200 ? `${text.slice(0, 1200)}…` : text;
   }
 
+  function buildAliasHints(selectionRooms = [], scopeDeviceZones = {}, scopeLabels = {}) {
+    if (!Array.isArray(selectionRooms) || !selectionRooms.length) return null;
+    const hints = [];
+    const building = scopeLabels.building || null;
+    const floor = scopeLabels.floor || null;
+    const seen = new Set();
+    const add = (line) => {
+      if (!line) return;
+      const key = line.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      hints.push(line);
+    };
+    for (const deviceId of selectionRooms.slice(0, 24)) {
+      const friendly = deviceFriendlyName(deviceId);
+      const meta = lookupDeviceHierarchy(deviceId) || {};
+      const zoneRaw = scopeDeviceZones?.[deviceId] || meta.zoneName || meta.zoneId || null;
+      const zoneLabel = zoneRaw ? resolveZoneLabelDisplay(zoneRaw, { building, floor: meta.floorName || floor }) : null;
+      const aliasParts = new Set();
+      aliasParts.add(deviceId);
+      if (friendly && friendly !== deviceId) aliasParts.add(friendly);
+      if (zoneLabel) {
+        aliasParts.add(zoneLabel);
+        if (meta.floorName || floor) aliasParts.add(`${zoneLabel} (${meta.floorName || floor})`);
+        if (meta.buildingName || building) aliasParts.add(`${zoneLabel} (${meta.buildingName || building})`);
+        if ((meta.floorName || floor) && (meta.buildingName || building)) {
+          aliasParts.add(`${zoneLabel} (${meta.floorName || floor}, ${meta.buildingName || building})`);
+        }
+      }
+      const line = `${deviceId}: ${Array.from(aliasParts).filter(Boolean).join(' | ')}`;
+      add(line);
+    }
+    return hints.length ? hints.join('\n') : null;
+  }
+
   const graphHierarchy = loadGraphFormHierarchy();
   const snapshotIndex = buildSnapshotIndex();
   let currentScopeContext = {
@@ -845,16 +880,42 @@ const extractFieldValue = (row, fieldOrList) => {
     if (!list.length) return room;
     const desired = (preferredFields || []).map((f) => String(f || '').trim()).filter(Boolean);
     if (!desired.length) return list[0];
+    let best = null;
+    let bestScore = -1;
     for (const deviceId of list) {
       try {
         const tablesSets = availableFieldsByTable(deviceId);
-        const matches = desired.every((field) => {
+        let score = 0;
+        for (const field of desired) {
           const resolved = inferFieldName(field, tablesSets);
-          return !!resolved;
-        });
-        if (matches) return deviceId;
+          if (resolved) score += 1;
+        }
+        if (score === desired.length) return deviceId; // perfect match
+        if (score > bestScore) {
+          bestScore = score;
+          best = deviceId;
+        }
       } catch {}
     }
+    // If nothing matched well, try devices attached to the same zone label.
+    if (bestScore <= 0 && desired.length && room) {
+      const zoneDevices = collectDevicesForZone(room, currentScopeContext.scopeLabels || {}) || [];
+      for (const entry of zoneDevices) {
+        const deviceId = entry?.cloudId || entry?.primaryId || entry?.id;
+        if (!deviceId) continue;
+        try {
+          const tablesSets = availableFieldsByTable(deviceId);
+          const hasAll = desired.every((field) => !!inferFieldName(field, tablesSets));
+          if (hasAll) return deviceId;
+          const partial = desired.some((field) => !!inferFieldName(field, tablesSets));
+          if (partial && bestScore < 1) {
+            bestScore = 1;
+            best = deviceId;
+          }
+        } catch {}
+      }
+    }
+    if (bestScore > 0 && best) return best;
     return list[0];
   }
 
@@ -889,7 +950,13 @@ const extractFieldValue = (row, fieldOrList) => {
   function prepareToolArgs(tool, args) {
     if (!args) return;
     const originalRoom = args.room;
-    const candidates = gatherCandidateDevices(originalRoom || (args.devices && args.devices[0]) || null);
+    const tableAsDevice =
+      typeof args.table === 'string'
+        ? (normalizeRoomId(args.table) || resolveDeviceForZoneAlias(args.table) || friendlyLookup(args.table))
+        : null;
+    const candidates = gatherCandidateDevices(
+      originalRoom || tableAsDevice || (args.devices && args.devices[0]) || null
+    );
     const normalizedDevices = new Set();
     const pushDevice = (value) => {
       if (!value) return;
@@ -898,6 +965,7 @@ const extractFieldValue = (row, fieldOrList) => {
       if (!deviceTablesAvailable(normalized)) return;
       normalizedDevices.add(normalized);
     };
+    if (tableAsDevice) pushDevice(tableAsDevice);
     if (Array.isArray(args.devices)) {
       args.devices.forEach(pushDevice);
     }
@@ -909,15 +977,17 @@ const extractFieldValue = (row, fieldOrList) => {
     if (!normalizedDevices.size && currentScopeContext.selectionRooms) {
       currentScopeContext.selectionRooms.forEach(pushDevice);
     }
+    const desiredFields = fieldsForTool(tool, args);
     if (normalizedDevices.size) {
-      args.devices = Array.from(normalizedDevices);
+      const candidateDevices = Array.from(normalizedDevices);
+      const resolved = resolveDeviceForFields(originalRoom || tableAsDevice, desiredFields, candidateDevices);
+      const targetRoom = resolved || candidateDevices[0];
+      args.devices = [targetRoom, ...candidateDevices.filter((id) => id !== targetRoom)];
+      args.room = targetRoom;
     } else if (Array.isArray(args.devices)) {
       args.devices = args.devices.filter(Boolean);
     }
-    const desiredFields = fieldsForTool(tool, args);
-    if (normalizedDevices.size) {
-      args.room = Array.from(normalizedDevices)[0];
-    } else if (originalRoom && originalRoom !== 'ALL') {
+    if (!normalizedDevices.size && originalRoom && originalRoom !== 'ALL') {
       const resolved = resolveDeviceForFields(originalRoom, desiredFields, candidates);
       if (resolved) args.room = resolved;
     }
@@ -943,6 +1013,13 @@ const extractFieldValue = (row, fieldOrList) => {
       for (const seg of segments) {
         const resolved = tryResolve(seg);
         if (resolved) return resolved;
+      }
+      // Last resort: pick a device from the zone name
+      const zoneCandidates = collectDevicesForZone(trimmed, currentScopeContext.scopeLabels || {});
+      if (Array.isArray(zoneCandidates) && zoneCandidates.length) {
+        const dev = zoneCandidates[0];
+        const cloudId = dev.cloudId || dev.primaryId || dev.id;
+        if (cloudId) return cloudId;
       }
       return trimmed;
     };
@@ -1067,6 +1144,43 @@ const extractFieldValue = (row, fieldOrList) => {
       const guess = inferDefaultTableForMetric(args.field);
       if (guess) args.table = guess;
     }
+    // If table actually names a device alias, treat it as room.
+    if (!args.room && tableAsDevice && deviceTablesAvailable(tableAsDevice)) {
+      args.room = tableAsDevice;
+    }
+    // Ensure room/table point to a CSV-backed device that actually has the requested fields.
+    const desiredFieldsFinal = fieldsForTool(tool, args);
+    const desiredRoom = args.room || originalRoom;
+    let tablesForRoom = desiredRoom ? loadRoomTables(desiredRoom) : {};
+    if (!tablesForRoom || !Object.keys(tablesForRoom).length) {
+      const devicesToTry = Array.isArray(args.devices) && args.devices.length
+        ? args.devices
+        : scopedRoomIds([desiredRoom, ...(currentScopeContext.selectionRooms || [])]);
+      for (const dev of devicesToTry) {
+        const t = loadRoomTables(dev);
+        if (!t || !Object.keys(t).length) continue;
+        if (!desiredFieldsFinal.length) {
+          args.room = dev;
+          tablesForRoom = t;
+          break;
+        }
+        const sets = availableFieldsByTable(dev);
+        const matches = desiredFieldsFinal.every((f) => !!inferFieldName(f, sets));
+        if (matches) {
+          args.room = dev;
+          tablesForRoom = t;
+          break;
+        }
+      }
+    }
+    // Re-resolve the table now that room may have changed. Default to telemetry if only one table.
+    if (typeof args.table === 'string') {
+      const resolvedTable = resolveTable(args.room || desiredRoom, args.table);
+      if (resolvedTable) args.table = resolvedTable;
+    } else if (!args.table) {
+      const keys = Object.keys(tablesForRoom || {});
+      if (keys.length) args.table = keys.includes('telemetry') ? 'telemetry' : keys[0];
+    }
 
     // Ensure weather-aware tools inherit the building from the current scope when missing.
     const normalizedTool = String(tool || '').toLowerCase();
@@ -1170,19 +1284,37 @@ const extractFieldValue = (row, fieldOrList) => {
         if (raw && typeof raw === 'object') {
           for (const [alias, values] of Object.entries(raw)) {
             if (!alias) continue;
-            const list = Array.isArray(values) ? values : [values];
-            const primary = list.find((v) => v && String(v).trim().length);
+            let primary = null;
+            const extraAliases = new Set();
+
+            if (Array.isArray(values) || typeof values === 'string') {
+              const list = Array.isArray(values) ? values : [values];
+              primary = list.find((v) => v && String(v).trim().length);
+              list.forEach((v) => { if (v) extraAliases.add(String(v).trim()); });
+            } else if (values && typeof values === 'object') {
+              primary = values.id || values.cloudId || values.deviceId || null;
+              if (Array.isArray(values.ids)) values.ids.forEach((v) => v && extraAliases.add(String(v).trim()));
+              if (Array.isArray(values.synonyms)) values.synonyms.forEach((v) => v && extraAliases.add(String(v).trim()));
+              if (values.name) extraAliases.add(String(values.name).trim());
+              if (values.zone) extraAliases.add(String(values.zone).trim());
+              const zone = values.zone ? String(values.zone).trim() : '';
+              const floor = values.floor ? String(values.floor).trim() : '';
+              const building = values.building ? String(values.building).trim() : '';
+              if (zone && floor) extraAliases.add(`${zone} (${floor})`);
+              if (zone && building) extraAliases.add(`${zone} (${building})`);
+              if (zone && floor && building) extraAliases.add(`${zone} (${floor}, ${building})`);
+            }
+
             if (!primary) continue;
             if (!knownDeviceIds.has(primary) && !deviceFileExists(primary)) continue;
+
             registerAlias(alias, primary);
             registerAlias(alias.toLowerCase(), primary);
-            for (const extra of list) {
-              if (!extra) continue;
-              const key = String(extra).trim();
-              if (!key) continue;
-              if (!knownDeviceIds.has(key) && !deviceFileExists(key)) continue;
-              registerAlias(key, primary);
-            }
+            extraAliases.forEach((key) => {
+              const cleaned = String(key || '').trim();
+              if (!cleaned) return;
+              registerAlias(cleaned, primary);
+            });
           }
         }
       }
@@ -1632,6 +1764,24 @@ const extractFieldValue = (row, fieldOrList) => {
     const metricList = missing.map((m) => humanizeMetricName(m)).join(', ');
     const content = `${metricList} is not logged for ${label}. Available metrics are: ${availableList}. PIR/PIT sensors behave like binary motion flags (1 = motion detected, 0 = idle); use people_count or occupancy feeds if you need utilization charts.`;
     return { message: assistantMessage(content), chart: null, trace: [] };
+  }
+
+  // Flatten all known fields for a room across its tables.
+  function fieldsForRoom(roomId) {
+    try {
+      const tables = availableFieldsByTable(roomId);
+      const out = new Set();
+      if (tables && typeof tables === 'object') {
+        Object.values(tables).forEach((set) => {
+          if (set && typeof set.forEach === 'function') {
+            set.forEach((f) => { if (f && f !== 'ts') out.add(f); });
+          }
+        });
+      }
+      return Array.from(out);
+    } catch {
+      return [];
+    }
   }
 
   function aggregateAvailableFields(selectionRooms = [], fallbackRoom = null) {
@@ -2715,6 +2865,29 @@ function summarizeFieldComparison(entries = []) {
     return insights;
   }
 
+  function buildAnomalyTable(trace = []) {
+    if (!Array.isArray(trace)) return '';
+    const entry = trace.find((t) => t && t.tool === 'detect_spikes' && Array.isArray(t.result) && t.result.length);
+    if (!entry) return '';
+    const rows = [...entry.result]
+      .filter((r) => r && Number.isFinite(r.ts) && (Number.isFinite(r.value) || Number.isFinite(r.avg) || Number.isFinite(r.z)))
+      .sort((a, b) => Math.abs(b.z || 0) - Math.abs(a.z || 0))
+      .slice(0, 5);
+    if (!rows.length) return '';
+    const fmtTs = (ts) => {
+      try {
+        return new Date(ts).toISOString().replace('T',' ').slice(0,16);
+      } catch { return String(ts); }
+    };
+    const lines = ['| Timestamp | Value | z |', '| :--- | :--- | :--- |'];
+    for (const r of rows) {
+      const val = Number.isFinite(r.value) ? r.value : (Number.isFinite(r.avg) ? r.avg : '');
+      const z = Number.isFinite(r.z) ? r.z.toFixed(2) : '';
+      lines.push(`| ${fmtTs(r.ts)} | ${val} | ${z} |`);
+    }
+    return lines.join('\n');
+  }
+
   const normalizeMatchString = (value) => String(value || '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
@@ -3098,7 +3271,12 @@ function summarizeFieldComparison(entries = []) {
       addPart('I analyzed the available data for the selected scope and time window.');
     }
 
-    let answer = parts.join(' ');
+    const bulletLines = parts.map((p) => `- ${p}`);
+    const anomaliesTable = buildAnomalyTable(trace);
+    let answer = `Overview:\n${bulletLines.join('\n')}`;
+    if (anomaliesTable) {
+      answer += `\n\nAnomalies (sample):\n${anomaliesTable}`;
+    }
     if (includeKnowledge && knowledgeSnippets && knowledgeSnippets.trim()) {
       const hint = shortenKnowledgeSnippet(knowledgeSnippets);
       if (hint) {
@@ -3134,6 +3312,12 @@ function summarizeFieldComparison(entries = []) {
       const detailParts = [];
       const insight = traceInsight(trace);
       if (insight) detailParts.push(insight);
+      try {
+        const extraInsights = deriveTimeseriesInsights({ trace, range }) || [];
+        if (Array.isArray(extraInsights) && extraInsights.length) {
+          detailParts.push(extraInsights.slice(0, 2).join(' '));
+        }
+      } catch {}
       const planSummary = formatPlanSummary(planStatus);
       if (planSummary) detailParts.push(`Plan status: ${planSummary}`);
       if (!detailParts.length) {
@@ -3491,8 +3675,35 @@ function summarizeFieldComparison(entries = []) {
     };
   }
 
+  const GLOBAL_COVERAGE_CACHE = { t: 0, v: null };
+  function aggregateGlobalCoverage() {
+    const now = Date.now();
+    const ttlMs = 60_000;
+    if (GLOBAL_COVERAGE_CACHE.v && (now - GLOBAL_COVERAGE_CACHE.t) < ttlMs) return GLOBAL_COVERAGE_CACHE.v;
+    const spans = [];
+    try {
+      const files = fs.readdirSync(s3LocalDir).filter((f) => f.endsWith('.csv'));
+      for (const file of files) {
+        const deviceId = file.replace(/\.csv$/i, '');
+        const stats = getCsvStats(deviceId);
+        if (stats && Number.isFinite(stats.tsMin) && Number.isFinite(stats.tsMax) && stats.count > 0) {
+          spans.push({ start: stats.tsMin, end: stats.tsMax });
+        }
+      }
+    } catch (err) {
+      if (DEBUG) log('aggregateGlobalCoverage failed', String(err));
+    }
+    const coverage = spans.length
+      ? { start: Math.min(...spans.map((s) => s.start)), end: Math.max(...spans.map((s) => s.end)) }
+      : null;
+    GLOBAL_COVERAGE_CACHE.t = now;
+    GLOBAL_COVERAGE_CACHE.v = coverage;
+    return coverage;
+  }
+
   function alignRangeToTelemetry(range = {}, { selectionRooms = [], selectionZones = [], scopeLabels = {}, fallbackRoom = null } = {}) {
-    const coverage = aggregateSelectionCoverage({ selectionRooms, selectionZones, scopeLabels, fallbackRoom });
+    let coverage = aggregateSelectionCoverage({ selectionRooms, selectionZones, scopeLabels, fallbackRoom });
+    if (!coverage) coverage = aggregateGlobalCoverage();
     if (!coverage) return { range: range || {}, changed: false, coverage: null };
     let start = Number.isFinite(range?.start) ? Number(range.start) : coverage.end - 7 * DAY_MS;
     let end = Number.isFinite(range?.end) ? Number(range.end) : coverage.end;
@@ -4025,6 +4236,7 @@ function buildSnapshotIndex() {
       { name: 'forecast_from_profile', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', days: 'number?' }, desc: 'Forecast next N days using hour-of-day profile from historical data. Returns [{ts, forecast}]' },
       { name: 'forecast_exponential_smoothing', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', alpha: 'number?', horizon_hours: 'number?' }, desc: 'Simple exponential smoothing forecast' },
       { name: 'forecast_moving_average', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', window: 'number?', horizon_hours: 'number?' }, desc: 'Moving average forecast' },
+      { name: 'scope_summary', args: { selectionRooms: 'string[]?', selectionZones: 'string[]?', selectionFloors: 'string[]?', selectionLabels: 'object?', range: 'object?' }, desc: 'Summarize the current selection scope (devices, metrics, telemetry coverage, and time window).' },
       { name: 'forecast_seasonal_hourly', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', horizon_hours: 'number?' }, desc: 'Seasonal naive forecast using previous weeks' },
       { name: 'forecast_polyfit', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', degree: 'number?', horizon_hours: 'number?' }, desc: 'Polynomial regression forecast (degree 2)' },
       { name: 'graph_rooms_by_tenant', args: { tenant: 'string' }, desc: 'List rooms permitted for a tenant from Neo4j' },
@@ -4062,29 +4274,55 @@ function buildSnapshotIndex() {
 
   function resolveChartDataRefs(chartObj, trace) {
     if (!chartObj || !chartObj.series) return chartObj;
-    
+
+    const samePlanStep = (a, b) => {
+      if (!a || !b) return false;
+      return String(a).trim().toUpperCase() === String(b).trim().toUpperCase();
+    };
+
     for (const series of chartObj.series) {
       if (series.dataRef) {
-        const ref = series.dataRef;
+        const ref = { ...series.dataRef };
+        if (!ref.tool && ref.planStep) {
+          const entry = trace.slice().reverse().find((t) => samePlanStep(ref.planStep, t.planStepId));
+          if (entry && entry.tool) {
+            ref.tool = entry.tool;
+            if (!ref.room && entry.args?.room) ref.room = entry.args.room;
+            if (!ref.table && entry.args?.table) ref.table = entry.args.table;
+            if (!ref.field && entry.args?.field) ref.field = entry.args.field;
+            if (!ref.yField && Array.isArray(entry.args?.fields)) ref.yField = entry.args.fields[0];
+          }
+        }
         log('Resolving dataRef:', ref);
         
-        // Find the tool result in trace
+        // Find the tool result in trace (prefer closest match on planStep/room/table/field)
         let toolResult = null;
-        for (let i = trace.length - 1; i >= 0; i--) {
-          const t = trace[i];
-          if (t.tool !== ref.tool) continue;
-          if (ref.room && t.args && t.args.room && String(t.args.room) !== String(ref.room)) continue;
-          if (ref.yField && t.args && Array.isArray(t.args.fields) && !t.args.fields.includes(ref.yField)) continue;
-          toolResult = t.result;
-          break;
+        let matchedTrace = null;
+        const candidates = trace
+          .map((t, idx) => ({ t, idx }))
+          .filter(({ t }) => t && t.tool === ref.tool);
+        const scored = candidates
+          .map(({ t, idx }) => {
+            let score = 0;
+            if (ref.planStep && samePlanStep(ref.planStep, t.planStepId)) score += 4;
+            if (ref.room && t.args?.room && String(ref.room) === String(t.args.room)) score += 3;
+            if (ref.table && t.args?.table && String(ref.table) === String(t.args.table)) score += 2;
+            if (ref.yField && Array.isArray(t.args?.fields) && t.args.fields.includes(ref.yField)) score += 1;
+            if (ref.field && t.args?.field && String(ref.field) === String(t.args.field)) score += 1;
+            return { t, idx, score };
+          })
+          .sort((a, b) => b.score - a.score || b.idx - a.idx);
+        if (scored.length && scored[0].score > 0) {
+          toolResult = scored[0].t.result;
+          matchedTrace = scored[0].t;
         }
-        
+
         if (!toolResult) {
           log('Warning: Could not find tool result for', ref.tool);
           series.data = [];
           continue;
         }
-        
+
         // Extract data based on the reference
         let sourceData = toolResult;
         
@@ -4103,8 +4341,6 @@ function buildSnapshotIndex() {
             .filter((row) => row && row.room && Number.isFinite(Number(row.value)))
             .map((row) => [deviceFriendlyName(row.room), Number(row.value)]);
           series.data = data;
-          delete series.dataRef;
-          continue;
         }
 
         if (ref.tool === 'scope_multiline' && sourceData && typeof sourceData === 'object' && Array.isArray(sourceData.series)) {
@@ -4196,12 +4432,26 @@ function buildSnapshotIndex() {
           log('Warning: Tool result is not an array for', ref.tool);
           series.data = [];
         }
+        const metricLabel = humanizeMetricName(ref.field || ref.yField || '');
+        const deviceLabel = deviceFriendlyName(ref.room || matchedTrace?.args?.room || '');
+        if (metricLabel) {
+          const newName = deviceLabel ? `${deviceLabel} — ${metricLabel}` : metricLabel;
+          series.name = newName;
+          if (chartObj?.title && chartObj.title.text) {
+            chartObj.title.text = `${deviceLabel || chartObj.title.text.split('—')[0]?.trim() || 'Series'} — ${metricLabel}`;
+          }
+        }
         
-        // Remove the dataRef after resolving
+        // Remove the dataRef after resolving to avoid UI rejection, but keep provenance
+        series.resolvedFromTrace = {
+          tool: matchedTrace?.tool,
+          planStepId: matchedTrace?.planStepId,
+          args: matchedTrace?.args
+        };
         delete series.dataRef;
       }
     }
-    
+
     return chartObj;
   }
 
@@ -4345,6 +4595,7 @@ function buildSnapshotIndex() {
 
   function alignSeriesWithinWindow(seriesA, fieldA, seriesB, fieldB, windowMs) {
     if (!seriesA.length || !seriesB.length) return [];
+    if (!fieldA || !fieldB) return [];
     const sortedA = [...seriesA].sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
     const sortedB = [...seriesB].sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
     const pairs = [];
@@ -4660,8 +4911,25 @@ function buildSnapshotIndex() {
     return null;
   }
 
-  function withinRange(ts, start, end) { 
-    return (!start || ts >= start) && (!end || ts <= end); 
+  function normalizeTsHint(value) {
+    if (value == null) return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    if (typeof value === 'string') {
+      const num = Number(value);
+      if (Number.isFinite(num)) return num;
+      const parsed = Date.parse(value);
+      if (Number.isFinite(parsed)) return parsed;
+      const m = value.trim().toLowerCase().match(/^now\s*-\s*(\d+)\s*d$/);
+      if (m) return Date.now() - Number(m[1]) * DAY_MS;
+      if (value.trim().toLowerCase() === 'now') return Date.now();
+    }
+    return null;
+  }
+
+  function withinRange(ts, start, end) {
+    const s = normalizeTsHint(start);
+    const e = normalizeTsHint(end);
+    return (s == null || ts >= s) && (e == null || ts <= e);
   }
   
   function floorHour(ts) { 
@@ -4728,7 +4996,8 @@ function buildSnapshotIndex() {
   }
   
   function resolveTable(room, name) {
-    const t = loadRoomTables(room);
+    const resolvedRoom = resolveDeviceIdForRoom(room) || room;
+    const t = loadRoomTables(resolvedRoom);
     const keys = Object.keys(t);
     if (!keys.length) return name || 'telemetry';
     if (!name) {
@@ -4762,6 +5031,23 @@ function buildSnapshotIndex() {
     if (keys.length === 1) return keys[0];
     if (t.telemetry) return 'telemetry';
     return name;
+  }
+
+  function resolveFieldWithAlias(room, table, field) {
+    if (!field) return null;
+    const lower = String(field).trim().toLowerCase();
+    const tables = loadRoomTables(room);
+    const entries = tables[table] || [];
+    const fields = entries.length ? Object.keys(entries[0] || {}) : [];
+    const has = (name) => fields.some((f) => String(f).toLowerCase() === String(name).toLowerCase());
+    if (has(field)) return field;
+    // Occupancy/people aliases
+    const OCCUPANCY_ALIASES = ['people_count', 'occupancy', 'occupants', 'count', 'value'];
+    if (OCCUPANCY_ALIASES.includes(lower)) {
+      const candidate = ['people_count', 'occupants', 'occupancy', 'count', 'value'].find((f) => has(f));
+      if (candidate) return candidate;
+    }
+    return has(field) ? field : null;
   }
 
   function findRoomWithTable(tableName, selectionRooms = [], fallbackRoom = null) {
@@ -4839,6 +5125,13 @@ function buildSnapshotIndex() {
     for (const [name, rows] of Object.entries(t)) {
       out[name] = new Set(rows.length ? Object.keys(rows[0]) : []);
     }
+    try {
+      const weatherRows = loadWeatherFor(room);
+      if (Array.isArray(weatherRows) && weatherRows.length) {
+        const fields = Object.keys(weatherRows[0] || {}).filter((k) => k !== 'ts');
+        if (fields.length) out.weather = new Set(fields);
+      }
+    } catch {}
     return out;
   }
 
@@ -5478,15 +5771,7 @@ function parseFieldsFromQuestion(question, availableSets) {
     }
 
     for (const call of missingToolCalls) {
-      if (tools[call.tool]) {
-        try {
-          const result = tools[call.tool](call.args);
-          trace.push({ tool: call.tool, args: call.args, result });
-          log(`Auto-ran missing tool for chart: ${call.tool}`, call.args);
-        } catch (err) {
-          log(`ensureChartData tool ${call.tool} failed:`, String(err));
-        }
-      }
+      log(`Chart still missing data for ${call.tool}; expected args:`, call.args);
     }
   }
 
@@ -5587,13 +5872,17 @@ function parseFieldsFromQuestion(question, availableSets) {
   }
   
   function getHourlySeries(room, table, field, start=null, end=null) {
-    const t = loadRoomTables(room);
-    const tab = resolveTable(room, table);
+    const resolvedRoom = resolveDeviceIdForRoom(room) || room;
+    const t = loadRoomTables(resolvedRoom);
+    const tab = resolveTable(resolvedRoom, table);
     const arr = t[tab] || [];
-    const fld = resolveField(arr, field);
+    const fld = resolveFieldWithAlias(resolvedRoom, tab, resolveField(arr, field) || field);
+    if (!fld) return [];
+    const startNorm = normalizeTsHint(start);
+    const endNorm = normalizeTsHint(end);
     const buckets = new Map();
     for (const r of arr) {
-      if (!withinRange(r.ts, start, end)) continue;
+      if (!withinRange(r.ts, startNorm, endNorm)) continue;
       const v = Number(r[fld]); 
       if (!Number.isFinite(v)) continue;
       const key = floorHour(r.ts);
@@ -5799,8 +6088,10 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
     
     fetch_timeseries({ room, table, fields = [], start = null, end = null, limit = 2000, after_ts = null }) {
-      const t = loadRoomTables(room);
-      const tab = resolveTable(room, table);
+      // Map friendly room labels to a concrete device id before loading tables.
+      const resolvedRoom = resolveDeviceIdForRoom(room) || resolveDeviceIdForRoom(table) || room || table;
+      const t = loadRoomTables(resolvedRoom);
+      const tab = resolveTable(resolvedRoom, table);
       const arr = t[tab] || [];
 
       const coerceValue = (value) => {
@@ -5856,42 +6147,31 @@ function parseFieldsFromQuestion(question, availableSets) {
         if (limit && out.length >= limit) break;
       }
 
-      if (out.length === 0 && arr.length) {
-        const fallbackLimit = limit && limit > 0 ? limit : Math.min(arr.length, 2000);
-        if (fallbackLimit <= 5) {
-          const target = start != null ? start : (end != null ? end : arr[arr.length - 1].ts);
-          const sorted = [...arr].sort((a, b) => {
-            const da = Math.abs((a.ts ?? 0) - target);
-            const db = Math.abs((b.ts ?? 0) - target);
-            return da - db;
-          });
-          const slice = sorted.slice(0, fallbackLimit).sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
-          for (const row of slice) out.push(selectFields(row));
-        } else {
-          const slice = arr.slice(-fallbackLimit);
-          for (const row of slice) out.push(selectFields(row));
-        }
-      }
-
       return getLatest ? out.reverse() : out;
     },
     
-    stats({ room, table, field, start = null, end = null, queries = null }) {
-      const compute = ({ targetRoom, targetTable, targetField, qStart, qEnd }) => {
-        const resolvedRoom = targetRoom || room;
+    stats({ room, table, field, start = null, end = null, queries = null, scopeRoomLabel = null }) {
+      const resolveRoomPref = (val) => {
+        if (!val) return null;
+        return resolveDeviceIdForRoom(val) || val;
+      };
+      const preferredRoom = resolveRoomPref(scopeRoomLabel) || resolveRoomPref(room) || room;
+      const compute = ({ targetRoom, targetTable, targetField, qStart, qEnd, targetScopeLabel = null }) => {
+        const roomHint = resolveRoomPref(targetRoom) || resolveRoomPref(targetScopeLabel) || resolveRoomPref(preferredRoom) || targetRoom || room;
+        const resolvedRoom = resolveDeviceIdForRoom(roomHint || targetRoom || room) || roomHint || targetRoom || room || targetTable || table;
         if (!resolvedRoom) return { error: 'room required' };
         const t = loadRoomTables(resolvedRoom);
         const tab = resolveTable(resolvedRoom, targetTable);
         const arr = t[tab] || [];
-        const resolvedField = targetField || field;
-        if (!resolvedField) return { error: 'field required', room: resolvedRoom };
+        const validatedField = resolveFieldWithAlias(resolvedRoom, tab, targetField || field);
+        if (!validatedField) return { error: 'field required', room: resolvedRoom, table: tab };
         let totalRows = 0;
         let count = 0, min = Infinity, max = -Infinity, sum = 0;
         let minTs = null, maxTs = null;
         for (const r of arr) {
           if (!withinRange(r.ts, qStart ?? start, qEnd ?? end)) continue;
           totalRows += 1;
-          const v = Number(r[resolvedField]);
+          const v = Number(r[validatedField]);
           if (!Number.isFinite(v)) continue;
           count += 1;
           sum += v;
@@ -5918,11 +6198,12 @@ function parseFieldsFromQuestion(question, availableSets) {
           targetRoom: query.room || query.room_name || room,
           targetTable: query.table || table,
           targetField: query.field || query.metric_name || field,
+          targetScopeLabel: query.scopeRoomLabel || query.scope_label || scopeRoomLabel,
           qStart: query.start ?? start,
           qEnd: query.end ?? end
         }));
       }
-      return compute({ targetRoom: room, targetTable: table, targetField: field, qStart: start, qEnd: end });
+      return compute({ targetRoom: room, targetTable: table, targetField: field, targetScopeLabel: scopeRoomLabel, qStart: start, qEnd: end });
     },
     
     get_time_for_value({
@@ -6011,17 +6292,22 @@ function parseFieldsFromQuestion(question, availableSets) {
         b = t[tab2] || [];
       }
       
+      const resolvedField1 = resolveFieldWithAlias(resolvedRoom, tab1, field1);
+      const resolvedField2 = resolveFieldWithAlias(resolvedRoom, tab2 || table2, field2);
       const aFiltered = a.filter(r => withinRange(r.ts, start, end));
       const bFiltered = b.filter(r => withinRange(r.ts, start, end));
       
+      if (!resolvedField1 || !resolvedField2) {
+        return { n: 0, corr: null, error: 'field_missing', field1: resolvedField1 || field1, field2: resolvedField2 || field2 };
+      }
       if (!aFiltered.length || !bFiltered.length) {
-        return { n: 0, corr: null, error: 'No data in selected range for one or both tables' };
+        return { n: 0, corr: null, error: 'no_data' };
       }
 
-      let pairs = alignSeriesWithinWindow(aFiltered, field1, bFiltered, field2, time_window_ms);
+      let pairs = alignSeriesWithinWindow(aFiltered, resolvedField1, bFiltered, resolvedField2, time_window_ms);
       if (!pairs.length) {
         const bucketMs = Math.max(time_window_ms * 2, 60 * 60 * 1000);
-        pairs = alignSeriesByBucket(aFiltered, field1, bFiltered, field2, bucketMs);
+        pairs = alignSeriesByBucket(aFiltered, resolvedField1, bFiltered, resolvedField2, bucketMs);
       }
       
       const corr = pearson(pairs.map(p => p[0]), pairs.map(p => p[1]));
@@ -6048,17 +6334,22 @@ function parseFieldsFromQuestion(question, availableSets) {
       const a = t1[tab1] || [];
       const b = t2[tab2] || [];
       
+      const resolvedField1 = resolveFieldWithAlias(resolvedRoom1, tab1, field1);
+      const resolvedField2 = resolveFieldWithAlias(resolvedRoom2, tab2, field2);
       const aFiltered = a.filter(r => withinRange(r.ts, start, end));
       const bFiltered = b.filter(r => withinRange(r.ts, start, end));
       
+      if (!resolvedField1 || !resolvedField2) {
+        return { n: 0, corr: null, error: 'field_missing', field1: resolvedField1 || field1, field2: resolvedField2 || field2 };
+      }
       if (!aFiltered.length || !bFiltered.length) {
-        return { n: 0, corr: null, error: 'No data in selected range for one or both rooms' };
+        return { n: 0, corr: null, error: 'no_data' };
       }
       
-      let pairs = alignSeriesWithinWindow(aFiltered, field1, bFiltered, field2, time_window_ms);
+      let pairs = alignSeriesWithinWindow(aFiltered, resolvedField1, bFiltered, resolvedField2, time_window_ms);
       if (!pairs.length) {
         const bucketMs = Math.max(time_window_ms * 2, 60 * 60 * 1000);
-        pairs = alignSeriesByBucket(aFiltered, field1, bFiltered, field2, bucketMs);
+        pairs = alignSeriesByBucket(aFiltered, resolvedField1, bFiltered, resolvedField2, bucketMs);
       }
 
       const corr = pearson(pairs.map(p => p[0]), pairs.map(p => p[1]));
@@ -6087,18 +6378,22 @@ function parseFieldsFromQuestion(question, availableSets) {
       // Handle weather field aliases
       let weatherField = field_weather;
       if (field_weather === 'temperature') weatherField = 'temp';
+      const resolvedFieldRoom = resolveFieldWithAlias(resolvedRoom, table, field_room);
       
       let roomFiltered = roomData.filter(r => withinRange(r.ts, start, end));
       let weatherFiltered = weatherData.filter(r => withinRange(r.ts, start, end));
       
+      if (!resolvedFieldRoom || !weatherField) {
+        return { n: 0, corr: null, error: 'field_missing', field_room, field_weather };
+      }
       if (!roomFiltered.length || !weatherFiltered.length) {
-        return { n: 0, corr: null, error: 'No data in selected range for room or weather' };
+        return { n: 0, corr: null, error: 'no_data' };
       }
 
-      let pairs = alignSeriesWithinWindow(roomFiltered, field_room, weatherFiltered, weatherField, time_window_ms);
+      let pairs = alignSeriesWithinWindow(roomFiltered, resolvedFieldRoom, weatherFiltered, weatherField, time_window_ms);
       if (!pairs.length) {
         const bucketMs = Math.max(time_window_ms * 2, 60 * 60 * 1000);
-        pairs = alignSeriesByBucket(roomFiltered, field_room, weatherFiltered, weatherField, bucketMs);
+        pairs = alignSeriesByBucket(roomFiltered, resolvedFieldRoom, weatherFiltered, weatherField, bucketMs);
       }
       
       const corr = pearson(pairs.map(p => p[0]), pairs.map(p => p[1]));
@@ -6272,6 +6567,18 @@ function parseFieldsFromQuestion(question, availableSets) {
         ...result,
         scatter_series: result.scatter
       };
+    },
+
+    scope_summary({ selectionRooms = null, selectionZones = null, selectionFloors = null, selectionLabels = null, range = null } = {}) {
+      const summary = buildScopeSummary({
+        selectionRooms: selectionRooms ?? currentScopeContext.selectionRooms,
+        selectionZones: selectionZones ?? currentScopeContext.selectionZones,
+        selectionFloors: selectionFloors ?? currentScopeContext.selectionFloors,
+        scopeDeviceZones: currentScopeContext.scopeDeviceZones,
+        selectionLabels: selectionLabels ?? currentScopeContext.scopeLabels,
+        range: range ?? currentScopeContext.range
+      }) || 'Scope is not defined for the current selection.';
+      return { summary };
     },
     
     unoccupied_over_temp({ room, temp = 21, start = null, end = null }) {
@@ -6571,7 +6878,11 @@ function parseFieldsFromQuestion(question, availableSets) {
           out.push({ room: roomId, friendlyName: deviceFriendlyName(roomId), value: null });
           continue;
         }
-        const resolvedField = resolveField(rows, field);
+        const resolvedField = resolveFieldWithAlias(roomId, tab, resolveField(rows, field) || field);
+        if (!resolvedField) {
+          out.push({ room: roomId, friendlyName: deviceFriendlyName(roomId), value: null });
+          continue;
+        }
         const vals = rows.map(row => Number(row[resolvedField])).filter(Number.isFinite);
         if (!vals.length) {
           out.push({ room: roomId, friendlyName: deviceFriendlyName(roomId), value: null });
@@ -7232,9 +7543,25 @@ function parseFieldsFromQuestion(question, availableSets) {
       if (!targetRooms.length) throw new Error('scope_schema_matrix requires at least one room.');
       const metricsSet = new Set(['co2', 'pm25', 'pm10', 'airExchangeRate', 'virusRisk', 'voc', 'mold', 'radonShortTermAvg', 'temperature', 'humidity', 'lux', 'battery', 'rssi', 'occupants', 'occupantsLower', 'occupantsUpper']);
       const rows = [];
+      const zoneLookup = (() => {
+        const map = currentScopeContext.scopeDeviceZones || {};
+        const reverse = new Map();
+        for (const [deviceId, zoneName] of Object.entries(map)) {
+          if (!zoneName) continue;
+          reverse.set(String(zoneName).trim().toLowerCase(), deviceId);
+        }
+        return reverse;
+      })();
       for (const roomId of targetRooms) {
-        const normalizedRoom = normalizeRoomId(roomId) || String(roomId);
-        const tables = loadRoomTables(normalizedRoom);
+        let normalizedRoom = normalizeRoomId(roomId) || String(roomId);
+        let tables = loadRoomTables(normalizedRoom);
+        if (!tables || !Object.keys(tables).length) {
+          const matchDevice = zoneLookup.get(String(roomId || '').trim().toLowerCase());
+          if (matchDevice) {
+            normalizedRoom = matchDevice;
+            tables = loadRoomTables(normalizedRoom);
+          }
+        }
         const fieldMap = {};
         const tableDetails = {};
         for (const [tableName, entries] of Object.entries(tables || {})) {
@@ -8055,6 +8382,15 @@ function parseFieldsFromQuestion(question, availableSets) {
         }
         if (common == null) common = set; else common = new Set([...common].filter(x => set.has(x)));
       }
+      try {
+        const building = inferBuildingFromContext();
+        const w = loadWeatherFor(null, building);
+        if (Array.isArray(w) && w.length) {
+          const wFields = Object.keys(w[0] || {}).filter((k) => k !== 'ts');
+          if (!common) common = new Set();
+          for (const f of wFields) common.add(`weather.${f}`);
+        }
+      } catch {}
       return Array.from(common || []);
     },
 
@@ -8774,13 +9110,16 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
     
     hourly_timeseries({ room, table, field, start = null, end = null }) {
-      const t = loadRoomTables(room);
-      const tab = resolveTable(room, table);
+      const resolvedRoom = resolveDeviceIdForRoom(room) || room;
+      const t = loadRoomTables(resolvedRoom);
+      const tab = resolveTable(resolvedRoom, table);
       const arr = t[tab] || [];
-      const fld = resolveField(arr, field);
+      const fld = resolveFieldWithAlias(resolvedRoom, tab, field || resolveField(arr, field));
+      const startNorm = normalizeTsHint(start);
+      const endNorm = normalizeTsHint(end);
       const buckets = new Map();
       for (const r of arr) {
-        if (!withinRange(r.ts, start, end)) continue;
+        if (!withinRange(r.ts, startNorm, endNorm)) continue;
         const v = Number(r[fld]); 
         if (!Number.isFinite(v)) continue;
         const key = floorHour(r.ts);
@@ -8815,7 +9154,8 @@ function parseFieldsFromQuestion(question, availableSets) {
       const t = loadRoomTables(room);
       const tab = resolveTable(room, table);
       const arr = t[tab] || [];
-      const fld = resolveField(arr, field);
+      const fld = resolveFieldWithAlias(room, tab, resolveField(arr, field) || field);
+      if (!fld) return { historical: [], forecast: [], error: 'field missing' };
       
       // Build hour-of-day profile
       const bins = Array.from({ length: 24 }, () => ({ sum: 0, n: 0 }));
@@ -9270,6 +9610,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       scopeDeviceZones,
       scopeLabels
     });
+    const aliasHints = buildAliasHints(selectionRooms, scopeDeviceZones, scopeLabels);
     const ctx = {
       retrieved: head,
       retrievedDocs: structuredHits,
@@ -9282,6 +9623,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       _retrievedDocs: retrieved
     };
     if (scopeSnapshotSummary) ctx.scopeSnapshot = scopeSnapshotSummary;
+    if (aliasHints) ctx.aliases = aliasHints;
     ctx.scopeHeaderLine = formatScopeHeaderLine(scopeLabels, selectionFloors, selectionZones);
     return ctx;
   }

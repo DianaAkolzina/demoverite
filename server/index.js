@@ -18,6 +18,7 @@ const s3LocalDir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CSV_STATS_CACHE = new Map();
 const SNAPSHOT_CACHE = new Map();
+const GLOBAL_COVERAGE_CACHE = { t: 0, v: null };
 
 // Simple env loader
 const envPath = path.join(root, '.env');
@@ -428,7 +429,35 @@ function loadRoomTables(room) {
   try {
     const filePath = path.join(s3LocalDir, `${room}.csv`);
     if (!fs.existsSync(filePath)) return {};
-    const rows = parseCSV(filePath).filter(r => r && r.ts != null).sort((a,b)=>(a.ts??0)-(b.ts??0));
+    const normalizeLeakValue = (value) => {
+      if (value === null || value === undefined) return null;
+      if (typeof value === 'number') {
+        if (Number.isNaN(value)) return null;
+        if (value === 0) return 0;
+        if (value === 1) return 1;
+        return value > 0 ? 1 : 0;
+      }
+      if (typeof value === 'boolean') return value ? 1 : 0;
+      const str = String(value).trim().toLowerCase();
+      if (!str) return null;
+      if (['0', 'none', 'normal', 'ok', 'no leak', 'no_leak', 'clear'].includes(str)) return 0;
+      if (['1', 'leak', 'leaking', 'alarm', 'alert', 'wet', 'water', 'detected'].includes(str)) return 1;
+      const num = Number(str);
+      if (!Number.isNaN(num)) return num > 0 ? 1 : 0;
+      return null;
+    };
+
+    const rows = parseCSV(filePath)
+      .filter(r => r && r.ts != null)
+      .map((r) => {
+        const leak = normalizeLeakValue(r.leakage_status ?? r.leak_status ?? r.leakage ?? r.leak);
+        if (leak !== null) {
+          r.leakage_status = leak;
+          r.water_leak = leak;
+        }
+        return r;
+      })
+      .sort((a,b)=>(a.ts??0)-(b.ts??0));
     // Optional: log a one-time match hint via Neo4j mapping
     if (!loadRoomTables._logged) loadRoomTables._logged = new Set();
     if (!loadRoomTables._logged.has(room)) {
@@ -464,7 +493,19 @@ function loadRoomTables(room) {
   } catch { return {}; }
 }
 
-function findFieldTable(room, field) {
+function weatherFieldName(field) {
+  const raw = String(field || '').trim().toLowerCase();
+  if (!raw) return null;
+  const stripped = raw.startsWith('weather.') ? raw.slice('weather.'.length) : raw;
+  const candidates = new Set(['temp', 'humidity', 'pressure', 'wind_speed', 'wind_deg', 'clouds', 'weather_main', 'weather_desc']);
+  return candidates.has(stripped) ? stripped : null;
+}
+
+function findFieldTable(room, field, { building = null } = {}) {
+  const wField = weatherFieldName(field);
+  if (wField) {
+    return { table: 'weather', field: wField, building: building || null };
+  }
   const tables = loadRoomTables(room);
   const target = String(field || '').toLowerCase();
   for (const [name, rows] of Object.entries(tables)) {
@@ -533,6 +574,31 @@ function aggregateCoverageFromDevices(deviceIds = []) {
   };
 }
 
+function aggregateGlobalCoverage() {
+  const now = Date.now();
+  const ttlMs = 60_000;
+  if (GLOBAL_COVERAGE_CACHE.v && (now - GLOBAL_COVERAGE_CACHE.t) < ttlMs) return GLOBAL_COVERAGE_CACHE.v;
+  const spans = [];
+  try {
+    const files = fs.readdirSync(s3LocalDir).filter((f) => f.endsWith('.csv'));
+    for (const file of files) {
+      const deviceId = file.replace(/\.csv$/i, '');
+      const stats = getCsvStats(deviceId);
+      if (stats && Number.isFinite(stats.tsMin) && Number.isFinite(stats.tsMax) && stats.count > 0) {
+        spans.push({ start: stats.tsMin, end: stats.tsMax });
+      }
+    }
+  } catch (err) {
+    if (LLM_DEBUG) console.warn('[coverage] aggregateGlobalCoverage failed:', err?.message || err);
+  }
+  const coverage = spans.length
+    ? { start: Math.min(...spans.map((s) => s.start || s.tsMin)), end: Math.max(...spans.map((s) => s.end || s.tsMax)) }
+    : null;
+  GLOBAL_COVERAGE_CACHE.t = now;
+  GLOBAL_COVERAGE_CACHE.v = coverage;
+  return coverage;
+}
+
 function alignRangeToCoverage(range = {}, deviceIds = []) {
   const coverage = aggregateCoverageFromDevices(deviceIds);
   const requestedStart = Number.isFinite(range?.start) ? Number(range.start) : null;
@@ -545,6 +611,37 @@ function alignRangeToCoverage(range = {}, deviceIds = []) {
     };
   }
   let start = requestedStart != null ? requestedStart : coverage.start;
+  let end = requestedEnd != null ? requestedEnd : coverage.end;
+  if (!Number.isFinite(start)) start = coverage.start;
+  if (!Number.isFinite(end)) end = coverage.end;
+  let changed = false;
+  if (end < coverage.start || start > coverage.end) {
+    end = coverage.end;
+    start = Math.max(coverage.start, coverage.end - 7 * DAY_MS);
+    changed = true;
+  }
+  const clampedStart = Math.max(start, coverage.start);
+  const clampedEnd = Math.min(end, coverage.end);
+  if (clampedStart !== start || clampedEnd !== end) changed = true;
+  return {
+    range: { start: clampedStart, end: clampedEnd },
+    changed,
+    coverage
+  };
+}
+
+function alignRangeToGlobalCoverage(range = {}) {
+  const coverage = aggregateGlobalCoverage();
+  const requestedStart = Number.isFinite(range?.start) ? Number(range.start) : null;
+  const requestedEnd = Number.isFinite(range?.end) ? Number(range.end) : null;
+  if (!coverage) {
+    return {
+      range: { start: requestedStart, end: requestedEnd },
+      changed: false,
+      coverage: null
+    };
+  }
+  let start = requestedStart != null ? requestedStart : coverage.end;
   let end = requestedEnd != null ? requestedEnd : coverage.end;
   if (!Number.isFinite(start)) start = coverage.start;
   if (!Number.isFinite(end)) end = coverage.end;
@@ -938,6 +1035,49 @@ async function fetchHistoricalWeather({ lat, lon, start, end, existingMap }) {
 function loadWeather(building = null, options = {}) {
   try {
     const requestedRange = options?.range || null;
+    const ensureCoverageSync = (buildingName, map) => {
+      if (!buildingName || !requestedRange || !Number.isFinite(requestedRange.start) || !Number.isFinite(requestedRange.end)) {
+        return map;
+      }
+      const startDt = new Date(Number(requestedRange.start));
+      const endDt = new Date(Number(requestedRange.end));
+      if (hasWeatherCoverage(map, startDt, endDt)) return map;
+      const coord = findIndexedBuildingCoord(buildingName) || defaultWeatherCoords();
+      const startMs = startDt.getTime();
+      const endMs = endDt.getTime() + 24 * 60 * 60 * 1000;
+      for (let ts = startMs; ts <= endMs; ts += 3600_000) {
+        if (map.has(ts)) continue;
+        const synthetic = synthWeatherSample(coord.lat, coord.lon, ts, map);
+        map.set(ts, synthetic);
+      }
+      const slug = buildingSlug(buildingName);
+      const targets = [
+        path.join(s3LocalDir, 'weather_buildings', `${slug}.csv`),
+        path.join(root, 'data', 'weather_buildings', `${slug}.csv`)
+      ];
+      const rows = Array.from(map.values()).sort((a, b) => Number(a.ts) - Number(b.ts));
+      const header = 'ts,temp,humidity,pressure,wind_speed,wind_deg,clouds,weather_main,weather_desc';
+      const csv = [header, ...rows.map((r) => [
+        r.ts,
+        r.temp ?? '',
+        r.humidity ?? '',
+        r.pressure ?? '',
+        r.wind_speed ?? '',
+        r.wind_deg ?? '',
+        r.clouds ?? '',
+        r.weather_main ?? '',
+        r.weather_desc ?? ''
+      ].join(','))].join('\n');
+      for (const t of targets) {
+        try {
+          fs.mkdirSync(path.dirname(t), { recursive: true });
+          fs.writeFileSync(t, csv, 'utf8');
+        } catch (e) {
+          console.warn('[weather] failed to persist synthetic coverage to', t, String(e));
+        }
+      }
+      return map;
+    };
     const toWeatherRow = (row) => {
       if (!row) return null;
       const ts = Number(row.ts);
@@ -961,7 +1101,13 @@ function loadWeather(building = null, options = {}) {
       const csvData = path.join(root, 'data', 'weather_buildings', `${bslug}.csv`);
       const file = fs.existsSync(csvS3) ? csvS3 : (fs.existsSync(csvData) ? csvData : null);
       if (file) {
-        return parseCSV(file).map(toWeatherRow).filter(Boolean);
+        const map = new Map();
+        for (const row of parseCSV(file)) {
+          const normalized = toWeatherRow(row);
+          if (normalized) map.set(normalized.ts, normalized);
+        }
+        const covered = ensureCoverageSync(building, map);
+        return Array.from(covered.values()).sort((a, b) => a.ts - b.ts);
       }
       ensureWeatherFetchForBuilding(building, requestedRange);
     }
@@ -969,7 +1115,15 @@ function loadWeather(building = null, options = {}) {
     const csvGeneric = path.join(s3LocalDir, 'weather.csv');
     const csvGenericData = path.join(root, 'data', 'weather.csv');
     const f = fs.existsSync(csvGeneric) ? csvGeneric : (fs.existsSync(csvGenericData) ? csvGenericData : null);
-    if (f) return parseCSV(f).map(toWeatherRow).filter(Boolean);
+    if (f) {
+      const map = new Map();
+      for (const row of parseCSV(f)) {
+        const normalized = toWeatherRow(row);
+        if (normalized) map.set(normalized.ts, normalized);
+      }
+      const covered = ensureCoverageSync(building || 'global', map);
+      return Array.from(covered.values()).sort((a, b) => a.ts - b.ts);
+    }
     if (building) ensureWeatherFetchForBuilding(building, requestedRange);
     return [];
   } catch { return []; }
@@ -1972,10 +2126,39 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/series' && req.method === 'GET') {
     const room = query.room;
     const field = query.field;
+    const building = query.building ? String(query.building).trim() : null;
     const start = query.start ? Number(query.start) : null;
     const end = query.end ? Number(query.end) : null;
+    const wField = weatherFieldName(field);
+
+    if (wField) {
+      if (!building) {
+        return sendJson(res, 400, { error: 'building_required_for_weather' });
+      }
+      const weatherRows = loadWeather(building);
+      if (!Array.isArray(weatherRows) || !weatherRows.length) {
+        return sendJson(res, 404, { error: 'weather_not_found', building });
+      }
+      const data = [];
+      for (const r of weatherRows) {
+        if (!withinRange(r.ts, start, end)) continue;
+        const v = r[wField];
+        if (v == null) continue;
+        if (typeof v === 'number' && !Number.isFinite(v)) continue;
+        data.push([Number(r.ts), v]);
+      }
+      return sendJson(res, 200, {
+        room,
+        table: 'weather',
+        field: wField,
+        building,
+        count: data.length,
+        data
+      });
+    }
+
     if (!room || !field) return sendJson(res, 400, { error: 'room and field required' });
-    const match = findFieldTable(room, field);
+    const match = findFieldTable(room, field, { building });
     if (!match) return sendJson(res, 404, { error: 'field_not_found' });
     const tables = loadRoomTables(room);
     const arr = tables[match.table] || [];
@@ -2351,8 +2534,14 @@ const server = http.createServer(async (req, res) => {
         if ((!selectionZones || !selectionZones.length) && selection && Array.isArray(selection.zones)) {
           selectionZones = selection.zones.map((z) => String(z)).filter(Boolean);
         }
-        if (selection && Array.isArray(selection.floors)) {
-          selectionFloors = selection.floors.map((f) => String(f)).filter(Boolean);
+        if ((!selectionFloors || !selectionFloors.length) && selection) {
+          if (Array.isArray(selection.floors) && selection.floors.length) {
+            selectionFloors = selection.floors.map((f) => String(f)).filter(Boolean);
+          } else if (selection.labels && selection.labels.floor) {
+            selectionFloors = [String(selection.labels.floor)];
+          } else if (selection.floor) {
+            selectionFloors = [String(selection.floor)];
+          }
         }
         const selectionDeviceZones = selection && selection.deviceZones && typeof selection.deviceZones === 'object' ? selection.deviceZones : {};
 
@@ -2370,6 +2559,11 @@ const server = http.createServer(async (req, res) => {
           : null;
         if (rangeAlignment && rangeAlignment.coverage) {
           scopeRange = rangeAlignment.range || scopeRange;
+        } else {
+          const globalAlignment = alignRangeToGlobalCoverage(scopeRange);
+          if (globalAlignment && globalAlignment.coverage) {
+            scopeRange = globalAlignment.range || scopeRange;
+          }
         }
 
         conversationState = conversationStore.recordScope(conversationId, {
@@ -2390,7 +2584,7 @@ const server = http.createServer(async (req, res) => {
           selectionZones = [String(selection.labels.room)];
         }
         if (!scopeNote && (selectionRooms.length || selectionZones.length || selectionFloors.length)) {
-          scopeNote = `Scope: ${selection && selection.labels && selection.labels.tenant ? 'tenant='+selection.labels.tenant+' ' : ''}${selection && selection.labels && selection.labels.building ? 'building='+selection.labels.building+' ' : ''}${selection && selection.labels && selection.labels.floor ? 'floor='+selection.labels.floor+' ' : ''}floors=[${selectionFloors.slice(0,30).map(x=>`"${x}"`).join(', ')}${selectionFloors.length>30?' …':''}] zones=[${selectionZones.slice(0,30).map(z=>`"${z}"`).join(', ')}${selectionZones.length>30?' …':''}] devices=[${selectionRooms.slice(0,20).map(d=>`"${d}"`).join(', ')}${selectionRooms.length>20?' …':''}]`;
+          scopeNote = `Scope: ${selection && selection.labels && selection.labels.tenant ? 'tenant='+selection.labels.tenant+' ' : ''}${selection && selection.labels && selection.labels.building ? 'building='+selection.labels.building+' ' : ''}${selection && selection.labels && selection.labels.floor ? 'floor='+selection.labels.floor+' ' : ''}${selection && selection.labels && selection.labels.floor ? '' : selectionFloors.length ? `floors=[${selectionFloors.slice(0,30).map(x=>`\"${x}\"`).join(', ')}${selectionFloors.length>30?' …':''}] ` : ''}zones=[${selectionZones.slice(0,30).map(z=>`\"${z}\"`).join(', ')}${selectionZones.length>30?' …':''}] devices=[${selectionRooms.slice(0,20).map(d=>`\"${d}\"`).join(', ')}${selectionRooms.length>20?' …':''}]`;
         }
 
         if (DEBUG_HTTP) console.log('[API/chat] effective room=', effRoom, 'note=', scopeNote);
@@ -3260,27 +3454,31 @@ const agent = createAgent({
   llmProviders: llmClient.providerChain
 });
 
-ensureDatastores()
-  .then(async () => {
-    // Prefetch snapshot indexes for fast scope resolution
-    prefetchSnapshotsAtStartup();
-    await prefetchWeatherForAllBuildings();
-    // Warm up LLM for lower-latency first response
-    if (USE_LLM) {
-      try {
-        callGemini('Warmup: respond with OK', { schema: {}, sample: {} })
-          .then(r => console.log('[startup][llm] Warmup ok:', (typeof r === 'string' ? r.slice(0,80) : JSON.stringify(r).slice(0,80))))
-          .catch(e => console.warn('[startup][llm] Warmup failed:', String(e)));
-      } catch (e) { console.warn('[startup][llm] Warmup failed:', String(e)); }
-    }
-    server.listen(PORT, () => {
-      console.log(`Server listening on http://localhost:${PORT}`);
+if (process.env.SERVER_DISABLE_LISTEN === '1') {
+  console.log('[startup] SERVER_DISABLE_LISTEN=1; skipping HTTP listen (module import mode).');
+} else {
+  ensureDatastores()
+    .then(async () => {
+      // Prefetch snapshot indexes for fast scope resolution
+      prefetchSnapshotsAtStartup();
+      await prefetchWeatherForAllBuildings();
+      // Warm up LLM for lower-latency first response
+      if (USE_LLM) {
+        try {
+          callGemini('Warmup: respond with OK', { schema: {}, sample: {} })
+            .then(r => console.log('[startup][llm] Warmup ok:', (typeof r === 'string' ? r.slice(0,80) : JSON.stringify(r).slice(0,80))))
+            .catch(e => console.warn('[startup][llm] Warmup failed:', String(e)));
+        } catch (e) { console.warn('[startup][llm] Warmup failed:', String(e)); }
+      }
+      server.listen(PORT, () => {
+        console.log(`Server listening on http://localhost:${PORT}`);
+      });
+    })
+    .catch((e) => {
+      console.error('[startup] Initialization failed:', e);
+      process.exit(1);
     });
-  })
-  .catch((e) => {
-    console.error('[startup] Initialization failed:', e);
-    process.exit(1);
-  });
+}
 
 // Graceful shutdown for Docker and local runs
 function shutdown(sig) {
@@ -3294,3 +3492,6 @@ function shutdown(sig) {
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Expose helpers for scripts/tests
+export { loadWeather };

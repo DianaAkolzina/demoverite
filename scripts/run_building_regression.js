@@ -13,6 +13,7 @@ const SNAPSHOT_FILE = path.join(DATA_DIR, 'graph_snapshot.json');
 const CSV_DIR = process.env.TEST_CSV_DIR
   ? path.resolve(process.cwd(), process.env.TEST_CSV_DIR)
   : path.join(ROOT, 'CSVex_s3');
+const TRACES_DIR = path.join(DATA_DIR, 'traces');
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
 const RESULTS_DIR = process.env.TEST_RESULTS_DIR || path.join(DATA_DIR, 'tests');
 
@@ -87,6 +88,37 @@ function buildIndex(snapshot) {
   }
 
   return { buildingZones, deviceZone };
+}
+
+function loadTraceQuestions(spec) {
+  if (!fs.existsSync(TRACES_DIR)) return [];
+  const files = fs.readdirSync(TRACES_DIR).filter((f) => f.toLowerCase().endsWith('.json'));
+  const out = [];
+  for (const file of files) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(path.join(TRACES_DIR, file), 'utf8'));
+      const selection = raw.selection || {};
+      const labels = selection.labels || {};
+      const building = selection.building || labels.building || null;
+      if (building && String(building).trim().toLowerCase() !== String(spec.building).trim().toLowerCase()) {
+        continue;
+      }
+      const effective = raw.effective || {};
+      const range = effective.range || {};
+      const start = Number(range.start);
+      const end = Number(range.end);
+      out.push({
+        label: `trace_${file.replace(/\\.json$/i, '')}`,
+        question: raw.question || '',
+        zones: Array.isArray(selection.zones) ? selection.zones.filter(Boolean) : [],
+        devices: Array.isArray(selection.devices) ? selection.devices.filter(Boolean) : [],
+        range: Number.isFinite(start) && Number.isFinite(end) ? { start, end } : null
+      });
+    } catch (err) {
+      console.warn(`[run_building_regression] Failed to parse trace ${file}:`, err?.message || err);
+    }
+  }
+  return out.filter((q) => q.question && String(q.question).trim().length);
 }
 
 function readCsvMeta(deviceId) {
@@ -227,6 +259,8 @@ function hasAllMetrics(device, groups) {
 }
 
 function buildQuestions(spec, devices) {
+  const traceQuestions = loadTraceQuestions(spec);
+  if (traceQuestions.length) return traceQuestions;
   const questions = [];
   if (!devices.length) return questions;
   const uniqueZones = Array.from(new Set(devices.map((d) => d.zone).filter(Boolean)));

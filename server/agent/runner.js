@@ -74,6 +74,7 @@ export function createAgentRunner(ctx) {
     attempt = 0,
     conversationSummary = ''
   }) {
+    const convMemory = process.env.AGENT_ENABLE_MEMORY === '1' ? (conversationSummary || '') : '';
     const question = messages[messages.length - 1]?.content || '';
     const questionLower = String(question || '').toLowerCase();
     let scopeHeaderLine = '';
@@ -221,8 +222,37 @@ export function createAgentRunner(ctx) {
       })
       .filter(Boolean);
 
+    const hasAnalysisKeywords = /\b(co2|temperature|temp|humidity|occupancy|people|count|trend|compare|chart|plot|graph|forecast|correlat|analy[sz]|kwh|energy)\b/i.test(questionLower);
+    const directScopeAsk = /^\s*(what['’]s|what is|show|describe|tell me)\s+(the\s+)?scope\b/i.test(questionLower) || /current scope\b/i.test(questionLower);
+    const scopeOnlyQuestion =
+      (directScopeAsk || questionIsScopeInquiry(question) || /\bscope\b/.test(questionLower)) &&
+      !hasAnalysisKeywords;
+
     const unavailableMetricResponse = detectUnavailableMetricResponse(question, selectionRooms, room);
     if (unavailableMetricResponse) return unavailableMetricResponse;
+    if (scopeOnlyQuestion) {
+      const trace = [];
+      const steps = [
+        { id: 'S1', index: 1, text: 'Summarize the current selection (devices, metrics, coverage, time window).', tool: 'scope_summary', done: false, note: null }
+      ];
+      trace.push({ tool: 'plan', args: { steps }, result: null });
+      const scopeArgs = {
+        selectionRooms,
+        selectionZones,
+        selectionFloors,
+        selectionLabels: scopeLabels,
+        range: rr
+      };
+      const result = tools.scope_summary(scopeArgs);
+      trace.push({ planStepId: 'S1', tool: 'scope_summary', args: scopeArgs, result });
+      const planStatus = [{ id: 'S1', status: 'done', finding: 'Scope summarized' }];
+      let scopeMessage = result?.summary || 'Scope is not defined for the current selection.';
+      const headerLineFinal = scopeHeaderLine || formatScopeHeaderLine(scopeLabels, selectionFloors, selectionZones);
+      if (headerLineFinal) scopeHeaderLine = headerLineFinal;
+      scopeMessage = applyScopeHeader(scopeMessage);
+      scopeMessage = enforceOverviewDetails(scopeMessage, { range: rr, trace, planStatus });
+      return { message: assistantMessage(scopeMessage, { preserveWhitespace: true }), chart: null, trace };
+    }
 
     const intent = classifyIntent(question);
     const histogramRequested = (routing?.intents?.histogram === true)
@@ -252,7 +282,7 @@ export function createAgentRunner(ctx) {
     const scopeSnapshotNote = ctx.scopeSnapshot ? `Scope snapshot notes:\n${ctx.scopeSnapshot}\n` : '';
     const connectorNote = summarizeConnectorStatus(ctx.connectors);
     const sys = `You are a senior data analyst agent for building operations.
-${conversationSummary ? `=== CONVERSATION MEMORY ===\n${conversationSummary}\n` : ''}
+${convMemory ? `=== CONVERSATION MEMORY ===\n${convMemory}\n` : ''}
 ${connectorNote ? `${connectorNote}\n` : ''}
 Selected room: ${room || '(none)'}.
 Zones in scope: ${zonesLine}
@@ -432,42 +462,6 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
     ];
 
     const qlLower = (question || '').toLowerCase();
-    const mentionsScopeSummary =
-      /\bscope\b/.test(qlLower) &&
-      (qlLower.includes('visible') ||
-        qlLower.includes('highlight') ||
-        qlLower.includes('devices') ||
-        qlLower.includes('zones') ||
-        qlLower.includes('floors') ||
-        qlLower.includes('sensors') ||
-        qlLower.includes('selected') ||
-        qlLower.includes('gaps') ||
-        qlLower.includes('current scope') ||
-        /\bcurrent(ly)?\b/.test(qlLower));
-    const scopeOnlyQuestion =
-      (mentionsScopeSummary || /\bwhat\s+scope\b/.test(qlLower)) &&
-      !/\b(sensor|sensors|metric|metrics|telemetry|gap|gaps|chart|trend|compare|list|plot|graph)\b/.test(qlLower);
-    const wantsScopeSummary =
-      intent.selectionTime ||
-      /what\s+scope\s+do\s+you\s+see/.test(qlLower) ||
-      /what\s+selection\s+do\s+you\s+see/.test(qlLower) ||
-      /selection\s+and\s+time/.test(qlLower) ||
-      /current\s+(range|window)\??/.test(qlLower) ||
-      /what\s+(time|period|window)\s+are\s+you\s+analys/.test(qlLower) ||
-      /what\s+time\s+period/.test(qlLower) ||
-      scopeOnlyQuestion;
-    if (wantsScopeSummary) {
-      const summary = buildScopeSummary({
-        selectionRooms,
-        selectionZones,
-        selectionFloors: scopeFloors || [],
-        scopeDeviceZones: scopeDeviceZones || {},
-        selectionLabels: scopeLabels || { tenant, building, floor, room: zone },
-        range: rr
-      });
-      return { message: assistantMessage(summary), chart: null, trace: [] };
-    }
-
     const explicitTimestamp = extractTimestampFromQuestion(question);
     const looksLikeRangeQuery = (() => {
       const q = String(question || '').toLowerCase();
@@ -2097,6 +2091,19 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             finalAnswer += ' ' + adaptationNotes.join(' ');
           }
         }
+        // Reject recycled/placeholder replies and rebuild from current tool outputs
+        if (/^i have already provided/i.test(finalAnswer) || /previous response/i.test(finalAnswer)) {
+          const fallbackChartSummary = summarizeChart(validChart);
+          const insight = traceInsight(trace);
+          finalAnswer = fallbackChartSummary || insight || buildDefaultAnswer({
+            question,
+            chart: validChart,
+            trace,
+            fallbackText: '',
+            notes: adaptationNotes,
+            range: rr
+          });
+        }
         if (!dataPresent) {
           finalAnswer = 'No telemetry data was available for the selected scope and time window; adjust the range or choose a different scope.';
           chartForResponse = null;
@@ -2114,6 +2121,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           }
         }
         if (chartForResponse) {
+          // Force dataRef resolution just before sending to the UI to avoid empty series.
+          const resolvedChart = validateChart(cloneChart(chartForResponse), trace);
+          if (resolvedChart && chartHasRenderableSeries(resolvedChart)) {
+            chartForResponse = resolvedChart;
+          }
           const chartSummary = summarizeChart(chartForResponse);
           if (chartSummary && !normalizeText(finalAnswer).includes(normalizeText(chartSummary))) {
             finalAnswer += finalAnswer.endsWith('.') ? ' ' : '\n';

@@ -1,14 +1,3148 @@
 {
-  "Social Hub (First Floor, Bolton)": [
-    "c27807e0-4799-11f0-bf13-bf19a72566f6",
-    "FCBFWLgFwj7k",
-    "Social Hub",
-    "Social Hub IAQ"
-  ],
-  "DJ (First Floor, Bolton)": [
-    "abc73b80-4797-11f0-bf13-bf19a72566f6",
-    "P9Zf6DwmbcVQ",
-    "DJ",
-    "DJ IAQ"
-  ]
+  "Air Quality Sensor_9nSx5N2jVJHw": {
+    "id": "cc2bfec0-510f-11f0-a19e-8f874a1c01d3",
+    "name": "Air Quality Sensor_9nSx5N2jVJHw",
+    "zone": "Nest Room 3",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 3",
+      "Nest Room 3 (Lower Ground Floor )",
+      "Nest Room 3 (Alderly Park - Glasshouse)",
+      "Nest Room 3 (Lower Ground Floor , Alderly Park - Glasshouse)"
+    ]
+  },
+  "Air Quality_q9SEzQ03vuNT": {
+    "id": "a0c62560-5e45-11f0-a19e-8f874a1c01d3",
+    "name": "Air Quality_q9SEzQ03vuNT",
+    "zone": "Atrium",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Atrium",
+      "Atrium (Lower Ground Floor )",
+      "Atrium (Alderly Park - Glasshouse)",
+      "Atrium (Lower Ground Floor , Alderly Park - Glasshouse)"
+    ]
+  },
+  "AirQuality_CzdYrSlKckxh": {
+    "id": "f9b436a0-609b-11f0-a19e-8f874a1c01d3",
+    "name": "AirQuality_CzdYrSlKckxh",
+    "zone": "Nest Communal Area ",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Communal Area ",
+      "Nest Communal Area  (Lower Ground Floor )",
+      "Nest Communal Area  (Alderly Park - Glasshouse)",
+      "Nest Communal Area  (Lower Ground Floor , Alderly Park - Glasshouse)"
+    ]
+  },
+  "AirQuality_G9i2CHgM8TzP": {
+    "id": "89b46fd0-5107-11f0-a19e-8f874a1c01d3",
+    "name": "AirQuality_G9i2CHgM8TzP",
+    "zone": "Nest Room 4",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 4",
+      "Nest Room 4 (Lower Ground Floor )",
+      "Nest Room 4 (Alderly Park - Glasshouse)",
+      "Nest Room 4 (Lower Ground Floor , Alderly Park - Glasshouse)"
+    ]
+  },
+  "AirQuality_HfliLr0LatGk": {
+    "id": "57e509c0-5110-11f0-a19e-8f874a1c01d3",
+    "name": "AirQuality_HfliLr0LatGk",
+    "zone": "Nest Room 2",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 2",
+      "Nest Room 2 (Lower Ground Floor )",
+      "Nest Room 2 (Alderly Park - Glasshouse)",
+      "Nest Room 2 (Lower Ground Floor , Alderly Park - Glasshouse)"
+    ]
+  },
+  "Atrium": {
+    "id": "a0c62560-5e45-11f0-a19e-8f874a1c01d3",
+    "name": "Air Quality_q9SEzQ03vuNT",
+    "zone": "Atrium",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Atrium (Lower Ground Floor )",
+      "Atrium (Alderly Park - Glasshouse)",
+      "Atrium (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Air Quality_q9SEzQ03vuNT"
+    ]
+  },
+  "Atrium (Alderly Park - Glasshouse)": {
+    "id": "a0c62560-5e45-11f0-a19e-8f874a1c01d3",
+    "name": "Air Quality_q9SEzQ03vuNT",
+    "zone": "Atrium",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Atrium",
+      "Atrium (Lower Ground Floor )",
+      "Atrium (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Air Quality_q9SEzQ03vuNT"
+    ]
+  },
+  "Atrium (Lower Ground Floor , Alderly Park - Glasshouse)": {
+    "id": "a0c62560-5e45-11f0-a19e-8f874a1c01d3",
+    "name": "Air Quality_q9SEzQ03vuNT",
+    "zone": "Atrium",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Atrium",
+      "Atrium (Lower Ground Floor )",
+      "Atrium (Alderly Park - Glasshouse)",
+      "Air Quality_q9SEzQ03vuNT"
+    ]
+  },
+  "Atrium (Lower Ground Floor )": {
+    "id": "a0c62560-5e45-11f0-a19e-8f874a1c01d3",
+    "name": "Air Quality_q9SEzQ03vuNT",
+    "zone": "Atrium",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Atrium",
+      "Atrium (Alderly Park - Glasshouse)",
+      "Atrium (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Air Quality_q9SEzQ03vuNT"
+    ]
+  },
+  "Basement Mechanical_MRty02BgMoo3": {
+    "id": "0c863990-662d-11f0-a19e-8f874a1c01d3",
+    "name": "Basement Mechanical_MRty02BgMoo3",
+    "zone": "Comms",
+    "floor": "Ground Floor",
+    "building": "SoapWorks",
+    "synonyms": [
+      "Comms",
+      "Comms (Ground Floor)",
+      "Comms (SoapWorks)",
+      "Comms (Ground Floor, SoapWorks)"
+    ]
+  },
+  "Booths": {
+    "id": "c27807e0-4799-11f0-bf13-bf19a72566f6",
+    "name": "IAQ Sensor_FCBFWLgFwj7k",
+    "zone": "Booths",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Booths (First Floor)",
+      "Booths (Bolton)",
+      "Booths (First Floor, Bolton)",
+      "IAQ Sensor_FCBFWLgFwj7k"
+    ]
+  },
+  "Booths (Bolton)": {
+    "id": "c27807e0-4799-11f0-bf13-bf19a72566f6",
+    "name": "IAQ Sensor_FCBFWLgFwj7k",
+    "zone": "Booths",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Booths",
+      "Booths (First Floor)",
+      "Booths (First Floor, Bolton)",
+      "IAQ Sensor_FCBFWLgFwj7k"
+    ]
+  },
+  "Booths (First Floor, Bolton)": {
+    "id": "c27807e0-4799-11f0-bf13-bf19a72566f6",
+    "name": "IAQ Sensor_FCBFWLgFwj7k",
+    "zone": "Booths",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Booths",
+      "Booths (First Floor)",
+      "Booths (Bolton)",
+      "IAQ Sensor_FCBFWLgFwj7k"
+    ]
+  },
+  "Booths (First Floor)": {
+    "id": "c27807e0-4799-11f0-bf13-bf19a72566f6",
+    "name": "IAQ Sensor_FCBFWLgFwj7k",
+    "zone": "Booths",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Booths",
+      "Booths (Bolton)",
+      "Booths (First Floor, Bolton)",
+      "IAQ Sensor_FCBFWLgFwj7k"
+    ]
+  },
+  "Brainstorm": {
+    "id": "6ef94be0-479b-11f0-bf13-bf19a72566f6",
+    "name": "Occupancy_MLcfNY8PE5WL",
+    "zone": "Brainstorm",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Brainstorm (First Floor)",
+      "Brainstorm (Bolton)",
+      "Brainstorm (First Floor, Bolton)",
+      "Occupancy_MLcfNY8PE5WL"
+    ]
+  },
+  "Brainstorm (Bolton)": {
+    "id": "6ef94be0-479b-11f0-bf13-bf19a72566f6",
+    "name": "Occupancy_MLcfNY8PE5WL",
+    "zone": "Brainstorm",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Brainstorm",
+      "Brainstorm (First Floor)",
+      "Brainstorm (First Floor, Bolton)",
+      "Occupancy_MLcfNY8PE5WL"
+    ]
+  },
+  "Brainstorm (First Floor, Bolton)": {
+    "id": "6ef94be0-479b-11f0-bf13-bf19a72566f6",
+    "name": "Occupancy_MLcfNY8PE5WL",
+    "zone": "Brainstorm",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Brainstorm",
+      "Brainstorm (First Floor)",
+      "Brainstorm (Bolton)",
+      "Occupancy_MLcfNY8PE5WL"
+    ]
+  },
+  "Brainstorm (First Floor)": {
+    "id": "6ef94be0-479b-11f0-bf13-bf19a72566f6",
+    "name": "Occupancy_MLcfNY8PE5WL",
+    "zone": "Brainstorm",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Brainstorm",
+      "Brainstorm (Bolton)",
+      "Brainstorm (First Floor, Bolton)",
+      "Occupancy_MLcfNY8PE5WL"
+    ]
+  },
+  "Cafe": {
+    "id": "abc73b80-4797-11f0-bf13-bf19a72566f6",
+    "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+    "zone": "Cafe",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Cafe (First Floor)",
+      "Cafe (Bolton)",
+      "Cafe (First Floor, Bolton)",
+      "IAQ Sensor_P9Zf6DwmbcVQ"
+    ]
+  },
+  "Cafe (Bolton)": {
+    "id": "abc73b80-4797-11f0-bf13-bf19a72566f6",
+    "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+    "zone": "Cafe",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Cafe",
+      "Cafe (First Floor)",
+      "Cafe (First Floor, Bolton)",
+      "IAQ Sensor_P9Zf6DwmbcVQ"
+    ]
+  },
+  "Cafe (First Floor, Bolton)": {
+    "id": "abc73b80-4797-11f0-bf13-bf19a72566f6",
+    "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+    "zone": "Cafe",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Cafe",
+      "Cafe (First Floor)",
+      "Cafe (Bolton)",
+      "IAQ Sensor_P9Zf6DwmbcVQ"
+    ]
+  },
+  "Cafe (First Floor)": {
+    "id": "abc73b80-4797-11f0-bf13-bf19a72566f6",
+    "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+    "zone": "Cafe",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Cafe",
+      "Cafe (Bolton)",
+      "Cafe (First Floor, Bolton)",
+      "IAQ Sensor_P9Zf6DwmbcVQ"
+    ]
+  },
+  "CO2_ErFIKXsDjzLn": {
+    "id": "44e34970-6648-11f0-a19e-8f874a1c01d3",
+    "name": "CO2_ErFIKXsDjzLn",
+    "zone": "Suite 6.1",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.1",
+      "Suite 6.1 (6th Floor)",
+      "Suite 6.1 (55 King Street)",
+      "Suite 6.1 (6th Floor, 55 King Street)"
+    ]
+  },
+  "CO2_qafxEt2K6qLZ": {
+    "id": "072b8b80-664b-11f0-a19e-8f874a1c01d3",
+    "name": "CO2_qafxEt2K6qLZ",
+    "zone": "Suite 6.5",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.5",
+      "Suite 6.5 (6th Floor)",
+      "Suite 6.5 (55 King Street)",
+      "Suite 6.5 (6th Floor, 55 King Street)"
+    ]
+  },
+  "Comms": {
+    "id": "8e00d400-479a-11f0-bf13-bf19a72566f6",
+    "name": "Energy_BGi4Bzh1KWkJ",
+    "zone": "Comms",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Comms (First Floor)",
+      "Comms (Bolton)",
+      "Comms (First Floor, Bolton)",
+      "Energy_BGi4Bzh1KWkJ"
+    ]
+  },
+  "Comms (111 Piccadilly)": {
+    "id": "7ae1dc20-6c93-11f0-a19e-8f874a1c01d3",
+    "name": "Mechanical_6GLhDh3LhfoA",
+    "zone": "Comms",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Comms",
+      "Comms (Ground Floor)",
+      "Comms (Ground Floor, 111 Piccadilly)",
+      "Mechanical_6GLhDh3LhfoA"
+    ]
+  },
+  "Comms (Bolton)": {
+    "id": "8e00d400-479a-11f0-bf13-bf19a72566f6",
+    "name": "Energy_BGi4Bzh1KWkJ",
+    "zone": "Comms",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Comms",
+      "Comms (First Floor)",
+      "Comms (First Floor, Bolton)",
+      "Energy_BGi4Bzh1KWkJ"
+    ]
+  },
+  "Comms (First Floor, Bolton)": {
+    "id": "8e00d400-479a-11f0-bf13-bf19a72566f6",
+    "name": "Energy_BGi4Bzh1KWkJ",
+    "zone": "Comms",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Comms",
+      "Comms (First Floor)",
+      "Comms (Bolton)",
+      "Energy_BGi4Bzh1KWkJ"
+    ]
+  },
+  "Comms (First Floor)": {
+    "id": "8e00d400-479a-11f0-bf13-bf19a72566f6",
+    "name": "Energy_BGi4Bzh1KWkJ",
+    "zone": "Comms",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Comms",
+      "Comms (Bolton)",
+      "Comms (First Floor, Bolton)",
+      "Energy_BGi4Bzh1KWkJ"
+    ]
+  },
+  "Comms (Ground Floor, 111 Piccadilly)": {
+    "id": "7ae1dc20-6c93-11f0-a19e-8f874a1c01d3",
+    "name": "Mechanical_6GLhDh3LhfoA",
+    "zone": "Comms",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Comms",
+      "Comms (Ground Floor)",
+      "Comms (111 Piccadilly)",
+      "Mechanical_6GLhDh3LhfoA"
+    ]
+  },
+  "Comms (Ground Floor, SoapWorks)": {
+    "id": "0c863990-662d-11f0-a19e-8f874a1c01d3",
+    "name": "Basement Mechanical_MRty02BgMoo3",
+    "zone": "Comms",
+    "floor": "Ground Floor",
+    "building": "SoapWorks",
+    "synonyms": [
+      "Comms",
+      "Comms (Ground Floor)",
+      "Comms (SoapWorks)",
+      "Basement Mechanical_MRty02BgMoo3"
+    ]
+  },
+  "Comms (Ground Floor)": {
+    "id": "7ae1dc20-6c93-11f0-a19e-8f874a1c01d3",
+    "name": "Mechanical_6GLhDh3LhfoA",
+    "zone": "Comms",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Comms",
+      "Comms (111 Piccadilly)",
+      "Comms (Ground Floor, 111 Piccadilly)",
+      "Mechanical_6GLhDh3LhfoA"
+    ]
+  },
+  "Comms (SoapWorks)": {
+    "id": "0c863990-662d-11f0-a19e-8f874a1c01d3",
+    "name": "Basement Mechanical_MRty02BgMoo3",
+    "zone": "Comms",
+    "floor": "Ground Floor",
+    "building": "SoapWorks",
+    "synonyms": [
+      "Comms",
+      "Comms (Ground Floor)",
+      "Comms (Ground Floor, SoapWorks)",
+      "Basement Mechanical_MRty02BgMoo3"
+    ]
+  },
+  "Coworking": {
+    "id": "45c9aa20-6c90-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_snIQf0ZRGHAv",
+    "zone": "Coworking",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Coworking (Ground Floor)",
+      "Coworking (111 Piccadilly)",
+      "Coworking (Ground Floor, 111 Piccadilly)",
+      "IAQ_snIQf0ZRGHAv"
+    ]
+  },
+  "Coworking (111 Piccadilly)": {
+    "id": "45c9aa20-6c90-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_snIQf0ZRGHAv",
+    "zone": "Coworking",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Coworking",
+      "Coworking (Ground Floor)",
+      "Coworking (Ground Floor, 111 Piccadilly)",
+      "IAQ_snIQf0ZRGHAv"
+    ]
+  },
+  "Coworking (Ground Floor, 111 Piccadilly)": {
+    "id": "45c9aa20-6c90-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_snIQf0ZRGHAv",
+    "zone": "Coworking",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Coworking",
+      "Coworking (Ground Floor)",
+      "Coworking (111 Piccadilly)",
+      "IAQ_snIQf0ZRGHAv"
+    ]
+  },
+  "Coworking (Ground Floor)": {
+    "id": "45c9aa20-6c90-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_snIQf0ZRGHAv",
+    "zone": "Coworking",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Coworking",
+      "Coworking (111 Piccadilly)",
+      "Coworking (Ground Floor, 111 Piccadilly)",
+      "IAQ_snIQf0ZRGHAv"
+    ]
+  },
+  "Energy 1_AhSbBfdzW11o": {
+    "id": "21072930-66d5-11f0-a19e-8f874a1c01d3",
+    "name": "Energy 1_AhSbBfdzW11o",
+    "zone": "Suite 6.5",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.5",
+      "Suite 6.5 (6th Floor)",
+      "Suite 6.5 (55 King Street)",
+      "Suite 6.5 (6th Floor, 55 King Street)"
+    ]
+  },
+  "Energy 2_lyx4NPLa9vaH": {
+    "id": "548e6250-66d5-11f0-a19e-8f874a1c01d3",
+    "name": "Energy 2_lyx4NPLa9vaH",
+    "zone": "Suite 6.5",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.5",
+      "Suite 6.5 (6th Floor)",
+      "Suite 6.5 (55 King Street)",
+      "Suite 6.5 (6th Floor, 55 King Street)"
+    ]
+  },
+  "Energy_1_bU9Kpvhdb1ha": {
+    "id": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_1_bU9Kpvhdb1ha",
+    "zone": "Utility Room",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Utility Room",
+      "Utility Room (Ground Floor)",
+      "Utility Room (Salford Office)",
+      "Utility Room (Ground Floor, Salford Office)"
+    ]
+  },
+  "Energy_2_APK6EFUywGsZ": {
+    "id": "24085c00-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_2_APK6EFUywGsZ",
+    "zone": "Utility Room",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Utility Room",
+      "Utility Room (Ground Floor)",
+      "Utility Room (Salford Office)",
+      "Utility Room (Ground Floor, Salford Office)"
+    ]
+  },
+  "Energy_3_chWgZ8ejd6wv": {
+    "id": "3dec03b0-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_3_chWgZ8ejd6wv",
+    "zone": "Utility Room",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Utility Room",
+      "Utility Room (Ground Floor)",
+      "Utility Room (Salford Office)",
+      "Utility Room (Ground Floor, Salford Office)"
+    ]
+  },
+  "Energy_3Z99vDWK76va": {
+    "id": "600552a0-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_3Z99vDWK76va",
+    "zone": "Suite 6.2",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.2",
+      "Suite 6.2 (6th Floor)",
+      "Suite 6.2 (55 King Street)",
+      "Suite 6.2 (6th Floor, 55 King Street)"
+    ]
+  },
+  "Energy_6Dg3CB7CR8iy": {
+    "id": "fa5d8730-6647-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_6Dg3CB7CR8iy",
+    "zone": "Orbit Suit",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Orbit Suit",
+      "Orbit Suit (6th Floor)",
+      "Orbit Suit (55 King Street)",
+      "Orbit Suit (6th Floor, 55 King Street)"
+    ]
+  },
+  "Energy_BGi4Bzh1KWkJ": {
+    "id": "8e00d400-479a-11f0-bf13-bf19a72566f6",
+    "name": "Energy_BGi4Bzh1KWkJ",
+    "zone": "Comms",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Comms",
+      "Comms (First Floor)",
+      "Comms (Bolton)",
+      "Comms (First Floor, Bolton)"
+    ]
+  },
+  "Energy_CjZE7eOwq4wa": {
+    "id": "8e12c790-5e52-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_CjZE7eOwq4wa",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 2",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Site Monitoring Kit 2)",
+      "Portable (Default, Site Monitoring Kit 2)"
+    ]
+  },
+  "Energy_JIYQV161Yotw": {
+    "id": "cf271990-6648-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_JIYQV161Yotw",
+    "zone": "Suite 6.1",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.1",
+      "Suite 6.1 (6th Floor)",
+      "Suite 6.1 (55 King Street)",
+      "Suite 6.1 (6th Floor, 55 King Street)"
+    ]
+  },
+  "Energy_kN0RKEsJ3Ovx": {
+    "id": "382a8d00-5e51-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_kN0RKEsJ3Ovx",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 1",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Site Monitoring Kit 1)",
+      "Portable (Default, Site Monitoring Kit 1)"
+    ]
+  },
+  "Energy_vACnx5Y8XoGG": {
+    "id": "ae728840-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_vACnx5Y8XoGG",
+    "zone": "Suite 6.4",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.4",
+      "Suite 6.4 (6th Floor)",
+      "Suite 6.4 (55 King Street)",
+      "Suite 6.4 (6th Floor, 55 King Street)"
+    ]
+  },
+  "Energy_vDBYNqYhdDm5": {
+    "id": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_vDBYNqYhdDm5",
+    "zone": "Suite 6.3",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.3",
+      "Suite 6.3 (6th Floor)",
+      "Suite 6.3 (55 King Street)",
+      "Suite 6.3 (6th Floor, 55 King Street)"
+    ]
+  },
+  "Entrance": {
+    "id": "d9b00270-4797-11f0-bf13-bf19a72566f6",
+    "name": "People Flow_waTDvSKxFbK4",
+    "zone": "Entrance",
+    "floor": "Ground Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Entrance (Ground Floor)",
+      "Entrance (Bolton)",
+      "Entrance (Ground Floor, Bolton)",
+      "People Flow_waTDvSKxFbK4"
+    ]
+  },
+  "Entrance (Bolton)": {
+    "id": "d9b00270-4797-11f0-bf13-bf19a72566f6",
+    "name": "People Flow_waTDvSKxFbK4",
+    "zone": "Entrance",
+    "floor": "Ground Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Entrance",
+      "Entrance (Ground Floor)",
+      "Entrance (Ground Floor, Bolton)",
+      "People Flow_waTDvSKxFbK4"
+    ]
+  },
+  "Entrance (Ground Floor, Bolton)": {
+    "id": "d9b00270-4797-11f0-bf13-bf19a72566f6",
+    "name": "People Flow_waTDvSKxFbK4",
+    "zone": "Entrance",
+    "floor": "Ground Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Entrance",
+      "Entrance (Ground Floor)",
+      "Entrance (Bolton)",
+      "People Flow_waTDvSKxFbK4"
+    ]
+  },
+  "Entrance (Ground Floor, Salford Office)": {
+    "id": "940c81c0-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_aUjiPbTe0N41",
+    "zone": "Entrance",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Entrance",
+      "Entrance (Ground Floor)",
+      "Entrance (Salford Office)",
+      "People Counter_aUjiPbTe0N41"
+    ]
+  },
+  "Entrance (Ground Floor)": {
+    "id": "d9b00270-4797-11f0-bf13-bf19a72566f6",
+    "name": "People Flow_waTDvSKxFbK4",
+    "zone": "Entrance",
+    "floor": "Ground Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Entrance",
+      "Entrance (Bolton)",
+      "Entrance (Ground Floor, Bolton)",
+      "People Flow_waTDvSKxFbK4"
+    ]
+  },
+  "Entrance (Salford Office)": {
+    "id": "940c81c0-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_aUjiPbTe0N41",
+    "zone": "Entrance",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Entrance",
+      "Entrance (Ground Floor)",
+      "Entrance (Ground Floor, Salford Office)",
+      "People Counter_aUjiPbTe0N41"
+    ]
+  },
+  "Gem": {
+    "id": "91399360-6c92-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_h9zKxsIn3YYV",
+    "zone": "Gem",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Gem (Ground Floor)",
+      "Gem (111 Piccadilly)",
+      "Gem (Ground Floor, 111 Piccadilly)",
+      "IAQ_h9zKxsIn3YYV"
+    ]
+  },
+  "Gem (111 Piccadilly)": {
+    "id": "91399360-6c92-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_h9zKxsIn3YYV",
+    "zone": "Gem",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Gem",
+      "Gem (Ground Floor)",
+      "Gem (Ground Floor, 111 Piccadilly)",
+      "IAQ_h9zKxsIn3YYV"
+    ]
+  },
+  "Gem (Ground Floor, 111 Piccadilly)": {
+    "id": "91399360-6c92-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_h9zKxsIn3YYV",
+    "zone": "Gem",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Gem",
+      "Gem (Ground Floor)",
+      "Gem (111 Piccadilly)",
+      "IAQ_h9zKxsIn3YYV"
+    ]
+  },
+  "Gem (Ground Floor)": {
+    "id": "91399360-6c92-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_h9zKxsIn3YYV",
+    "zone": "Gem",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Gem",
+      "Gem (111 Piccadilly)",
+      "Gem (Ground Floor, 111 Piccadilly)",
+      "IAQ_h9zKxsIn3YYV"
+    ]
+  },
+  "Gym Entrance": {
+    "id": "77fc2b70-5e68-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_uoOiB9182DzV",
+    "zone": "Gym Entrance",
+    "floor": "Basement",
+    "building": "Union",
+    "synonyms": [
+      "Gym Entrance (Basement)",
+      "Gym Entrance (Union)",
+      "Gym Entrance (Basement, Union)",
+      "People Counter_uoOiB9182DzV"
+    ]
+  },
+  "Gym Entrance (Basement, Union)": {
+    "id": "77fc2b70-5e68-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_uoOiB9182DzV",
+    "zone": "Gym Entrance",
+    "floor": "Basement",
+    "building": "Union",
+    "synonyms": [
+      "Gym Entrance",
+      "Gym Entrance (Basement)",
+      "Gym Entrance (Union)",
+      "People Counter_uoOiB9182DzV"
+    ]
+  },
+  "Gym Entrance (Basement)": {
+    "id": "77fc2b70-5e68-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_uoOiB9182DzV",
+    "zone": "Gym Entrance",
+    "floor": "Basement",
+    "building": "Union",
+    "synonyms": [
+      "Gym Entrance",
+      "Gym Entrance (Union)",
+      "Gym Entrance (Basement, Union)",
+      "People Counter_uoOiB9182DzV"
+    ]
+  },
+  "Gym Entrance (Union)": {
+    "id": "77fc2b70-5e68-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_uoOiB9182DzV",
+    "zone": "Gym Entrance",
+    "floor": "Basement",
+    "building": "Union",
+    "synonyms": [
+      "Gym Entrance",
+      "Gym Entrance (Basement)",
+      "Gym Entrance (Basement, Union)",
+      "People Counter_uoOiB9182DzV"
+    ]
+  },
+  "Huddle": {
+    "id": "29436890-4798-11f0-bf13-bf19a72566f6",
+    "name": "People Counter_eTcrozehAwoZ",
+    "zone": "Huddle",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Huddle (First Floor)",
+      "Huddle (Bolton)",
+      "Huddle (First Floor, Bolton)",
+      "People Counter_eTcrozehAwoZ"
+    ]
+  },
+  "Huddle (Bolton)": {
+    "id": "29436890-4798-11f0-bf13-bf19a72566f6",
+    "name": "People Counter_eTcrozehAwoZ",
+    "zone": "Huddle",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Huddle",
+      "Huddle (First Floor)",
+      "Huddle (First Floor, Bolton)",
+      "People Counter_eTcrozehAwoZ"
+    ]
+  },
+  "Huddle (First Floor, Bolton)": {
+    "id": "29436890-4798-11f0-bf13-bf19a72566f6",
+    "name": "People Counter_eTcrozehAwoZ",
+    "zone": "Huddle",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Huddle",
+      "Huddle (First Floor)",
+      "Huddle (Bolton)",
+      "People Counter_eTcrozehAwoZ"
+    ]
+  },
+  "Huddle (First Floor)": {
+    "id": "29436890-4798-11f0-bf13-bf19a72566f6",
+    "name": "People Counter_eTcrozehAwoZ",
+    "zone": "Huddle",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Huddle",
+      "Huddle (Bolton)",
+      "Huddle (First Floor, Bolton)",
+      "People Counter_eTcrozehAwoZ"
+    ]
+  },
+  "Humidity_0CCXiSsa35UF": {
+    "id": "60470170-6648-11f0-a19e-8f874a1c01d3",
+    "name": "Humidity_0CCXiSsa35UF",
+    "zone": "Suite 6.1",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.1",
+      "Suite 6.1 (6th Floor)",
+      "Suite 6.1 (55 King Street)",
+      "Suite 6.1 (6th Floor, 55 King Street)"
+    ]
+  },
+  "Humidity_GmHKeXkhhER5": {
+    "id": "183915a0-664b-11f0-a19e-8f874a1c01d3",
+    "name": "Humidity_GmHKeXkhhER5",
+    "zone": "Suite 6.5",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.5",
+      "Suite 6.5 (6th Floor)",
+      "Suite 6.5 (55 King Street)",
+      "Suite 6.5 (6th Floor, 55 King Street)"
+    ]
+  },
+  "IAQ Sensor_FCBFWLgFwj7k": {
+    "id": "c27807e0-4799-11f0-bf13-bf19a72566f6",
+    "name": "IAQ Sensor_FCBFWLgFwj7k",
+    "zone": "Booths",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Booths",
+      "Booths (First Floor)",
+      "Booths (Bolton)",
+      "Booths (First Floor, Bolton)"
+    ]
+  },
+  "IAQ Sensor_P9Zf6DwmbcVQ": {
+    "id": "abc73b80-4797-11f0-bf13-bf19a72566f6",
+    "name": "IAQ Sensor_P9Zf6DwmbcVQ",
+    "zone": "Cafe",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Cafe",
+      "Cafe (First Floor)",
+      "Cafe (Bolton)",
+      "Cafe (First Floor, Bolton)"
+    ]
+  },
+  "IAQ_2Mx02nIKVGL4": {
+    "id": "45140b30-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_2Mx02nIKVGL4",
+    "zone": "Room 6",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 6",
+      "Room 6 (Ground Floor)",
+      "Room 6 (111 Piccadilly)",
+      "Room 6 (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "IAQ_BbanNjLRjJEK": {
+    "id": "f8816c80-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_BbanNjLRjJEK",
+    "zone": "Room 8",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 8",
+      "Room 8 (Ground Floor)",
+      "Room 8 (111 Piccadilly)",
+      "Room 8 (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "IAQ_d2UHqNNnIEif": {
+    "id": "4edb6b50-5e51-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_d2UHqNNnIEif",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 1",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Site Monitoring Kit 1)",
+      "Portable (Default, Site Monitoring Kit 1)"
+    ]
+  },
+  "IAQ_h9zKxsIn3YYV": {
+    "id": "91399360-6c92-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_h9zKxsIn3YYV",
+    "zone": "Gem",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Gem",
+      "Gem (Ground Floor)",
+      "Gem (111 Piccadilly)",
+      "Gem (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "IAQ_jb6WMm7pPFHV": {
+    "id": "7ce20b30-6c8e-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_jb6WMm7pPFHV",
+    "zone": "Room 5",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 5",
+      "Room 5 (Ground Floor)",
+      "Room 5 (111 Piccadilly)",
+      "Room 5 (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "IAQ_KcWGBiSXBgiH": {
+    "id": "6a401050-6c8c-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_KcWGBiSXBgiH",
+    "zone": "Room 3",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 3",
+      "Room 3 (Ground Floor)",
+      "Room 3 (111 Piccadilly)",
+      "Room 3 (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "IAQ_LANa7c0nlzIi": {
+    "id": "3966b5f0-6c88-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_LANa7c0nlzIi",
+    "zone": "Room 1",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 1",
+      "Room 1 (Ground Floor)",
+      "Room 1 (111 Piccadilly)",
+      "Room 1 (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "IAQ_QhyE1TAlqL4E": {
+    "id": "59a22a30-6c87-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_QhyE1TAlqL4E",
+    "zone": "Lounge",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Lounge",
+      "Lounge (Ground Floor)",
+      "Lounge (111 Piccadilly)",
+      "Lounge (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "IAQ_QTnlLHfN4fdi": {
+    "id": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_QTnlLHfN4fdi",
+    "zone": "Reception",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Reception",
+      "Reception (Ground Floor)",
+      "Reception (Salford Office)",
+      "Reception (Ground Floor, Salford Office)"
+    ]
+  },
+  "IAQ_snIQf0ZRGHAv": {
+    "id": "45c9aa20-6c90-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_snIQf0ZRGHAv",
+    "zone": "Coworking",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Coworking",
+      "Coworking (Ground Floor)",
+      "Coworking (111 Piccadilly)",
+      "Coworking (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "IAQ_tkhi6FivR9TG": {
+    "id": "7800d910-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_tkhi6FivR9TG",
+    "zone": "Room 7",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 7",
+      "Room 7 (Ground Floor)",
+      "Room 7 (111 Piccadilly)",
+      "Room 7 (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "IAQ_UXqnXikCoxCo": {
+    "id": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_UXqnXikCoxCo",
+    "zone": "Office Space",
+    "floor": "1st Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Office Space",
+      "Office Space (1st Floor)",
+      "Office Space (Salford Office)",
+      "Office Space (1st Floor, Salford Office)"
+    ]
+  },
+  "IAQ_wUXUUolFJYK9": {
+    "id": "b6f4f220-6c8d-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_wUXUUolFJYK9",
+    "zone": "Room 4",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 4",
+      "Room 4 (Ground Floor)",
+      "Room 4 (111 Piccadilly)",
+      "Room 4 (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "IAQ_y2mcNuuXcDTr": {
+    "id": "ad692080-6c8a-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_y2mcNuuXcDTr",
+    "zone": "Room 2",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 2",
+      "Room 2 (Ground Floor)",
+      "Room 2 (111 Piccadilly)",
+      "Room 2 (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "IAQ1_vYzYpoY7u1CN": {
+    "id": "a01a4210-5e52-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ1_vYzYpoY7u1CN",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 2",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Site Monitoring Kit 2)",
+      "Portable (Default, Site Monitoring Kit 2)"
+    ]
+  },
+  "IAQ2_s9YPaKXl0puP": {
+    "id": "c0267380-5e52-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ2_s9YPaKXl0puP",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 2",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Site Monitoring Kit 2)",
+      "Portable (Default, Site Monitoring Kit 2)"
+    ]
+  },
+  "IAQ3_Uf9G16GNKXXu": {
+    "id": "d12a39a0-5e52-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ3_Uf9G16GNKXXu",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 2",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Site Monitoring Kit 2)",
+      "Portable (Default, Site Monitoring Kit 2)"
+    ]
+  },
+  "Lighting_AZ8sHHCcBlzW": {
+    "id": "9e0a8fd0-6c93-11f0-a19e-8f874a1c01d3",
+    "name": "Lighting_AZ8sHHCcBlzW",
+    "zone": "Comms",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Comms",
+      "Comms (Ground Floor)",
+      "Comms (111 Piccadilly)",
+      "Comms (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "Lounge": {
+    "id": "7318f830-4799-11f0-bf13-bf19a72566f6",
+    "name": "People Counter_BcLWOpRh4Byz",
+    "zone": "Lounge",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Lounge (First Floor)",
+      "Lounge (Bolton)",
+      "Lounge (First Floor, Bolton)",
+      "People Counter_BcLWOpRh4Byz"
+    ]
+  },
+  "Lounge (111 Piccadilly)": {
+    "id": "59a22a30-6c87-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_QhyE1TAlqL4E",
+    "zone": "Lounge",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Lounge",
+      "Lounge (Ground Floor)",
+      "Lounge (Ground Floor, 111 Piccadilly)",
+      "IAQ_QhyE1TAlqL4E"
+    ]
+  },
+  "Lounge (Bolton)": {
+    "id": "7318f830-4799-11f0-bf13-bf19a72566f6",
+    "name": "People Counter_BcLWOpRh4Byz",
+    "zone": "Lounge",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Lounge",
+      "Lounge (First Floor)",
+      "Lounge (First Floor, Bolton)",
+      "People Counter_BcLWOpRh4Byz"
+    ]
+  },
+  "Lounge (First Floor, Bolton)": {
+    "id": "7318f830-4799-11f0-bf13-bf19a72566f6",
+    "name": "People Counter_BcLWOpRh4Byz",
+    "zone": "Lounge",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Lounge",
+      "Lounge (First Floor)",
+      "Lounge (Bolton)",
+      "People Counter_BcLWOpRh4Byz"
+    ]
+  },
+  "Lounge (First Floor)": {
+    "id": "7318f830-4799-11f0-bf13-bf19a72566f6",
+    "name": "People Counter_BcLWOpRh4Byz",
+    "zone": "Lounge",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Lounge",
+      "Lounge (Bolton)",
+      "Lounge (First Floor, Bolton)",
+      "People Counter_BcLWOpRh4Byz"
+    ]
+  },
+  "Lounge (Ground Floor, 111 Piccadilly)": {
+    "id": "59a22a30-6c87-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_QhyE1TAlqL4E",
+    "zone": "Lounge",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Lounge",
+      "Lounge (Ground Floor)",
+      "Lounge (111 Piccadilly)",
+      "IAQ_QhyE1TAlqL4E"
+    ]
+  },
+  "Lounge (Ground Floor)": {
+    "id": "59a22a30-6c87-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_QhyE1TAlqL4E",
+    "zone": "Lounge",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Lounge",
+      "Lounge (111 Piccadilly)",
+      "Lounge (Ground Floor, 111 Piccadilly)",
+      "IAQ_QhyE1TAlqL4E"
+    ]
+  },
+  "Main Entrance": {
+    "id": "64e52540-8c95-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+    "zone": "Main Entrance",
+    "floor": "Ground Floor",
+    "building": "Arne Retail - Liverpool",
+    "synonyms": [
+      "Main Entrance (Ground Floor)",
+      "Main Entrance (Arne Retail - Liverpool)",
+      "Main Entrance (Ground Floor, Arne Retail - Liverpool)",
+      "People Counter (Left Entrance)_L6obJwJXK3yz"
+    ]
+  },
+  "Main Entrance (Arne Retail - Liverpool)": {
+    "id": "64e52540-8c95-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+    "zone": "Main Entrance",
+    "floor": "Ground Floor",
+    "building": "Arne Retail - Liverpool",
+    "synonyms": [
+      "Main Entrance",
+      "Main Entrance (Ground Floor)",
+      "Main Entrance (Ground Floor, Arne Retail - Liverpool)",
+      "People Counter (Left Entrance)_L6obJwJXK3yz"
+    ]
+  },
+  "Main Entrance (Ground Floor, Arne Retail - Liverpool)": {
+    "id": "64e52540-8c95-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+    "zone": "Main Entrance",
+    "floor": "Ground Floor",
+    "building": "Arne Retail - Liverpool",
+    "synonyms": [
+      "Main Entrance",
+      "Main Entrance (Ground Floor)",
+      "Main Entrance (Arne Retail - Liverpool)",
+      "People Counter (Left Entrance)_L6obJwJXK3yz"
+    ]
+  },
+  "Main Entrance (Ground Floor, Union)": {
+    "id": "57755650-5e69-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_0iohextObDjz",
+    "zone": "Main Entrance",
+    "floor": "Ground Floor",
+    "building": "Union",
+    "synonyms": [
+      "Main Entrance",
+      "Main Entrance (Ground Floor)",
+      "Main Entrance (Union)",
+      "People Counter_0iohextObDjz"
+    ]
+  },
+  "Main Entrance (Ground Floor)": {
+    "id": "64e52540-8c95-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+    "zone": "Main Entrance",
+    "floor": "Ground Floor",
+    "building": "Arne Retail - Liverpool",
+    "synonyms": [
+      "Main Entrance",
+      "Main Entrance (Arne Retail - Liverpool)",
+      "Main Entrance (Ground Floor, Arne Retail - Liverpool)",
+      "People Counter (Left Entrance)_L6obJwJXK3yz"
+    ]
+  },
+  "Main Entrance (Union)": {
+    "id": "57755650-5e69-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_0iohextObDjz",
+    "zone": "Main Entrance",
+    "floor": "Ground Floor",
+    "building": "Union",
+    "synonyms": [
+      "Main Entrance",
+      "Main Entrance (Ground Floor)",
+      "Main Entrance (Ground Floor, Union)",
+      "People Counter_0iohextObDjz"
+    ]
+  },
+  "Main Entrance_OW1VbG6SsBif": {
+    "id": "45f598f0-6c8c-11f0-a19e-8f874a1c01d3",
+    "name": "Main Entrance_OW1VbG6SsBif",
+    "zone": "Retail",
+    "floor": "Ground Floor",
+    "building": "The Plaza - Unlimited",
+    "synonyms": [
+      "Retail",
+      "Retail (Ground Floor)",
+      "Retail (The Plaza - Unlimited)",
+      "Retail (Ground Floor, The Plaza - Unlimited)"
+    ]
+  },
+  "Mechanical_6GLhDh3LhfoA": {
+    "id": "7ae1dc20-6c93-11f0-a19e-8f874a1c01d3",
+    "name": "Mechanical_6GLhDh3LhfoA",
+    "zone": "Comms",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Comms",
+      "Comms (Ground Floor)",
+      "Comms (111 Piccadilly)",
+      "Comms (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "Nest Communal Area": {
+    "id": "f9b436a0-609b-11f0-a19e-8f874a1c01d3",
+    "name": "AirQuality_CzdYrSlKckxh",
+    "zone": "Nest Communal Area ",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Communal Area  (Lower Ground Floor )",
+      "Nest Communal Area  (Alderly Park - Glasshouse)",
+      "Nest Communal Area  (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "AirQuality_CzdYrSlKckxh"
+    ]
+  },
+  "Nest Communal Area  (Alderly Park - Glasshouse)": {
+    "id": "f9b436a0-609b-11f0-a19e-8f874a1c01d3",
+    "name": "AirQuality_CzdYrSlKckxh",
+    "zone": "Nest Communal Area ",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Communal Area ",
+      "Nest Communal Area  (Lower Ground Floor )",
+      "Nest Communal Area  (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "AirQuality_CzdYrSlKckxh"
+    ]
+  },
+  "Nest Communal Area  (Lower Ground Floor , Alderly Park - Glasshouse)": {
+    "id": "f9b436a0-609b-11f0-a19e-8f874a1c01d3",
+    "name": "AirQuality_CzdYrSlKckxh",
+    "zone": "Nest Communal Area ",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Communal Area ",
+      "Nest Communal Area  (Lower Ground Floor )",
+      "Nest Communal Area  (Alderly Park - Glasshouse)",
+      "AirQuality_CzdYrSlKckxh"
+    ]
+  },
+  "Nest Communal Area  (Lower Ground Floor )": {
+    "id": "f9b436a0-609b-11f0-a19e-8f874a1c01d3",
+    "name": "AirQuality_CzdYrSlKckxh",
+    "zone": "Nest Communal Area ",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Communal Area ",
+      "Nest Communal Area  (Alderly Park - Glasshouse)",
+      "Nest Communal Area  (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "AirQuality_CzdYrSlKckxh"
+    ]
+  },
+  "Nest Room 2": {
+    "id": "23bd71f0-5110-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_i1ymDmZag5ZU",
+    "zone": "Nest Room 2",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 2 (Lower Ground Floor )",
+      "Nest Room 2 (Alderly Park - Glasshouse)",
+      "Nest Room 2 (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Occupancy_i1ymDmZag5ZU"
+    ]
+  },
+  "Nest Room 2 (Alderly Park - Glasshouse)": {
+    "id": "23bd71f0-5110-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_i1ymDmZag5ZU",
+    "zone": "Nest Room 2",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 2",
+      "Nest Room 2 (Lower Ground Floor )",
+      "Nest Room 2 (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Occupancy_i1ymDmZag5ZU"
+    ]
+  },
+  "Nest Room 2 (Lower Ground Floor , Alderly Park - Glasshouse)": {
+    "id": "23bd71f0-5110-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_i1ymDmZag5ZU",
+    "zone": "Nest Room 2",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 2",
+      "Nest Room 2 (Lower Ground Floor )",
+      "Nest Room 2 (Alderly Park - Glasshouse)",
+      "Occupancy_i1ymDmZag5ZU"
+    ]
+  },
+  "Nest Room 2 (Lower Ground Floor )": {
+    "id": "23bd71f0-5110-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_i1ymDmZag5ZU",
+    "zone": "Nest Room 2",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 2",
+      "Nest Room 2 (Alderly Park - Glasshouse)",
+      "Nest Room 2 (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Occupancy_i1ymDmZag5ZU"
+    ]
+  },
+  "Nest Room 3": {
+    "id": "2a8a87d0-510a-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_UrRGGx1yVrVx",
+    "zone": "Nest Room 3",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 3 (Lower Ground Floor )",
+      "Nest Room 3 (Alderly Park - Glasshouse)",
+      "Nest Room 3 (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Occupancy_UrRGGx1yVrVx"
+    ]
+  },
+  "Nest Room 3 (Alderly Park - Glasshouse)": {
+    "id": "2a8a87d0-510a-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_UrRGGx1yVrVx",
+    "zone": "Nest Room 3",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 3",
+      "Nest Room 3 (Lower Ground Floor )",
+      "Nest Room 3 (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Occupancy_UrRGGx1yVrVx"
+    ]
+  },
+  "Nest Room 3 (Lower Ground Floor , Alderly Park - Glasshouse)": {
+    "id": "2a8a87d0-510a-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_UrRGGx1yVrVx",
+    "zone": "Nest Room 3",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 3",
+      "Nest Room 3 (Lower Ground Floor )",
+      "Nest Room 3 (Alderly Park - Glasshouse)",
+      "Occupancy_UrRGGx1yVrVx"
+    ]
+  },
+  "Nest Room 3 (Lower Ground Floor )": {
+    "id": "2a8a87d0-510a-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_UrRGGx1yVrVx",
+    "zone": "Nest Room 3",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 3",
+      "Nest Room 3 (Alderly Park - Glasshouse)",
+      "Nest Room 3 (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Occupancy_UrRGGx1yVrVx"
+    ]
+  },
+  "Nest Room 4": {
+    "id": "54f3cc50-5107-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_dd6YYksRCt7R",
+    "zone": "Nest Room 4",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 4 (Lower Ground Floor )",
+      "Nest Room 4 (Alderly Park - Glasshouse)",
+      "Nest Room 4 (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Occupancy_dd6YYksRCt7R"
+    ]
+  },
+  "Nest Room 4 (Alderly Park - Glasshouse)": {
+    "id": "54f3cc50-5107-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_dd6YYksRCt7R",
+    "zone": "Nest Room 4",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 4",
+      "Nest Room 4 (Lower Ground Floor )",
+      "Nest Room 4 (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Occupancy_dd6YYksRCt7R"
+    ]
+  },
+  "Nest Room 4 (Lower Ground Floor , Alderly Park - Glasshouse)": {
+    "id": "54f3cc50-5107-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_dd6YYksRCt7R",
+    "zone": "Nest Room 4",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 4",
+      "Nest Room 4 (Lower Ground Floor )",
+      "Nest Room 4 (Alderly Park - Glasshouse)",
+      "Occupancy_dd6YYksRCt7R"
+    ]
+  },
+  "Nest Room 4 (Lower Ground Floor )": {
+    "id": "54f3cc50-5107-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_dd6YYksRCt7R",
+    "zone": "Nest Room 4",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 4",
+      "Nest Room 4 (Alderly Park - Glasshouse)",
+      "Nest Room 4 (Lower Ground Floor , Alderly Park - Glasshouse)",
+      "Occupancy_dd6YYksRCt7R"
+    ]
+  },
+  "Occupancy_dd6YYksRCt7R": {
+    "id": "54f3cc50-5107-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_dd6YYksRCt7R",
+    "zone": "Nest Room 4",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 4",
+      "Nest Room 4 (Lower Ground Floor )",
+      "Nest Room 4 (Alderly Park - Glasshouse)",
+      "Nest Room 4 (Lower Ground Floor , Alderly Park - Glasshouse)"
+    ]
+  },
+  "Occupancy_i1ymDmZag5ZU": {
+    "id": "23bd71f0-5110-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_i1ymDmZag5ZU",
+    "zone": "Nest Room 2",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 2",
+      "Nest Room 2 (Lower Ground Floor )",
+      "Nest Room 2 (Alderly Park - Glasshouse)",
+      "Nest Room 2 (Lower Ground Floor , Alderly Park - Glasshouse)"
+    ]
+  },
+  "Occupancy_lzDbZpSWkLkT": {
+    "id": "b19aae20-479c-11f0-bf13-bf19a72566f6",
+    "name": "Occupancy_lzDbZpSWkLkT",
+    "zone": "Sitdown",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Sitdown",
+      "Sitdown (First Floor)",
+      "Sitdown (Bolton)",
+      "Sitdown (First Floor, Bolton)"
+    ]
+  },
+  "Occupancy_MLcfNY8PE5WL": {
+    "id": "6ef94be0-479b-11f0-bf13-bf19a72566f6",
+    "name": "Occupancy_MLcfNY8PE5WL",
+    "zone": "Brainstorm",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Brainstorm",
+      "Brainstorm (First Floor)",
+      "Brainstorm (Bolton)",
+      "Brainstorm (First Floor, Bolton)"
+    ]
+  },
+  "Occupancy_UrRGGx1yVrVx": {
+    "id": "2a8a87d0-510a-11f0-a19e-8f874a1c01d3",
+    "name": "Occupancy_UrRGGx1yVrVx",
+    "zone": "Nest Room 3",
+    "floor": "Lower Ground Floor ",
+    "building": "Alderly Park - Glasshouse",
+    "synonyms": [
+      "Nest Room 3",
+      "Nest Room 3 (Lower Ground Floor )",
+      "Nest Room 3 (Alderly Park - Glasshouse)",
+      "Nest Room 3 (Lower Ground Floor , Alderly Park - Glasshouse)"
+    ]
+  },
+  "Odor _hjtgm3AUNSdO": {
+    "id": "2e857e60-58b9-11f0-a19e-8f874a1c01d3",
+    "name": "Odor _hjtgm3AUNSdO",
+    "zone": "Toilet",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Toilet",
+      "Toilet (First Floor)",
+      "Toilet (Bolton)",
+      "Toilet (First Floor, Bolton)"
+    ]
+  },
+  "Office Space": {
+    "id": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_UXqnXikCoxCo",
+    "zone": "Office Space",
+    "floor": "1st Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Office Space (1st Floor)",
+      "Office Space (Salford Office)",
+      "Office Space (1st Floor, Salford Office)",
+      "IAQ_UXqnXikCoxCo"
+    ]
+  },
+  "Office Space (1st Floor, Salford Office)": {
+    "id": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_UXqnXikCoxCo",
+    "zone": "Office Space",
+    "floor": "1st Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Office Space",
+      "Office Space (1st Floor)",
+      "Office Space (Salford Office)",
+      "IAQ_UXqnXikCoxCo"
+    ]
+  },
+  "Office Space (1st Floor)": {
+    "id": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_UXqnXikCoxCo",
+    "zone": "Office Space",
+    "floor": "1st Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Office Space",
+      "Office Space (Salford Office)",
+      "Office Space (1st Floor, Salford Office)",
+      "IAQ_UXqnXikCoxCo"
+    ]
+  },
+  "Office Space (Salford Office)": {
+    "id": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_UXqnXikCoxCo",
+    "zone": "Office Space",
+    "floor": "1st Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Office Space",
+      "Office Space (1st Floor)",
+      "Office Space (1st Floor, Salford Office)",
+      "IAQ_UXqnXikCoxCo"
+    ]
+  },
+  "Orbit Suit": {
+    "id": "fa5d8730-6647-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_6Dg3CB7CR8iy",
+    "zone": "Orbit Suit",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Orbit Suit (6th Floor)",
+      "Orbit Suit (55 King Street)",
+      "Orbit Suit (6th Floor, 55 King Street)",
+      "Energy_6Dg3CB7CR8iy"
+    ]
+  },
+  "Orbit Suit (55 King Street)": {
+    "id": "fa5d8730-6647-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_6Dg3CB7CR8iy",
+    "zone": "Orbit Suit",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Orbit Suit",
+      "Orbit Suit (6th Floor)",
+      "Orbit Suit (6th Floor, 55 King Street)",
+      "Energy_6Dg3CB7CR8iy"
+    ]
+  },
+  "Orbit Suit (6th Floor, 55 King Street)": {
+    "id": "fa5d8730-6647-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_6Dg3CB7CR8iy",
+    "zone": "Orbit Suit",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Orbit Suit",
+      "Orbit Suit (6th Floor)",
+      "Orbit Suit (55 King Street)",
+      "Energy_6Dg3CB7CR8iy"
+    ]
+  },
+  "Orbit Suit (6th Floor)": {
+    "id": "fa5d8730-6647-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_6Dg3CB7CR8iy",
+    "zone": "Orbit Suit",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Orbit Suit",
+      "Orbit Suit (55 King Street)",
+      "Orbit Suit (6th Floor, 55 King Street)",
+      "Energy_6Dg3CB7CR8iy"
+    ]
+  },
+  "People Counter (Left Entrance)_L6obJwJXK3yz": {
+    "id": "64e52540-8c95-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter (Left Entrance)_L6obJwJXK3yz",
+    "zone": "Main Entrance",
+    "floor": "Ground Floor",
+    "building": "Arne Retail - Liverpool",
+    "synonyms": [
+      "Main Entrance",
+      "Main Entrance (Ground Floor)",
+      "Main Entrance (Arne Retail - Liverpool)",
+      "Main Entrance (Ground Floor, Arne Retail - Liverpool)"
+    ]
+  },
+  "People Counter_0iohextObDjz": {
+    "id": "57755650-5e69-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_0iohextObDjz",
+    "zone": "Main Entrance",
+    "floor": "Ground Floor",
+    "building": "Union",
+    "synonyms": [
+      "Main Entrance",
+      "Main Entrance (Ground Floor)",
+      "Main Entrance (Union)",
+      "Main Entrance (Ground Floor, Union)"
+    ]
+  },
+  "People Counter_6R0wXsPfzuXM": {
+    "id": "99012c60-50e1-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_6R0wXsPfzuXM",
+    "zone": "Reception",
+    "floor": "Ground Floor",
+    "building": "Circle Square No 1",
+    "synonyms": [
+      "Reception",
+      "Reception (Ground Floor)",
+      "Reception (Circle Square No 1)",
+      "Reception (Ground Floor, Circle Square No 1)"
+    ]
+  },
+  "People Counter_aUjiPbTe0N41": {
+    "id": "940c81c0-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_aUjiPbTe0N41",
+    "zone": "Entrance",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Entrance",
+      "Entrance (Ground Floor)",
+      "Entrance (Salford Office)",
+      "Entrance (Ground Floor, Salford Office)"
+    ]
+  },
+  "People Counter_BcLWOpRh4Byz": {
+    "id": "7318f830-4799-11f0-bf13-bf19a72566f6",
+    "name": "People Counter_BcLWOpRh4Byz",
+    "zone": "Lounge",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Lounge",
+      "Lounge (First Floor)",
+      "Lounge (Bolton)",
+      "Lounge (First Floor, Bolton)"
+    ]
+  },
+  "People Counter_eTcrozehAwoZ": {
+    "id": "29436890-4798-11f0-bf13-bf19a72566f6",
+    "name": "People Counter_eTcrozehAwoZ",
+    "zone": "Huddle",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Huddle",
+      "Huddle (First Floor)",
+      "Huddle (Bolton)",
+      "Huddle (First Floor, Bolton)"
+    ]
+  },
+  "People Counter_uoOiB9182DzV": {
+    "id": "77fc2b70-5e68-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_uoOiB9182DzV",
+    "zone": "Gym Entrance",
+    "floor": "Basement",
+    "building": "Union",
+    "synonyms": [
+      "Gym Entrance",
+      "Gym Entrance (Basement)",
+      "Gym Entrance (Union)",
+      "Gym Entrance (Basement, Union)"
+    ]
+  },
+  "People Counter_xNrPaURS4r6p": {
+    "id": "ab5fb660-872d-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_xNrPaURS4r6p",
+    "zone": "Cafe",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Cafe",
+      "Cafe (First Floor)",
+      "Cafe (Bolton)",
+      "Cafe (First Floor, Bolton)"
+    ]
+  },
+  "People Flow_waTDvSKxFbK4": {
+    "id": "d9b00270-4797-11f0-bf13-bf19a72566f6",
+    "name": "People Flow_waTDvSKxFbK4",
+    "zone": "Entrance",
+    "floor": "Ground Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Entrance",
+      "Entrance (Ground Floor)",
+      "Entrance (Bolton)",
+      "Entrance (Ground Floor, Bolton)"
+    ]
+  },
+  "Portable": {
+    "id": "c0267380-5e52-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ2_s9YPaKXl0puP",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 2",
+    "synonyms": [
+      "Portable (Default)",
+      "Portable (Site Monitoring Kit 2)",
+      "Portable (Default, Site Monitoring Kit 2)",
+      "IAQ2_s9YPaKXl0puP"
+    ]
+  },
+  "Portable (Default, Site Monitoring Kit 1)": {
+    "id": "fd0fc870-5e50-11f0-a19e-8f874a1c01d3",
+    "name": "Water_JTTcwf8VtSgM",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 1",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Site Monitoring Kit 1)",
+      "Water_JTTcwf8VtSgM"
+    ]
+  },
+  "Portable (Default, Site Monitoring Kit 2)": {
+    "id": "c0267380-5e52-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ2_s9YPaKXl0puP",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 2",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Site Monitoring Kit 2)",
+      "IAQ2_s9YPaKXl0puP"
+    ]
+  },
+  "Portable (Default)": {
+    "id": "c0267380-5e52-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ2_s9YPaKXl0puP",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 2",
+    "synonyms": [
+      "Portable",
+      "Portable (Site Monitoring Kit 2)",
+      "Portable (Default, Site Monitoring Kit 2)",
+      "IAQ2_s9YPaKXl0puP"
+    ]
+  },
+  "Portable (Site Monitoring Kit 1)": {
+    "id": "fd0fc870-5e50-11f0-a19e-8f874a1c01d3",
+    "name": "Water_JTTcwf8VtSgM",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 1",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Default, Site Monitoring Kit 1)",
+      "Water_JTTcwf8VtSgM"
+    ]
+  },
+  "Portable (Site Monitoring Kit 2)": {
+    "id": "c0267380-5e52-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ2_s9YPaKXl0puP",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 2",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Default, Site Monitoring Kit 2)",
+      "IAQ2_s9YPaKXl0puP"
+    ]
+  },
+  "Reception": {
+    "id": "99012c60-50e1-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_6R0wXsPfzuXM",
+    "zone": "Reception",
+    "floor": "Ground Floor",
+    "building": "Circle Square No 1",
+    "synonyms": [
+      "Reception (Ground Floor)",
+      "Reception (Circle Square No 1)",
+      "Reception (Ground Floor, Circle Square No 1)",
+      "People Counter_6R0wXsPfzuXM"
+    ]
+  },
+  "Reception (Circle Square No 1)": {
+    "id": "99012c60-50e1-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_6R0wXsPfzuXM",
+    "zone": "Reception",
+    "floor": "Ground Floor",
+    "building": "Circle Square No 1",
+    "synonyms": [
+      "Reception",
+      "Reception (Ground Floor)",
+      "Reception (Ground Floor, Circle Square No 1)",
+      "People Counter_6R0wXsPfzuXM"
+    ]
+  },
+  "Reception (Ground Floor, Circle Square No 1)": {
+    "id": "99012c60-50e1-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_6R0wXsPfzuXM",
+    "zone": "Reception",
+    "floor": "Ground Floor",
+    "building": "Circle Square No 1",
+    "synonyms": [
+      "Reception",
+      "Reception (Ground Floor)",
+      "Reception (Circle Square No 1)",
+      "People Counter_6R0wXsPfzuXM"
+    ]
+  },
+  "Reception (Ground Floor, Salford Office)": {
+    "id": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_QTnlLHfN4fdi",
+    "zone": "Reception",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Reception",
+      "Reception (Ground Floor)",
+      "Reception (Salford Office)",
+      "IAQ_QTnlLHfN4fdi"
+    ]
+  },
+  "Reception (Ground Floor)": {
+    "id": "99012c60-50e1-11f0-a19e-8f874a1c01d3",
+    "name": "People Counter_6R0wXsPfzuXM",
+    "zone": "Reception",
+    "floor": "Ground Floor",
+    "building": "Circle Square No 1",
+    "synonyms": [
+      "Reception",
+      "Reception (Circle Square No 1)",
+      "Reception (Ground Floor, Circle Square No 1)",
+      "People Counter_6R0wXsPfzuXM"
+    ]
+  },
+  "Reception (Salford Office)": {
+    "id": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_QTnlLHfN4fdi",
+    "zone": "Reception",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Reception",
+      "Reception (Ground Floor)",
+      "Reception (Ground Floor, Salford Office)",
+      "IAQ_QTnlLHfN4fdi"
+    ]
+  },
+  "Retail": {
+    "id": "45f598f0-6c8c-11f0-a19e-8f874a1c01d3",
+    "name": "Main Entrance_OW1VbG6SsBif",
+    "zone": "Retail",
+    "floor": "Ground Floor",
+    "building": "The Plaza - Unlimited",
+    "synonyms": [
+      "Retail (Ground Floor)",
+      "Retail (The Plaza - Unlimited)",
+      "Retail (Ground Floor, The Plaza - Unlimited)",
+      "Main Entrance_OW1VbG6SsBif"
+    ]
+  },
+  "Retail (Ground Floor, The Plaza - Unlimited)": {
+    "id": "45f598f0-6c8c-11f0-a19e-8f874a1c01d3",
+    "name": "Main Entrance_OW1VbG6SsBif",
+    "zone": "Retail",
+    "floor": "Ground Floor",
+    "building": "The Plaza - Unlimited",
+    "synonyms": [
+      "Retail",
+      "Retail (Ground Floor)",
+      "Retail (The Plaza - Unlimited)",
+      "Main Entrance_OW1VbG6SsBif"
+    ]
+  },
+  "Retail (Ground Floor)": {
+    "id": "45f598f0-6c8c-11f0-a19e-8f874a1c01d3",
+    "name": "Main Entrance_OW1VbG6SsBif",
+    "zone": "Retail",
+    "floor": "Ground Floor",
+    "building": "The Plaza - Unlimited",
+    "synonyms": [
+      "Retail",
+      "Retail (The Plaza - Unlimited)",
+      "Retail (Ground Floor, The Plaza - Unlimited)",
+      "Main Entrance_OW1VbG6SsBif"
+    ]
+  },
+  "Retail (The Plaza - Unlimited)": {
+    "id": "45f598f0-6c8c-11f0-a19e-8f874a1c01d3",
+    "name": "Main Entrance_OW1VbG6SsBif",
+    "zone": "Retail",
+    "floor": "Ground Floor",
+    "building": "The Plaza - Unlimited",
+    "synonyms": [
+      "Retail",
+      "Retail (Ground Floor)",
+      "Retail (Ground Floor, The Plaza - Unlimited)",
+      "Main Entrance_OW1VbG6SsBif"
+    ]
+  },
+  "Room 1": {
+    "id": "3966b5f0-6c88-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_LANa7c0nlzIi",
+    "zone": "Room 1",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 1 (Ground Floor)",
+      "Room 1 (111 Piccadilly)",
+      "Room 1 (Ground Floor, 111 Piccadilly)",
+      "IAQ_LANa7c0nlzIi"
+    ]
+  },
+  "Room 1 (111 Piccadilly)": {
+    "id": "3966b5f0-6c88-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_LANa7c0nlzIi",
+    "zone": "Room 1",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 1",
+      "Room 1 (Ground Floor)",
+      "Room 1 (Ground Floor, 111 Piccadilly)",
+      "IAQ_LANa7c0nlzIi"
+    ]
+  },
+  "Room 1 (Ground Floor, 111 Piccadilly)": {
+    "id": "3966b5f0-6c88-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_LANa7c0nlzIi",
+    "zone": "Room 1",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 1",
+      "Room 1 (Ground Floor)",
+      "Room 1 (111 Piccadilly)",
+      "IAQ_LANa7c0nlzIi"
+    ]
+  },
+  "Room 1 (Ground Floor)": {
+    "id": "3966b5f0-6c88-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_LANa7c0nlzIi",
+    "zone": "Room 1",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 1",
+      "Room 1 (111 Piccadilly)",
+      "Room 1 (Ground Floor, 111 Piccadilly)",
+      "IAQ_LANa7c0nlzIi"
+    ]
+  },
+  "Room 2": {
+    "id": "ad692080-6c8a-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_y2mcNuuXcDTr",
+    "zone": "Room 2",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 2 (Ground Floor)",
+      "Room 2 (111 Piccadilly)",
+      "Room 2 (Ground Floor, 111 Piccadilly)",
+      "IAQ_y2mcNuuXcDTr"
+    ]
+  },
+  "Room 2 (111 Piccadilly)": {
+    "id": "ad692080-6c8a-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_y2mcNuuXcDTr",
+    "zone": "Room 2",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 2",
+      "Room 2 (Ground Floor)",
+      "Room 2 (Ground Floor, 111 Piccadilly)",
+      "IAQ_y2mcNuuXcDTr"
+    ]
+  },
+  "Room 2 (Ground Floor, 111 Piccadilly)": {
+    "id": "ad692080-6c8a-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_y2mcNuuXcDTr",
+    "zone": "Room 2",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 2",
+      "Room 2 (Ground Floor)",
+      "Room 2 (111 Piccadilly)",
+      "IAQ_y2mcNuuXcDTr"
+    ]
+  },
+  "Room 2 (Ground Floor)": {
+    "id": "ad692080-6c8a-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_y2mcNuuXcDTr",
+    "zone": "Room 2",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 2",
+      "Room 2 (111 Piccadilly)",
+      "Room 2 (Ground Floor, 111 Piccadilly)",
+      "IAQ_y2mcNuuXcDTr"
+    ]
+  },
+  "Room 3": {
+    "id": "6a401050-6c8c-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_KcWGBiSXBgiH",
+    "zone": "Room 3",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 3 (Ground Floor)",
+      "Room 3 (111 Piccadilly)",
+      "Room 3 (Ground Floor, 111 Piccadilly)",
+      "IAQ_KcWGBiSXBgiH"
+    ]
+  },
+  "Room 3 (111 Piccadilly)": {
+    "id": "6a401050-6c8c-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_KcWGBiSXBgiH",
+    "zone": "Room 3",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 3",
+      "Room 3 (Ground Floor)",
+      "Room 3 (Ground Floor, 111 Piccadilly)",
+      "IAQ_KcWGBiSXBgiH"
+    ]
+  },
+  "Room 3 (Ground Floor, 111 Piccadilly)": {
+    "id": "6a401050-6c8c-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_KcWGBiSXBgiH",
+    "zone": "Room 3",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 3",
+      "Room 3 (Ground Floor)",
+      "Room 3 (111 Piccadilly)",
+      "IAQ_KcWGBiSXBgiH"
+    ]
+  },
+  "Room 3 (Ground Floor)": {
+    "id": "6a401050-6c8c-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_KcWGBiSXBgiH",
+    "zone": "Room 3",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 3",
+      "Room 3 (111 Piccadilly)",
+      "Room 3 (Ground Floor, 111 Piccadilly)",
+      "IAQ_KcWGBiSXBgiH"
+    ]
+  },
+  "Room 4": {
+    "id": "b6f4f220-6c8d-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_wUXUUolFJYK9",
+    "zone": "Room 4",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 4 (Ground Floor)",
+      "Room 4 (111 Piccadilly)",
+      "Room 4 (Ground Floor, 111 Piccadilly)",
+      "IAQ_wUXUUolFJYK9"
+    ]
+  },
+  "Room 4 (111 Piccadilly)": {
+    "id": "b6f4f220-6c8d-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_wUXUUolFJYK9",
+    "zone": "Room 4",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 4",
+      "Room 4 (Ground Floor)",
+      "Room 4 (Ground Floor, 111 Piccadilly)",
+      "IAQ_wUXUUolFJYK9"
+    ]
+  },
+  "Room 4 (Ground Floor, 111 Piccadilly)": {
+    "id": "b6f4f220-6c8d-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_wUXUUolFJYK9",
+    "zone": "Room 4",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 4",
+      "Room 4 (Ground Floor)",
+      "Room 4 (111 Piccadilly)",
+      "IAQ_wUXUUolFJYK9"
+    ]
+  },
+  "Room 4 (Ground Floor)": {
+    "id": "b6f4f220-6c8d-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_wUXUUolFJYK9",
+    "zone": "Room 4",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 4",
+      "Room 4 (111 Piccadilly)",
+      "Room 4 (Ground Floor, 111 Piccadilly)",
+      "IAQ_wUXUUolFJYK9"
+    ]
+  },
+  "Room 5": {
+    "id": "7ce20b30-6c8e-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_jb6WMm7pPFHV",
+    "zone": "Room 5",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 5 (Ground Floor)",
+      "Room 5 (111 Piccadilly)",
+      "Room 5 (Ground Floor, 111 Piccadilly)",
+      "IAQ_jb6WMm7pPFHV"
+    ]
+  },
+  "Room 5 (111 Piccadilly)": {
+    "id": "7ce20b30-6c8e-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_jb6WMm7pPFHV",
+    "zone": "Room 5",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 5",
+      "Room 5 (Ground Floor)",
+      "Room 5 (Ground Floor, 111 Piccadilly)",
+      "IAQ_jb6WMm7pPFHV"
+    ]
+  },
+  "Room 5 (Ground Floor, 111 Piccadilly)": {
+    "id": "7ce20b30-6c8e-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_jb6WMm7pPFHV",
+    "zone": "Room 5",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 5",
+      "Room 5 (Ground Floor)",
+      "Room 5 (111 Piccadilly)",
+      "IAQ_jb6WMm7pPFHV"
+    ]
+  },
+  "Room 5 (Ground Floor)": {
+    "id": "7ce20b30-6c8e-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_jb6WMm7pPFHV",
+    "zone": "Room 5",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 5",
+      "Room 5 (111 Piccadilly)",
+      "Room 5 (Ground Floor, 111 Piccadilly)",
+      "IAQ_jb6WMm7pPFHV"
+    ]
+  },
+  "Room 6": {
+    "id": "45140b30-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_2Mx02nIKVGL4",
+    "zone": "Room 6",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 6 (Ground Floor)",
+      "Room 6 (111 Piccadilly)",
+      "Room 6 (Ground Floor, 111 Piccadilly)",
+      "IAQ_2Mx02nIKVGL4"
+    ]
+  },
+  "Room 6 (111 Piccadilly)": {
+    "id": "45140b30-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_2Mx02nIKVGL4",
+    "zone": "Room 6",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 6",
+      "Room 6 (Ground Floor)",
+      "Room 6 (Ground Floor, 111 Piccadilly)",
+      "IAQ_2Mx02nIKVGL4"
+    ]
+  },
+  "Room 6 (Ground Floor, 111 Piccadilly)": {
+    "id": "45140b30-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_2Mx02nIKVGL4",
+    "zone": "Room 6",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 6",
+      "Room 6 (Ground Floor)",
+      "Room 6 (111 Piccadilly)",
+      "IAQ_2Mx02nIKVGL4"
+    ]
+  },
+  "Room 6 (Ground Floor)": {
+    "id": "45140b30-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_2Mx02nIKVGL4",
+    "zone": "Room 6",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 6",
+      "Room 6 (111 Piccadilly)",
+      "Room 6 (Ground Floor, 111 Piccadilly)",
+      "IAQ_2Mx02nIKVGL4"
+    ]
+  },
+  "Room 7": {
+    "id": "7800d910-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_tkhi6FivR9TG",
+    "zone": "Room 7",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 7 (Ground Floor)",
+      "Room 7 (111 Piccadilly)",
+      "Room 7 (Ground Floor, 111 Piccadilly)",
+      "IAQ_tkhi6FivR9TG"
+    ]
+  },
+  "Room 7 (111 Piccadilly)": {
+    "id": "7800d910-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_tkhi6FivR9TG",
+    "zone": "Room 7",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 7",
+      "Room 7 (Ground Floor)",
+      "Room 7 (Ground Floor, 111 Piccadilly)",
+      "IAQ_tkhi6FivR9TG"
+    ]
+  },
+  "Room 7 (Ground Floor, 111 Piccadilly)": {
+    "id": "7800d910-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_tkhi6FivR9TG",
+    "zone": "Room 7",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 7",
+      "Room 7 (Ground Floor)",
+      "Room 7 (111 Piccadilly)",
+      "IAQ_tkhi6FivR9TG"
+    ]
+  },
+  "Room 7 (Ground Floor)": {
+    "id": "7800d910-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_tkhi6FivR9TG",
+    "zone": "Room 7",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 7",
+      "Room 7 (111 Piccadilly)",
+      "Room 7 (Ground Floor, 111 Piccadilly)",
+      "IAQ_tkhi6FivR9TG"
+    ]
+  },
+  "Room 8": {
+    "id": "f8816c80-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_BbanNjLRjJEK",
+    "zone": "Room 8",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 8 (Ground Floor)",
+      "Room 8 (111 Piccadilly)",
+      "Room 8 (Ground Floor, 111 Piccadilly)",
+      "IAQ_BbanNjLRjJEK"
+    ]
+  },
+  "Room 8 (111 Piccadilly)": {
+    "id": "f8816c80-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_BbanNjLRjJEK",
+    "zone": "Room 8",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 8",
+      "Room 8 (Ground Floor)",
+      "Room 8 (Ground Floor, 111 Piccadilly)",
+      "IAQ_BbanNjLRjJEK"
+    ]
+  },
+  "Room 8 (Ground Floor, 111 Piccadilly)": {
+    "id": "f8816c80-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_BbanNjLRjJEK",
+    "zone": "Room 8",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 8",
+      "Room 8 (Ground Floor)",
+      "Room 8 (111 Piccadilly)",
+      "IAQ_BbanNjLRjJEK"
+    ]
+  },
+  "Room 8 (Ground Floor)": {
+    "id": "f8816c80-6c8f-11f0-a19e-8f874a1c01d3",
+    "name": "IAQ_BbanNjLRjJEK",
+    "zone": "Room 8",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Room 8",
+      "Room 8 (111 Piccadilly)",
+      "Room 8 (Ground Floor, 111 Piccadilly)",
+      "IAQ_BbanNjLRjJEK"
+    ]
+  },
+  "Side Entrance": {
+    "id": "71908fe0-8d68-11f0-a19e-8f874a1c01d3",
+    "name": "Side Entrance_RMgwn2Q7zLeu",
+    "zone": "Side Entrance",
+    "floor": "Ground Floor",
+    "building": "Arne Retail - Liverpool",
+    "synonyms": [
+      "Side Entrance (Ground Floor)",
+      "Side Entrance (Arne Retail - Liverpool)",
+      "Side Entrance (Ground Floor, Arne Retail - Liverpool)",
+      "Side Entrance_RMgwn2Q7zLeu"
+    ]
+  },
+  "Side Entrance (Arne Retail - Liverpool)": {
+    "id": "71908fe0-8d68-11f0-a19e-8f874a1c01d3",
+    "name": "Side Entrance_RMgwn2Q7zLeu",
+    "zone": "Side Entrance",
+    "floor": "Ground Floor",
+    "building": "Arne Retail - Liverpool",
+    "synonyms": [
+      "Side Entrance",
+      "Side Entrance (Ground Floor)",
+      "Side Entrance (Ground Floor, Arne Retail - Liverpool)",
+      "Side Entrance_RMgwn2Q7zLeu"
+    ]
+  },
+  "Side Entrance (Ground Floor, Arne Retail - Liverpool)": {
+    "id": "71908fe0-8d68-11f0-a19e-8f874a1c01d3",
+    "name": "Side Entrance_RMgwn2Q7zLeu",
+    "zone": "Side Entrance",
+    "floor": "Ground Floor",
+    "building": "Arne Retail - Liverpool",
+    "synonyms": [
+      "Side Entrance",
+      "Side Entrance (Ground Floor)",
+      "Side Entrance (Arne Retail - Liverpool)",
+      "Side Entrance_RMgwn2Q7zLeu"
+    ]
+  },
+  "Side Entrance (Ground Floor)": {
+    "id": "71908fe0-8d68-11f0-a19e-8f874a1c01d3",
+    "name": "Side Entrance_RMgwn2Q7zLeu",
+    "zone": "Side Entrance",
+    "floor": "Ground Floor",
+    "building": "Arne Retail - Liverpool",
+    "synonyms": [
+      "Side Entrance",
+      "Side Entrance (Arne Retail - Liverpool)",
+      "Side Entrance (Ground Floor, Arne Retail - Liverpool)",
+      "Side Entrance_RMgwn2Q7zLeu"
+    ]
+  },
+  "Side Entrance_RMgwn2Q7zLeu": {
+    "id": "71908fe0-8d68-11f0-a19e-8f874a1c01d3",
+    "name": "Side Entrance_RMgwn2Q7zLeu",
+    "zone": "Side Entrance",
+    "floor": "Ground Floor",
+    "building": "Arne Retail - Liverpool",
+    "synonyms": [
+      "Side Entrance",
+      "Side Entrance (Ground Floor)",
+      "Side Entrance (Arne Retail - Liverpool)",
+      "Side Entrance (Ground Floor, Arne Retail - Liverpool)"
+    ]
+  },
+  "Sitdown": {
+    "id": "b19aae20-479c-11f0-bf13-bf19a72566f6",
+    "name": "Occupancy_lzDbZpSWkLkT",
+    "zone": "Sitdown",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Sitdown (First Floor)",
+      "Sitdown (Bolton)",
+      "Sitdown (First Floor, Bolton)",
+      "Occupancy_lzDbZpSWkLkT"
+    ]
+  },
+  "Sitdown (Bolton)": {
+    "id": "b19aae20-479c-11f0-bf13-bf19a72566f6",
+    "name": "Occupancy_lzDbZpSWkLkT",
+    "zone": "Sitdown",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Sitdown",
+      "Sitdown (First Floor)",
+      "Sitdown (First Floor, Bolton)",
+      "Occupancy_lzDbZpSWkLkT"
+    ]
+  },
+  "Sitdown (First Floor, Bolton)": {
+    "id": "b19aae20-479c-11f0-bf13-bf19a72566f6",
+    "name": "Occupancy_lzDbZpSWkLkT",
+    "zone": "Sitdown",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Sitdown",
+      "Sitdown (First Floor)",
+      "Sitdown (Bolton)",
+      "Occupancy_lzDbZpSWkLkT"
+    ]
+  },
+  "Sitdown (First Floor)": {
+    "id": "b19aae20-479c-11f0-bf13-bf19a72566f6",
+    "name": "Occupancy_lzDbZpSWkLkT",
+    "zone": "Sitdown",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Sitdown",
+      "Sitdown (Bolton)",
+      "Sitdown (First Floor, Bolton)",
+      "Occupancy_lzDbZpSWkLkT"
+    ]
+  },
+  "SmallPower_cOApV9qH6UMo": {
+    "id": "47911c50-6c93-11f0-a19e-8f874a1c01d3",
+    "name": "SmallPower_cOApV9qH6UMo",
+    "zone": "Comms",
+    "floor": "Ground Floor",
+    "building": "111 Piccadilly",
+    "synonyms": [
+      "Comms",
+      "Comms (Ground Floor)",
+      "Comms (111 Piccadilly)",
+      "Comms (Ground Floor, 111 Piccadilly)"
+    ]
+  },
+  "Standup": {
+    "id": "64214e60-479c-11f0-bf13-bf19a72566f6",
+    "name": "Temperature_UPLJJkzTgF4v",
+    "zone": "Standup",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Standup (First Floor)",
+      "Standup (Bolton)",
+      "Standup (First Floor, Bolton)",
+      "Temperature_UPLJJkzTgF4v"
+    ]
+  },
+  "Standup (Bolton)": {
+    "id": "64214e60-479c-11f0-bf13-bf19a72566f6",
+    "name": "Temperature_UPLJJkzTgF4v",
+    "zone": "Standup",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Standup",
+      "Standup (First Floor)",
+      "Standup (First Floor, Bolton)",
+      "Temperature_UPLJJkzTgF4v"
+    ]
+  },
+  "Standup (First Floor, Bolton)": {
+    "id": "64214e60-479c-11f0-bf13-bf19a72566f6",
+    "name": "Temperature_UPLJJkzTgF4v",
+    "zone": "Standup",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Standup",
+      "Standup (First Floor)",
+      "Standup (Bolton)",
+      "Temperature_UPLJJkzTgF4v"
+    ]
+  },
+  "Standup (First Floor)": {
+    "id": "64214e60-479c-11f0-bf13-bf19a72566f6",
+    "name": "Temperature_UPLJJkzTgF4v",
+    "zone": "Standup",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Standup",
+      "Standup (Bolton)",
+      "Standup (First Floor, Bolton)",
+      "Temperature_UPLJJkzTgF4v"
+    ]
+  },
+  "Suite 6.1": {
+    "id": "44e34970-6648-11f0-a19e-8f874a1c01d3",
+    "name": "CO2_ErFIKXsDjzLn",
+    "zone": "Suite 6.1",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.1 (6th Floor)",
+      "Suite 6.1 (55 King Street)",
+      "Suite 6.1 (6th Floor, 55 King Street)",
+      "CO2_ErFIKXsDjzLn"
+    ]
+  },
+  "Suite 6.1 (55 King Street)": {
+    "id": "44e34970-6648-11f0-a19e-8f874a1c01d3",
+    "name": "CO2_ErFIKXsDjzLn",
+    "zone": "Suite 6.1",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.1",
+      "Suite 6.1 (6th Floor)",
+      "Suite 6.1 (6th Floor, 55 King Street)",
+      "CO2_ErFIKXsDjzLn"
+    ]
+  },
+  "Suite 6.1 (6th Floor, 55 King Street)": {
+    "id": "44e34970-6648-11f0-a19e-8f874a1c01d3",
+    "name": "CO2_ErFIKXsDjzLn",
+    "zone": "Suite 6.1",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.1",
+      "Suite 6.1 (6th Floor)",
+      "Suite 6.1 (55 King Street)",
+      "CO2_ErFIKXsDjzLn"
+    ]
+  },
+  "Suite 6.1 (6th Floor)": {
+    "id": "44e34970-6648-11f0-a19e-8f874a1c01d3",
+    "name": "CO2_ErFIKXsDjzLn",
+    "zone": "Suite 6.1",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.1",
+      "Suite 6.1 (55 King Street)",
+      "Suite 6.1 (6th Floor, 55 King Street)",
+      "CO2_ErFIKXsDjzLn"
+    ]
+  },
+  "Suite 6.2": {
+    "id": "600552a0-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_3Z99vDWK76va",
+    "zone": "Suite 6.2",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.2 (6th Floor)",
+      "Suite 6.2 (55 King Street)",
+      "Suite 6.2 (6th Floor, 55 King Street)",
+      "Energy_3Z99vDWK76va"
+    ]
+  },
+  "Suite 6.2 (55 King Street)": {
+    "id": "600552a0-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_3Z99vDWK76va",
+    "zone": "Suite 6.2",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.2",
+      "Suite 6.2 (6th Floor)",
+      "Suite 6.2 (6th Floor, 55 King Street)",
+      "Energy_3Z99vDWK76va"
+    ]
+  },
+  "Suite 6.2 (6th Floor, 55 King Street)": {
+    "id": "600552a0-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_3Z99vDWK76va",
+    "zone": "Suite 6.2",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.2",
+      "Suite 6.2 (6th Floor)",
+      "Suite 6.2 (55 King Street)",
+      "Energy_3Z99vDWK76va"
+    ]
+  },
+  "Suite 6.2 (6th Floor)": {
+    "id": "600552a0-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_3Z99vDWK76va",
+    "zone": "Suite 6.2",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.2",
+      "Suite 6.2 (55 King Street)",
+      "Suite 6.2 (6th Floor, 55 King Street)",
+      "Energy_3Z99vDWK76va"
+    ]
+  },
+  "Suite 6.3": {
+    "id": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_vDBYNqYhdDm5",
+    "zone": "Suite 6.3",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.3 (6th Floor)",
+      "Suite 6.3 (55 King Street)",
+      "Suite 6.3 (6th Floor, 55 King Street)",
+      "Energy_vDBYNqYhdDm5"
+    ]
+  },
+  "Suite 6.3 (55 King Street)": {
+    "id": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_vDBYNqYhdDm5",
+    "zone": "Suite 6.3",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.3",
+      "Suite 6.3 (6th Floor)",
+      "Suite 6.3 (6th Floor, 55 King Street)",
+      "Energy_vDBYNqYhdDm5"
+    ]
+  },
+  "Suite 6.3 (6th Floor, 55 King Street)": {
+    "id": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_vDBYNqYhdDm5",
+    "zone": "Suite 6.3",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.3",
+      "Suite 6.3 (6th Floor)",
+      "Suite 6.3 (55 King Street)",
+      "Energy_vDBYNqYhdDm5"
+    ]
+  },
+  "Suite 6.3 (6th Floor)": {
+    "id": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_vDBYNqYhdDm5",
+    "zone": "Suite 6.3",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.3",
+      "Suite 6.3 (55 King Street)",
+      "Suite 6.3 (6th Floor, 55 King Street)",
+      "Energy_vDBYNqYhdDm5"
+    ]
+  },
+  "Suite 6.4": {
+    "id": "ae728840-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_vACnx5Y8XoGG",
+    "zone": "Suite 6.4",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.4 (6th Floor)",
+      "Suite 6.4 (55 King Street)",
+      "Suite 6.4 (6th Floor, 55 King Street)",
+      "Energy_vACnx5Y8XoGG"
+    ]
+  },
+  "Suite 6.4 (55 King Street)": {
+    "id": "ae728840-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_vACnx5Y8XoGG",
+    "zone": "Suite 6.4",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.4",
+      "Suite 6.4 (6th Floor)",
+      "Suite 6.4 (6th Floor, 55 King Street)",
+      "Energy_vACnx5Y8XoGG"
+    ]
+  },
+  "Suite 6.4 (6th Floor, 55 King Street)": {
+    "id": "ae728840-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_vACnx5Y8XoGG",
+    "zone": "Suite 6.4",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.4",
+      "Suite 6.4 (6th Floor)",
+      "Suite 6.4 (55 King Street)",
+      "Energy_vACnx5Y8XoGG"
+    ]
+  },
+  "Suite 6.4 (6th Floor)": {
+    "id": "ae728840-664a-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_vACnx5Y8XoGG",
+    "zone": "Suite 6.4",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.4",
+      "Suite 6.4 (55 King Street)",
+      "Suite 6.4 (6th Floor, 55 King Street)",
+      "Energy_vACnx5Y8XoGG"
+    ]
+  },
+  "Suite 6.5": {
+    "id": "072b8b80-664b-11f0-a19e-8f874a1c01d3",
+    "name": "CO2_qafxEt2K6qLZ",
+    "zone": "Suite 6.5",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.5 (6th Floor)",
+      "Suite 6.5 (55 King Street)",
+      "Suite 6.5 (6th Floor, 55 King Street)",
+      "CO2_qafxEt2K6qLZ"
+    ]
+  },
+  "Suite 6.5 (55 King Street)": {
+    "id": "072b8b80-664b-11f0-a19e-8f874a1c01d3",
+    "name": "CO2_qafxEt2K6qLZ",
+    "zone": "Suite 6.5",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.5",
+      "Suite 6.5 (6th Floor)",
+      "Suite 6.5 (6th Floor, 55 King Street)",
+      "CO2_qafxEt2K6qLZ"
+    ]
+  },
+  "Suite 6.5 (6th Floor, 55 King Street)": {
+    "id": "072b8b80-664b-11f0-a19e-8f874a1c01d3",
+    "name": "CO2_qafxEt2K6qLZ",
+    "zone": "Suite 6.5",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.5",
+      "Suite 6.5 (6th Floor)",
+      "Suite 6.5 (55 King Street)",
+      "CO2_qafxEt2K6qLZ"
+    ]
+  },
+  "Suite 6.5 (6th Floor)": {
+    "id": "072b8b80-664b-11f0-a19e-8f874a1c01d3",
+    "name": "CO2_qafxEt2K6qLZ",
+    "zone": "Suite 6.5",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.5",
+      "Suite 6.5 (55 King Street)",
+      "Suite 6.5 (6th Floor, 55 King Street)",
+      "CO2_qafxEt2K6qLZ"
+    ]
+  },
+  "Temperature_AvYwOcSkqEZb": {
+    "id": "f22ffa70-47a2-11f0-bf13-bf19a72566f6",
+    "name": "Temperature_AvYwOcSkqEZb",
+    "zone": "Brainstorm",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Brainstorm",
+      "Brainstorm (First Floor)",
+      "Brainstorm (Bolton)",
+      "Brainstorm (First Floor, Bolton)"
+    ]
+  },
+  "Temperature_n2HWkemA5Ps9": {
+    "id": "89ad2670-6648-11f0-a19e-8f874a1c01d3",
+    "name": "Temperature_n2HWkemA5Ps9",
+    "zone": "Suite 6.1",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.1",
+      "Suite 6.1 (6th Floor)",
+      "Suite 6.1 (55 King Street)",
+      "Suite 6.1 (6th Floor, 55 King Street)"
+    ]
+  },
+  "Temperature_n86EEaC4v1YC": {
+    "id": "31831560-664b-11f0-a19e-8f874a1c01d3",
+    "name": "Temperature_n86EEaC4v1YC",
+    "zone": "Suite 6.5",
+    "floor": "6th Floor",
+    "building": "55 King Street",
+    "synonyms": [
+      "Suite 6.5",
+      "Suite 6.5 (6th Floor)",
+      "Suite 6.5 (55 King Street)",
+      "Suite 6.5 (6th Floor, 55 King Street)"
+    ]
+  },
+  "Temperature_UPLJJkzTgF4v": {
+    "id": "64214e60-479c-11f0-bf13-bf19a72566f6",
+    "name": "Temperature_UPLJJkzTgF4v",
+    "zone": "Standup",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Standup",
+      "Standup (First Floor)",
+      "Standup (Bolton)",
+      "Standup (First Floor, Bolton)"
+    ]
+  },
+  "Toilet": {
+    "id": "2e857e60-58b9-11f0-a19e-8f874a1c01d3",
+    "name": "Odor _hjtgm3AUNSdO",
+    "zone": "Toilet",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Toilet (First Floor)",
+      "Toilet (Bolton)",
+      "Toilet (First Floor, Bolton)",
+      "Odor _hjtgm3AUNSdO"
+    ]
+  },
+  "Toilet (Bolton)": {
+    "id": "2e857e60-58b9-11f0-a19e-8f874a1c01d3",
+    "name": "Odor _hjtgm3AUNSdO",
+    "zone": "Toilet",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Toilet",
+      "Toilet (First Floor)",
+      "Toilet (First Floor, Bolton)",
+      "Odor _hjtgm3AUNSdO"
+    ]
+  },
+  "Toilet (First Floor, Bolton)": {
+    "id": "2e857e60-58b9-11f0-a19e-8f874a1c01d3",
+    "name": "Odor _hjtgm3AUNSdO",
+    "zone": "Toilet",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Toilet",
+      "Toilet (First Floor)",
+      "Toilet (Bolton)",
+      "Odor _hjtgm3AUNSdO"
+    ]
+  },
+  "Toilet (First Floor)": {
+    "id": "2e857e60-58b9-11f0-a19e-8f874a1c01d3",
+    "name": "Odor _hjtgm3AUNSdO",
+    "zone": "Toilet",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Toilet",
+      "Toilet (Bolton)",
+      "Toilet (First Floor, Bolton)",
+      "Odor _hjtgm3AUNSdO"
+    ]
+  },
+  "Utility Room": {
+    "id": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_1_bU9Kpvhdb1ha",
+    "zone": "Utility Room",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Utility Room (Ground Floor)",
+      "Utility Room (Salford Office)",
+      "Utility Room (Ground Floor, Salford Office)",
+      "Energy_1_bU9Kpvhdb1ha"
+    ]
+  },
+  "Utility Room (Ground Floor, Salford Office)": {
+    "id": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_1_bU9Kpvhdb1ha",
+    "zone": "Utility Room",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Utility Room",
+      "Utility Room (Ground Floor)",
+      "Utility Room (Salford Office)",
+      "Energy_1_bU9Kpvhdb1ha"
+    ]
+  },
+  "Utility Room (Ground Floor)": {
+    "id": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_1_bU9Kpvhdb1ha",
+    "zone": "Utility Room",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Utility Room",
+      "Utility Room (Salford Office)",
+      "Utility Room (Ground Floor, Salford Office)",
+      "Energy_1_bU9Kpvhdb1ha"
+    ]
+  },
+  "Utility Room (Salford Office)": {
+    "id": "04e4dce0-5da5-11f0-a19e-8f874a1c01d3",
+    "name": "Energy_1_bU9Kpvhdb1ha",
+    "zone": "Utility Room",
+    "floor": "Ground Floor",
+    "building": "Salford Office",
+    "synonyms": [
+      "Utility Room",
+      "Utility Room (Ground Floor)",
+      "Utility Room (Ground Floor, Salford Office)",
+      "Energy_1_bU9Kpvhdb1ha"
+    ]
+  },
+  "Water Leak_MdGf5j3Ae9Zs": {
+    "id": "002f9dc0-58b9-11f0-a19e-8f874a1c01d3",
+    "name": "Water Leak_MdGf5j3Ae9Zs",
+    "zone": "Toilet",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Toilet",
+      "Toilet (First Floor)",
+      "Toilet (Bolton)",
+      "Toilet (First Floor, Bolton)"
+    ]
+  },
+  "Water Meter_AmRUN3AzIrJd": {
+    "id": "4a829030-58b9-11f0-a19e-8f874a1c01d3",
+    "name": "Water Meter_AmRUN3AzIrJd",
+    "zone": "Comms",
+    "floor": "First Floor",
+    "building": "Bolton",
+    "synonyms": [
+      "Comms",
+      "Comms (First Floor)",
+      "Comms (Bolton)",
+      "Comms (First Floor, Bolton)"
+    ]
+  },
+  "Water Meter_MbiKu6lQAq1Y": {
+    "id": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+    "name": "Water Meter_MbiKu6lQAq1Y",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 2",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Site Monitoring Kit 2)",
+      "Portable (Default, Site Monitoring Kit 2)"
+    ]
+  },
+  "Water_JTTcwf8VtSgM": {
+    "id": "fd0fc870-5e50-11f0-a19e-8f874a1c01d3",
+    "name": "Water_JTTcwf8VtSgM",
+    "zone": "Portable",
+    "floor": "Default",
+    "building": "Site Monitoring Kit 1",
+    "synonyms": [
+      "Portable",
+      "Portable (Default)",
+      "Portable (Site Monitoring Kit 1)",
+      "Portable (Default, Site Monitoring Kit 1)"
+    ]
+  }
 }
