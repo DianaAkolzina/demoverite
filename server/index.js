@@ -91,6 +91,47 @@ function cacheSet(map, key, v) {
   try { map.set(key, { t: Date.now(), v }); } catch {}
 }
 const publicDir = path.join(root, 'public');
+// Device alias map (lightweight resolver using data/device_aliases.json)
+let DEVICE_ALIAS_MAP = null;
+function ensureDeviceAliasMap() {
+  if (DEVICE_ALIAS_MAP) return DEVICE_ALIAS_MAP;
+  DEVICE_ALIAS_MAP = new Map();
+  try {
+    const aliasPath = path.join(root, 'data', 'device_aliases.json');
+    if (fs.existsSync(aliasPath)) {
+      const raw = JSON.parse(fs.readFileSync(aliasPath, 'utf8'));
+      const add = (key, id) => {
+        if (!key || !id) return;
+        const variants = [
+          String(key).trim(),
+          String(key).trim().toLowerCase(),
+          String(key).trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+        ];
+        variants.forEach((v) => { if (v) DEVICE_ALIAS_MAP.set(v, id); });
+      };
+      for (const [alias, obj] of Object.entries(raw || {})) {
+        const id = typeof obj === 'string' ? obj : (obj && (obj.id || obj.cloudId || obj.deviceId));
+        add(alias, id);
+        const syns = obj?.synonyms;
+        if (Array.isArray(syns)) syns.forEach((s) => add(s, id));
+      }
+    }
+  } catch {}
+  return DEVICE_ALIAS_MAP;
+}
+function resolveAliasOrSelf(room) {
+  if (!room) return room;
+  const map = ensureDeviceAliasMap();
+  const variants = [
+    String(room).trim(),
+    String(room).trim().toLowerCase(),
+    String(room).trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+  ];
+  for (const v of variants) {
+    if (map.has(v)) return map.get(v);
+  }
+  return room;
+}
 
 function sendJson(res, status, obj) {
   const body = JSON.stringify(obj);
@@ -427,7 +468,8 @@ function parseCSV(filePath) {
 function loadRoomTables(room) {
   // S3 mode: interpret room as deviceId and load its telemetry CSV
   try {
-    const filePath = path.join(s3LocalDir, `${room}.csv`);
+    const resolvedRoom = resolveAliasOrSelf(room);
+    const filePath = path.join(s3LocalDir, `${resolvedRoom}.csv`);
     if (!fs.existsSync(filePath)) return {};
     const normalizeLeakValue = (value) => {
       if (value === null || value === undefined) return null;
@@ -458,37 +500,6 @@ function loadRoomTables(room) {
         return r;
       })
       .sort((a,b)=>(a.ts??0)-(b.ts??0));
-    // Optional: log a one-time match hint via Neo4j mapping
-    if (!loadRoomTables._logged) loadRoomTables._logged = new Set();
-    if (!loadRoomTables._logged.has(room)) {
-      loadRoomTables._logged.add(room);
-      try {
-        // Best-effort property match
-        const idNorm = String(room).toLowerCase().replace(/[-_]/g,'');
-        import('neo4j-driver').then(m => {
-          const neo4j = m.default || m;
-          const uri = process.env.NEO4J_URI, user = process.env.NEO4J_USERNAME, pass = process.env.NEO4J_PASSWORD, db = process.env.NEO4J_DATABASE || 'neo4j';
-          if (!uri || !user || !pass) return;
-          const drv = neo4j.driver(uri, neo4j.auth.basic(user, pass));
-          const s = drv.session({ database: db });
-          const cy = `
-            MATCH (d:Device)
-            WITH d, [$idNorm] AS ids
-            WITH d, ids, [toString(d.id), toString(d.cloud_id), toString(d.deviceId), toString(d.name)] AS cands
-            WITH d, [x IN cands WHERE x IS NOT NULL | toLower(replace(replace(x,'-',''),'_',''))] AS norms, ids[0] AS target
-            WHERE target IN norms
-            RETURN coalesce(d.id,d.cloud_id,d.deviceId,d.name) AS matchVal,
-                   CASE WHEN toLower(replace(replace(toString(d.cloud_id),'-',''),'_',''))=target THEN 'cloud_id'
-                        WHEN toLower(replace(replace(toString(d.id),'-',''),'_',''))=target THEN 'id'
-                        WHEN toLower(replace(replace(toString(d.deviceId),'-',''),'_',''))=target THEN 'deviceId'
-                        WHEN toLower(replace(replace(toString(d.name),'-',''),'_',''))=target THEN 'name' ELSE 'unknown' END AS matchedBy
-          `;
-          s.run(cy, { idNorm }).then(r => {
-            const rec = r.records?.[0]; if (rec) console.log('[s3] device match', room, '->', rec.get('matchVal'), 'by', rec.get('matchedBy'));
-          }).catch(()=>{}).finally(()=>{s.close(); drv.close();});
-        }).catch(()=>{});
-      } catch {}
-    }
     return { telemetry: rows };
   } catch { return {}; }
 }
@@ -2615,19 +2626,92 @@ const server = http.createServer(async (req, res) => {
       return /(plot|chart|graph|visualize|heatmap|compare|forecast|correlat)/i.test(q || '');
     }
 
+    function sampleSeries(points = [], maxPoints = 600) {
+      if (!Array.isArray(points) || points.length === 0) return [];
+      if (points.length <= maxPoints) return points;
+      const step = Math.max(1, Math.floor(points.length / maxPoints));
+      const sampled = [];
+      for (let i = 0; i < points.length; i += step) sampled.push(points[i]);
+      if (sampled[sampled.length - 1] !== points[points.length - 1]) sampled.push(points[points.length - 1]);
+      return sampled;
+    }
+
+    // Build a minimal chart from the most recent tool output so we can still plot when the LLM forgets to.
+    function buildChartFromTrace(trace = []) {
+      if (!Array.isArray(trace) || !trace.length) return null;
+      const ordered = [...trace].reverse();
+      for (const entry of ordered) {
+        if (!entry || !entry.result) continue;
+
+        // Scatter pair (x/y) output
+        if (entry.tool === 'pair_timeseries' && Array.isArray(entry.result)) {
+          const cleaned = entry.result
+            .map((row) => Array.isArray(row) && row.length >= 2 ? [Number(row[0]), Number(row[1])] : null)
+            .filter((val) => Array.isArray(val) && Number.isFinite(val[0]) && Number.isFinite(val[1]));
+          if (cleaned.length) {
+            return {
+              chart: { type: 'scatter' },
+              title: { text: 'Paired Metrics' },
+              xAxis: { title: { text: 'X' } },
+              yAxis: { title: { text: 'Y' } },
+              series: [{ name: 'Correlation', data: sampleSeries(cleaned) }]
+            };
+          }
+        }
+
+        const rows = Array.isArray(entry.result) ? entry.result : null;
+        if (!rows || !rows.length) continue;
+        const sample = rows.find((r) => r && typeof r === 'object');
+        if (!sample || sample.ts == null) continue;
+        const numericFields = Object.keys(sample)
+          .filter((k) => k !== 'ts' && Number.isFinite(Number(sample[k])));
+        if (!numericFields.length) continue;
+        const fields = numericFields.slice(0, 2);
+        const series = fields.map((field) => {
+          const pairs = rows
+            .map((r) => [Number(r.ts), Number(r[field])])
+            .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+          return pairs.length ? { name: field, data: sampleSeries(pairs) } : null;
+        }).filter(Boolean);
+        if (!series.length) continue;
+        const type = entry.tool === 'weather_fetch' ? 'spline' : 'line';
+        const title = entry.tool === 'weather_fetch'
+          ? `Weather — ${fields.join(' / ')}`
+          : `${entry.tool} — ${fields.join(' / ')}`;
+        return {
+          chart: { type },
+          title: { text: title },
+          xAxis: { type: 'datetime', title: { text: 'Time' } },
+          yAxis: { title: { text: 'Value' } },
+          tooltip: series.length > 1 ? { shared: true } : undefined,
+          series
+        };
+      }
+      return null;
+    }
+
     function chartHasRenderableSeries(res) {
       const series = res?.chart?.series;
       if (!Array.isArray(series) || !series.length) return false;
       return series.some((s) => s && (s.data || s.dataRef));
     }
 
+    function attachFallbackChart(res) {
+      if (!res || chartHasRenderableSeries(res)) return res;
+      const fallbackChart = buildChartFromTrace(res.trace);
+      if (fallbackChart) {
+        return { ...res, chart: fallbackChart };
+      }
+      return res;
+    }
+
     function resultNeedsRetry(res) {
+      res = attachFallbackChart(res);
       if (!res) return true;
       const text = (res.message && res.message.content) ? String(res.message.content).trim() : '';
       if (!text) return true;
       const lower = text.toLowerCase();
       if (/unable to/.test(lower) || /no data available/.test(lower)) return true;
-      if (expectsChartFromQuestion(question) && !chartHasRenderableSeries(res)) return true;
       return false;
     }
 
@@ -2636,7 +2720,7 @@ const server = http.createServer(async (req, res) => {
     const maxAttempts = Number(process.env.AGENT_MAX_ATTEMPTS || 2);
     let agentResult = null;
     for (let attempt = 0; attempt < Math.max(1, maxAttempts); attempt += 1) {
-        const runResult = await agent.run(effMessages, {
+        const runResult = attachFallbackChart(await agent.run(effMessages, {
           room: effRoom,
           range: scopeRange,
           selectionRooms,
@@ -2651,7 +2735,7 @@ const server = http.createServer(async (req, res) => {
         attempt,
         conversationSummary,
         connectors: connectorsSnapshot
-      });
+      }));
       if (!resultNeedsRetry(runResult)) {
         agentResult = runResult;
         break;
@@ -2662,7 +2746,8 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    const { message, chart, trace, extras } = agentResult || {};
+    const normalizedResult = attachFallbackChart(agentResult);
+    const { message, chart, trace, extras } = normalizedResult || {};
     try {
       if (Array.isArray(trace)) {
         console.log(`[Agent][trace] ${trace.length} entries`);
@@ -2715,10 +2800,20 @@ const server = http.createServer(async (req, res) => {
           summary: insightSummary,
           metrics: routingPreview.metrics
         }) || conversationState;
-        if (expectsChartFromQuestion(question) && !chartHasRenderableSeries(agentResult)) {
-          return sendJson(res, 502, { conversationId, error: 'agent_no_chart', detail: 'Agent did not deliver chart data after retries.' });
+        const responseExtras = Array.isArray(extras) ? [...extras] : [];
+        const chartReady = chartHasRenderableSeries(normalizedResult);
+        if (expectsChartFromQuestion(question) && !chartReady) {
+          console.warn('[API/chat] Missing chart for chart-seeking question; returning text-only response.');
+          responseExtras.push({ type: 'warning', code: 'chart_missing', detail: 'Chart was not produced; showing text answer only.' });
         }
-        return sendJson(res, 200, { conversationId, message, chart, extras: extras || ((agent && agent.extras) ? agent.extras : undefined), trace, mode: 'agent' });
+        return sendJson(res, 200, {
+          conversationId,
+          message,
+          chart: chartReady ? chart : null,
+          extras: responseExtras.length ? responseExtras : ((agent && agent.extras) ? agent.extras : undefined),
+          trace,
+          mode: 'agent'
+        });
       } catch (e) {
         try { console.error('[API/chat] FAILED:', e?.stack || String(e)); } catch {}
         return sendJson(res, 500, { conversationId, error: 'bad_request', detail: String(e?.message || e || 'unknown') });

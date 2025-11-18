@@ -887,7 +887,7 @@ const extractFieldValue = (row, fieldOrList) => {
         const tablesSets = availableFieldsByTable(deviceId);
         let score = 0;
         for (const field of desired) {
-          const resolved = inferFieldName(field, tablesSets);
+          const resolved = resolveCanonicalField(field, tablesSets);
           if (resolved) score += 1;
         }
         if (score === desired.length) return deviceId; // perfect match
@@ -905,9 +905,9 @@ const extractFieldValue = (row, fieldOrList) => {
         if (!deviceId) continue;
         try {
           const tablesSets = availableFieldsByTable(deviceId);
-          const hasAll = desired.every((field) => !!inferFieldName(field, tablesSets));
+          const hasAll = desired.every((field) => !!resolveCanonicalField(field, tablesSets));
           if (hasAll) return deviceId;
-          const partial = desired.some((field) => !!inferFieldName(field, tablesSets));
+          const partial = desired.some((field) => !!resolveCanonicalField(field, tablesSets));
           if (partial && bestScore < 1) {
             bestScore = 1;
             best = deviceId;
@@ -1044,7 +1044,7 @@ const extractFieldValue = (row, fieldOrList) => {
       if (!value || typeof value !== 'string') return value;
       const sets = getFieldSets(roomId);
       if (!sets) return value;
-      return inferFieldName(value, sets) || value;
+      return resolveCanonicalField(value, sets) || value;
     };
 
     const normalizeTableName = (value, roomId) => {
@@ -1165,7 +1165,7 @@ const extractFieldValue = (row, fieldOrList) => {
           break;
         }
         const sets = availableFieldsByTable(dev);
-        const matches = desiredFieldsFinal.every((f) => !!inferFieldName(f, sets));
+        const matches = desiredFieldsFinal.every((f) => !!resolveCanonicalField(f, sets));
         if (matches) {
           args.room = dev;
           tablesForRoom = t;
@@ -1394,12 +1394,62 @@ const extractFieldValue = (row, fieldOrList) => {
         } else {
           metrics.set(deviceId, []);
         }
-        if (!stats.has(deviceId)) stats.set(deviceId, null);
+        // Precompute coverage so tools can quickly validate availability
+        if (!stats.has(deviceId)) {
+          try {
+            stats.set(deviceId, getCsvStats(deviceId));
+          } catch {
+            stats.set(deviceId, { tsMin: null, tsMax: null, count: 0 });
+          }
+        }
       }
     } catch (err) {
       if (DEBUG) log('buildCsvMetadata failed', String(err));
     }
     return { stats, metrics };
+  }
+
+  // Canonical metric aliases (deterministic; no fuzzy contains)
+  const CANONICAL_FIELD_ALIASES = {
+    co2: ['co2ppm', 'carbondioxide', 'co2_level', 'concentration'],
+    temperature: ['temp', 'temperaturec', 'temp_c', 'airtemp', 'ambienttemp'],
+    humidity: ['hum', 'rh', 'relativehumidity', 'humid'],
+    people_count: ['people', 'count', 'occupants', 'occupancy', 'personcount'],
+    lux: ['illuminance', 'light', 'lightlevel'],
+    pm1: ['pm_1', 'particulate1'],
+    pm25: ['pm_2_5', 'pm2.5', 'particulate25'],
+    pm10: ['pm_10', 'particulate10'],
+    pressure: ['atmpressure', 'barometricpressure'],
+    voc: ['volatileorganiccompounds', 'voc_level'],
+    odor_level: ['odor', 'odour', 'odorlevel', 'smell'],
+    airExchangeRate: ['air exchange rate', 'airexchangerate', 'airchangerate', 'airchange', 'ach', 'air_exch_rate', 'air_exch'],
+    battery: ['battery_level', 'batt'],
+    rssi: ['signal', 'signalstrength'],
+    value: ['reading', 'measurement'],
+    unit: ['units'],
+    sla: ['servicelevelagreement'],
+    time: ['timestamp', 'datetime'],
+    date: ['datestamp']
+  };
+
+  // Build canonical field map from discovered headers
+  function buildCanonicalFieldMap(metrics) {
+    const map = new Map();
+    for (const list of metrics.values()) {
+      (list || []).forEach((f) => {
+        const key = norm(f);
+        if (key && !map.has(key)) map.set(key, f);
+      });
+    }
+    for (const [canon, syns] of Object.entries(CANONICAL_FIELD_ALIASES)) {
+      const canonKey = norm(canon);
+      if (!map.has(canonKey)) map.set(canonKey, canon);
+      syns.forEach((s) => {
+        const sk = norm(s);
+        if (sk && !map.has(sk)) map.set(sk, canon);
+      });
+    }
+    return map;
   }
 
   const FRIENDLY_TO_CLOUD = loadFriendlyToCloudMap();
@@ -1471,6 +1521,7 @@ const extractFieldValue = (row, fieldOrList) => {
     return null;
   }
   const { stats: CSV_DEVICE_STATS, metrics: CSV_DEVICE_METRICS } = buildCsvMetadata();
+  const CANONICAL_FIELD_MAP = buildCanonicalFieldMap(CSV_DEVICE_METRICS);
   const CSV_STATS_CACHE = CSV_DEVICE_STATS;
   const friendlyLookup = (label) => {
     if (!label) return null;
@@ -3126,7 +3177,7 @@ function summarizeFieldComparison(entries = []) {
         else if (qLower.includes('humidity')) field = 'humidity';
         else if (qLower.includes('lux') || qLower.includes('light')) field = 'lux';
       }
-      if (!field) field = inferFieldName(question, tablesSets) || 'temperature';
+      if (!field) field = resolveCanonicalField(question, tablesSets) || 'temperature';
       let binding = resolveFieldBinding(field, selectionRooms, targetRoom) || resolveFieldBinding(field, [targetRoom], targetRoom);
       if (!binding) {
         try {
@@ -4730,16 +4781,20 @@ function buildSnapshotIndex() {
         const roomId = entry.args?.room || defaultRoom || selectionRooms[0] || null;
         const friendlyRoom = roomId ? deviceFriendlyName(roomId) : 'Scope';
         const chartType = pickChartTypeForField(seriesFields[0], question);
-        const yAxisTitle = humanizeMetricName(seriesFields.length === 1 ? seriesFields[0] : 'Value');
+        const aggField = seriesFields.length === 1 ? seriesFields[0] : null;
+        const baseMetric = entry.args?.field || entry.args?.yField || entry.args?.metric || seriesFields[0];
+        const aggLabel = (aggField && ['avg','sum','min','max','count'].includes(norm(aggField))) ? aggField : null;
+        const metricLabel = humanizeMetricName(baseMetric);
+        const yAxisTitle = aggLabel ? `${aggLabel.toUpperCase()} ${metricLabel}` : humanizeMetricName(seriesFields.length === 1 ? seriesFields[0] : 'Value');
 
         const chart = {
           chart: { type: chartType },
-          title: { text: `${friendlyRoom} — ${seriesFields.map(humanizeMetricName).join(' / ')}` },
+          title: { text: `${friendlyRoom} — ${aggLabel ? `${aggLabel.toUpperCase()} ${metricLabel}` : seriesFields.map(humanizeMetricName).join(' / ')}` },
           xAxis: { type: 'datetime', title: { text: 'Time' } },
           yAxis: { title: { text: yAxisTitle } },
           tooltip: seriesFields.length > 1 ? { shared: true } : undefined,
           series: seriesFields.map((field) => ({
-            name: `${friendlyRoom} ${humanizeMetricName(field)}`,
+            name: aggLabel ? `${friendlyRoom} ${aggLabel.toUpperCase()} ${metricLabel}` : `${friendlyRoom} ${humanizeMetricName(field)}`,
             dataRef: {
               tool: entry.tool,
               room: entry.args?.room,
@@ -4994,43 +5049,46 @@ function buildSnapshotIndex() {
   function norm(s) { 
     return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); 
   }
-  
+
+  function devicesWithField(field, scopeRooms = []) {
+    const target = norm(field);
+    const out = [];
+    const pushIfHas = (deviceId) => {
+      if (!deviceId) return;
+      const fields = CSV_DEVICE_METRICS.get(deviceId) || [];
+      const has = fields.some((f) => norm(f) === target || norm(f) === norm(CANONICAL_FIELD_MAP.get(target)));
+      if (has && !out.includes(deviceId)) out.push(deviceId);
+    };
+    scopeRooms.forEach(pushIfHas);
+    if (!out.length) {
+      for (const [deviceId, fields] of CSV_DEVICE_METRICS.entries()) {
+        if ((fields || []).some((f) => norm(f) === target || norm(f) === norm(CANONICAL_FIELD_MAP.get(target)))) {
+          pushIfHas(deviceId);
+        }
+      }
+    }
+    return out;
+  }
+
+  function assertDataAvailable(deviceId, field, { start = null, end = null } = {}) {
+    const stats = getCsvStats(deviceId);
+    if (!stats || !Number.isFinite(stats.tsMin) || !Number.isFinite(stats.tsMax) || !stats.count) {
+      return { ok: false, reason: 'no rows for device' };
+    }
+    if (start != null && end != null && (end < stats.tsMin || start > stats.tsMax)) {
+      return { ok: false, reason: 'no rows in requested range', coverage: stats };
+    }
+    return { ok: true, coverage: stats };
+  }
+
   function resolveTable(room, name) {
     const resolvedRoom = resolveDeviceIdForRoom(room) || room;
     const t = loadRoomTables(resolvedRoom);
     const keys = Object.keys(t);
-    if (!keys.length) return name || 'telemetry';
-    if (!name) {
-      if (t.telemetry) return 'telemetry';
-      return keys[0];
-    }
-    if (t[name]) return name;
-    const n = norm(name);
-    const TABLE_ALIAS = {
-      iaq: 'telemetry',
-      indoorairquality: 'telemetry',
-      airquality: 'telemetry',
-      telemetryiaq: 'telemetry',
-      sensor: 'telemetry',
-      sensors: 'telemetry',
-      hvac: 'telemetry',
-      people: 'telemetry',
-      occupancy: 'telemetry',
-      energy: 'telemetry',
-      power: 'telemetry',
-      env: 'telemetry'
-    };
-    const aliasTarget = TABLE_ALIAS[n];
-    if (aliasTarget && t[aliasTarget]) return aliasTarget;
-    const k1 = keys.find(k => norm(k) === n);
-    if (k1) return k1;
-    const parts = String(name).split('_');
-    const core = norm(parts[parts.length-1] || name);
-    const k2 = keys.find(k => norm(k) === core) || keys.find(k => norm(k).endsWith(core)) || keys.find(k => norm(k).includes(core));
-    if (k2) return k2;
-    if (keys.length === 1) return keys[0];
+    if (!keys.length) return 'telemetry';
+    if (name === 'weather' || t.weather) return 'weather';
     if (t.telemetry) return 'telemetry';
-    return name;
+    return keys[0];
   }
 
   function resolveFieldWithAlias(room, table, field) {
@@ -5100,19 +5158,14 @@ function buildSnapshotIndex() {
 
     const suggestions = [];
     for (const roomId of queue) {
-      const tables = loadRoomTables(roomId);
-      for (const [table, rows] of Object.entries(tables)) {
-        if (!Array.isArray(rows) || !rows.length) continue;
-        const first = rows[0] || {};
-        for (const key of Object.keys(first)) {
-          if (!key || key === 'ts') continue;
-          const keyNorm = key.toLowerCase();
-          if (keyNorm === target) {
-            return { room: roomId, table, fieldName: key };
-          }
-          if (keyNorm.includes(target) || target.includes(keyNorm)) {
-            suggestions.push({ room: roomId, table, fieldName: key });
-          }
+      const sets = availableFieldsByTable(roomId);
+      for (const [table, fields] of Object.entries(sets)) {
+        const resolved = resolveCanonicalField(target, { [table]: fields });
+        if (resolved && fields.has(resolved)) {
+          return { room: roomId, table, fieldName: resolved };
+        }
+        for (const key of fields) {
+          if (norm(key) === norm(target)) suggestions.push({ room: roomId, table, fieldName: key });
         }
       }
     }
@@ -5135,34 +5188,30 @@ function buildSnapshotIndex() {
     return out;
   }
 
-  function inferFieldName(label, availableSets) {
+  function resolveCanonicalField(label, availableSets) {
     if (!label) return null;
     const target = norm(String(label).replace(/\(([^)]*)\)/g, '').trim());
+    if (!target) return null;
     const sets = Object.values(availableSets || {});
-    // Direct match across any table
+    const direct = CANONICAL_FIELD_MAP.get(target) || target;
+    // Prefer direct/alias match in available sets
     for (const set of sets) {
-      for (const f of set) if (norm(f) === target) return f;
-    }
-    // Synonyms
-    let canonicalFallback = null;
-    for (const [canon, syns] of Object.entries(FIELD_SYNONYMS)) {
-      const cn = norm(canon);
-      if (target === cn || syns.some(s => norm(s) === target)) {
-        canonicalFallback = canon;
-        for (const set of sets) {
-          for (const f of set) if (norm(f) === cn) return f;
-          for (const s of syns) {
-            for (const f of set) if (norm(f) === norm(s)) return f;
-          }
-        }
+      for (const f of set) {
+        const k = norm(f);
+        if (k === target || k === norm(direct)) return f;
       }
     }
-    // Fuzzy contains
-    for (const set of sets) {
-      for (const f of set) if (norm(f).includes(target) || target.includes(norm(f))) return f;
+    // Alias lookups
+    const aliasTarget = CANONICAL_FIELD_MAP.get(target);
+    if (aliasTarget) {
+      for (const set of sets) {
+        for (const f of set) {
+          if (norm(f) === norm(aliasTarget)) return f;
+        }
+      }
+      return aliasTarget;
     }
-    if (canonicalFallback) return canonicalFallback;
-    return target || null;
+    return null;
   }
 
 function parseFieldsFromQuestion(question, availableSets) {
@@ -5172,7 +5221,7 @@ function parseFieldsFromQuestion(question, availableSets) {
   try {
     const airSyns = ['air exchangerate','air exchange rate','airexchangerate','airchangerate','airchange','ach'];
     if (airSyns.some(s => q.includes(s))) {
-      const f = inferFieldName('airExchangeRate', availableSets) || inferFieldName('ach', availableSets);
+      const f = resolveCanonicalField('airExchangeRate', availableSets) || resolveCanonicalField('ach', availableSets);
       if (f && !fields.includes(f)) fields.push(f);
     }
   } catch {}
@@ -5180,8 +5229,8 @@ function parseFieldsFromQuestion(question, availableSets) {
     if (q.includes(' vs ') || q.includes(' against ')) {
       const parts = question.split(/\s+(?:vs|against)\s+/i).map(s => s.trim());
       if (parts.length >= 2) {
-        const f1 = inferFieldName(parts[0], availableSets);
-        const f2 = inferFieldName(parts[1], availableSets);
+        const f1 = resolveCanonicalField(parts[0], availableSets);
+        const f2 = resolveCanonicalField(parts[1], availableSets);
         if (f1) fields.push(f1);
         if (f2) fields.push(f2);
       }
@@ -5191,8 +5240,8 @@ function parseFieldsFromQuestion(question, availableSets) {
       const bet = question.split(/between/i)[1] || '';
       const bits = bet.split(/\band\b|&/i).map(s => s.trim()).filter(Boolean);
       if (bits.length >= 2) {
-        const f1 = inferFieldName(bits[0], availableSets);
-        const f2 = inferFieldName(bits[1], availableSets);
+        const f1 = resolveCanonicalField(bits[0], availableSets);
+        const f2 = resolveCanonicalField(bits[1], availableSets);
         if (f1 && !fields.includes(f1)) fields.push(f1);
         if (f2 && !fields.includes(f2)) fields.push(f2);
       }
@@ -5202,7 +5251,7 @@ function parseFieldsFromQuestion(question, availableSets) {
     for (const c of candidates) {
       if (fields.length >= 2) break;
       if (q.includes(c)) {
-        const f = inferFieldName(c, availableSets);
+        const f = resolveCanonicalField(c, availableSets);
         if (f && !fields.includes(f)) fields.push(f);
       }
     }
@@ -5526,12 +5575,12 @@ function parseFieldsFromQuestion(question, availableSets) {
           if ((!f1 || !f2) && series && typeof series.name === 'string') {
             const parts = series.name.split(/\s+vs\s+|\s+and\s+/i).map((s) => s.trim()).filter(Boolean);
             if (parts.length >= 2) {
-              f1 = f1 || inferFieldName(parts[0], tablesSets) || parts[0];
-              f2 = f2 || inferFieldName(parts[1], tablesSets) || parts[1];
+              f1 = f1 || resolveCanonicalField(parts[0], tablesSets) || parts[0];
+              f2 = f2 || resolveCanonicalField(parts[1], tablesSets) || parts[1];
             }
           }
-          f1 = f1 || ref.yField || inferFieldName(question, tablesSets) || 'temperature';
-          f2 = f2 || inferFieldName(question, tablesSets) || 'humidity';
+          f1 = f1 || ref.yField || resolveCanonicalField(question, tablesSets) || 'temperature';
+          f2 = f2 || resolveCanonicalField(question, tablesSets) || 'humidity';
           const preferredRoom = ref.room || primaryDevice || (isAllRooms(room) ? null : room);
           const binding1 = resolveFieldBinding(f1, selectionRooms, preferredRoom);
           const roomForRef = binding1?.room || preferredRoom || inferRoomFromText(series.name) || inferRoomFromText(question) || room;
@@ -5574,7 +5623,7 @@ function parseFieldsFromQuestion(question, availableSets) {
         } else if (toolName === 'hourly_timeseries' || toolName === 'daily_avg') {
           const primaryDevice = roomsList.find(Boolean) || null;
           const preferredRoom = ref.room || primaryDevice || (isAllRooms(room) ? null : room);
-          const fieldHint = ref.field || ref.yField || ref.metric || inferFieldName(series?.name || question, availableFieldsByTable(preferredRoom || room || '')) || 'temperature';
+          const fieldHint = ref.field || ref.yField || ref.metric || resolveCanonicalField(series?.name || question, availableFieldsByTable(preferredRoom || room || '')) || 'temperature';
           const binding = resolveFieldBinding(fieldHint, selectionRooms, preferredRoom) || resolveFieldBinding(fieldHint, selectionRooms, null) || resolveFieldBinding('temperature', selectionRooms, preferredRoom);
           if (!binding) continue;
           const roomForRef = binding.room;
@@ -5627,7 +5676,7 @@ function parseFieldsFromQuestion(question, availableSets) {
             : (roomsList.length ? roomsList.slice(0, 12) : (isAllRooms(room) ? listRooms().slice(0, 8) : [room].filter(Boolean)));
           if (!roomsForCompare.length) continue;
           const tablesSets = availableFieldsByTable(roomsForCompare[0]);
-          const fieldCandidate = ref.field || ref.metric || inferFieldName(series?.name || question, tablesSets) || 'temperature';
+          const fieldCandidate = ref.field || ref.metric || resolveCanonicalField(series?.name || question, tablesSets) || 'temperature';
           const binding = resolveFieldBinding(fieldCandidate, roomsForCompare, roomsForCompare[0]) || resolveFieldBinding(fieldCandidate, selectionRooms, roomsForCompare[0]);
           const tableName = binding?.table || ref.table || resolveTable(roomsForCompare[0], fieldCandidate === 'total_kwh' ? 'energy' : 'iaq');
           const fieldName = binding?.fieldName || fieldCandidate;
@@ -5668,7 +5717,7 @@ function parseFieldsFromQuestion(question, availableSets) {
         } else if (toolName === 'hour_of_day_stats') {
           const preferredRoom = ref.room || (isAllRooms(room) ? roomsList[0] || null : room) || roomsList[0] || null;
           if (!preferredRoom) continue;
-          const binding = resolveFieldBinding(ref.field || ref.metric || inferFieldName(question, availableFieldsByTable(preferredRoom)), selectionRooms, preferredRoom) ||
+          const binding = resolveFieldBinding(ref.field || ref.metric || resolveCanonicalField(question, availableFieldsByTable(preferredRoom)), selectionRooms, preferredRoom) ||
                           resolveFieldBinding('occupancy', selectionRooms, preferredRoom) ||
                           resolveFieldBinding('people_count', selectionRooms, preferredRoom) ||
                           resolveFieldBinding('co2', selectionRooms, preferredRoom);
@@ -5707,7 +5756,7 @@ function parseFieldsFromQuestion(question, availableSets) {
           const preferredRoom = ref.room || (isAllRooms(room) ? (roomsList[0] || null) : room) || roomsList[0] || null;
           if (!preferredRoom) continue;
           const tablesSets = availableFieldsByTable(preferredRoom);
-          const fieldCandidate = ref.field || inferFieldName(question, tablesSets) || inferFieldName(series?.name, tablesSets) || 'temperature';
+          const fieldCandidate = ref.field || resolveCanonicalField(question, tablesSets) || resolveCanonicalField(series?.name, tablesSets) || 'temperature';
           const binding = resolveFieldBinding(fieldCandidate, selectionRooms, preferredRoom) || resolveFieldBinding(fieldCandidate, [preferredRoom], preferredRoom) || resolveFieldBinding('temperature', selectionRooms, preferredRoom);
           if (!binding) continue;
           const tableName = binding.table || resolveTable(preferredRoom, fieldCandidate === 'total_kwh' ? 'energy' : 'iaq');
@@ -5730,7 +5779,7 @@ function parseFieldsFromQuestion(question, availableSets) {
         } else if (toolName === 'compare_series_cross_room') {
           const roomsForCompare = roomsList.length ? roomsList.slice(0, 8) : (room && !isAllRooms(room) ? [room] : listRooms().slice(0, 4));
           const tablesSetsAny = roomsForCompare.length ? availableFieldsByTable(roomsForCompare[0]) : {};
-          let field = ref.yField || ref.field || inferFieldName(series.name, tablesSetsAny) || inferFieldName(question, tablesSetsAny) || 'temperature';
+          let field = ref.yField || ref.field || resolveCanonicalField(series.name, tablesSetsAny) || resolveCanonicalField(question, tablesSetsAny) || 'temperature';
           const seriesArgs = [];
           for (const r of roomsForCompare) {
             const binding = resolveFieldBinding(field, [r], r);
@@ -6089,7 +6138,20 @@ function parseFieldsFromQuestion(question, availableSets) {
     
     fetch_timeseries({ room, table, fields = [], start = null, end = null, limit = 2000, after_ts = null }) {
       // Map friendly room labels to a concrete device id before loading tables.
-      const resolvedRoom = resolveDeviceIdForRoom(room) || resolveDeviceIdForRoom(table) || room || table;
+      const desiredField = (Array.isArray(fields) && fields[0]) || null;
+      const scopeRooms = Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : [];
+      const pickScopedWithField = () => {
+        if (!desiredField) return null;
+        const matches = devicesWithField(desiredField, scopeRooms);
+        return matches.length ? matches[0] : null;
+      };
+      const resolvedRoom =
+        (room && room !== 'ALL' && resolveDeviceIdForRoom(room)) ||
+        (table && resolveDeviceIdForRoom(table)) ||
+        (room === 'ALL' ? pickScopedWithField() : null) ||
+        (desiredField ? pickScopedWithField() : null) ||
+        room ||
+        table;
       const t = loadRoomTables(resolvedRoom);
       const tab = resolveTable(resolvedRoom, table);
       const arr = t[tab] || [];
@@ -6150,21 +6212,81 @@ function parseFieldsFromQuestion(question, availableSets) {
       return getLatest ? out.reverse() : out;
     },
     
-    stats({ room, table, field, start = null, end = null, queries = null, scopeRoomLabel = null }) {
+    stats({ room, table, field, start = null, end = null, queries = null, scopeRoomLabel = null, devices = [] }) {
       const resolveRoomPref = (val) => {
         if (!val) return null;
         return resolveDeviceIdForRoom(val) || val;
       };
       const preferredRoom = resolveRoomPref(scopeRoomLabel) || resolveRoomPref(room) || room;
+
+      const selectRoomTableField = (targetRoom, targetTable, targetField, targetScopeLabel) => {
+        const desiredField = targetField || field;
+        const candidates = [];
+        const push = (val) => {
+          const resolved = resolveRoomPref(val);
+          if (!resolved) return;
+          if (!candidates.includes(resolved)) candidates.push(resolved);
+        };
+        // Order: explicit scope hint, target room, provided devices, preferred room, original room.
+        push(targetScopeLabel);
+        push(targetRoom);
+        if (Array.isArray(devices)) devices.forEach(push);
+        push(preferredRoom);
+        push(room);
+
+        for (const candidate of candidates) {
+          const tab = resolveTable(candidate, targetTable);
+          const arr = (loadRoomTables(candidate)[tab]) || [];
+          if (!arr.length) continue;
+          const availableSets = availableFieldsByTable(candidate);
+          const inferredField = resolveCanonicalField(desiredField, availableSets);
+          const validatedField =
+            resolveFieldWithAlias(candidate, tab, desiredField) ||
+            resolveFieldWithAlias(candidate, tab, inferredField) ||
+            inferredField;
+          if (!validatedField) continue;
+          return { candidate, tab, field: validatedField, rows: arr };
+        }
+        return null;
+      };
+
       const compute = ({ targetRoom, targetTable, targetField, qStart, qEnd, targetScopeLabel = null }) => {
-        const roomHint = resolveRoomPref(targetRoom) || resolveRoomPref(targetScopeLabel) || resolveRoomPref(preferredRoom) || targetRoom || room;
-        const resolvedRoom = resolveDeviceIdForRoom(roomHint || targetRoom || room) || roomHint || targetRoom || room || targetTable || table;
-        if (!resolvedRoom) return { error: 'room required' };
-        const t = loadRoomTables(resolvedRoom);
-        const tab = resolveTable(resolvedRoom, targetTable);
-        const arr = t[tab] || [];
-        const validatedField = resolveFieldWithAlias(resolvedRoom, tab, targetField || field);
-        if (!validatedField) return { error: 'field required', room: resolvedRoom, table: tab };
+        const fieldCandidate = targetField || field;
+        const scopeRooms = Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : [];
+        if (!targetRoom && !targetScopeLabel) {
+          const scopeDevices = devicesWithField(fieldCandidate, scopeRooms);
+          if (!scopeDevices.length) {
+            return { error: 'no_device_with_field', field: fieldCandidate, message: `No device in scope has field ${fieldCandidate}` };
+          }
+          if (scopeDevices.length > 1) {
+            const zones = scopeDevices.map((d) => ({
+              device: d,
+              zone: currentScopeContext.scopeDeviceZones?.[d] || lookupDeviceHierarchy(d)?.zoneName || null
+            }));
+            return {
+              error: 'zone_choice_required',
+              field: fieldCandidate,
+              options: zones
+            };
+          }
+          targetRoom = scopeDevices[0];
+        }
+        const selection = selectRoomTableField(
+          targetRoom,
+          targetTable,
+          targetField,
+          targetScopeLabel
+        );
+        if (!selection) {
+          const roomHint = resolveRoomPref(targetRoom) || resolveRoomPref(targetScopeLabel) || resolveRoomPref(preferredRoom) || targetRoom || room;
+          return { error: 'field required', room: roomHint || null, table: targetTable || null };
+        }
+
+        const { candidate: resolvedRoom, tab, field: validatedField, rows: arr } = selection;
+        const availability = assertDataAvailable(resolvedRoom, validatedField, { start: qStart ?? start, end: qEnd ?? end });
+        if (!availability.ok) {
+          return { error: availability.reason || 'no data', room: resolvedRoom, table: tab, field: validatedField, coverage: availability.coverage || null };
+        }
         let totalRows = 0;
         let count = 0, min = Infinity, max = -Infinity, sum = 0;
         let minTs = null, maxTs = null;
@@ -6182,7 +6304,7 @@ function parseFieldsFromQuestion(question, availableSets) {
         return {
           room: resolvedRoom,
           table: tab,
-          field: resolvedField,
+          field: validatedField,
           total: totalRows,
           count,
           min: Number.isFinite(min) ? min : null,
@@ -6193,6 +6315,7 @@ function parseFieldsFromQuestion(question, availableSets) {
           maxTs: maxTs ?? null
         };
       };
+
       if (Array.isArray(queries) && queries.length) {
         return queries.map((query) => compute({
           targetRoom: query.room || query.room_name || room,
@@ -9026,8 +9149,9 @@ function parseFieldsFromQuestion(question, availableSets) {
       return out;
     },
     distinct_values({ room, table, field, limit = 50 }) {
-      const t = loadRoomTables(room);
-      const tab = resolveTable(room, table);
+      const resolvedRoom = resolveDeviceIdForRoom(room) || room;
+      const t = loadRoomTables(resolvedRoom);
+      const tab = resolveTable(resolvedRoom, table);
       const set = new Set();
       for (const r of (t[tab]||[])) { const v=r[field]; if (v!=null) { set.add(String(v)); if (set.size>=limit) break; } }
       return Array.from(set);
@@ -9035,8 +9159,9 @@ function parseFieldsFromQuestion(question, availableSets) {
 ,
 
     fetch_table_meta({ room, table }) {
-      const t = loadRoomTables(room);
-      const tab = resolveTable(room, table);
+      const resolvedRoom = resolveDeviceIdForRoom(room) || room;
+      const t = loadRoomTables(resolvedRoom);
+      const tab = resolveTable(resolvedRoom, table);
       const arr = t[tab] || [];
       const n = arr.length;
       const fields = Object.keys(arr[0] || {});
@@ -9046,7 +9171,8 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
     
     dump_room({ room, start = null, end = null, max_rows_per_table = null }) {
-      const t = loadRoomTables(room);
+      const resolvedRoom = resolveDeviceIdForRoom(room) || room;
+      const t = loadRoomTables(resolvedRoom);
       const out = {};
       for (const [name, rows] of Object.entries(t)) {
         const sel = [];
@@ -9065,9 +9191,11 @@ function parseFieldsFromQuestion(question, availableSets) {
       if (!Array.isArray(series)) return out;
       for (const s of series) {
         if (!s || !s.room || !s.table || !s.field) continue;
-        const t = loadRoomTables(String(s.room));
-        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
-        const name = s.name || `${s.room} ${s.field}`;
+        const resolvedRoom = resolveDeviceIdForRoom(s.room) || s.room;
+        const tab = resolveTable(resolvedRoom, s.table);
+        const t = loadRoomTables(String(resolvedRoom));
+        const arr = (t[String(tab)] || []).filter(r => withinRange(r.ts, start, end));
+        const name = s.name || `${resolvedRoom} ${s.field}`;
         const points = [];
         for (const r of arr) {
           const y = Number(r[s.field]);
@@ -9745,7 +9873,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       extractTimestampFromQuestion,
       formatLocal,
       inferDefaultTableForMetric,
-      inferFieldName,
+      resolveCanonicalField,
       isPlaceholderAnswer,
       loadRoomTables,
       normalizeText,
