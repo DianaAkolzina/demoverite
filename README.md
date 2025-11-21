@@ -7,21 +7,22 @@ This project lets you query and visualize building metrics (CO2, VOC, lux, occup
 ## Quick Start
 
 Prerequisites
-- Node.js 18+
-- Python 3.10+ (for Neo4j utilities, Chroma indexing, and report generation)
+- Node.js 18+ (only needed if running outside Docker)
+- Python 3.10+ (only needed if running outside Docker for Neo4j utilities, Chroma indexing, and report generation)
 - Neo4j Aura (recommended) or a local Neo4j 5 instance
-- AWS credentials (optional — required only if you mirror telemetry or upload reports)
+- Chroma vector service (local Docker service provided in compose)
+- AWS credentials (optional — only if you mirror telemetry/upload reports)
 
 1. Clone the repo  
    ```bash
    git clone <repo-url>
    cd avmsolutions
    ```
-2. Create `.env` from the template and fill the compulsory values (Gemini, AWS, Neo4j, Chroma).  
+2. Create `.env` from the template and fill the compulsory values (Neo4j, Chroma; add AWS if you want live telemetry/upload).  
    ```bash
    cp .env.example .env
    ```
-3. Install dependencies  
+3. Install dependencies (skip if you run purely via Docker)  
    ```bash
    npm install
    ```
@@ -33,7 +34,7 @@ Prerequisites
    ```bash
    npm run populate:neo4j
    ```
-6. Index knowledge into Chroma once the vector service is reachable (optional)  
+6. Index knowledge into Chroma once the vector service is reachable (optional but recommended)  
    ```bash
    npm run index:chroma
    ```
@@ -76,7 +77,7 @@ Additional subcommands:
 
 Use Docker when you want a reproducible environment (Node + Python + TeX) without installing toolchains locally.
 
-1) Copy env and fill the required values (minimum for good performance: Neo4j + Chroma; add AWS to mirror telemetry):
+1) Copy env and fill the required values (minimum for correct answers: Neo4j + Chroma; add AWS to mirror telemetry/upload PDFs):
 ```bash
 cp .env.example .env
 # Required for graph:
@@ -111,6 +112,7 @@ These scripts are also wrapped by `./scripts/dev.sh` (`sync-s3`, `populate-neo4j
 ```bash
 npm run pipeline:regression   # start app -> regression suites -> PDF traces upload
 ```
+If you skip AWS, the bundled CSVs under `CSVex_s3/` still populate dashboards; just omit `npm run sync:s3`.
 
 ### Running Without External Data Sources
 
@@ -178,7 +180,7 @@ Both scripts write their JSON reports to `data/tests/` and each request saves a 
 | OpenWeather    | ⚠️ Optional | Currently unused — synthetic backfill covers Sep–Oct offline. Provide a key only if you re-enable live fetches. |
 | AWS S3         | ⚠️ Optional | Only necessary when mirroring live telemetry. Sample CSVs in `CSVex_s3/` are enough for local development. |
 | Chroma         | ⚠️ Optional | Required for vector search. Skip by omitting `CHROMA_URL` or setting `CHROMA_SKIP_INDEX=1`. |
-| Python reranker| ⚠️ Optional | Needed only if `RERANK_ENABLED=1`. Install Python 3.9+ and set `RERANK_PYTHON_BIN` (or ensure `python3` / `python` is on `PATH`). |
+| Python reranker| ⚠️ Optional | Needed only if `RERANK_ENABLED=1`. Install Python 3.9+ (or use the Docker image) and set `RERANK_PYTHON_BIN` if `python3` isn’t on `PATH`. |
 
 ## Architecture at a Glance
 
