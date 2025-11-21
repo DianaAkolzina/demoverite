@@ -72,6 +72,46 @@ Additional subcommands:
 | `docker-build` / `docker-up` / `docker-down` / `docker-logs` | Wrap Docker image/container management (volumes for `./data`, `./CSVex_s3`, and `./knowledge` are mounted automatically so traces/CSV mirrors persist on the host). |
 | `clean` | Stops the app, removes the PID file, and tears down the Docker container if running. |
    
+### Docker Quickstart
+
+Use Docker when you want a reproducible environment (Node + Python + TeX) without installing toolchains locally.
+
+1) Copy env and fill the required values (minimum for good performance: Neo4j + Chroma; add AWS to mirror telemetry):
+```bash
+cp .env.example .env
+# Required for graph:
+NEO4J_URI=bolt://neo4j:7687         # or your Aura URI (neo4j+s://...)
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=testtest             # match NEO4J_AUTH in compose if local
+# Optional but recommended for vector search:
+CHROMA_URL=http://chroma:8000
+# Optional for live telemetry/report uploads:
+AWS_S3_ENABLED=1
+AWS_S3_BUCKET=your-bucket
+AWS_S3_REGION=eu-west-1
+```
+
+2) Build and start the stack (app + Neo4j + Chroma):
+```bash
+docker compose up --build
+```
+   - App: http://localhost:3000  
+   - Neo4j: bolt://localhost:7687 (Browser: http://localhost:7474)  
+   - Chroma: http://localhost:8000
+
+3) Populate data for “perfect performance” (from the host or inside the app container):
+```bash
+npm run sync:s3         # pulls telemetry to ./CSVex_s3 (requires AWS env)
+npm run populate:neo4j  # seeds graph topology (idempotent)
+npm run index:chroma    # builds/update embeddings for knowledge + profiles
+```
+These scripts are also wrapped by `./scripts/dev.sh` (`sync-s3`, `populate-neo4j`, `index-chroma`).
+
+4) Run end-to-end regression/pipeline (optional, heavier):
+```bash
+npm run pipeline:regression   # start app -> regression suites -> PDF traces upload
+```
+
 ### Running Without External Data Sources
 
 If you do **not** have access to production S3 buckets or wish to run the UI against the sample telemetry already checked into the repo:

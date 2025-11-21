@@ -2640,13 +2640,40 @@ const server = http.createServer(async (req, res) => {
     function buildChartFromTrace(trace = []) {
       if (!Array.isArray(trace) || !trace.length) return null;
       const ordered = [...trace].reverse();
-      for (const entry of ordered) {
+      const prioritized = ordered.filter((e) => e?.tool !== 'weather_fetch');
+      const passList = prioritized.length ? prioritized : ordered;
+      for (const entry of passList) {
         if (!entry || !entry.result) continue;
+
+        // Ranking-style objects: { Category: value, ... } -> column chart
+        if (entry.result && !Array.isArray(entry.result) && typeof entry.result === 'object') {
+          const pairs = Object.entries(entry.result)
+            .map(([k, v]) => [String(k), Number(v)])
+            .filter(([, v]) => Number.isFinite(v));
+          if (pairs.length >= 2) {
+            pairs.sort((a, b) => b[1] - a[1]); // high → low
+            return {
+              chart: { type: 'column' },
+              title: { text: 'Ranking' },
+              xAxis: { type: 'category', title: { text: 'Category' } },
+              yAxis: { title: { text: 'Value' } },
+              series: [{ name: 'Ranked Value', data: sampleSeries(pairs) }]
+            };
+          }
+        }
 
         // Scatter pair (x/y) output
         if (entry.tool === 'pair_timeseries' && Array.isArray(entry.result)) {
           const cleaned = entry.result
-            .map((row) => Array.isArray(row) && row.length >= 2 ? [Number(row[0]), Number(row[1])] : null)
+            .map((row) => {
+              if (Array.isArray(row) && row.length >= 2) return [Number(row[0]), Number(row[1])];
+              if (row && typeof row === 'object') {
+                const x = Number(row.x ?? row.ts ?? row.ts1);
+                const y = Number(row.y ?? row.value ?? row.field2 ?? row.ts2);
+                if (Number.isFinite(x) && Number.isFinite(y)) return [x, y];
+              }
+              return null;
+            })
             .filter((val) => Array.isArray(val) && Number.isFinite(val[0]) && Number.isFinite(val[1]));
           if (cleaned.length) {
             return {
@@ -2747,7 +2774,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     const normalizedResult = attachFallbackChart(agentResult);
-    const { message, chart, trace, extras } = normalizedResult || {};
+    const { message, chart, trace, extras, plan_status } = normalizedResult || {};
     try {
       if (Array.isArray(trace)) {
         console.log(`[Agent][trace] ${trace.length} entries`);
@@ -2782,7 +2809,11 @@ const server = http.createServer(async (req, res) => {
           hasChart: !!chart,
           chart: chart || null,
           extras: extras || [],
-          trace: Array.isArray(trace) ? trace : []
+          trace: Array.isArray(trace) ? trace : [],
+          plan_status: Array.isArray(plan_status) ? plan_status : null,
+          status: Array.isArray(plan_status)
+            ? (plan_status.every((s) => (s.status || s.done === true) && (s.status === 'done' || s.done === true)) ? 'completed' : 'partial')
+            : null
         };
         fs.writeFileSync(path.join(TRACE_DIR, fname), JSON.stringify(record, null, 2));
         console.log('[Agent][trace] saved to', path.join(TRACE_DIR, fname));
@@ -2812,6 +2843,7 @@ const server = http.createServer(async (req, res) => {
           chart: chartReady ? chart : null,
           extras: responseExtras.length ? responseExtras : ((agent && agent.extras) ? agent.extras : undefined),
           trace,
+          plan_status: Array.isArray(plan_status) ? plan_status : undefined,
           mode: 'agent'
         });
       } catch (e) {

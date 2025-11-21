@@ -5231,6 +5231,17 @@ function buildSnapshotIndex() {
     const t = loadRoomTables(resolvedRoom);
     const keys = Object.keys(t);
     if (!keys.length) return 'telemetry';
+    const normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const requested = normalize(name);
+    if (requested) {
+      const exact = keys.find((k) => normalize(k) === requested);
+      if (exact) return exact;
+      // Common IAQ aliases should prefer iaq-like tables over telemetry.
+      if (requested.includes('iaq')) {
+        const iaqCandidate = keys.find((k) => normalize(k).includes('iaq'));
+        if (iaqCandidate) return iaqCandidate;
+      }
+    }
     if (name === 'weather' || t.weather) return 'weather';
     if (t.telemetry) return 'telemetry';
     return keys[0];

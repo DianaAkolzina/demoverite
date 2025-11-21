@@ -63,11 +63,14 @@ def to_datetime(value) -> Optional[datetime]:
     if value is None:
         return None
     if isinstance(value, (int, float)):
-        seconds = value / 1000 if abs(value) > 1e12 else value
-        try:
-            return datetime.fromtimestamp(seconds, tz=timezone.utc)
-        except (OverflowError, OSError, ValueError):
-            return None
+        # Treat small numbers as numeric axes, not epochs (avoids 0/1 -> 1970 ticks).
+        if abs(value) >= 1e9:
+            seconds = value / 1000 if abs(value) >= 1e12 else value
+            try:
+                return datetime.fromtimestamp(seconds, tz=timezone.utc)
+            except (OverflowError, OSError, ValueError):
+                return None
+        return None
     if isinstance(value, str):
         val = value.strip()
         if not val:
