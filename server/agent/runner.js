@@ -26,11 +26,13 @@ export function createAgentRunner(ctx) {
     extractQuestionRooms,
     extractTimestampFromQuestion,
     formatLocal,
+    deriveTimeseriesInsights,
     inferDefaultTableForMetric,
     inferFieldName,
     isPlaceholderAnswer,
     loadRoomTables,
     normalizeText,
+    ensureQuestionAnswerCoverage,
     prepareToolArgs,
     questionIsScopeInquiry,
     questionRequiresChart,
@@ -2132,6 +2134,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             finalAnswer += `Chart insight: ${chartSummary}`;
           }
         }
+        finalAnswer = ensureQuestionAnswerCoverage(question, finalAnswer, trace);
         finalAnswer = enforceOverviewDetails(finalAnswer, { range: rr, trace, planStatus });
         finalAnswer = applyScopeHeader(finalAnswer);
 
@@ -2215,6 +2218,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       if (!traceHasData(trace)) {
         finalAnswer = 'No telemetry data was available for the selected scope and time window; adjust the range or choose a different scope.';
       }
+      finalAnswer = ensureQuestionAnswerCoverage(question, finalAnswer, trace);
       finalAnswer = enforceOverviewDetails(finalAnswer, { range: rr, trace, planStatus });
       finalAnswer = applyScopeHeader(finalAnswer);
         let finalChart = null;
@@ -2368,8 +2372,9 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
     let finalFallback = fallbackAnswer;
     if (!finalFallback || normalizeText(finalFallback) === normalizeText(question)) {
       const chartSummary = summarizeChart(autoChart);
-      const insight = traceSummary || traceInsight(trace);
-      finalFallback = chartSummary || insight || 'I analyzed the available data for the selected scope and time window.';
+      const intentSummary = traceSummary || traceInsight(trace);
+      const rankingInsight = deriveTimeseriesInsights({ trace, range: rr }).join(' ');
+      finalFallback = chartSummary || rankingInsight || intentSummary || 'I analyzed the available data for the selected scope and time window.';
       if (Array.isArray(adaptationNotes) && adaptationNotes.length) {
         finalFallback += ' ' + adaptationNotes.join(' ');
       }

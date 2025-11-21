@@ -175,7 +175,10 @@ export function createLLMClient({ env = process.env, logger = console } = {}) {
         await wait(delay);
       }
     }
-    throw lastError || new Error('LLM invocation failed');
+    // Final fallback: return a minimal final payload so the agent can surface a graceful message
+    const fallback = '{"action":"final","answer":"Unable to generate a model response right now. Please try again shortly.","chart":null}';
+    logger?.warn?.('[llm] returning fallback response:', lastError?.message || lastError);
+    return fallback;
   }
 
   return {

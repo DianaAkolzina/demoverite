@@ -728,6 +728,19 @@ const extractFieldValue = (row, fieldOrList) => {
     return null;
   }
 
+  function resolveScopeLabelToDevice(label) {
+    if (!label) return null;
+    const direct = resolveDeviceIdForRoom(label);
+    if (direct && deviceTablesAvailable(direct)) return direct;
+    const zoneMapped = resolveDeviceForZoneAlias(label);
+    if (zoneMapped && deviceTablesAvailable(zoneMapped)) return zoneMapped;
+    const friendly = friendlyLookup(label);
+    if (friendly && deviceTablesAvailable(friendly)) return friendly;
+    const meta = lookupDeviceHierarchy(label);
+    if (meta?.cloudId && deviceTablesAvailable(meta.cloudId)) return meta.cloudId;
+    return direct || zoneMapped || friendly || meta?.cloudId || null;
+  }
+
   function rebuildDynamicScopeAliases(scope = currentScopeContext) {
     DYNAMIC_SCOPE_ALIASES.clear();
     const scopeMap = scope.scopeDeviceZones || {};
@@ -1369,6 +1382,31 @@ const extractFieldValue = (row, fieldOrList) => {
     return map;
   }
 
+  function computeCsvStatsDirect(deviceId) {
+    const id = String(deviceId || '').trim();
+    if (!id) return { tsMin: null, tsMax: null, count: 0 };
+    const filePath = path.join(s3LocalDir, `${id}.csv`);
+    const stats = { tsMin: null, tsMax: null, count: 0 };
+    if (!fs.existsSync(filePath)) return stats;
+    try {
+      const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
+      for (let i = 1; i < lines.length; i += 1) {
+        const line = lines[i];
+        if (!line || !line.trim()) continue;
+        const [tsRaw] = line.split(',');
+        const ts = Number(tsRaw);
+        if (!Number.isFinite(ts)) continue;
+        stats.count += 1;
+        if (stats.tsMin == null || ts < stats.tsMin) stats.tsMin = ts;
+        if (stats.tsMax == null || ts > stats.tsMax) stats.tsMax = ts;
+      }
+    } catch (err) {
+      if (DEBUG) log('computeCsvStatsDirect failed', id, String(err));
+      return { tsMin: null, tsMax: null, count: 0 };
+    }
+    return stats;
+  }
+
   function buildCsvMetadata() {
     const stats = new Map();
     const metrics = new Map();
@@ -1396,11 +1434,7 @@ const extractFieldValue = (row, fieldOrList) => {
         }
         // Precompute coverage so tools can quickly validate availability
         if (!stats.has(deviceId)) {
-          try {
-            stats.set(deviceId, getCsvStats(deviceId));
-          } catch {
-            stats.set(deviceId, { tsMin: null, tsMax: null, count: 0 });
-          }
+          stats.set(deviceId, computeCsvStatsDirect(deviceId));
         }
       }
     } catch (err) {
@@ -2733,6 +2767,64 @@ function summarizeFieldComparison(entries = []) {
     return `${label} forecast spans ${formatNumericValue(min)}–${formatNumericValue(max)} ${windowPhrase} (n=${points.length}).`;
   }
 
+  const QUESTION_STOPWORDS = new Set([
+    'what','which','who','how','many','much','will','the','a','an','and','to','in','of','for','is','are','was','were','between','over','next','week','today','tomorrow','future','based','on','do','does','did','from','during','this','that','these','those','about'
+  ]);
+
+  function questionKeyPhrase(question) {
+    const tokens = String(question || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .filter((token) => !QUESTION_STOPWORDS.has(token));
+    return tokens.slice(0, 6).join(' ');
+  }
+
+  function questionImpliesFuture(question) {
+    return /\b(will|forecast|predict|projection|next|future|upcoming|tomorrow|coming|over the next|in the next|soon)\b/i.test(String(question || ''));
+  }
+
+  function extractForecastSummaries(trace = []) {
+    const summaries = [];
+    for (const entry of trace || []) {
+      if (!entry || !entry.tool || !entry.result) continue;
+      if (String(entry.tool).startsWith('forecast_')) {
+        const summary = summarizeForecastResult({ tool: entry.tool, args: entry.args || {}, result: entry.result });
+        if (summary) summaries.push(summary);
+      }
+    }
+    return summaries;
+  }
+
+  function ensureQuestionAnswerCoverage(question, answer, trace = []) {
+    let finalAnswer = String(answer || '').trim();
+    const q = String(question || '').trim();
+    if (!q) return finalAnswer;
+    if (questionImpliesFuture(q)) {
+      const summaries = extractForecastSummaries(trace);
+      if (summaries.length) {
+        const summary = summaries[0];
+        if (!normalizeText(finalAnswer).includes(normalizeText(summary))) {
+          finalAnswer += finalAnswer.endsWith('.') ? ' ' : '\n';
+          finalAnswer += `Forecast insight: ${summary}`;
+        }
+      } else {
+        const fallback = 'Forecast insight: No forecast could be produced because the relevant telemetry was unavailable.';
+        if (!finalAnswer.includes('Forecast insight')) {
+          finalAnswer += finalAnswer.endsWith('.') ? ' ' : '\n';
+          finalAnswer += fallback;
+        }
+      }
+    }
+    const keyPhrase = questionKeyPhrase(q);
+    if (keyPhrase && !normalizeText(finalAnswer).includes(keyPhrase)) {
+      const snippet = q.length > 120 ? `${q.slice(0, 117)}…` : q;
+      finalAnswer = `Regarding "${snippet}", ${finalAnswer}`;
+    }
+    return finalAnswer;
+  }
+
   function deriveTimeseriesInsights({ trace = [], question = '', range = null }) {
     const collected = [];
     const insights = [];
@@ -2740,6 +2832,18 @@ function summarizeFieldComparison(entries = []) {
     for (const entry of trace || []) {
       if (!entry || !entry.result) continue;
       const tool = entry.tool;
+      if (tool === 'compare_rooms_on_metric' && Array.isArray(entry.result) && entry.result.length) {
+        const numeric = entry.result
+          .filter((r) => Number.isFinite(r.value))
+          .sort((a, b) => (b.value ?? -Infinity) - (a.value ?? -Infinity))
+          .slice(0, 5);
+        if (numeric.length) {
+          const metricLabel = humanizeMetricName(entry.args?.field || 'value');
+          const summary = `Top ${numeric.length} by ${metricLabel}: ` + numeric.map((r) => `${r.friendlyName || r.room}: ${formatNumericValue(r.value)}`).join(' | ');
+          insights.push(summary);
+          continue;
+        }
+      }
       if (tool === 'compare_series_cross_room') {
         const seriesArgs = Array.isArray(entry.args?.series) ? entry.args.series : [];
         const resultObj = entry.result && typeof entry.result === 'object' ? entry.result : {};
@@ -3627,27 +3731,7 @@ function summarizeFieldComparison(entries = []) {
     if (!id) return { tsMin: null, tsMax: null, count: 0 };
     const cached = CSV_STATS_CACHE.get(id);
     if (cached && cached !== null) return cached;
-    const filePath = path.join(s3LocalDir, `${id}.csv`);
-    let stats = { tsMin: null, tsMax: null, count: 0 };
-    if (fs.existsSync(filePath)) {
-      try {
-        const text = fs.readFileSync(filePath, 'utf8');
-        const lines = text.split(/\r?\n/);
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
-          const [tsRaw] = line.split(',');
-          const ts = Number(tsRaw);
-          if (!Number.isFinite(ts)) continue;
-          stats.count += 1;
-          if (stats.tsMin == null || ts < stats.tsMin) stats.tsMin = ts;
-          if (stats.tsMax == null || ts > stats.tsMax) stats.tsMax = ts;
-        }
-      } catch (err) {
-        if (DEBUG) log('getCsvStats failed', id, String(err));
-        stats = { tsMin: null, tsMax: null, count: 0 };
-      }
-    }
+    const stats = computeCsvStatsDirect(id);
     CSV_STATS_CACHE.set(id, stats);
     return stats;
   }
@@ -4738,6 +4822,63 @@ function buildSnapshotIndex() {
     for (let i = trace.length - 1; i >= 0; i--) {
       const entry = trace[i];
       if (!entry || !entry.tool) continue;
+
+      if (entry.tool === 'compare_rooms_on_metric' && Array.isArray(entry.result) && entry.result.length) {
+        const numeric = entry.result.filter((r) => Number.isFinite(r.value)).slice(0, 20);
+        if (numeric.length) {
+          const seriesData = numeric.map((r) => [r.friendlyName || r.room, r.value]);
+          const metricLabel = humanizeMetricName(entry.args?.field || 'value');
+          const chart = {
+            chart: { type: 'column' },
+            title: { text: `Busiest by ${metricLabel}` },
+            xAxis: { type: 'category', title: { text: 'Room' } },
+            yAxis: { title: { text: metricLabel } },
+            series: [{
+              name: metricLabel,
+              data: seriesData
+            }]
+          };
+          const valid = validateChart(cloneChart(chart), trace);
+          if (valid) return chart;
+        }
+      }
+
+      if (entry.tool === 'scope_heatmap' && entry.result && Array.isArray(entry.result.data) && entry.result.data.length) {
+        const metricName = humanizeMetricName(entry.args?.field || 'Value');
+        const roomLabels = (entry.result.rooms || []).map((r) => r.label || r.id);
+        const timeLabels = entry.result.timeLabels
+          || (Array.isArray(entry.result.timestamps) ? entry.result.timestamps.map((ts) => formatLocal(ts)) : null);
+        const chart = {
+          chart: { type: 'heatmap' },
+          title: { text: `${metricName} Heatmap` },
+          xAxis: {
+            type: 'category',
+            categories: timeLabels || undefined,
+            title: { text: timeLabels ? 'Time' : undefined }
+          },
+          yAxis: {
+            type: 'category',
+            categories: roomLabels.length ? roomLabels : undefined,
+            title: { text: roomLabels.length ? 'Room' : undefined }
+          },
+          colorAxis: {
+            min: Number.isFinite(entry.result.min) ? entry.result.min : undefined,
+            max: Number.isFinite(entry.result.max) ? entry.result.max : undefined
+          },
+          series: [{
+            name: metricName,
+            dataRef: {
+              tool: 'scope_heatmap',
+              format: 'heatmap',
+              xField: 'x',
+              yField: 'y',
+              valueField: 'value'
+            }
+          }]
+        };
+        const valid = validateChart(cloneChart(chart), trace);
+        if (valid) return chart;
+      }
 
       if (entry.tool === 'pair_timeseries' && Array.isArray(entry.result) && entry.result.length) {
         const chart = {
@@ -5900,12 +6041,23 @@ function parseFieldsFromQuestion(question, availableSets) {
     return k || field;
   }
   
-  function getHourlySeries(room, table, field, start=null, end=null) {
+  const FORECAST_DELTA_HINTS = ['total', 'kwh', 'energy', 'meter', 'reading', 'consumption', 'cubic', 'water', 'gas', 'kwh_total', 'wh_total', 'total_kwh', 'kwhsum'];
+  const FORECAST_SUM_HINTS = ['count', 'people', 'occup', 'footfall', 'traffic', 'visits', 'flow', 'usage', 'entries', 'exits'];
+
+  function detectForecastMode(fieldName = '') {
+    const key = String(fieldName || '').toLowerCase();
+    if (!key) return 'avg';
+    if (FORECAST_DELTA_HINTS.some((hint) => key.includes(hint))) return 'delta';
+    if (FORECAST_SUM_HINTS.some((hint) => key.includes(hint))) return 'sum';
+    return 'avg';
+  }
+
+  function getHourlySeries(room, table, field, start=null, end=null, { mode = 'avg', resolvedField = null } = {}) {
     const resolvedRoom = resolveDeviceIdForRoom(room) || room;
     const t = loadRoomTables(resolvedRoom);
     const tab = resolveTable(resolvedRoom, table);
     const arr = t[tab] || [];
-    const fld = resolveFieldWithAlias(resolvedRoom, tab, resolveField(arr, field) || field);
+    const fld = resolvedField || resolveFieldWithAlias(resolvedRoom, tab, resolveField(arr, field) || field);
     if (!fld) return [];
     const startNorm = normalizeTsHint(start);
     const endNorm = normalizeTsHint(end);
@@ -5915,14 +6067,37 @@ function parseFieldsFromQuestion(question, availableSets) {
       const v = Number(r[fld]); 
       if (!Number.isFinite(v)) continue;
       const key = floorHour(r.ts);
-      const b = buckets.get(key) || { sum: 0, n: 0 };
-      b.sum += v; 
-      b.n += 1; 
-      buckets.set(key, b);
+      let bucket = buckets.get(key);
+      if (!bucket) {
+        bucket = mode === 'delta'
+          ? { first: null, last: null }
+          : { sum: 0, n: 0 };
+        buckets.set(key, bucket);
+      }
+      if (mode === 'delta') {
+        if (bucket.first == null) bucket.first = v;
+        bucket.last = v;
+      } else {
+        bucket.sum += v;
+        bucket.n += 1;
+      }
     }
     return Array.from(buckets.entries())
       .sort((a,b)=>a[0]-b[0])
-      .map(([ts,b]) => ({ ts, avg: b.n ? b.sum / b.n : null }));
+      .map(([ts,b]) => {
+        let value = null;
+        if (mode === 'delta') {
+          if (Number.isFinite(b.last) && Number.isFinite(b.first)) {
+            const diff = b.last - b.first;
+            value = diff >= 0 ? diff : 0;
+          }
+        } else if (mode === 'sum') {
+          value = b.sum;
+        } else {
+          value = b.n ? b.sum / b.n : null;
+        }
+        return { ts, avg: value };
+      });
   }
 
   function ensureFutureForecast(points = [], lastTs = null) {
@@ -5963,6 +6138,81 @@ function parseFieldsFromQuestion(question, availableSets) {
       out.push({ ts, forecast: a + b*ts }); 
     }
     return out;
+  }
+
+  function forecastFieldCandidates(field) {
+    const base = [];
+    const raw = String(field || '').trim();
+    if (raw) base.push(raw);
+    const lower = raw.toLowerCase();
+    const push = (val) => {
+      if (!val) return;
+      if (!base.includes(val)) base.push(val);
+    };
+    if (!lower || /flow|entrance|door/.test(lower)) {
+      push('people_count');
+      push('occupancy');
+      push('value');
+    }
+    if (/people|occup|footfall|traffic/.test(lower)) {
+      push('people_count');
+      push('occupancy');
+    }
+    if (/energy|power|kwh|kw|load/.test(lower)) {
+      push('total_kwh');
+      push('value');
+    }
+    if (/water|cubic|consumption|gas/.test(lower)) {
+      push('cubic_value');
+      push('value');
+    }
+    if (!raw) {
+      push('people_count');
+      push('value');
+      push('temperature');
+    }
+    return base;
+  }
+
+  function prepareForecastSeries({ room, table, field, start = null, end = null }) {
+    const scopeRooms = Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : [];
+    const fieldQueue = forecastFieldCandidates(field);
+    const candidateRooms = [];
+    const addRoom = (id) => {
+      if (!id) return;
+      const key = String(id).trim();
+      if (!key || key === 'ALL' || candidateRooms.includes(key)) return;
+      candidateRooms.push(key);
+    };
+    addRoom(room);
+    if (room === 'ALL' || !candidateRooms.length) scopeRooms.forEach(addRoom);
+    if (!candidateRooms.length) {
+      try { listRooms().slice(0, 32).forEach(addRoom); } catch {}
+    }
+
+    for (const candidateField of fieldQueue) {
+      for (const roomCandidate of candidateRooms) {
+        const binding = resolveFieldBinding(candidateField, scopeRooms, roomCandidate) || resolveFieldBinding(candidateField, candidateRooms, roomCandidate);
+        if (!binding || !binding.fieldName) continue;
+        const resolvedRoom = resolveDeviceIdForRoom(binding.room) || binding.room;
+        const t = loadRoomTables(resolvedRoom);
+        const resolvedTable = resolveTable(resolvedRoom, binding.table);
+        const arr = t[resolvedTable] || [];
+        const resolvedField = resolveFieldWithAlias(resolvedRoom, resolvedTable, resolveField(arr, binding.fieldName) || binding.fieldName);
+        if (!resolvedField) continue;
+        const mode = detectForecastMode(resolvedField);
+        const series = getHourlySeries(resolvedRoom, resolvedTable, resolvedField, start, end, { mode, resolvedField });
+        if (series.length) {
+          return { room: resolvedRoom, table: resolvedTable, field: resolvedField, mode, series };
+        }
+      }
+    }
+
+    // Fallback: try original room even if no binding succeeded
+    const fallbackRoom = resolveDeviceIdForRoom(room) || room;
+    const fallbackTable = resolveTable(fallbackRoom, table);
+    const fallbackSeries = getHourlySeries(fallbackRoom, fallbackTable, field, start, end);
+    return { room: fallbackRoom, table: fallbackTable, field: field || null, mode: detectForecastMode(field), series: fallbackSeries };
   }
   
   function naiveForecast(lastTs, lastY, stepMs, horizon) { 
@@ -6195,7 +6445,7 @@ function parseFieldsFromQuestion(question, availableSets) {
     stats({ room, table, field, start = null, end = null, queries = null, scopeRoomLabel = null, devices = [] }) {
       const resolveRoomPref = (val, desiredField = null) => {
         if (!val) return null;
-        const resolved = resolveDeviceIdForRoom(val) || friendlyLookup(val) || val;
+        const resolved = resolveScopeLabelToDevice(val) || resolveDeviceIdForRoom(val) || friendlyLookup(val) || val;
         if (resolved && resolved !== 'ALL') return resolved;
         if (desiredField) {
           const scoped = devicesWithField(desiredField, Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : []);
@@ -6224,17 +6474,25 @@ function parseFieldsFromQuestion(question, availableSets) {
         scopedWithField.forEach(push);
 
         for (const candidate of candidates) {
-          const tab = resolveTable(candidate, targetTable);
-          const arr = (loadRoomTables(candidate)[tab]) || [];
+          const normalizedRoom = resolveScopeLabelToDevice(candidate) || candidate;
+          const canonicalRoom = normalizeRoomId(normalizedRoom) || normalizedRoom;
+          const tab = resolveTable(canonicalRoom, targetTable);
+          const arr = (loadRoomTables(canonicalRoom)[tab]) || [];
           if (!arr.length) continue;
-          const availableSets = availableFieldsByTable(candidate);
+          const availableSets = availableFieldsByTable(canonicalRoom);
           const inferredField = resolveCanonicalField(desiredField, availableSets);
           const validatedField =
-            resolveFieldWithAlias(candidate, tab, desiredField) ||
-            resolveFieldWithAlias(candidate, tab, inferredField) ||
+            resolveFieldWithAlias(canonicalRoom, tab, desiredField) ||
+            resolveFieldWithAlias(canonicalRoom, tab, inferredField) ||
             inferredField;
           if (!validatedField) continue;
-          return { candidate, tab, field: validatedField, rows: arr };
+          return {
+            candidate: canonicalRoom,
+            roomLabel: candidate,
+            tab,
+            field: validatedField,
+            rows: arr
+          };
         }
         return null;
       };
@@ -6271,35 +6529,34 @@ function parseFieldsFromQuestion(question, availableSets) {
           return { error: 'field required', room: roomHint || null, table: targetTable || null };
         }
 
-        const { candidate: resolvedRoom, tab, field: validatedField, rows: arr } = selection;
+        const { candidate: resolvedRoom, roomLabel: displayLabel, tab, field: validatedField, rows: arr } = selection;
         const coverageSpan = assertDataAvailable(resolvedRoom, validatedField, { start: qStart ?? start, end: qEnd ?? end });
         if (!coverageSpan.ok && coverageSpan.coverage) {
-          // Clamp to available coverage to avoid premature no_rows
           const cov = coverageSpan.coverage;
           qStart = qStart ?? start;
           qEnd = qEnd ?? end;
-          if (!Number.isFinite(qStart) || qStart < cov.tsMin) qStart = cov.tsMin;
-          if (!Number.isFinite(qEnd) || qEnd > cov.tsMax) qEnd = cov.tsMax;
+          if (Number.isFinite(cov.tsMin) && (qStart == null || qStart < cov.tsMin)) qStart = cov.tsMin;
+          if (Number.isFinite(cov.tsMax) && (qEnd == null || qEnd > cov.tsMax)) qEnd = cov.tsMax;
         } else if (!coverageSpan.ok) {
           return { error: coverageSpan.reason || 'no data', room: resolvedRoom, table: tab, field: validatedField, coverage: coverageSpan.coverage || null };
         }
-        if (!availability.ok) {
-          return { error: availability.reason || 'no data', room: resolvedRoom, table: tab, field: validatedField, coverage: availability.coverage || null };
-        }
+        const friendlyRoomName = displayLabel && displayLabel !== resolvedRoom
+          ? displayLabel
+          : (deviceFriendlyName(resolvedRoom) || displayLabel || resolvedRoom);
         let totalRows = 0;
         let count = 0, min = Infinity, max = -Infinity, sum = 0;
         let minTs = null, maxTs = null;
-        for (const r of arr) {
-          if (!withinRange(r.ts, qStart ?? start, qEnd ?? end)) continue;
-          totalRows += 1;
-          const raw = r[validatedField];
-          const v = Number(raw);
-          if (!Number.isFinite(v)) continue;
-          count += 1;
-          sum += v;
-          if (v < min) { min = v; minTs = r.ts ?? null; }
-          if (v > max) { max = v; maxTs = r.ts ?? null; }
-        }
+      for (const r of arr) {
+        if (!withinRange(r.ts, qStart ?? start, qEnd ?? end)) continue;
+        totalRows += 1;
+        const raw = r[validatedField];
+        const v = Number(raw);
+        if (!Number.isFinite(v)) continue;
+        count += 1;
+        sum += v;
+        if (v < min) { min = v; minTs = r.ts ?? null; }
+        if (v > max) { max = v; maxTs = r.ts ?? null; }
+      }
         const avg = count ? sum / count : NaN;
         if (count === 0) {
           // Non-numeric handling: treat as categorical counts if we saw rows
@@ -6318,7 +6575,8 @@ function parseFieldsFromQuestion(question, availableSets) {
           }
           const categories = Object.keys(freq).length ? freq : undefined;
           return {
-            room: resolvedRoom,
+            room: friendlyRoomName,
+            deviceId: resolvedRoom,
             table: tab,
             field: validatedField,
             error: nonNumericCount ? 'non_numeric_field' : 'no_rows',
@@ -6338,7 +6596,8 @@ function parseFieldsFromQuestion(question, availableSets) {
           };
         }
         return {
-          room: resolvedRoom,
+          room: friendlyRoomName,
+          deviceId: resolvedRoom,
           table: tab,
           field: validatedField,
           total: totalRows,
@@ -9381,65 +9640,60 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
     
     forecast_hourly_naive({ room, table, field, start = null, end = null, horizon_hours = 168 }) {
-      const hourly = getHourlySeries(room, table, field, start, end);
-      if (!hourly.length) return { historical: [], forecast: [] };
+      const binding = prepareForecastSeries({ room, table, field, start, end });
+      const hourly = binding.series;
+      if (!hourly.length) return { historical: [], forecast: [], field: binding.field, mode: binding.mode };
       const last = hourly[hourly.length - 1];
       const step = hourly.length >= 2 ? (hourly[hourly.length-1].ts - hourly[hourly.length-2].ts) : 3600*1000;
       const predictions = ensureFutureForecast(naiveForecast(last.ts, last.avg, step, horizon_hours), last.ts);
-      return { historical: hourly, forecast: predictions };
+      return { historical: hourly, forecast: predictions, field: binding.field, mode: binding.mode };
     },
     
     forecast_hourly_linear({ room, table, field, start = null, end = null, horizon_hours = 168 }) {
-      const hourly = getHourlySeries(room, table, field, start, end);
-      if (hourly.length < 2) return { historical: hourly, forecast: [] };
+      const binding = prepareForecastSeries({ room, table, field, start, end });
+      const hourly = binding.series;
+      if (hourly.length < 2) return { historical: hourly, forecast: [], field: binding.field, mode: binding.mode };
       const lastTs = hourly[hourly.length - 1]?.ts;
       const predictions = ensureFutureForecast(lrForecast(hourly, horizon_hours), lastTs);
-      return { historical: hourly, forecast: predictions };
+      return { historical: hourly, forecast: predictions, field: binding.field, mode: binding.mode };
     },
     
     forecast_from_profile({ room, table, field, start = null, end = null, days = 7 }) {
-      const t = loadRoomTables(room);
-      const tab = resolveTable(room, table);
-      const arr = t[tab] || [];
-      const fld = resolveFieldWithAlias(room, tab, resolveField(arr, field) || field);
-      if (!fld) return { historical: [], forecast: [], error: 'field missing' };
-      
-      // Build hour-of-day profile
+      const binding = prepareForecastSeries({ room, table, field, start, end });
+      const hourly = binding.series;
+      if (!binding.field) return { historical: [], forecast: [], profile: [], error: 'field missing' };
+      if (!hourly.length) return { historical: [], forecast: [], profile: [], field: binding.field, mode: binding.mode };
+
       const bins = Array.from({ length: 24 }, () => ({ sum: 0, n: 0 }));
-      for (const r of arr) {
-        if (!withinRange(r.ts, start, end)) continue;
-        const v = Number(r[fld]);
-        if (!Number.isFinite(v)) continue;
-        const h = new Date(r.ts).getHours();
-        bins[h].sum += v;
+      for (const p of hourly) {
+        if (!Number.isFinite(p.avg)) continue;
+        const h = new Date(p.ts).getHours();
+        bins[h].sum += p.avg;
         bins[h].n += 1;
       }
-      const profile = bins.map(b => b.n ? b.sum / b.n : null);
-      
-      // Get last timestamp and forecast forward
-      const filtered = arr.filter(r => withinRange(r.ts, start, end));
-      if (!filtered.length) return { historical: [], forecast: [], profile };
-      
-      const lastTs = filtered[filtered.length - 1].ts;
-      const hourly = getHourlySeries(room, table, field, start, end);
-      
+      const profile = bins.map((b) => (b.n ? b.sum / b.n : null));
+      const lastTs = hourly[hourly.length - 1].ts;
       const predictions = [];
       const hoursToForecast = days * 24;
       for (let i = 1; i <= hoursToForecast; i++) {
         const ts = lastTs + i * 3600 * 1000;
         const h = new Date(ts).getHours();
         const forecast = profile[h];
-        if (forecast != null) {
-          predictions.push({ ts, forecast });
-        }
+        if (forecast != null) predictions.push({ ts, forecast });
       }
-      
-      return { historical: hourly, forecast: ensureFutureForecast(predictions, lastTs), profile };
+      return {
+        historical: hourly,
+        forecast: ensureFutureForecast(predictions, lastTs),
+        profile,
+        field: binding.field,
+        mode: binding.mode
+      };
     },
     
     forecast_exponential_smoothing({ room, table, field, start = null, end = null, alpha = 0.5, horizon_hours = 168 }) {
-      const hourly = getHourlySeries(room, table, field, start, end);
-      if (!hourly.length) return { historical: [], forecast: [] };
+      const binding = prepareForecastSeries({ room, table, field, start, end });
+      const hourly = binding.series;
+      if (!hourly.length) return { historical: [], forecast: [], field: binding.field, mode: binding.mode };
       // Exponential smoothing
       let last = hourly[0]?.avg ?? 0;
       const smoothed = [];
@@ -9454,12 +9708,13 @@ function parseFieldsFromQuestion(question, availableSets) {
       for (let i = 1; i <= horizon_hours; i++) {
         predictions.push({ ts: lastTs + i * step, forecast: last });
       }
-      return { historical: smoothed, forecast: ensureFutureForecast(predictions, lastTs) };
+      return { historical: smoothed, forecast: ensureFutureForecast(predictions, lastTs), field: binding.field, mode: binding.mode };
     },
     
     forecast_moving_average({ room, table, field, start = null, end = null, window = 5, horizon_hours = 168 }) {
-      const hourly = getHourlySeries(room, table, field, start, end);
-      if (!hourly.length) return { historical: [], forecast: [] };
+      const binding = prepareForecastSeries({ room, table, field, start, end });
+      const hourly = binding.series;
+      if (!hourly.length) return { historical: [], forecast: [], field: binding.field, mode: binding.mode };
       const ma = [];
       for (let i = 0; i < hourly.length; i++) {
         const slice = hourly.slice(Math.max(0, i - window + 1), i + 1);
@@ -9474,13 +9729,13 @@ function parseFieldsFromQuestion(question, availableSets) {
       for (let i = 1; i <= horizon_hours; i++) {
         predictions.push({ ts: lastTs + i * step, forecast: lastAvg });
       }
-      return { historical: ma, forecast: ensureFutureForecast(predictions, lastTs) };
+      return { historical: ma, forecast: ensureFutureForecast(predictions, lastTs), field: binding.field, mode: binding.mode };
     },
     
     forecast_seasonal_hourly({ room, table, field, start = null, end = null, horizon_hours = 168 }) {
-      const hourly = getHourlySeries(room, table, field, start, end);
-      if (!hourly.length) return { historical: [], forecast: [] };
-      // Use previous week for each hour
+      const binding = prepareForecastSeries({ room, table, field, start, end });
+      const hourly = binding.series;
+      if (!hourly.length) return { historical: [], forecast: [], field: binding.field, mode: binding.mode };
       const step = hourly.length >= 2 ? (hourly[hourly.length-1].ts - hourly[hourly.length-2].ts) : 3600*1000;
       const lastTs = hourly[hourly.length - 1].ts;
       const weekHours = 168;
@@ -9490,12 +9745,13 @@ function parseFieldsFromQuestion(question, availableSets) {
         const forecast = hourly[idx]?.avg ?? hourly[hourly.length - 1]?.avg ?? 0;
         predictions.push({ ts: lastTs + i * step, forecast });
       }
-      return { historical: hourly, forecast: ensureFutureForecast(predictions, lastTs) };
+      return { historical: hourly, forecast: ensureFutureForecast(predictions, lastTs), field: binding.field, mode: binding.mode };
     },
     
     forecast_polyfit({ room, table, field, start = null, end = null, degree = 2, horizon_hours = 168 }) {
-      const hourly = getHourlySeries(room, table, field, start, end);
-      if (hourly.length < degree + 1) return { historical: hourly, forecast: [] };
+      const binding = prepareForecastSeries({ room, table, field, start, end });
+      const hourly = binding.series;
+      if (hourly.length < degree + 1) return { historical: hourly, forecast: [], field: binding.field, mode: binding.mode };
       // Fit polynomial (least squares)
       const xs = hourly.map(p => (p.ts - hourly[0].ts) / 3600e3); // hours since start
       const ys = hourly.map(p => p.avg);
@@ -9546,7 +9802,13 @@ function parseFieldsFromQuestion(question, availableSets) {
         const forecast = coeffs[0] + coeffs[1]*x + coeffs[2]*x*x;
         predictions.push({ ts: lastTs + i * step, forecast });
       }
-      return { historical: hourly, forecast: ensureFutureForecast(predictions, lastTs), coeffs };
+      return {
+        historical: hourly,
+        forecast: ensureFutureForecast(predictions, lastTs),
+        coeffs,
+        field: binding.field,
+        mode: binding.mode
+      };
     },
 
     pair_timeseries({ room, table1, field1, table2, field2, start = null, end = null, time_window_ms = 30 * 60 * 1000 }) {
@@ -9988,6 +10250,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       deviceFriendlyName,
       enforceOverviewDetails,
       ensureChartData,
+      ensureQuestionAnswerCoverage,
       extractQuestionRooms,
       extractTimestampFromQuestion,
       formatLocal,
@@ -9996,6 +10259,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       isPlaceholderAnswer,
       loadRoomTables,
       normalizeText,
+      ensureQuestionAnswerCoverage,
       prepareToolArgs,
       questionRequiresChart,
       questionIsScopeInquiry,
@@ -10021,7 +10285,8 @@ function parseFieldsFromQuestion(question, availableSets) {
       DEBUG,
       ragManager,
       vector,
-      callGeminiChat
+      callGeminiChat,
+      ensureQuestionAnswerCoverage
     };
   }
   
