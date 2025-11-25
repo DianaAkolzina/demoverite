@@ -1987,6 +1987,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         }
         const chartHasSeries = chartHasRenderableSeries(chartForResponse);
         const histogramHasData = traceHasHistogramData(trace);
+        const scatterRequested = questionRequiresScatter(question);
         if (histogramRequested) {
           const type = (chartForResponse?.chart?.type || chartForResponse?.type || '').toLowerCase();
           const acceptableType = type === 'column' || type === 'bar' || type === 'histogram';
@@ -2035,6 +2036,23 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             adaptationNotes.push('Stopping heatmap chart retries after 2 attempts to avoid looping.');
           }
         }
+        if (scatterRequested) {
+          const type = (chartForResponse?.chart?.type || chartForResponse?.type || '').toLowerCase();
+          const seriesList = Array.isArray(chartForResponse?.series) ? chartForResponse.series : [];
+          const isScatter = type === 'scatter' || seriesList.some((s) => s?.type === 'scatter');
+          const hasScatterData = isScatter && seriesList.some((s) => Array.isArray(s.data) && s.data.length);
+          if (!hasScatterData) {
+            if (chartRetryCount < 2) {
+              chartRetryCount++;
+              convo.push({
+                role: 'user',
+                content: 'REMINDER: A scatter plot was requested. Call building_temp_weather_scatter or pair_timeseries (or scope_multiline + manual scatter) and return a scatter chart with valid dataRef referencing that tool result.'
+              });
+              continue STEP_LOOP;
+            }
+            adaptationNotes.push('Stopping scatter chart retries after 2 attempts to avoid looping.');
+          }
+        }
         if (!ensureFinalReferencesPlan(obj)) {
           continue STEP_LOOP;
         }
@@ -2067,14 +2085,18 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
               notes: adaptationNotes,
               range
             });
-        if (!llmAnswer && planStatus.length) {
-          const summary = planStatus.map((step, idx) => {
-            const label = step && step.text ? step.text : '';
-            const marker = step?.done ? 'done' : 'pending';
-            return `Step ${step?.id ?? step?.index ?? idx + 1} (${marker}): ${label}`;
-          }).join(' | ');
-          finalAnswer = `${finalAnswer}\nPlan executed: ${summary}`;
+        // If the model returned only boilerplate/scope text, rebuild a richer answer from tool outputs
+        if (finalAnswer && finalAnswer.length < 300 && traceHasData(trace)) {
+          finalAnswer = buildDefaultAnswer({
+            question,
+            chart: validChart,
+            trace,
+            fallbackText: reply || '',
+            notes: adaptationNotes,
+            range
+          });
         }
+        // Skip plan status echo; keep answers concise
         if (requireRoomRanking) {
           const type = (chartForResponse?.chart?.type || chartForResponse?.type || '').toLowerCase();
           const acceptableType = type === 'column' || type === 'bar';
@@ -2224,14 +2246,17 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
               notes: adaptationNotes,
               range
             });
-        if (!llmAnswer && planStatus.length) {
-          const summary = planStatus.map((step, idx) => {
-            const label = step && step.text ? step.text : '';
-            const marker = step?.done ? 'done' : 'pending';
-            return `Step ${step?.id ?? step?.index ?? idx + 1} (${marker}): ${label}`;
-          }).join(' | ');
-          finalAnswer = `${finalAnswer}\nPlan executed: ${summary}`;
+        if (finalAnswer && finalAnswer.length < 300 && traceHasData(trace)) {
+          finalAnswer = buildDefaultAnswer({
+            question,
+            chart: null,
+            trace,
+            fallbackText: reply || '',
+            notes: adaptationNotes,
+            range
+          });
         }
+        // Skip plan status echo; keep answers concise
         if (!finalAnswer || normalizeText(finalAnswer) === normalizeText(question)) {
           const insight = traceInsight(trace);
           finalAnswer = insight || 'I analyzed the available data for the selected scope and time window.';
@@ -2247,7 +2272,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       finalAnswer = applyScopeHeader(finalAnswer);
         let finalChart = null;
         const baseChartRequested = questionRequiresChart(question);
-        const chartNeeded = baseChartRequested || needsRoomComparison || requireRoomRanking || histogramRequested || heatmapRequested;
+        const chartNeeded = baseChartRequested || needsRoomComparison || requireRoomRanking || histogramRequested || heatmapRequested || scatterRequested;
         if (chartNeeded) {
           finalChart = buildFallbackChartFromTrace({
             trace,
