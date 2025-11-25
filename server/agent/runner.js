@@ -1977,9 +1977,12 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             chartRetryCount++;
             convo.push({
               role: 'user',
-              content: 'REMINDER: You must include a chart with valid dataRef references before finalizing. Call the appropriate tool (e.g., fetch_timeseries, compare_series_cross_room, scope_heatmap) and structure the chart with dataRef pointing to that tool result.'
+              content: 'REMINDER: You must include a chart with valid dataRef references before finalizing. Try a different tool if the prior one returned no data (e.g., switch between scope_multiline, fetch_timeseries, compare_series_cross_room, scope_heatmap).'
             });
             continue STEP_LOOP;
+          }
+          if (!allowNoChart && chartRetryCount >= 2) {
+            adaptationNotes.push('Stopping chart retries after 2 attempts to avoid excessive looping.');
           }
         }
         const chartHasSeries = chartHasRenderableSeries(chartForResponse);
@@ -1993,12 +1996,15 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             && chartForResponse.series.every((series) => series?.dataRef && (series.dataRef.tool === 'histogram' || series.dataRef.tool === 'field_histogram'));
           if (histogramHasData) {
             if (!chartForResponse || !acceptableType || !histogramSeriesValid) {
-              chartRetryCount++;
-              convo.push({
-                role: 'user',
-                content: 'REMINDER: A histogram/distribution was requested. Call histogram or field_histogram for the requested metric(s) and provide a column-style chart that references those tool results via dataRef before finalizing.'
-              });
-              continue STEP_LOOP;
+              if (chartRetryCount < 2) {
+                chartRetryCount++;
+                convo.push({
+                  role: 'user',
+                  content: 'REMINDER: A histogram/distribution was requested. Call histogram or field_histogram for the requested metric(s) and provide a column-style chart that references those tool results via dataRef before finalizing.'
+                });
+                continue STEP_LOOP;
+              }
+              adaptationNotes.push('Stopping histogram chart retries after 2 attempts to avoid looping.');
             }
           } else {
             adaptationNotes.push('Histogram requested but no usable bins were available in the selected window.');
@@ -2018,12 +2024,15 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
               return false;
             });
           if (!acceptableType || !hasHeatmapData) {
-            chartRetryCount++;
-            convo.push({
-              role: 'user',
-              content: 'REMINDER: A heatmap was requested. Call scope_heatmap or correlation_matrix to build heatmap data, then return a heatmap chart referencing that tool via dataRef before finalizing.'
-            });
-            continue STEP_LOOP;
+            if (chartRetryCount < 2) {
+              chartRetryCount++;
+              convo.push({
+                role: 'user',
+                content: 'REMINDER: A heatmap was requested. Call scope_heatmap or correlation_matrix to build heatmap data, then return a heatmap chart referencing that tool via dataRef before finalizing.'
+              });
+              continue STEP_LOOP;
+            }
+            adaptationNotes.push('Stopping heatmap chart retries after 2 attempts to avoid looping.');
           }
         }
         if (!ensureFinalReferencesPlan(obj)) {
@@ -2077,12 +2086,15 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
               return toolName && rankingTools.has(toolName);
             });
           if (!chartForResponse || !acceptableType || !rankingSeriesValid) {
-            chartRetryCount++;
-            convo.push({
-              role: 'user',
-              content: 'REMINDER: A room ranking was requested. Include a column or bar chart that references compare_rooms_on_metric (or another comparison tool) via dataRef so the busiest and underused rooms are visualized before finalizing.'
-            });
-            continue STEP_LOOP;
+            if (chartRetryCount < 2) {
+              chartRetryCount++;
+              convo.push({
+                role: 'user',
+                content: 'REMINDER: A room ranking was requested. Include a column or bar chart that references compare_rooms_on_metric (or another comparison tool) via dataRef so the busiest and underused rooms are visualized before finalizing.'
+              });
+              continue STEP_LOOP;
+            }
+            adaptationNotes.push('Stopping ranking chart retries after 2 attempts to avoid looping.');
           }
         }
         if (!finalAnswer || normalizeText(finalAnswer) === normalizeText(question)) {
@@ -2120,6 +2132,18 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           if (fallbackChart) {
             ensureChartData(fallbackChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
             chartForResponse = fallbackChart;
+          }
+        }
+        if (!chartForResponse) {
+          const autoChart = buildFallbackChartFromTrace({
+            trace,
+            question,
+            defaultRoom: room,
+            selectionRooms
+          });
+          if (autoChart) {
+            ensureChartData(autoChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
+            chartForResponse = autoChart;
           }
         }
         if (chartForResponse) {
@@ -2233,6 +2257,19 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           });
           if (finalChart) {
             ensureChartData(finalChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
+          }
+        }
+        if (!finalChart) {
+          const autoChart = buildFallbackChartFromTrace({
+            trace,
+            question,
+            defaultRoom: room,
+            selectionRooms
+          });
+          if (autoChart) {
+            ensureChartData(autoChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
+            const validated = validateChart(cloneChart(autoChart), trace);
+            finalChart = validated || autoChart;
           }
         }
       return {

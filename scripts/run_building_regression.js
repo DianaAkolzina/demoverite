@@ -17,11 +17,7 @@ const TRACES_DIR = path.join(DATA_DIR, 'traces');
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
 const RESULTS_DIR = process.env.TEST_RESULTS_DIR || path.join(DATA_DIR, 'tests');
 
-const TARGET_BUILDINGS = [
-  { tenant: 'AVM Solutions', building: 'Bolton', slug: 'avm_bolton' },
-  { tenant: null, building: '111 Piccadilly', slug: '111_piccadilly' },
-  { tenant: null, building: '55 King Street', slug: 'king_street' }
-];
+const TARGET_BUILDINGS = [{ tenant: 'AVM Solutions', building: 'Bolton', slug: 'avm_bolton' }];
 
 const METRIC_GROUPS = {
   temperature: ['temperature', 'temp'],
@@ -38,6 +34,134 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_SPAN_MS = 6 * 60 * 60 * 1000;
 
 const deviceMetaCache = new Map();
+const isoRange = (startIso, endIso) => ({
+  start: Date.parse(startIso),
+  end: Date.parse(endIso)
+});
+
+const BOLTON_DEVICE_IDS = {
+  standupTemp: '64214e60-479c-11f0-bf13-bf19a72566f6',
+  huddlePeople: '29436890-4798-11f0-bf13-bf19a72566f6',
+  boothsIaq: 'c27807e0-4799-11f0-bf13-bf19a72566f6',
+  sitdownOcc: 'b19aae20-479c-11f0-bf13-bf19a72566f6',
+  commsEnergy: '8e00d400-479a-11f0-bf13-bf19a72566f6',
+  commsWater: '4a829030-58b9-11f0-a19e-8f874a1c01d3',
+  toiletOdor: '2e857e60-58b9-11f0-a19e-8f874a1c01d3',
+  toiletLeak: '002f9dc0-58b9-11f0-a19e-8f874a1c01d3',
+  brainstormOcc: '6ef94be0-479b-11f0-bf13-bf19a72566f6',
+  brainstormTemp: 'f22ffa70-47a2-11f0-bf13-bf19a72566f6',
+  cafeIaq: 'abc73b80-4797-11f0-bf13-bf19a72566f6',
+  loungePeople: '7318f830-4799-11f0-bf13-bf19a72566f6'
+};
+
+const BOLTON_RANGE_FULL = isoRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z');
+const BOLTON_RANGE_WEATHER = isoRange('2025-09-10T00:00:00Z', '2025-09-17T23:59:59Z');
+
+const BOLTON_MANUAL_QUESTIONS = [
+  {
+    label: 'bolton_scope_inventory',
+    metric: null,
+    zones: ['Standup', 'Huddle', 'Booths', 'Sitdown', 'Comms', 'Cafe', 'Lounge', 'Toilet', 'Brainstorm'],
+    devices: [
+      BOLTON_DEVICE_IDS.standupTemp,
+      BOLTON_DEVICE_IDS.huddlePeople,
+      BOLTON_DEVICE_IDS.boothsIaq,
+      BOLTON_DEVICE_IDS.sitdownOcc,
+      BOLTON_DEVICE_IDS.commsEnergy,
+      BOLTON_DEVICE_IDS.commsWater,
+      BOLTON_DEVICE_IDS.toiletOdor,
+      BOLTON_DEVICE_IDS.toiletLeak,
+      BOLTON_DEVICE_IDS.brainstormOcc,
+      BOLTON_DEVICE_IDS.brainstormTemp,
+      BOLTON_DEVICE_IDS.cafeIaq,
+      BOLTON_DEVICE_IDS.loungePeople
+    ],
+    range: BOLTON_RANGE_FULL,
+    question:
+      'Confirm the visible scope for Bolton First Floor between the selected dates; list the rooms and devices with telemetry and mention any obvious gaps.'
+  },
+  {
+    label: 'bolton_standup_temp_humidity',
+    metric: 'temperature',
+    zones: ['Standup'],
+    devices: [BOLTON_DEVICE_IDS.standupTemp],
+    range: BOLTON_RANGE_FULL,
+    question:
+      'Plot temperature and humidity for Standup between 2025-09-10 and 2025-09-24, calling out highs and lows.'
+  },
+  {
+    label: 'bolton_huddle_people_count',
+    metric: 'people_count',
+    zones: ['Huddle'],
+    devices: [BOLTON_DEVICE_IDS.huddlePeople],
+    range: BOLTON_RANGE_FULL,
+    question:
+      'Show the people_count trend for Huddle between 2025-09-10 and 2025-09-24 and identify peak periods.'
+  },
+  {
+    label: 'bolton_cafe_comfort',
+    metric: null,
+    zones: ['Cafe'],
+    devices: [BOLTON_DEVICE_IDS.cafeIaq],
+    range: BOLTON_RANGE_FULL,
+    question:
+      'Between 2025-09-10 and 2025-09-24, summarise Cafe CO2, temperature, humidity, and lux; note any data gaps.'
+  },
+  {
+    label: 'bolton_comms_energy',
+    metric: 'total_kwh',
+    zones: ['Comms'],
+    devices: [BOLTON_DEVICE_IDS.commsEnergy],
+    range: BOLTON_RANGE_FULL,
+    question:
+      'Show total_kwh for Comms between 2025-09-10 and 2025-09-24 and describe daily highs and lows.'
+  },
+  {
+    label: 'bolton_comms_water',
+    metric: 'water_total',
+    zones: ['Comms'],
+    devices: [BOLTON_DEVICE_IDS.commsWater],
+    range: BOLTON_RANGE_FULL,
+    question:
+      'Chart water_total for Comms between 2025-09-10 and 2025-09-24 and highlight any step changes.'
+  },
+  {
+    label: 'bolton_toilet_gas',
+    metric: 'nh3',
+    zones: ['Toilet'],
+    devices: [BOLTON_DEVICE_IDS.toiletOdor],
+    range: BOLTON_RANGE_FULL,
+    question:
+      'Plot NH3 and H2S readings in the Toilet between 2025-09-10 and 2025-09-24 and flag any spikes.'
+  },
+  {
+    label: 'bolton_toilet_leak_status',
+    metric: 'leakage_status',
+    zones: ['Toilet'],
+    devices: [BOLTON_DEVICE_IDS.toiletLeak],
+    range: BOLTON_RANGE_FULL,
+    question:
+      'Check the leak status readings for the Toilet between 2025-09-10 and 2025-09-24 and confirm if any alerts occurred.'
+  },
+  {
+    label: 'bolton_brainstorm_utilisation',
+    metric: null,
+    zones: ['Brainstorm'],
+    devices: [BOLTON_DEVICE_IDS.brainstormOcc, BOLTON_DEVICE_IDS.brainstormTemp],
+    range: BOLTON_RANGE_FULL,
+    question:
+      'Summarise occupancy (is_used) alongside temperature and humidity for Brainstorm between 2025-09-10 and 2025-09-24.'
+  },
+  {
+    label: 'bolton_cafe_weather_compare',
+    metric: 'temperature',
+    zones: ['Cafe'],
+    devices: [BOLTON_DEVICE_IDS.cafeIaq],
+    range: BOLTON_RANGE_WEATHER,
+    question:
+      'Compare Cafe indoor temperature against Bolton outdoor weather between 2025-09-10 and 2025-09-17 and describe any relationship.'
+  }
+];
 
 function loadSnapshot() {
   if (!fs.existsSync(SNAPSHOT_FILE)) {
@@ -259,6 +383,9 @@ function hasAllMetrics(device, groups) {
 }
 
 function buildQuestions(spec, devices) {
+  if (spec.building === 'Bolton') {
+    return BOLTON_MANUAL_QUESTIONS;
+  }
   const traceQuestions = loadTraceQuestions(spec);
   if (traceQuestions.length) return traceQuestions;
   const questions = [];

@@ -4546,8 +4546,8 @@ function buildSnapshotIndex() {
           }
 
           // Sample down if too large
-          if (data.length > 500) {
-            data = sampleArray(data, 500);
+          if (data.length > 400) {
+            data = sampleArray(data, 400);
             log(`Sampled ${ref.tool} data from ${sourceData.length} to ${data.length} points`);
           }
           
@@ -4690,9 +4690,9 @@ function buildSnapshotIndex() {
     
     // Sample down large datasets to prevent UI issues (backup in case LLM included raw data)
     for (const series of chartObj.series) {
-      if (series.data && series.data.length > 500) {
+      if (series.data && series.data.length > 400) {
         const originalLength = series.data.length;
-        const sampled = sampleArray(series.data, 500);
+        const sampled = sampleArray(series.data, 400);
         series.data = sampled;
         log(`Sampled series from ${originalLength} to ${sampled.length} points`);
       }
@@ -6276,7 +6276,7 @@ function parseFieldsFromQuestion(question, availableSets) {
 
     // Multi-line plotting across a scope (tenant/building/floor/zone)
     // Returns { series: [ { name, zone, building, deviceId, data:[[ts,value],...] } ], meta: { devices, metric } }
-    scope_multiline({ tenant = null, building = null, floor = null, zone = null, metric, start = null, end = null, limit_per_series = 500 }) {
+    scope_multiline({ tenant = null, building = null, floor = null, zone = null, metric, start = null, end = null, limit_per_series = 400 }) {
       if (!metric) return { series: [], meta: { error: 'metric required' } };
       const out = [];
       try {

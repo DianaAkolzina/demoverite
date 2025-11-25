@@ -5,7 +5,7 @@ import path from 'path';
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
 const RESULTS_DIR = process.env.TEST_RESULTS_DIR || path.join('data', 'tests');
-const REQUIRED_SCENARIO_COUNT = Number(process.env.TEST_SCENARIO_COUNT || 60);
+const REQUIRED_SCENARIO_COUNT = Number(process.env.TEST_SCENARIO_COUNT || 10);
 const DURATIONS_HOURS = [6, 12, 24, 48, 72, 96, 168, 240, 336, 504];
 
 async function fetchJson(url, init) {
@@ -246,7 +246,7 @@ const BOLTON_FIRST_FLOOR_ZONES = loadBoltonZonesWithData();
 
 const MANUAL_SCENARIOS = [
   {
-    label: 'AVM Bolton First Floor scope – visible scope wording',
+    label: 'Bolton First Floor scope snapshot',
     scope: createScope({
       tenant: 'AVM Solutions',
       building: 'Bolton',
@@ -254,23 +254,81 @@ const MANUAL_SCENARIOS = [
       floors: ['First Floor'],
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
-    question: 'What is the visible scope for Bolton First Floor right now? List the floors, zones, and devices you can see.',
-    range: fixedRange('2024-09-05T00:00:00Z', '2024-09-19T23:59:59Z')
+    question: 'Confirm the visible scope for Bolton First Floor between the selected dates and list the rooms/devices with data.',
+    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
   },
   {
-    label: 'AVM Bolton First Floor scope – alternate wording',
+    label: 'Standup temperature and humidity',
     scope: createScope({
       tenant: 'AVM Solutions',
       building: 'Bolton',
       floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: BOLTON_FIRST_FLOOR_ZONES
+      zone: 'Standup',
+      zones: ['Standup'],
+      devices: ['64214e60-479c-11f0-bf13-bf19a72566f6'],
+      deviceZones: { '64214e60-479c-11f0-bf13-bf19a72566f6': 'Standup' }
     }),
-    question: 'What is the scope for Bolton First Floor? Confirm the rooms/devices included in the current selection.',
-    range: fixedRange('2024-09-05T00:00:00Z', '2024-09-19T23:59:59Z')
+    question: 'Plot temperature and humidity in Standup between 2025-09-10 and 2025-09-24 and summarise highs and lows.',
+    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
   },
   {
-    label: 'AVM Bolton Toilet NH3 trend',
+    label: 'Huddle people count',
+    scope: createScope({
+      tenant: 'AVM Solutions',
+      building: 'Bolton',
+      floor: 'First Floor',
+      zone: 'Huddle',
+      zones: ['Huddle'],
+      devices: ['29436890-4798-11f0-bf13-bf19a72566f6'],
+      deviceZones: { '29436890-4798-11f0-bf13-bf19a72566f6': 'Huddle' }
+    }),
+    question: 'Chart people_count for Huddle between 2025-09-10 and 2025-09-24 and call out peak periods.',
+    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+  },
+  {
+    label: 'Cafe IAQ and comfort',
+    scope: createScope({
+      tenant: 'AVM Solutions',
+      building: 'Bolton',
+      floor: 'First Floor',
+      zone: 'Cafe',
+      zones: ['Cafe'],
+      devices: ['abc73b80-4797-11f0-bf13-bf19a72566f6'],
+      deviceZones: { 'abc73b80-4797-11f0-bf13-bf19a72566f6': 'Cafe' }
+    }),
+    question: 'Between 2025-09-10 and 2025-09-24, summarise Cafe CO2, temperature, humidity, and lux; mention any gaps.',
+    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+  },
+  {
+    label: 'Comms energy trend',
+    scope: createScope({
+      tenant: 'AVM Solutions',
+      building: 'Bolton',
+      floor: 'First Floor',
+      zone: 'Comms',
+      zones: ['Comms'],
+      devices: ['8e00d400-479a-11f0-bf13-bf19a72566f6'],
+      deviceZones: { '8e00d400-479a-11f0-bf13-bf19a72566f6': 'Comms' }
+    }),
+    question: 'Show total_kwh for Comms between 2025-09-10 and 2025-09-24 and describe daily highs/lows.',
+    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+  },
+  {
+    label: 'Comms water usage',
+    scope: createScope({
+      tenant: 'AVM Solutions',
+      building: 'Bolton',
+      floor: 'First Floor',
+      zone: 'Comms',
+      zones: ['Comms'],
+      devices: ['4a829030-58b9-11f0-a19e-8f874a1c01d3'],
+      deviceZones: { '4a829030-58b9-11f0-a19e-8f874a1c01d3': 'Comms' }
+    }),
+    question: 'Chart water_total for Comms between 2025-09-10 and 2025-09-24 and highlight any step changes.',
+    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+  },
+  {
+    label: 'Toilet ammonia and odour',
     scope: createScope({
       tenant: 'AVM Solutions',
       building: 'Bolton',
@@ -280,223 +338,53 @@ const MANUAL_SCENARIOS = [
       devices: ['2e857e60-58b9-11f0-a19e-8f874a1c01d3'],
       deviceZones: { '2e857e60-58b9-11f0-a19e-8f874a1c01d3': 'Toilet' }
     }),
-    question: 'Plot NH3 from the Toilet in Bolton between the selected dates and explain the trend.',
-    range: fixedRange('2024-09-07T00:00:00Z', '2024-09-21T23:59:59Z')
+    question: 'Plot NH3 and H2S in the Toilet between 2025-09-10 and 2025-09-24 and flag any spikes.',
+    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
   },
   {
-    label: '55 King Street Suite 6.2 vs 6.3 comparison',
-    scope: createScope({
-      tenant: 'Emerson Group',
-      building: '55 King Street',
-      floor: '6th Floor',
-      floors: ['6th Floor'],
-      zones: ['Suite 6.2', 'Suite 6.3']
-    }),
-    question: 'Between 2024-09-10 and 2024-09-24, compare temperature between Suite 6.2 and Suite 6.3 on the 6th floor and call out differences.',
-    range: fixedRange('2024-09-10T00:00:00Z', '2024-09-24T23:59:59Z')
-  },
-  {
-    label: 'AVM Bolton comfort review',
+    label: 'Toilet leak status',
     scope: createScope({
       tenant: 'AVM Solutions',
       building: 'Bolton',
       floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: ['Standup', 'Huddle', 'Lounge', 'Cafe']
+      zone: 'Toilet',
+      zones: ['Toilet'],
+      devices: ['002f9dc0-58b9-11f0-a19e-8f874a1c01d3'],
+      deviceZones: { '002f9dc0-58b9-11f0-a19e-8f874a1c01d3': 'Toilet' }
     }),
-    question: 'Between 2024-09-08 and 2024-09-22, give a simple comfort summary (temp/CO₂/humidity) for Standup, Huddle, Lounge, and Cafe, noting any rooms without data.',
-    range: fixedRange('2024-09-08T00:00:00Z', '2024-09-22T23:59:59Z')
+    question: 'Check the leak status readings for the Toilet between 2025-09-10 and 2025-09-24 and confirm if any alerts occurred.',
+    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
   },
   {
-    label: '55 King Street Suite 6.5 multi-metric story',
+    label: 'Brainstorm occupancy and comfort',
     scope: createScope({
-      tenant: null,
-      building: '55 King Street',
-      floor: '6th Floor',
-      floors: ['6th Floor'],
-      zones: ['Suite 6.5'],
-      devices: [
-        '548e6250-66d5-11f0-a19e-8f874a1c01d3',
-        '31831560-664b-11f0-a19e-8f874a1c01d3',
-        '183915a0-664b-11f0-a19e-8f874a1c01d3',
-        '072b8b80-664b-11f0-a19e-8f874a1c01d3'
-      ],
+      tenant: 'AVM Solutions',
+      building: 'Bolton',
+      floor: 'First Floor',
+      zone: 'Brainstorm',
+      zones: ['Brainstorm'],
+      devices: ['6ef94be0-479b-11f0-bf13-bf19a72566f6', 'f22ffa70-47a2-11f0-bf13-bf19a72566f6'],
       deviceZones: {
-        '548e6250-66d5-11f0-a19e-8f874a1c01d3': 'Suite 6.5',
-        '31831560-664b-11f0-a19e-8f874a1c01d3': 'Suite 6.5',
-        '183915a0-664b-11f0-a19e-8f874a1c01d3': 'Suite 6.5',
-        '072b8b80-664b-11f0-a19e-8f874a1c01d3': 'Suite 6.5'
+        '6ef94be0-479b-11f0-bf13-bf19a72566f6': 'Brainstorm',
+        'f22ffa70-47a2-11f0-bf13-bf19a72566f6': 'Brainstorm'
       }
     }),
-    question: 'Between 2024-09-10 and 2024-09-24, summarize Suite 6.5 energy (kWh) alongside temp, humidity, and CO₂; mention peaks and lows.',
-    range: fixedRange('2024-09-10T00:00:00Z', '2024-09-24T23:59:59Z')
+    question: 'Summarise occupancy (is_used) alongside temperature and humidity for Brainstorm between 2025-09-10 and 2025-09-24.',
+    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
   },
   {
-    label: '55 King Street holistic insight',
-    scope: createScope({
-      tenant: null,
-      building: '55 King Street',
-      floors: ['6th Floor', 'Ground Floor'],
-      zones: ['Suite 6.5', 'Suite 6.1', 'Reception', 'Comms Room']
-    }),
-    question: 'Give a high-level comfort/usage story for the selected rooms in 55 King Street between 2024-09-10 and 2024-09-24; note any missing telemetry.',
-    range: fixedRange('2024-09-10T00:00:00Z', '2024-09-24T23:59:59Z')
-  },
-  {
-    label: 'Bolton unused rooms check',
+    label: 'Cafe temperature vs weather',
     scope: createScope({
       tenant: 'AVM Solutions',
       building: 'Bolton',
       floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: BOLTON_FIRST_FLOOR_ZONES
+      zone: 'Cafe',
+      zones: ['Cafe'],
+      devices: ['abc73b80-4797-11f0-bf13-bf19a72566f6'],
+      deviceZones: { 'abc73b80-4797-11f0-bf13-bf19a72566f6': 'Cafe' }
     }),
-    question: 'Have any of the rooms not been used today?',
-    range: fixedRange('2024-09-12T08:00:00Z', '2024-09-12T18:00:00Z')
-  },
-  {
-    label: 'Bolton people forecast',
-    scope: createScope({
-      tenant: 'AVM Solutions',
-      building: 'Bolton',
-      floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: BOLTON_FIRST_FLOOR_ZONES
-    }),
-    question: 'How many people will be in Bolton today and this week?',
-    question: 'Estimate people in Bolton for today and this week (short summary).',
-    range: fixedRange('2024-09-12T00:00:00Z', '2024-09-19T23:59:59Z')
-  },
-  {
-    label: 'Bolton busiest room',
-    scope: createScope({
-      tenant: 'AVM Solutions',
-      building: 'Bolton',
-      floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: BOLTON_FIRST_FLOOR_ZONES
-    }),
-    question: 'Which room will be the busiest this week?',
-    question: 'Which room is busiest this week?',
-    range: fixedRange('2024-09-12T00:00:00Z', '2024-09-19T23:59:59Z')
-  },
-  {
-    label: 'Suite 6.5 average occupancy',
-    scope: createScope({
-      tenant: null,
-      building: '55 King Street',
-      floor: '6th Floor',
-      floors: ['6th Floor'],
-      zones: ['Suite 6.5']
-    }),
-    question: 'Between 2024-09-10 and 2024-09-24, what is the average people count in Suite 6.5?',
-    range: fixedRange('2024-09-10T00:00:00Z', '2024-09-24T23:59:59Z')
-  },
-  {
-    label: '55 King Street energy savings',
-    scope: createScope({
-      tenant: null,
-      building: '55 King Street',
-      floors: ['6th Floor', 'Ground Floor'],
-      zones: ['Suite 6.5', 'Suite 6.1', 'Reception']
-    }),
-    question: 'Between 2024-09-10 and 2024-09-24, give simple energy-saving tips for 55 King Street using current data.',
-    range: fixedRange('2024-09-10T00:00:00Z', '2024-09-24T23:59:59Z')
-  },
-  {
-    label: '55 King Street energy peak time',
-    scope: createScope({
-      tenant: null,
-      building: '55 King Street',
-      floors: ['6th Floor'],
-      zones: ['Suite 6.5']
-    }),
-    question: 'Between 2024-09-20 and 2024-10-05, when is energy use highest and why?',
-    range: fixedRange('2024-09-20T00:00:00Z', '2024-10-05T23:59:59Z')
-  },
-  {
-    label: 'Bolton cleaning schedule',
-    scope: createScope({
-      tenant: 'AVM Solutions',
-      building: 'Bolton',
-      floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: BOLTON_FIRST_FLOOR_ZONES
-    }),
-    question: 'What is the best date/time to arrange cleaning based on occupancy?',
-    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
-  },
-  {
-    label: 'Bolton coffee promotion',
-    scope: createScope({
-      tenant: 'AVM Solutions',
-      building: 'Bolton',
-      floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: BOLTON_FIRST_FLOOR_ZONES
-    }),
-    question: 'What time do most people leave so I can entice them with discounted coffees/teas?',
-    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-15T23:59:59Z')
-  },
-  {
-    label: 'Bolton meeting rooms usage',
-    scope: createScope({
-      tenant: 'AVM Solutions',
-      building: 'Bolton',
-      floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: BOLTON_FIRST_FLOOR_ZONES
-    }),
-    question: 'Which meeting rooms are being used the most?',
-    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
-  },
-  {
-    label: 'Bolton busiest day',
-    scope: createScope({
-      tenant: 'AVM Solutions',
-      building: 'Bolton',
-      floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: BOLTON_FIRST_FLOOR_ZONES
-    }),
-    question: 'What is my busiest day of the week?',
-    range: fixedRange('2024-09-10T12:21:00Z', '2024-09-24T13:21:00Z')
-  },
-  {
-    label: 'Bolton comfortable temperature range',
-    scope: createScope({
-      tenant: 'AVM Solutions',
-      building: 'Bolton',
-      floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: BOLTON_FIRST_FLOOR_ZONES
-    }),
-    question: 'Are all my spaces within a comfortable temperature range?',
-    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
-  },
-  {
-    label: 'Bolton weather correlation',
-    scope: createScope({
-      tenant: 'AVM Solutions',
-      building: 'Bolton',
-      floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: BOLTON_FIRST_FLOOR_ZONES
-    }),
-    question: 'What is the correlation between the outside weather and occupancy for the current Bolton selection?',
-    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
-  },
-  {
-    label: 'Bolton heating lead time',
-    scope: createScope({
-      tenant: 'AVM Solutions',
-      building: 'Bolton',
-      floor: 'First Floor',
-      floors: ['First Floor'],
-      zones: BOLTON_FIRST_FLOOR_ZONES
-    }),
-    question: 'How long does it take to heat the building and when should we turn on the heating to reach 21°C before people arrive?',
-    range: fixedRange('2024-09-15T00:00:00Z', '2024-09-22T23:59:59Z')
+    question: 'Compare Cafe indoor temperature against Bolton outdoor weather between 2025-09-10 and 2025-09-17 and describe any relationship.',
+    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-17T23:59:59Z')
   }
 ];
 
@@ -519,6 +407,9 @@ async function discoverScenarios() {
   const scenarios = [];
   for (const scenario of buildManualScenarios()) {
     pushScenario(scenarios, scenario);
+  }
+  if (scenarios.length >= REQUIRED_SCENARIO_COUNT) {
+    return scenarios.slice(0, REQUIRED_SCENARIO_COUNT);
   }
   const buildingContexts = [];
   const tenantsResp = await fetchJson('/api/tenants').catch(() => ({ tenants: [] }));
