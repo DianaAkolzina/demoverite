@@ -190,21 +190,27 @@
         justify-content: flex-start;
         flex-wrap: wrap;
       }
-      .header .date-selectors { display: flex; flex-direction: row; gap: 1rem; flex: 1 1 600px; }
-      .header label {
-        color: var(--text-light);
-        font-size: 0.95rem;
-        margin-right: 0.5rem;
-      }
-      .header input[type="datetime-local"] {
+      .header .date-selectors { display: flex; flex-direction: column; gap: 0.25rem; flex: 1 1 500px; }
+      .header .preset-label { color: var(--text-light); font-size: 0.95rem; }
+      .range-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+      .range-buttons button {
         background: var(--surface);
         color: var(--text);
         border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 0.4rem 0.7rem;
-        font-size: 1rem;
-        min-width: 240px;
+        border-radius: 10px;
+        padding: 0.45rem 0.8rem;
+        font-size: 0.98rem;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, transform 0.12s;
       }
+      .range-buttons button.active {
+        background: var(--accent-dark);
+        color: #fff;
+        border-color: var(--accent);
+        transform: translateY(-1px);
+      }
+      .range-buttons button:hover { background: var(--surface-light); border-color: var(--accent); }
+      .hidden-date-inputs { display: none; }
 
       .chat {
         flex: 1 1 auto;
@@ -227,7 +233,7 @@
         position: relative;
         margin-bottom: 0.5rem;
         animation: fadeIn 0.3s ease-in-out;
-        font-size: 1rem;
+        font-size: 1.08rem;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       }
 
@@ -399,13 +405,17 @@
       <div class="header">
             <!-- Removed room dropdown; selection is from graph -->
             <div class="date-selectors">
-              <div>
-                <label for="start">Start:</label>
-                <input type="datetime-local" id="start" />
+              <div class="preset-label">Range (anchored to 20 Oct 2025):</div>
+              <div class="range-buttons" id="range-buttons">
+                <button type="button" data-days="1">Last 1 day</button>
+                <button type="button" data-days="7" class="active">Last 7 days</button>
+                <button type="button" data-days="30">Last 30 days</button>
               </div>
-              <div>
+              <div class="hidden-date-inputs">
+                <label for="start">Start:</label>
+                <input type="datetime-local" id="start" readonly />
                 <label for="end">End:</label>
-                <input type="datetime-local" id="end" />
+                <input type="datetime-local" id="end" readonly />
               </div>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">

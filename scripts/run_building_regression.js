@@ -32,6 +32,9 @@ const METRIC_GROUPS = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_SPAN_MS = 6 * 60 * 60 * 1000;
+const ALLOWED_DAY_WINDOWS = [1, 7, 30];
+const DEFAULT_WINDOW_DAYS = 7;
+const FIXED_TODAY_MS = Date.UTC(2025, 9, 20, 23, 59, 59, 999); // 20 Oct 2025 23:59:59Z
 
 const deviceMetaCache = new Map();
 const isoRange = (startIso, endIso) => ({
@@ -39,127 +42,195 @@ const isoRange = (startIso, endIso) => ({
   end: Date.parse(endIso)
 });
 
-const BOLTON_DEVICE_IDS = {
-  standupTemp: '64214e60-479c-11f0-bf13-bf19a72566f6',
-  huddlePeople: '29436890-4798-11f0-bf13-bf19a72566f6',
-  boothsIaq: 'c27807e0-4799-11f0-bf13-bf19a72566f6',
-  sitdownOcc: 'b19aae20-479c-11f0-bf13-bf19a72566f6',
-  commsEnergy: '8e00d400-479a-11f0-bf13-bf19a72566f6',
-  commsWater: '4a829030-58b9-11f0-a19e-8f874a1c01d3',
-  toiletOdor: '2e857e60-58b9-11f0-a19e-8f874a1c01d3',
-  toiletLeak: '002f9dc0-58b9-11f0-a19e-8f874a1c01d3',
-  brainstormOcc: '6ef94be0-479b-11f0-bf13-bf19a72566f6',
-  brainstormTemp: 'f22ffa70-47a2-11f0-bf13-bf19a72566f6',
-  cafeIaq: 'abc73b80-4797-11f0-bf13-bf19a72566f6',
-  loungePeople: '7318f830-4799-11f0-bf13-bf19a72566f6'
-};
+function startOfDayUtc(ts) {
+  const d = new Date(ts);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.getTime();
+}
 
-const BOLTON_RANGE_FULL = isoRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z');
-const BOLTON_RANGE_WEATHER = isoRange('2025-09-10T00:00:00Z', '2025-09-17T23:59:59Z');
+function anchorRange(days = DEFAULT_WINDOW_DAYS) {
+  const windowDays = ALLOWED_DAY_WINDOWS.includes(days) ? days : DEFAULT_WINDOW_DAYS;
+  const end = FIXED_TODAY_MS;
+  const start = startOfDayUtc(end - (windowDays - 1) * DAY_MS);
+  return { start, end };
+}
 
+const BOLTON_RANGE_FULL = anchorRange(30); // 30-day UI window
+const BOLTON_RANGE_WEATHER = anchorRange(7); // 7-day UI window
+
+// Alias-driven questions (no hard-coded device IDs) to exercise alias/device resolution and multiple tools.
 const BOLTON_MANUAL_QUESTIONS = [
   {
     label: 'bolton_scope_inventory',
     metric: null,
     zones: ['Standup', 'Huddle', 'Booths', 'Sitdown', 'Comms', 'Cafe', 'Lounge', 'Toilet', 'Brainstorm'],
-    devices: [
-      BOLTON_DEVICE_IDS.standupTemp,
-      BOLTON_DEVICE_IDS.huddlePeople,
-      BOLTON_DEVICE_IDS.boothsIaq,
-      BOLTON_DEVICE_IDS.sitdownOcc,
-      BOLTON_DEVICE_IDS.commsEnergy,
-      BOLTON_DEVICE_IDS.commsWater,
-      BOLTON_DEVICE_IDS.toiletOdor,
-      BOLTON_DEVICE_IDS.toiletLeak,
-      BOLTON_DEVICE_IDS.brainstormOcc,
-      BOLTON_DEVICE_IDS.brainstormTemp,
-      BOLTON_DEVICE_IDS.cafeIaq,
-      BOLTON_DEVICE_IDS.loungePeople
-    ],
+    devices: [],
     range: BOLTON_RANGE_FULL,
     question:
-      'Confirm the visible scope for Bolton First Floor between the selected dates; list the rooms and devices with telemetry and mention any obvious gaps.'
+      'Confirm the visible scope for Bolton First Floor over the last 30 days; list the rooms and devices with telemetry and mention any obvious gaps.'
   },
   {
     label: 'bolton_standup_temp_humidity',
     metric: 'temperature',
     zones: ['Standup'],
-    devices: [BOLTON_DEVICE_IDS.standupTemp],
+    devices: [],
     range: BOLTON_RANGE_FULL,
     question:
-      'Plot temperature and humidity for Standup between 2025-09-10 and 2025-09-24, calling out highs and lows.'
+      'Plot temperature and humidity for the Standup area over the last 30 days, calling out highs and lows.'
   },
   {
     label: 'bolton_huddle_people_count',
     metric: 'people_count',
     zones: ['Huddle'],
-    devices: [BOLTON_DEVICE_IDS.huddlePeople],
+    devices: [],
     range: BOLTON_RANGE_FULL,
     question:
-      'Show the people_count trend for Huddle between 2025-09-10 and 2025-09-24 and identify peak periods.'
+      'Show the people_count trend for the Huddle room over the last 30 days and identify peak periods.'
   },
   {
     label: 'bolton_cafe_comfort',
     metric: null,
     zones: ['Cafe'],
-    devices: [BOLTON_DEVICE_IDS.cafeIaq],
+    devices: [],
     range: BOLTON_RANGE_FULL,
     question:
-      'Between 2025-09-10 and 2025-09-24, summarise Cafe CO2, temperature, humidity, and lux; note any data gaps.'
+      'Over the last 30 days, summarise Cafe CO2, temperature, humidity, and lux; note any data gaps.'
   },
   {
     label: 'bolton_comms_energy',
     metric: 'total_kwh',
     zones: ['Comms'],
-    devices: [BOLTON_DEVICE_IDS.commsEnergy],
+    devices: [],
     range: BOLTON_RANGE_FULL,
     question:
-      'Show total_kwh for Comms between 2025-09-10 and 2025-09-24 and describe daily highs and lows.'
+      'Show total_kwh for the Comms room over the last 30 days and describe daily highs and lows.'
   },
   {
     label: 'bolton_comms_water',
     metric: 'water_total',
     zones: ['Comms'],
-    devices: [BOLTON_DEVICE_IDS.commsWater],
+    devices: [],
     range: BOLTON_RANGE_FULL,
     question:
-      'Chart water_total for Comms between 2025-09-10 and 2025-09-24 and highlight any step changes.'
+      'Chart water_total for the Comms room over the last 30 days and highlight any step changes.'
   },
   {
     label: 'bolton_toilet_gas',
     metric: 'nh3',
     zones: ['Toilet'],
-    devices: [BOLTON_DEVICE_IDS.toiletOdor],
+    devices: [],
     range: BOLTON_RANGE_FULL,
     question:
-      'Plot NH3 and H2S readings in the Toilet between 2025-09-10 and 2025-09-24 and flag any spikes.'
+      'Plot NH3 and H2S readings in the Toilet over the last 30 days and flag any spikes.'
   },
   {
     label: 'bolton_toilet_leak_status',
     metric: 'leakage_status',
     zones: ['Toilet'],
-    devices: [BOLTON_DEVICE_IDS.toiletLeak],
+    devices: [],
     range: BOLTON_RANGE_FULL,
     question:
-      'Check the leak status readings for the Toilet between 2025-09-10 and 2025-09-24 and confirm if any alerts occurred.'
+      'Check the leak status readings for the Toilet over the last 30 days and confirm if any alerts occurred.'
   },
   {
     label: 'bolton_brainstorm_utilisation',
     metric: null,
     zones: ['Brainstorm'],
-    devices: [BOLTON_DEVICE_IDS.brainstormOcc, BOLTON_DEVICE_IDS.brainstormTemp],
+    devices: [],
     range: BOLTON_RANGE_FULL,
     question:
-      'Summarise occupancy (is_used) alongside temperature and humidity for Brainstorm between 2025-09-10 and 2025-09-24.'
+      'Summarise occupancy (is_used) alongside temperature and humidity for Brainstorm over the last 30 days.'
   },
   {
     label: 'bolton_cafe_weather_compare',
     metric: 'temperature',
     zones: ['Cafe'],
-    devices: [BOLTON_DEVICE_IDS.cafeIaq],
+    devices: [],
     range: BOLTON_RANGE_WEATHER,
     question:
-      'Compare Cafe indoor temperature against Bolton outdoor weather between 2025-09-10 and 2025-09-17 and describe any relationship.'
+      'Compare Cafe indoor temperature against Bolton outdoor weather over the last 7 days and describe any relationship.'
+  },
+  // Additional alias-driven coverage to exercise tools broadly
+  {
+    label: 'bolton_co2_scatter_standup_huddle',
+    metric: 'co2',
+    zones: ['Standup', 'Huddle'],
+    devices: [],
+    range: anchorRange(7),
+    question:
+      'Compare CO2 between Standup and Huddle over the last 7 days with a scatter/correlation and highlight any alignment.'
+  },
+  {
+    label: 'bolton_temp_rank_booths_sitdown_lounge',
+    metric: 'temperature',
+    zones: ['Booths', 'Sitdown', 'Lounge'],
+    devices: [],
+    range: anchorRange(7),
+    question:
+      'Rank Booths, Sitdown, and Lounge by average temperature over the past week; show a column chart.'
+  },
+  {
+    label: 'bolton_humidity_hist_brainstorm',
+    metric: 'humidity',
+    zones: ['Brainstorm'],
+    devices: [],
+    range: anchorRange(7),
+    question:
+      'Show a humidity histogram for Brainstorm for the last 7 days, calling out percentile bands.'
+  },
+  {
+    label: 'bolton_occupancy_hour_huddle',
+    metric: 'people_count',
+    zones: ['Huddle'],
+    devices: [],
+    range: anchorRange(7),
+    question:
+      'Plot occupancy (people_count) hour-of-day pattern for Huddle over the last 7 days and identify peak hours.'
+  },
+  {
+    label: 'bolton_nh3_h2s_scatter_toilet',
+    metric: 'nh3',
+    zones: ['Toilet'],
+    devices: [],
+    range: BOLTON_RANGE_FULL,
+    question:
+      'Plot NH3 vs H2S scatter for Toilet over the last 30 days and flag spikes.'
+  },
+  {
+    label: 'bolton_lux_vs_occ_cafe',
+    metric: 'lux',
+    zones: ['Cafe', 'Lounge'],
+    devices: [],
+    range: anchorRange(7),
+    question:
+      'Correlate lux vs occupancy for Cafe (and nearby Lounge if needed) over the last 7 days; include scatter and summary.'
+  },
+  {
+    label: 'bolton_energy_profile_comms',
+    metric: 'total_kwh',
+    zones: ['Comms'],
+    devices: [],
+    range: anchorRange(30),
+    question:
+      'Show the total_kwh trend and hourly profile for Comms over the last 30 days and flag the highest-energy days.'
+  },
+  {
+    label: 'bolton_water_stepcheck_comms',
+    metric: 'water_total',
+    zones: ['Comms'],
+    devices: [],
+    range: anchorRange(30),
+    question:
+      'Check for step changes in water_total for Comms over the last 30 days; report start/end readings and any jumps.'
+  },
+  {
+    label: 'bolton_co2_heatmap_core_zones',
+    metric: 'co2',
+    zones: ['Standup', 'Huddle', 'Booths'],
+    devices: [],
+    range: anchorRange(7),
+    question:
+      'Generate a CO2 heatmap across Standup, Huddle, and Booths for the last 7 days (hourly buckets).'
   }
 ];
 

@@ -10,7 +10,7 @@ export function createAgentRunner(ctx) {
     buildAnalysisDirectives,
     buildContextSnippet,
     buildDefaultAnswer,
-    buildFallbackChartFromTrace,
+    buildChartFromTrace,
     buildScopeSummary,
     buildToolSpec,
     chartHasRenderableSeries,
@@ -119,7 +119,7 @@ export function createAgentRunner(ctx) {
           metrics: routing.metrics,
           timeHints: routing.timeHints,
           scope: retrievalScope,
-          k: routing?.pipeline?.retrieval?.k || 6
+          k: routing?.pipeline?.retrieval?.k || 4
         }
       }
     );
@@ -140,10 +140,11 @@ export function createAgentRunner(ctx) {
     // --- QUERY ENRICHMENT: Knowledge Pack ---
     let knowledgeSnippets = hybridHits
       .filter(h => h.meta?.type === 'knowledge')
+      .slice(0, 3)
       .map(h => `From ${h.meta.file}: ${h.text}`)
       .join('\n---\n');
-    if (knowledgeSnippets && knowledgeSnippets.length > 1500) {
-      knowledgeSnippets = knowledgeSnippets.slice(0, 1500) + '\n…';
+    if (knowledgeSnippets && knowledgeSnippets.length > 900) {
+      knowledgeSnippets = knowledgeSnippets.slice(0, 900) + '\n…';
     }
     // --------------------------------------------
 
@@ -179,6 +180,13 @@ export function createAgentRunner(ctx) {
     }
 
     log('Question:', '<redacted>');
+    const iterationTimings = [];
+    const markTiming = (label, startHrtime) => {
+      if (!startHrtime) return;
+      const diff = process.hrtime.bigint() - startHrtime;
+      const ms = Number(diff) / 1e6;
+      iterationTimings.push({ label, ms });
+    };
     if (DEBUG) log('Context snippet schema keys:', Object.keys(ctx.schema));
 
     const trace = [];
@@ -253,36 +261,31 @@ export function createAgentRunner(ctx) {
       if (headerLineFinal) scopeHeaderLine = headerLineFinal;
       scopeMessage = applyScopeHeader(scopeMessage);
       scopeMessage = enforceOverviewDetails(scopeMessage, { range: rr, trace, planStatus });
-      return { message: assistantMessage(scopeMessage, { preserveWhitespace: true }), chart: null, trace };
+      return {
+        message: assistantMessage(scopeMessage, { preserveWhitespace: true }),
+        chart: null,
+        trace,
+        plan_status: planStatus
+      };
     }
 
     const intent = classifyIntent(question);
-    const histogramRequested = (routing?.intents?.histogram === true)
-      || questionLower.includes('histogram')
-      || questionLower.includes('distribution')
-      || questionLower.includes('frequency')
-      || questionLower.includes('bins')
-      || questionLower.includes('bucket');
-    const heatmapRequested = (routing?.intents?.heatmap === true)
-      || questionLower.includes('heatmap')
-      || questionLower.includes('matrix');
-    const requireRoomRanking = questionRequiresRoomRanking(question) && Array.isArray(selectionZones) && selectionZones.length > 1;
-    const rankingRoomsList = requireRoomRanking
-      ? (selectionZones.length ? selectionZones.join(', ') : (selectionRooms && selectionRooms.length ? selectionRooms.join(', ') : '(current scope)'))
-      : '';
-    const rankingInstruction = requireRoomRanking
-      ? `ROOM COMPARISON TASK: The user is asking which room/zone is busiest or unused. Compare every room currently in scope (${rankingRoomsList}). Use compare_rooms_on_metric (preferred), scope_daily_percentile (for percentile/occupied-median requests), or compare_series_cross_room on people_count/occupancy to rank them, cite the values, and explicitly name which room is busiest. Mention any rooms that lack occupancy data.`
-      : '';
-    const needsRoomComparison = questionRequiresRoomComparison(question);
-    const comparisonRoomsList = questionNamedRooms.length
-      ? questionNamedRooms.join(', ')
-      : (selectionZones && selectionZones.length ? selectionZones.join(', ') : (selectionRooms && selectionRooms.length ? selectionRooms.join(', ') : '(current scope)'));
-    const comparisonInstruction = needsRoomComparison
-      ? `ROOM METRIC COMPARISON TASK: The user asked to compare metrics between ${comparisonRoomsList}. You MUST call compare_series_cross_room or compare_rooms_on_metric (or both) on the relevant metric(s), discuss differences for each room, and highlight which room leads or lags.`
-      : '';
+    const histogramRequested = false;
+    const heatmapRequested = false;
+    const requireRoomRanking = false;
+    const rankingRoomsList = '';
+    const scatterRequested = questionRequiresScatter(question);
+    const rankingInstruction = '';
+    const needsRoomComparison = false;
+    const comparisonRoomsList = '';
+    const comparisonInstruction = '';
 
     const scopeSnapshotNote = ctx.scopeSnapshot ? `Scope snapshot notes:\n${ctx.scopeSnapshot}\n` : '';
     const connectorNote = summarizeConnectorStatus(ctx.connectors);
+    const scopeSummary = tools.scope_summary();
+    const scopeSchemaLine = scopeSummary && scopeSummary.schema
+      ? `Scope devices and schema headers: ${JSON.stringify(scopeSummary.schema)}`
+      : '';
     const sys = `You are a senior data analyst agent for building operations.
 ${convMemory ? `=== CONVERSATION MEMORY ===\n${convMemory}\n` : ''}
 ${connectorNote ? `${connectorNote}\n` : ''}
@@ -292,13 +295,14 @@ Devices in scope: ${devicesLine}
 ${namedRoomDeviceHints.length ? `User-named rooms resolved to devices: ${namedRoomDeviceHints.join(' | ')}` : ''}
 ${room === 'ALL' && selectionRooms && selectionRooms.length ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these devices and their parent zones. Do NOT introduce other scopes.` : ''}
 ${scopeSnapshotNote}
+${scopeSchemaLine}
 Selected time window: 
 - Local: ${startFmt} to ${endFmt}
 - Epoch ms: start=${rr.start ?? 'none'} end=${rr.end ?? 'none'}
 
 MANDATORY: Always use this time window for all analysis and answers. Do NOT invent or assume any other period. If the user asks "what time period are you analysing", repeat this exact window.
 
-FREEDOM TO ANALYZE: You are encouraged to analyze the data, derive insights, compare across rooms within scope, and synthesize conclusions. Use tools as needed; if tools are insufficient, explain and proceed with reasoned analysis using available data.
+FREEDOM TO ANALYZE: You are encouraged to analyze the data, derive insights, and synthesize conclusions. Use tools as needed; if tools are insufficient, explain and proceed with reasoned analysis using available data. Always produce deeper analysis (min/avg/max with timestamps, gaps/missingness, notable spikes/drops, short recommendations).
 
 DOMAIN NOTE: "Zone" and "Room" are synonyms in this system. When the user mentions a zone, treat it exactly as a room, and vice versa. Use graph relationships (Building → Floor → Zone) to understand placement.
 
@@ -401,21 +405,20 @@ Weather data chart:
 }
 
 === ANALYSIS WORKFLOW (MANDATORY) ===
-1. Before calling any tool, respond with {"action":"plan","steps":[{"id":"S1","goal":"Review CO2 trend","tool":"fetch_timeseries","inputs":["co2"]}, ...]} listing 2‑4 concrete steps. Every step MUST be a JSON object (not a string) with:
-   - id: S1, S2, S3… (unique per step)
-   - goal: what you will do
-   - tool: the exact tool name you intend to call
-   - inputs/metrics (array) describing the metric(s) you’ll request
-   Do NOT call tools until the structured plan is acknowledged.
-2. After the plan is acknowledged, every {"action":"tool_call"} (and each entry inside {"action":"tool_calls"}) MUST include "planStep":"S#" pointing to the step it satisfies. Execute the plan in order and only advance after completing each step’s tool call.
-3. When tools finish, respond with {"action":"final", ... , "plan_status":[{"id":"S1","status":"done","finding":"CO₂ trend captured"}, ...]} that (a) begins with "Overview:" summarizing the conclusions for ${startFmt} to ${endFmt} in 2 sentences, (b) adds a "Details:" section referencing each plan step and the tool outputs, (c) explicitly comments on any chart you provide, and (d) lists plan_status for every step with its outcome.
-4. If you cannot complete a plan step (missing data, tool limitation, etc.), explain why in the final answer, mark that step in plan_status with status:"blocked" (or similar), and describe the gap.
+1) Plan first: {"action":"plan","steps":[{"id":"S1","goal":"...","tool":"<name>","inputs":["metric"]},...]} (2–4 steps). No tools until acknowledged.
+2) Execute ALL tools in a single {"action":"tool_calls","tools":[...]} covering every plan step (stats + chart source) with "planStep":"S#". Do not split into multiple tool_calls turns.
+3) Final: {"action":"final","answer":"...","chart":<HighchartsOptions or null>,"plan_status":[{"id":"S1","status":"done","finding":"..."}...]} starting with "Overview:", then "Details:" per step, and explicitly comment on any chart.
+4) If a step is blocked/missing data, mark plan_status accordingly and explain.
+5) Charts: every series must use dataRef; do not embed arrays. If you cannot wire dataRef, return text-only.
+6) Analysis: cite min/avg/max with timestamps, gaps, peaks/drops, correlations/comparisons, and concise recommendations/next checks.
 
 If you want to answer in plain text (no chart, no structured data), respond with:
 { "action": "final_text", "answer": "<your answer>" }
 === ANALYSIS RULES ===
 - Always assume the selected room/time window for analysis. Do NOT ask the user for dates; use the provided window as defaults for tools.
 - When calling tools, if args omit room/start/end, fill them with the selected room and time window.
+- Charts: strictly use dataRef series pointing to tool outputs. Do not embed inline data arrays.
+- For every chart/metric analyzed, report min/avg/max with timestamps, latest value, any data gaps/missingness, and call out spikes/drops and trends. Add 1–2 concise recommendations or next checks when relevant.
 
 - PREDICTION/FORECAST queries: When user asks to "predict", "forecast", "what will be", "estimate future", etc., use the appropriate forecast tool:
   * forecast_from_profile: Best for daily patterns (temperature, humidity, occupancy over days/weeks)
@@ -425,15 +428,9 @@ If you want to answer in plain text (no chart, no structured data), respond with
 
 - If a tool returns no rows in the selected window (e.g., fetch_timeseries or stats shows 0), call fetch_table_meta to get the available ts range and decide whether to adapt.
 
-- PARALLEL TOOL CALLS: You can call MULTIPLE tools at once to gather all needed information efficiently:
-  {"action":"tool_calls","tools":[{"tool":"<name1>","args":{...}},{"tool":"<name2>","args":{...}}]}
-  
-- Return either:
-  * Single tool call: {"action":"tool_call","tool":"<n>","args":{...}}
-  * Multiple parallel tool calls: {"action":"tool_calls","tools":[...]}
-  * Final answer: {"action":"final","answer":"...","chart":<HighchartsOptions with dataRef or null>}
-  
-- When presenting times, format timestamps as 'YYYY-MM-DD HH:mm' (local time) and hours of day as 'h AM/PM' (e.g., 1 PM, 2 PM).
+- PARALLEL TOOL CALLS: Prefer one {"action":"tool_calls","tools":[...]} covering all plan steps.
+- Return either {"action":"tool_call",...}, {"action":"tool_calls",...}, or {"action":"final",...}.
+- When presenting times, format timestamps as 'YYYY-MM-DD HH:mm' (local time) and hours of day as 'h AM/PM'.
 - For "best time" style questions, prefer hour_of_day_stats (e.g., on people_count or co2) and explain the hour labels in human terms.
 - ALWAYS provide final answer as properly formatted JSON with action:"final". Never just provide conversational text without the JSON structure.
 
@@ -462,6 +459,8 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       { role: 'user', content: sys },
       ...messages
     ];
+    const iterationStart = process.hrtime.bigint();
+    const toolResultCache = new Map();
 
     const qlLower = (question || '').toLowerCase();
     const explicitTimestamp = extractTimestampFromQuestion(question);
@@ -490,6 +489,7 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
     let lastToolSig = '';
     let repeatCount = 0;
     let totalToolCalls = 0;
+    let toolCallTurns = 0;
     let scatterRetryCount = 0;
     let chartRetryCount = 0;
     let planConfirmed = false;
@@ -556,6 +556,26 @@ Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
       done: !!step.done,
       note: step.note || null
     }));
+
+    const MAX_TOOL_POINTS = Math.max(200, Number(process.env.TOOL_RESULT_MAX_POINTS || 300));
+    const trimResultForLLM = (val, maxPoints = MAX_TOOL_POINTS) => {
+      if (Array.isArray(val)) {
+        if (val.length <= maxPoints) return val;
+        const step = Math.max(1, Math.floor(val.length / maxPoints));
+        const out = [];
+        for (let i = 0; i < val.length; i += step) out.push(val[i]);
+        if (out[out.length - 1] !== val[val.length - 1]) out.push(val[val.length - 1]);
+        return out;
+      }
+      if (val && typeof val === 'object') {
+        const out = Array.isArray(val) ? [] : {};
+        for (const [k, v] of Object.entries(val)) {
+          out[k] = trimResultForLLM(v, maxPoints);
+        }
+        return out;
+      }
+      return val;
+    };
 
     const findTraceEntryForPlanStep = (stepRef) => {
       if (!stepRef) return null;
@@ -1185,9 +1205,9 @@ OR if no chart is needed:
         attachPlanStatus(obj);
       } else {
         consecutiveJsonFailures += 1;
-        if (consecutiveJsonFailures >= 3 && totalToolCalls > 0) {
-          log('Synthesizing final JSON after repeated parse errors');
-          const syntheticChart = buildFallbackChartFromTrace({
+        if (totalToolCalls > 0) {
+          log('Synthesizing final JSON after parse error post-tools');
+          const syntheticChart = buildChartFromTrace({
             trace,
             question,
             defaultRoom: room,
@@ -1205,6 +1225,12 @@ OR if no chart is needed:
             chart: syntheticChart,
             plan_status: planStatusSnapshot()
           };
+        } else {
+          convo.push({
+            role: 'user',
+            content: `CRITICAL ERROR: Response could not be parsed as valid JSON. You must respond with a JSON object using the documented schema (action/tool_calls/final/chart). Resend your answer in the required JSON format.`
+          });
+          continue STEP_LOOP;
         }
       }
 
@@ -1218,6 +1244,7 @@ OR if no chart is needed:
             trimmed.match(/\[\[[\d,\s]*$/) ||
             trimmed.match(/,\s*\d+\.\d+\]$/))) {
           log('Detected truncated response with embedded data arrays');
+          markTiming(`iteration:${attemptIndex}:llm_parse_fail`, iterationStart);
           convo.push({
             role: 'user',
             content: `CRITICAL ERROR: Your response was truncated because you embedded data arrays directly in the JSON.
@@ -1294,8 +1321,9 @@ Respond again with dataRef, NOT embedded data.`
         // CRITICAL: Reject plain text responses - force JSON format
         const plain = String(reply || '').trim();
         if (plain.length > 20 && /[a-zA-Z]/.test(plain) && !plain.startsWith('{')) {
-          if (totalToolCalls > 0 && (step >= 4 || attempt >= 1)) {
+          if (totalToolCalls > 0 && (step >= 2 || attempt >= 1)) {
             log('Auto-wrapping plain text response after tooling');
+            markTiming(`iteration:${attemptIndex}:llm_plaintext_autowrap`, iterationStart);
             return {
               message: assistantMessage(plain),
               chart: null,
@@ -1304,6 +1332,7 @@ Respond again with dataRef, NOT embedded data.`
           }
           
           log('Rejecting plain text response, enforcing JSON format');
+          markTiming(`iteration:${attemptIndex}:llm_plaintext_reject`, iterationStart);
           convo.push({
             role: 'user',
             content: `CRITICAL ERROR: You provided a plain text response instead of JSON. This is NOT acceptable.
@@ -1359,16 +1388,29 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           if (filledArgs.start == null && rr.start != null) filledArgs.start = rr.start;
           if (filledArgs.end == null && rr.end != null) filledArgs.end = rr.end;
           
+          const cacheKey = JSON.stringify({ tool, args: filledArgs });
           let result = null;
-          try { 
-            result = tools[tool](filledArgs); 
-          } catch (e) { 
-            result = { error: String(e) }; 
+          if (toolResultCache.has(cacheKey)) {
+            result = toolResultCache.get(cacheKey);
+            log(`  - ${tool} (cached)`);
+          } else {
+            try { 
+              result = tools[tool](filledArgs); 
+            } catch (e) { 
+              result = { error: String(e) }; 
+            }
+            toolResultCache.set(cacheKey, result);
+            log(`  - ${tool}:`, typeof result === 'object' ? `${Object.keys(result).length} keys` : result);
           }
           
-          log(`  - ${tool}:`, typeof result === 'object' ? `${Object.keys(result).length} keys` : result);
-          results.push({ tool, args: filledArgs, result });
-          trace.push({ tool, args: filledArgs, result });
+          // Mark plan step complete when present
+          const planStepRef = toolCall.planStep || toolCall.plan_step || filledArgs.planStep || filledArgs.plan_step || autoAssignPlanStep(tool)?.id || null;
+          if (planStepRef) markPlanStepComplete(planStepRef);
+
+          const slimArgs = trimResultForLLM(filledArgs);
+          const slimResult = trimResultForLLM(result);
+          results.push({ tool, args: slimArgs, result: slimResult, planStep: planStepRef });
+          trace.push({ tool, args: filledArgs, result, planStep: planStepRef });
         }
         
         // Feed back all results together
@@ -1444,6 +1486,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       // Handle single tool call
       // Handle multiple parallel tool calls
       if (obj.action === 'tool_calls' && Array.isArray(obj.tools)) {
+        if (toolCallTurns >= 1) {
+          convo.push({ role: 'user', content: 'All tools should run together in one tool_calls turn. Use your existing results to finalize with {"action":"final",...}.' });
+          continue STEP_LOOP;
+        }
+        toolCallTurns += 1;
         planLoopWarnings = 0;
         const resolvedCalls = [];
         for (const tc of obj.tools) {
@@ -1486,9 +1533,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           }
           prepareToolArgs(tool, args);
           let result = null;
+          const started = Date.now();
           try { result = tools[tool](args); } catch (e) { result = { error: String(e) }; }
-          results.push({ planStep: tc.planStepId, tool, args, result });
-          trace.push({ planStepId: tc.planStepId, tool, args, result });
+          const durationMs = Date.now() - started;
+          results.push({ planStep: tc.planStepId, tool, args, result, durationMs });
+          trace.push({ planStepId: tc.planStepId, tool, args, result, durationMs });
           totalToolCalls += 1;
           if (needsRoomComparison && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
             comparisonSatisfied = true;
@@ -1496,9 +1545,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           if (requireRoomRanking && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
             rankingSatisfied = true;
           }
-          markPlanStepComplete(tc.planStepId, `Executed ${tool}`);
+          markPlanStepComplete(tc.planStepId, `Executed ${tool} (${durationMs} ms)`);
         }
         convo.push({ role: 'user', content: `{"tool_results": ${JSON.stringify(results).slice(0, 15000)} }` });
+        const toolList = results.map((r) => r.tool).filter(Boolean).join(', ');
+        convo.push({ role: 'user', content: `Use the above tool results (${toolList}) to produce the final response now. Respond with {"action":"final","answer":"...","chart":<chart or null>,"plan_status":[...]} and ensure any chart series use dataRef pointing to these tools.` });
         continue STEP_LOOP;
       }
       if (obj.action === 'tool_calls' && !Array.isArray(obj.tools)) {
@@ -1510,6 +1561,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       }
 
       if (obj.action === 'tool_call') {
+        if (toolCallTurns >= 1) {
+          convo.push({ role: 'user', content: 'You already issued tool calls. Use the existing results to finalize with {"action":"final",...} instead of calling more tools.' });
+          continue STEP_LOOP;
+        }
+        toolCallTurns += 1;
         planLoopWarnings = 0;
         const planRefRaw = obj.planStep ?? obj.plan_step ?? obj.plan ?? obj.step ?? obj.stepId ?? null;
         let planEntry = planConfirmed ? findPlanStep(planRefRaw) : null;
@@ -1552,24 +1608,26 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         prepareToolArgs(tool, filledArgs);
         
         let result = null;
+        const started = Date.now();
         try { 
           result = tools[tool](filledArgs); 
         } catch (e) { 
           result = { error: String(e) }; 
         }
+        const durationMs = Date.now() - started;
         
         const sizeHint = Array.isArray(result) ? 
           result.length : 
           (result && typeof result === 'object' ? Object.keys(result).length : 0);
         log('Tool result size hint:', sizeHint);
-        trace.push({ planStepId, tool, args: filledArgs, result });
+        trace.push({ planStepId, tool, args: filledArgs, result, durationMs });
         if (needsRoomComparison && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
           comparisonSatisfied = true;
         }
         if (requireRoomRanking && (tool === 'compare_series_cross_room' || tool === 'compare_rooms_on_metric' || tool === 'compare_metrics_in_room' || tool === 'scope_daily_percentile')) {
           rankingSatisfied = true;
         }
-        markPlanStepComplete(planStepId, `Executed ${tool}`);
+        markPlanStepComplete(planStepId, `Executed ${tool} (${durationMs} ms)`);
         
         // If compare tool returned series, finalize immediately with a ready-to-plot chart
         if (tool === 'compare_series_cross_room' && result && typeof result === 'object' && !Array.isArray(result)) {
@@ -1682,7 +1740,11 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         }
 
         // Feed back a structured tool result frame when not finalizing
-        convo.push({ role: 'user', content: `{"tool_result": { "tool": ${JSON.stringify(tool)}, "args": ${JSON.stringify(filledArgs)}, "result": ${JSON.stringify(result).slice(0, 10000)} }}` });
+        const slimArgs = trimResultForLLM(filledArgs);
+        const slimResult = trimResultForLLM(result);
+        convo.push({ role: 'user', content: `{"tool_result": { "tool": ${JSON.stringify(tool)}, "args": ${JSON.stringify(slimArgs)}, "result": ${JSON.stringify(slimResult).slice(0, 10000)} }}` });
+        // Immediately request final JSON to avoid extra turns
+        convo.push({ role: 'user', content: 'Return the final answer now as {"action":"final","answer":"...","chart":<chart or null>,"plan_status":[...]} and include any correlations or key stats you computed.' });
         
         // If the selected window produced no data, fetch meta to inform the model (but do not auto-expand the window)
         if ((tool === 'fetch_timeseries' && Array.isArray(result) && result.length === 0) ||
@@ -1746,18 +1808,9 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             incompletePlanWarnings += 1;
             if (incompletePlanWarnings >= MAX_INCOMPLETE_PLAN_WARNINGS) {
               log('Auto-finalizing after repeated incomplete plan warnings');
-              const autoChart = buildFallbackChartFromTrace({
-                trace,
-                question,
-                defaultRoom: room,
-                selectionRooms
-              });
-              if (autoChart) {
-                ensureChartData(autoChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
-              }
               const fallbackAnswer = buildDefaultAnswer({
                 question,
-                chart: autoChart,
+                chart: null,
                 trace,
                 notes: [`Plan steps ${incompleteSteps.map((s) => s.id).join(', ')} were not executed; summarizing available telemetry instead.`],
                 range: rr
@@ -1766,7 +1819,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
               overviewAnswer = applyScopeHeader(overviewAnswer);
               return {
                 message: assistantMessage(overviewAnswer),
-                chart: autoChart,
+                chart: null,
                 trace
               };
             }
@@ -1892,6 +1945,22 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           log('Chart validation failed - attempting fallback synthesis');
         }
 
+        const needsChartMain = chartRequested || histogramRequested || heatmapRequested || scatterRequested || needsRoomComparison || requireRoomRanking || questionRequiresChart(question);
+        if ((!validChart || !chartHasRenderableSeries(validChart)) && needsChartMain) {
+          const fallbackChart = buildChartFromTrace({
+            trace,
+            question,
+            defaultRoom: room,
+            selectionRooms
+          });
+          if (fallbackChart) {
+            ensureChartData(fallbackChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
+            const validated = validateChart(cloneChart(fallbackChart), trace);
+            validChart = validated || fallbackChart;
+            chartForAnswer = validChart;
+          }
+        }
+
         // Optionally execute background tools and return as extras
         let extras = [];
         try {
@@ -1970,8 +2039,8 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
 
         let chartForResponse = validChart ? validChart : null;
         const baseChartRequested = questionRequiresChart(question);
-        const needsChart = baseChartRequested || needsRoomComparison || requireRoomRanking;
-        if (needsChart && !chartHasRenderableSeries(chartForResponse)) {
+        const needsChartFallback = baseChartRequested || needsRoomComparison || requireRoomRanking;
+        if (needsChartFallback && !chartHasRenderableSeries(chartForResponse)) {
           const allowNoChart = adaptationNotes.some(note => /no (chart|data)/i.test(String(note)));
           if (!allowNoChart && chartRetryCount < 2) {
             chartRetryCount++;
@@ -1987,7 +2056,6 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         }
         const chartHasSeries = chartHasRenderableSeries(chartForResponse);
         const histogramHasData = traceHasHistogramData(trace);
-        const scatterRequested = questionRequiresScatter(question);
         if (histogramRequested) {
           const type = (chartForResponse?.chart?.type || chartForResponse?.type || '').toLowerCase();
           const acceptableType = type === 'column' || type === 'bar' || type === 'histogram';
@@ -2144,8 +2212,8 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           finalAnswer = 'No telemetry data was available for the selected scope and time window; adjust the range or choose a different scope.';
           chartForResponse = null;
         }
-        if ((!chartForResponse || !chartHasRenderableSeries(chartForResponse)) && needsChart) {
-          const fallbackChart = buildFallbackChartFromTrace({
+        if ((!chartForResponse || !chartHasRenderableSeries(chartForResponse)) && needsChartMain) {
+          const fallbackChart = buildChartFromTrace({
             trace,
             question,
             defaultRoom: room,
@@ -2157,7 +2225,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           }
         }
         if (!chartForResponse) {
-          const autoChart = buildFallbackChartFromTrace({
+          const autoChart = buildChartFromTrace({
             trace,
             question,
             defaultRoom: room,
@@ -2200,6 +2268,26 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       } else if (obj.action === 'final_text') {
         log('Finalizing plain text answer.');
         const executedToolCount = countTraceToolExecutions(trace);
+
+        // Build a chart immediately from tool outputs so we don't nag the model if a chart is already ready.
+        let chartCandidate = buildChartFromTrace({
+          trace,
+          question,
+          defaultRoom: room,
+          selectionRooms
+        });
+        if (chartCandidate) {
+          ensureChartData(chartCandidate, { question, room, selectionRooms, range: rr, trace, scopeLabels });
+        }
+        let chartCandidateValidated = null;
+        if (chartCandidate) {
+          const validated = validateChart(cloneChart(chartCandidate), trace);
+          if (validated && chartHasRenderableSeries(validated)) {
+            chartCandidateValidated = validated;
+          }
+        }
+        const chartAlreadyReady = !!chartCandidateValidated;
+
         if (planConfirmed && executedToolCount === 0) {
           pushPlanProgress('Plan recorded but no tools have been executed. Execute Step 1 before finalizing.');
           continue STEP_LOOP;
@@ -2218,7 +2306,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
           });
           continue STEP_LOOP;
         }
-        if (histogramRequested || heatmapRequested || requireRoomRanking) {
+        if ((histogramRequested || heatmapRequested || requireRoomRanking) && !chartAlreadyReady) {
           const histogramNeedsChart = histogramRequested && traceHasHistogramData(trace);
           if (histogramNeedsChart || heatmapRequested || requireRoomRanking) {
             convo.push({
@@ -2270,31 +2358,22 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       finalAnswer = ensureQuestionAnswerCoverage(question, finalAnswer, trace);
       finalAnswer = enforceOverviewDetails(finalAnswer, { range: rr, trace, planStatus });
       finalAnswer = applyScopeHeader(finalAnswer);
-        let finalChart = null;
+        let finalChart = chartCandidateValidated || chartCandidate || null;
         const baseChartRequested = questionRequiresChart(question);
         const chartNeeded = baseChartRequested || needsRoomComparison || requireRoomRanking || histogramRequested || heatmapRequested || scatterRequested;
         if (chartNeeded) {
-          finalChart = buildFallbackChartFromTrace({
-            trace,
-            question,
-            defaultRoom: room,
-            selectionRooms
-          });
-          if (finalChart) {
-            ensureChartData(finalChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
-          }
-        }
-        if (!finalChart) {
-          const autoChart = buildFallbackChartFromTrace({
-            trace,
-            question,
-            defaultRoom: room,
-            selectionRooms
-          });
-          if (autoChart) {
-            ensureChartData(autoChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
-            const validated = validateChart(cloneChart(autoChart), trace);
-            finalChart = validated || autoChart;
+          if (!finalChart) {
+            finalChart = buildChartFromTrace({
+              trace,
+              question,
+              defaultRoom: room,
+              selectionRooms
+            });
+            if (finalChart) {
+              ensureChartData(finalChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
+              const validated = validateChart(cloneChart(finalChart), trace);
+              finalChart = validated || finalChart;
+            }
           }
         }
       return {
@@ -2319,6 +2398,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
       // NEVER return tool_results JSON as the final answer
       if (last.includes('"tool_results"') || last.includes('"tool_result"') || last.includes('"tool_hint"')) {
         log('Prevented tool results JSON from being returned as final answer');
+        markTiming(`iteration:${attemptIndex}:llm_toolresult_block`, iterationStart);
         
         // If detectors/metrics per room were fetched, summarize them explicitly
         try {
@@ -2342,7 +2422,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         } catch (e) { log('detectors summary in tool_results fallback failed:', String(e)); }
 
         // Try to construct a useful answer from the trace otherwise
-        const fallbackChart = buildFallbackChartFromTrace({
+        const fallbackChart = buildChartFromTrace({
           trace,
           question,
           defaultRoom: room,
@@ -2375,7 +2455,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         /^You must include the requested visualization/i.test(trimmedLast);
       if (!isSystemReminder &&
           last && last.length > 40 && !last.includes('respond with a JSON') && !last.includes('ERROR:')) {
-        autoChart = buildFallbackChartFromTrace({
+        autoChart = buildChartFromTrace({
           trace,
           question,
           defaultRoom: room,
@@ -2408,8 +2488,9 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
     
     // Fallback: construct answer from trace
     log('Constructing fallback answer from trace');
+    markTiming(`iteration:${attemptIndex}:fallback`, iterationStart);
     if (!autoChart) {
-      autoChart = buildFallbackChartFromTrace({
+      autoChart = buildChartFromTrace({
         trace,
         question,
         defaultRoom: room,
@@ -2419,6 +2500,18 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
     if (autoChart) {
       ensureChartData(autoChart, { question, room, selectionRooms, range: rr, trace, scopeLabels });
     }
+    // Deduplicate repeated tool results in trace (by tool+args signature) to avoid noisy retries in the saved trace.
+    try {
+      const seen = new Set();
+      const deduped = [];
+      for (const entry of trace || []) {
+        const key = JSON.stringify({ tool: entry.tool, args: entry.args });
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(entry);
+      }
+      trace = deduped;
+    } catch {}
     const traceSummary = traceInsight(trace);
     const fallbackAnswer = buildDefaultAnswer({
       question,

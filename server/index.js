@@ -58,6 +58,10 @@ const DEFAULT_WEATHER_LAT = Number(process.env.WEATHER_DEFAULT_LAT ?? 53.4808);
 const DEFAULT_WEATHER_LON = Number(process.env.WEATHER_DEFAULT_LON ?? -2.2426);
 const conversationStore = new ConversationStore();
 const llmClient = createLLMClient({ env: process.env, logger: console });
+const ALLOWED_DAY_WINDOWS = [1, 7, 30];
+const DEFAULT_WINDOW_DAYS = 7;
+// Anchor all queries to a fixed day to avoid sweeping long histories.
+const FIXED_TODAY_MS = Date.UTC(2025, 9, 20, 22, 59, 59, 999); // 20 Oct 2025 23:59:59 Europe/London
 if (!llmClient.isReady()) {
   console.error('[startup] No LLM provider is configured. Set GEMINI_API_KEY or OPENAI_API_KEY (or use LLM_PROVIDER_CHAIN).');
   process.exit(1);
@@ -93,6 +97,13 @@ function cacheSet(map, key, v) {
 const publicDir = path.join(root, 'public');
 // Device alias map (lightweight resolver using data/device_aliases.json)
 let DEVICE_ALIAS_MAP = null;
+const ROOM_TABLE_CACHE = new Map(); // key: filePath, value: { mtimeMs, tables }
+const ROOM_TABLE_CACHE_LIMIT = Number(process.env.ROOM_TABLE_CACHE_LIMIT || 8);
+function evictRoomCacheIfNeeded() {
+  if (ROOM_TABLE_CACHE.size <= ROOM_TABLE_CACHE_LIMIT) return;
+  const firstKey = ROOM_TABLE_CACHE.keys().next().value;
+  if (firstKey) ROOM_TABLE_CACHE.delete(firstKey);
+}
 function ensureDeviceAliasMap() {
   if (DEVICE_ALIAS_MAP) return DEVICE_ALIAS_MAP;
   DEVICE_ALIAS_MAP = new Map();
@@ -471,6 +482,11 @@ function loadRoomTables(room) {
     const resolvedRoom = resolveAliasOrSelf(room);
     const filePath = path.join(s3LocalDir, `${resolvedRoom}.csv`);
     if (!fs.existsSync(filePath)) return {};
+    const stat = fs.statSync(filePath);
+    const cached = ROOM_TABLE_CACHE.get(filePath);
+    if (cached && cached.mtimeMs === stat.mtimeMs) {
+      return cached.tables;
+    }
     const normalizeLeakValue = (value) => {
       if (value === null || value === undefined) return null;
       if (typeof value === 'number') {
@@ -500,7 +516,10 @@ function loadRoomTables(room) {
         return r;
       })
       .sort((a,b)=>(a.ts??0)-(b.ts??0));
-    return { telemetry: rows };
+    const tables = { telemetry: rows };
+    ROOM_TABLE_CACHE.set(filePath, { mtimeMs: stat.mtimeMs, tables });
+    evictRoomCacheIfNeeded();
+    return tables;
   } catch { return {}; }
 }
 
@@ -610,35 +629,57 @@ function aggregateGlobalCoverage() {
   return coverage;
 }
 
+function pickWindowDays(desiredDays = DEFAULT_WINDOW_DAYS) {
+  let best = ALLOWED_DAY_WINDOWS[0];
+  let bestDiff = Math.abs(best - desiredDays);
+  for (const d of ALLOWED_DAY_WINDOWS) {
+    const diff = Math.abs(d - desiredDays);
+    if (diff < bestDiff) {
+      best = d;
+      bestDiff = diff;
+    }
+  }
+  return best;
+}
+
+function coerceRangeToAllowedWindows(range = {}, coverage = null) {
+  const requestedStart = Number.isFinite(range?.start) ? Number(range.start) : null;
+  const requestedEnd = Number.isFinite(range?.end) ? Number(range.end) : null;
+  const coverageEnd = Number.isFinite(coverage?.end) ? Number(coverage.end) : null;
+  const coverageStart = Number.isFinite(coverage?.start) ? Number(coverage.start) : null;
+  const anchorEnd = Math.min(
+    requestedEnd != null ? requestedEnd : FIXED_TODAY_MS,
+    FIXED_TODAY_MS,
+    coverageEnd != null ? coverageEnd : FIXED_TODAY_MS
+  );
+  const desiredMs = requestedStart != null ? Math.max(DAY_MS, anchorEnd - requestedStart) : DEFAULT_WINDOW_DAYS * DAY_MS;
+  const desiredDays = Math.max(1, Math.round(desiredMs / DAY_MS));
+  const windowDays = pickWindowDays(desiredDays);
+  const alignedEnd = coverageEnd != null ? Math.min(anchorEnd, coverageEnd) : anchorEnd;
+  let alignedStart = alignedEnd - (windowDays - 1) * DAY_MS;
+  alignedStart = Math.floor(alignedStart / DAY_MS) * DAY_MS;
+  if (coverageStart != null && alignedStart < coverageStart) alignedStart = coverageStart;
+  const initialStart = requestedStart != null ? requestedStart : (coverageStart ?? alignedStart);
+  const initialEnd = requestedEnd != null ? requestedEnd : (coverageEnd ?? FIXED_TODAY_MS);
+  const changed =
+    initialEnd !== alignedEnd ||
+    initialStart !== alignedStart ||
+    !ALLOWED_DAY_WINDOWS.includes(windowDays);
+  return {
+    range: { start: alignedStart, end: alignedEnd },
+    changed,
+    coverage
+  };
+}
+
 function alignRangeToCoverage(range = {}, deviceIds = []) {
   const coverage = aggregateCoverageFromDevices(deviceIds);
   const requestedStart = Number.isFinite(range?.start) ? Number(range.start) : null;
   const requestedEnd = Number.isFinite(range?.end) ? Number(range.end) : null;
   if (!coverage) {
-    return {
-      range: { start: requestedStart, end: requestedEnd },
-      changed: false,
-      coverage: null
-    };
+    return coerceRangeToAllowedWindows({ start: requestedStart, end: requestedEnd }, null);
   }
-  let start = requestedStart != null ? requestedStart : coverage.start;
-  let end = requestedEnd != null ? requestedEnd : coverage.end;
-  if (!Number.isFinite(start)) start = coverage.start;
-  if (!Number.isFinite(end)) end = coverage.end;
-  let changed = false;
-  if (end < coverage.start || start > coverage.end) {
-    end = coverage.end;
-    start = Math.max(coverage.start, coverage.end - 7 * DAY_MS);
-    changed = true;
-  }
-  const clampedStart = Math.max(start, coverage.start);
-  const clampedEnd = Math.min(end, coverage.end);
-  if (clampedStart !== start || clampedEnd !== end) changed = true;
-  return {
-    range: { start: clampedStart, end: clampedEnd },
-    changed,
-    coverage
-  };
+  return coerceRangeToAllowedWindows({ start: requestedStart, end: requestedEnd }, coverage);
 }
 
 function alignRangeToGlobalCoverage(range = {}) {
@@ -646,30 +687,9 @@ function alignRangeToGlobalCoverage(range = {}) {
   const requestedStart = Number.isFinite(range?.start) ? Number(range.start) : null;
   const requestedEnd = Number.isFinite(range?.end) ? Number(range.end) : null;
   if (!coverage) {
-    return {
-      range: { start: requestedStart, end: requestedEnd },
-      changed: false,
-      coverage: null
-    };
+    return coerceRangeToAllowedWindows({ start: requestedStart, end: requestedEnd }, null);
   }
-  let start = requestedStart != null ? requestedStart : coverage.end;
-  let end = requestedEnd != null ? requestedEnd : coverage.end;
-  if (!Number.isFinite(start)) start = coverage.start;
-  if (!Number.isFinite(end)) end = coverage.end;
-  let changed = false;
-  if (end < coverage.start || start > coverage.end) {
-    end = coverage.end;
-    start = Math.max(coverage.start, coverage.end - 7 * DAY_MS);
-    changed = true;
-  }
-  const clampedStart = Math.max(start, coverage.start);
-  const clampedEnd = Math.min(end, coverage.end);
-  if (clampedStart !== start || clampedEnd !== end) changed = true;
-  return {
-    range: { start: clampedStart, end: clampedEnd },
-    changed,
-    coverage
-  };
+  return coerceRangeToAllowedWindows({ start: requestedStart, end: requestedEnd }, coverage);
 }
 
 const tenantSlug = (s) => String(s || '')
@@ -2208,11 +2228,15 @@ const server = http.createServer(async (req, res) => {
       const requestedStart = parseRangeParam(query.start ?? query.startMs ?? query.from);
       const requestedEnd = parseRangeParam(query.end ?? query.endMs ?? query.to);
       const requestedRange = { start: requestedStart, end: requestedEnd };
-      let limit = 1000;
+      let limit = 2000;
       if (query.limit != null) {
         const rawLimit = Number(query.limit);
         if (Number.isFinite(rawLimit)) {
-          limit = rawLimit <= 0 ? Infinity : Math.max(1, Math.min(20000, rawLimit));
+          if (rawLimit <= 0) {
+            limit = 2000;
+          } else {
+            limit = Math.max(1, Math.min(2000, rawLimit));
+          }
         }
       }
       if (!field) return sendJson(res, 400, { error: 'field required' });
@@ -2360,6 +2384,7 @@ const server = http.createServer(async (req, res) => {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
+      const requestStarted = Date.now();
       let conversationId = null;
       let conversationState = null;
       try {
@@ -2620,7 +2645,12 @@ const server = http.createServer(async (req, res) => {
 
         // Use the tool-enabled agent (RAG + tools). Retry once with a richer mode if the first attempt
         // does not produce a substantive answer or required chart.
-        const effMessages = scopeNote ? [{ role: 'user', content: scopeNote }, ...messages, { role: 'user', content: question }] : messages.concat({ role: 'user', content: question });
+        const chartHint = expectsChartFromQuestion(question)
+          ? { role: 'user', content: 'When you provide a chart, include series with {"dataRef":{"tool":"<tool>","xField":"ts","yField":"<field>"}} pointing to your tool outputs; do not embed data arrays.' }
+          : null;
+        const effMessages = scopeNote
+          ? [{ role: 'user', content: scopeNote }, ...(chartHint ? [chartHint] : []), ...messages, { role: 'user', content: question }]
+          : messages.concat(...(chartHint ? [chartHint] : []), { role: 'user', content: question });
 
     function expectsChartFromQuestion(q) {
       return /(plot|chart|graph|visualize|heatmap|compare|forecast|correlat)/i.test(q || '');
@@ -2636,6 +2666,80 @@ const server = http.createServer(async (req, res) => {
       return sampled;
     }
 
+    const MAX_TRACE_POINTS = Math.max(200, Number(process.env.TRACE_MAX_POINTS || 600));
+    function trimArrayForTrace(arr = []) {
+      return sampleSeries(arr, MAX_TRACE_POINTS);
+    }
+
+    function trimValueForTrace(val) {
+      if (Array.isArray(val)) return trimArrayForTrace(val);
+      if (val && typeof val === 'object') {
+        const out = Array.isArray(val) ? [] : {};
+        for (const [k, v] of Object.entries(val)) {
+          out[k] = trimValueForTrace(v);
+        }
+        return out;
+      }
+      return val;
+    }
+
+    function trimTraceEntriesForSave(trace = []) {
+      return (Array.isArray(trace) ? trace : []).map((entry) => {
+        if (!entry || typeof entry !== 'object') return entry;
+        const copy = { ...entry };
+        if ('args' in copy) copy.args = trimValueForTrace(copy.args);
+        if ('result' in copy) copy.result = trimValueForTrace(copy.result);
+        return copy;
+      });
+    }
+
+    function trimChartForSave(chart) {
+      if (!chart || typeof chart !== 'object') return chart;
+      const copy = { ...chart };
+      if (Array.isArray(copy.series)) {
+        copy.series = copy.series.map((s) => {
+          if (!s || typeof s !== 'object') return s;
+          const seriesCopy = { ...s };
+          if (Array.isArray(seriesCopy.data)) {
+            seriesCopy.data = trimArrayForTrace(seriesCopy.data);
+          }
+          return seriesCopy;
+        });
+      }
+      return copy;
+    }
+
+    function derivePlanStatusFromTrace(trace = []) {
+      const norm = (id) => (id ? String(id).trim().toUpperCase() : null);
+      const map = new Map();
+      const ensure = (id) => {
+        if (!id) return null;
+        if (!map.has(id)) map.set(id, { id, status: 'pending', finding: null });
+        return map.get(id);
+      };
+
+      for (const entry of Array.isArray(trace) ? trace : []) {
+        if (entry && entry.tool === 'plan' && entry.args && Array.isArray(entry.args.steps)) {
+          entry.args.steps.forEach((step, idx) => {
+            const sid = norm(step?.id || `S${idx + 1}`);
+            const rec = ensure(sid);
+            if (!rec) return;
+            if (step && step.done) rec.status = 'done';
+            if (step && step.text && !rec.finding) rec.finding = step.text;
+          });
+        }
+        if (entry && entry.planStepId) {
+          const sid = norm(entry.planStepId);
+          const rec = ensure(sid);
+          if (!rec) continue;
+          rec.status = 'done';
+          if (!rec.finding && entry.tool) rec.finding = `Executed ${entry.tool}`;
+        }
+      }
+      const out = Array.from(map.values());
+      return out.length ? out : null;
+    }
+
     // Build a minimal chart from the most recent tool output so we can still plot when the LLM forgets to.
     function buildChartFromTrace(trace = []) {
       if (!Array.isArray(trace) || !trace.length) return null;
@@ -2644,23 +2748,6 @@ const server = http.createServer(async (req, res) => {
       const passList = prioritized.length ? prioritized : ordered;
       for (const entry of passList) {
         if (!entry || !entry.result) continue;
-
-        // Ranking-style objects: { Category: value, ... } -> column chart
-        if (entry.result && !Array.isArray(entry.result) && typeof entry.result === 'object') {
-          const pairs = Object.entries(entry.result)
-            .map(([k, v]) => [String(k), Number(v)])
-            .filter(([, v]) => Number.isFinite(v));
-          if (pairs.length >= 2) {
-            pairs.sort((a, b) => b[1] - a[1]); // high → low
-            return {
-              chart: { type: 'column' },
-              title: { text: 'Ranking' },
-              xAxis: { type: 'category', title: { text: 'Category' } },
-              yAxis: { title: { text: 'Value' } },
-              series: [{ name: 'Ranked Value', data: sampleSeries(pairs) }]
-            };
-          }
-        }
 
         // Scatter pair (x/y) output
         if (entry.tool === 'pair_timeseries' && Array.isArray(entry.result)) {
@@ -2681,38 +2768,80 @@ const server = http.createServer(async (req, res) => {
               title: { text: 'Paired Metrics' },
               xAxis: { title: { text: 'X' } },
               yAxis: { title: { text: 'Y' } },
-              series: [{ name: 'Correlation', data: sampleSeries(cleaned) }]
+              series: [{ name: 'Correlation', data: sampleSeries(cleaned), dataRef: { tool: entry.tool } }]
             };
           }
         }
 
+        // Correlation outputs with pairs array
+        if ((entry.tool === 'correlate' || entry.tool === 'correlate_weather_room' || entry.tool === 'correlate_cross_room') && entry.result && entry.result.pairs) {
+          const pairs = Array.isArray(entry.result.pairs) ? entry.result.pairs : [];
+          const cleaned = pairs
+            .map((row) => {
+              if (Array.isArray(row) && row.length >= 2) return [Number(row[0]), Number(row[1])];
+              return null;
+            })
+            .filter((val) => Array.isArray(val) && Number.isFinite(val[0]) && Number.isFinite(val[1]));
+          if (cleaned.length) {
+            return {
+              chart: { type: 'scatter' },
+              title: { text: 'Correlation Scatter' },
+              xAxis: { title: { text: 'X' } },
+              yAxis: { title: { text: 'Y' } },
+              series: [{ name: 'Correlation', data: sampleSeries(cleaned), dataRef: { tool: entry.tool } }]
+            };
+          }
+        }
+
+        // Timeseries array -> line chart
         const rows = Array.isArray(entry.result) ? entry.result : null;
-        if (!rows || !rows.length) continue;
-        const sample = rows.find((r) => r && typeof r === 'object');
-        if (!sample || sample.ts == null) continue;
-        const numericFields = Object.keys(sample)
-          .filter((k) => k !== 'ts' && Number.isFinite(Number(sample[k])));
-        if (!numericFields.length) continue;
-        const fields = numericFields.slice(0, 2);
-        const series = fields.map((field) => {
-          const pairs = rows
-            .map((r) => [Number(r.ts), Number(r[field])])
+        // Histogram bins -> column chart
+        if (entry.tool === 'histogram' && Array.isArray(entry.result)) {
+          const bins = entry.result;
+          const data = bins
+            .map((b) => [Number(b.binStart ?? b.start ?? b.x ?? b.bin), Number(b.count ?? b.y ?? b.value)])
             .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
-          return pairs.length ? { name: field, data: sampleSeries(pairs) } : null;
-        }).filter(Boolean);
-        if (!series.length) continue;
-        const type = entry.tool === 'weather_fetch' ? 'spline' : 'line';
-        const title = entry.tool === 'weather_fetch'
-          ? `Weather — ${fields.join(' / ')}`
-          : `${entry.tool} — ${fields.join(' / ')}`;
-        return {
-          chart: { type },
-          title: { text: title },
-          xAxis: { type: 'datetime', title: { text: 'Time' } },
-          yAxis: { title: { text: 'Value' } },
-          tooltip: series.length > 1 ? { shared: true } : undefined,
-          series
-        };
+          if (data.length) {
+            return {
+              chart: { type: 'column' },
+              title: { text: 'Histogram' },
+              xAxis: { title: { text: 'Value' } },
+              yAxis: { title: { text: 'Count' } },
+              series: [{ name: 'Histogram', data: sampleSeries(data), dataRef: { tool: entry.tool } }]
+            };
+          }
+        }
+
+        if (rows && rows.length) {
+          const sample = rows.find((r) => r && typeof r === 'object');
+          if (sample && sample.ts != null) {
+            const numericFields = Object.keys(sample)
+              .filter((k) => k !== 'ts' && Number.isFinite(Number(sample[k])));
+            if (numericFields.length) {
+              const fields = numericFields.slice(0, 2);
+              const series = fields.map((field) => {
+                const pairs = rows
+                  .map((r) => [Number(r.ts), Number(r[field])])
+                  .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+                return pairs.length ? { name: field, data: sampleSeries(pairs), dataRef: { tool: entry.tool, field } } : null;
+              }).filter(Boolean);
+              if (series.length) {
+                const type = entry.tool === 'weather_fetch' ? 'spline' : 'line';
+                const title = entry.tool === 'weather_fetch'
+                  ? `Weather — ${fields.join(' / ')}`
+                  : `${entry.tool} — ${fields.join(' / ')}`;
+                return {
+                  chart: { type },
+                  title: { text: title },
+                  xAxis: { type: 'datetime', title: { text: 'Time' } },
+                  yAxis: { title: { text: 'Value' } },
+                  tooltip: series.length > 1 ? { shared: true } : undefined,
+                  series
+                };
+              }
+            }
+          }
+        }
       }
       return null;
     }
@@ -2720,11 +2849,44 @@ const server = http.createServer(async (req, res) => {
     function chartHasRenderableSeries(res) {
       const series = res?.chart?.series;
       if (!Array.isArray(series) || !series.length) return false;
-      return series.some((s) => s && (s.data || s.dataRef));
+      return series.some((s) => {
+        if (!s) return false;
+        if (s.dataRef && s.dataRef.tool) return true;
+        return Array.isArray(s.data) && s.data.length > 0;
+      });
+    }
+
+    function normalizeChartDataRefs(chart, trace) {
+      if (!chart || !Array.isArray(chart.series)) return chart;
+      const series = chart.series.map((s) => {
+        if (!s) return s;
+        // If inline data is present but no dataRef, try to infer a dataRef from the most recent tool call in trace
+        if (!s.dataRef && s.data && s.data.length && Array.isArray(trace)) {
+          const lastTool = [...trace].reverse().find((t) => t && t.tool && Array.isArray(t.result));
+          if (lastTool) {
+            const yField = Array.isArray(lastTool.args?.fields) && lastTool.args.fields.length
+              ? lastTool.args.fields[0]
+              : (lastTool.args?.field || null);
+            s = {
+              ...s,
+              dataRef: {
+                tool: lastTool.tool,
+                room: lastTool.args?.room,
+                table: lastTool.args?.table,
+                xField: 'ts',
+                yField
+              }
+            };
+          }
+        }
+        return s;
+      });
+      return { ...chart, series };
     }
 
     function attachFallbackChart(res) {
-      if (!res || chartHasRenderableSeries(res)) return res;
+      // Only attach a synthetic chart when the user asked for a visual.
+      if (!res || chartHasRenderableSeries(res) || !expectsChartFromQuestion(question)) return res;
       const fallbackChart = buildChartFromTrace(res.trace);
       if (fallbackChart) {
         return { ...res, chart: fallbackChart };
@@ -2744,7 +2906,7 @@ const server = http.createServer(async (req, res) => {
 
     const conversationSummary = conversationStore.summarize(conversationState);
     const connectorsSnapshot = await connectorRegistry.summary().catch(() => []);
-    const maxAttempts = Number(process.env.AGENT_MAX_ATTEMPTS || 2);
+    const maxAttempts = Number(process.env.AGENT_MAX_ATTEMPTS || 1);
     let agentResult = null;
     for (let attempt = 0; attempt < Math.max(1, maxAttempts); attempt += 1) {
         const runResult = attachFallbackChart(await agent.run(effMessages, {
@@ -2775,6 +2937,12 @@ const server = http.createServer(async (req, res) => {
 
     const normalizedResult = attachFallbackChart(agentResult);
     const { message, chart, trace, extras, plan_status } = normalizedResult || {};
+    const chartNormalized = normalizeChartDataRefs(chart, trace);
+    const effectivePlanStatus = Array.isArray(plan_status) && plan_status.length
+      ? plan_status
+      : derivePlanStatusFromTrace(trace);
+    const traceForSave = trimTraceEntriesForSave(trace);
+    const chartForSave = trimChartForSave(chartNormalized);
     try {
       if (Array.isArray(trace)) {
         console.log(`[Agent][trace] ${trace.length} entries`);
@@ -2806,14 +2974,15 @@ const server = http.createServer(async (req, res) => {
           selectionZones,
           question: (messages && messages.length) ? (messages[messages.length-1]?.content || '') : '',
           answer: message?.content || '',
-          hasChart: !!chart,
-          chart: chart || null,
+          hasChart: !!chartForSave,
+          chart: chartForSave || null,
           extras: extras || [],
-          trace: Array.isArray(trace) ? trace : [],
-          plan_status: Array.isArray(plan_status) ? plan_status : null,
-          status: Array.isArray(plan_status)
-            ? (plan_status.every((s) => (s.status || s.done === true) && (s.status === 'done' || s.done === true)) ? 'completed' : 'partial')
-            : null
+          trace: traceForSave,
+          plan_status: Array.isArray(effectivePlanStatus) ? effectivePlanStatus : null,
+          status: Array.isArray(effectivePlanStatus)
+            ? (effectivePlanStatus.every((s) => (s.status || s.done === true) && (s.status === 'done' || s.done === true)) ? 'completed' : 'partial')
+            : null,
+          latency_ms: Date.now() - requestStarted
         };
         fs.writeFileSync(path.join(TRACE_DIR, fname), JSON.stringify(record, null, 2));
         console.log('[Agent][trace] saved to', path.join(TRACE_DIR, fname));
@@ -2832,7 +3001,7 @@ const server = http.createServer(async (req, res) => {
           metrics: routingPreview.metrics
         }) || conversationState;
         const responseExtras = Array.isArray(extras) ? [...extras] : [];
-        const chartReady = chartHasRenderableSeries(normalizedResult);
+        const chartReady = chartHasRenderableSeries({ chart: chartForSave });
         if (expectsChartFromQuestion(question) && !chartReady) {
           console.warn('[API/chat] Missing chart for chart-seeking question; returning text-only response.');
           responseExtras.push({ type: 'warning', code: 'chart_missing', detail: 'Chart was not produced; showing text answer only.' });
@@ -2840,10 +3009,10 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, {
           conversationId,
           message,
-          chart: chartReady ? chart : null,
+          chart: chartReady ? chartForSave : null,
           extras: responseExtras.length ? responseExtras : ((agent && agent.extras) ? agent.extras : undefined),
           trace,
-          plan_status: Array.isArray(plan_status) ? plan_status : undefined,
+          plan_status: Array.isArray(effectivePlanStatus) ? effectivePlanStatus : undefined,
           mode: 'agent'
         });
       } catch (e) {

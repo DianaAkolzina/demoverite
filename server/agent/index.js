@@ -45,6 +45,10 @@ export function createAgent({ dataDir, listRooms, loadRoomTables: loadRoomTables
   });
 
   const DAY_MS = 24 * 60 * 60 * 1000;
+  const ALLOWED_DAY_WINDOWS = [1, 7, 30];
+  const DEFAULT_WINDOW_DAYS = 7;
+  // Anchor agent time ranges to a fixed day to avoid scanning deep history.
+  const FIXED_TODAY_MS = Date.UTC(2025, 9, 20, 22, 59, 59, 999); // 20 Oct 2025 23:59:59 Europe/London
 const DAYPART_WINDOWS = [
   { id: '08-12', startHour: 8, endHour: 12 },
   { id: '12-16', startHour: 12, endHour: 16 },
@@ -72,7 +76,26 @@ const ZONE_SYNONYM_STOPWORDS = [
 ];
 const ZONE_STOPWORD_REGEX = new RegExp(`\\b(?:${ZONE_SYNONYM_STOPWORDS.join('|')})\\b`, 'gi');
 const PEOPLE_FALLBACK_FIELDS = ['line_periodic_data', 'line_total_data', 'people_count', 'count', 'value', 'dwell'];
-const DEFAULT_TIME_ZONE = 'Europe/London';
+  const DEFAULT_TIME_ZONE = 'Europe/London';
+  const sliceByRange = (arr = [], start = null, end = null) => {
+    if (!Array.isArray(arr) || !arr.length) return [];
+    if (!Number.isFinite(start) && !Number.isFinite(end)) return arr;
+    const a = Number.isFinite(start) ? start : -Infinity;
+    const b = Number.isFinite(end) ? end : Infinity;
+    // Binary search lower bound
+    let lo = 0, hi = arr.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if ((arr[mid]?.ts ?? 0) < a) lo = mid + 1; else hi = mid;
+    }
+    const out = [];
+    for (let i = lo; i < arr.length; i++) {
+      const ts = arr[i]?.ts ?? 0;
+      if (ts > b) break;
+      out.push(arr[i]);
+    }
+    return out;
+  };
   const tzFormatterCache = new Map();
   const getTimeZoneFormatter = (timeZone = DEFAULT_TIME_ZONE) => {
     const key = timeZone || DEFAULT_TIME_ZONE;
@@ -545,6 +568,12 @@ const extractFieldValue = (row, fieldOrList) => {
     if (deviceHighlights.length) {
       sections.push(`Device highlights: ${deviceHighlights.join(' | ')}`);
     }
+    // Identify obvious gaps: zones requested but with no devices/telemetry
+    const gaps = [];
+    const selectionZoneSet = new Set((selectionZones || []).map((z) => String(z).trim().toLowerCase()).filter(Boolean));
+    if (selectionZoneSet.size && deviceHighlights.length === 0) gaps.push('Selected zones have no device highlights.');
+    if (selectionZoneSet.size && (!lines.length)) gaps.push('No devices found for requested zones.');
+    if (gaps.length) sections.push(`Gaps: ${gaps.join(' ')}`);
     const text = sections.join('\n').trim();
     if (!text) return '';
     return text.length > 1200 ? `${text.slice(0, 1200)}…` : text;
@@ -587,6 +616,7 @@ const extractFieldValue = (row, fieldOrList) => {
 
   const graphHierarchy = loadGraphFormHierarchy();
   const snapshotIndex = buildSnapshotIndex();
+  const TOOL_BINDING_CACHE = new Map(); // per-scope cache: tool+fields+scope -> binding
   let currentScopeContext = {
     selectionRooms: [],
     selectionZones: [],
@@ -793,6 +823,7 @@ const extractFieldValue = (row, fieldOrList) => {
   }
 
   function setScopeContext(ctx = {}) {
+    try { TOOL_BINDING_CACHE.clear(); } catch {}
     currentScopeContext = {
       selectionRooms: Array.isArray(ctx.selectionRooms) ? [...ctx.selectionRooms] : [],
       selectionZones: Array.isArray(ctx.selectionZones) ? [...ctx.selectionZones] : [],
@@ -987,6 +1018,16 @@ const extractFieldValue = (row, fieldOrList) => {
       const candidate = normalizeRoomId(originalRoom) || resolveDeviceForZoneAlias(originalRoom) || friendlyLookup(originalRoom);
       if (candidate) pushDevice(candidate);
     }
+    // If a zone/room label is provided, pull devices attached to that zone from scope and snapshot.
+    const zoneLabel = args.scopeRoomLabel || originalRoom;
+    if (zoneLabel && typeof zoneLabel === 'string') {
+      const zoneDevicesScoped = collectDevicesForZone(zoneLabel, currentScopeContext.scopeLabels || {});
+      zoneDevicesScoped.forEach((entry) => pushDevice(entry.cloudId || entry.primaryId || entry.id || entry.deviceId));
+      if (!zoneDevicesScoped.length) {
+        const zoneDevicesNeutral = collectDevicesForZone(zoneLabel, {});
+        zoneDevicesNeutral.forEach((entry) => pushDevice(entry.cloudId || entry.primaryId || entry.id || entry.deviceId));
+      }
+    }
     if (!normalizedDevices.size && currentScopeContext.selectionRooms) {
       currentScopeContext.selectionRooms.forEach(pushDevice);
     }
@@ -1006,6 +1047,11 @@ const extractFieldValue = (row, fieldOrList) => {
     }
     if (!args.scopeRoomLabel && originalRoom && originalRoom !== args.room) {
       args.scopeRoomLabel = originalRoom;
+    }
+    // If zone devices were resolved, prefer the first one as room.
+    if (!args.room && normalizedDevices.size) {
+      const first = Array.from(normalizedDevices)[0];
+      args.room = first;
     }
 
     const normalizeRoomRef = (value) => {
@@ -1157,14 +1203,68 @@ const extractFieldValue = (row, fieldOrList) => {
       const guess = inferDefaultTableForMetric(args.field);
       if (guess) args.table = guess;
     }
+    // Intent-aware metric normalization to avoid wrong fields (e.g., lux for water, value for energy).
+    const lowerQuestion = String(args.question || '').toLowerCase();
+    const lowerMetric = String(args.metric || args.field || '').toLowerCase();
+    const waterIntent = /water|cubic|flow|meter/.test(lowerQuestion) || /water|cubic|flow|meter/.test(lowerMetric);
+    const energyIntent = /kwh|kw|power|energy/.test(lowerQuestion) || /kwh|kw|power|energy/.test(lowerMetric);
+    const occupancyIntent = /occupancy|people_count|people|headcount|is_used/.test(lowerQuestion) || /occupancy|people_count|people|headcount|is_used/.test(lowerMetric);
+    const o3Intent = /\bo3\b|\bozone\b/.test(lowerQuestion) || /\bo3\b|\bozone\b/.test(lowerMetric);
+    if (waterIntent) {
+      args.fields = ['water_total', 'cubic_value'];
+      args.field = args.field || 'water_total';
+    }
+    if (energyIntent) {
+      args.fields = ['total_kwh', 'kwh', 'power', 'energy'];
+      args.field = args.field || 'total_kwh';
+    }
+    if (occupancyIntent) {
+      args.fields = ['people_count', 'occupancy', 'is_used'];
+      args.field = args.field || 'people_count';
+    }
+    if (o3Intent) {
+      args.fields = ['o3', 'ozone', 'o3_ppb', 'o3ppm'];
+      args.field = args.field || 'o3';
+    }
+    const desiredFieldsPreview = fieldsForTool(tool, args);
+    // Reuse prior binding for the same scope/tool/fields if available.
+    const bindingKey = JSON.stringify({
+      tool,
+      fields: desiredFieldsPreview,
+      room: args.room || originalRoom,
+      building: currentScopeContext.scopeLabels?.building || null,
+      floor: currentScopeContext.scopeLabels?.floor || null,
+      selection: (currentScopeContext.selectionRooms || []).slice(0, 8)
+    });
+    const cachedBinding = TOOL_BINDING_CACHE.get(bindingKey);
+    if (cachedBinding) {
+      args.room = cachedBinding.room || args.room;
+      args.table = cachedBinding.table || args.table;
+      if (cachedBinding.field && !args.field) args.field = cachedBinding.field;
+    }
     // If table actually names a device alias, treat it as room.
     if (!args.room && tableAsDevice && deviceTablesAvailable(tableAsDevice)) {
       args.room = tableAsDevice;
     }
     // Ensure room/table point to a CSV-backed device that actually has the requested fields.
-    const desiredFieldsFinal = fieldsForTool(tool, args);
+    const desiredFieldsFinal = desiredFieldsPreview;
     const desiredRoom = args.room || originalRoom;
     let tablesForRoom = desiredRoom ? loadRoomTables(desiredRoom) : {};
+    const deviceHasAllFields = (deviceId, fields = []) => {
+      if (!deviceId || !fields.length) return false;
+      const tables = loadRoomTables(deviceId);
+      const tableNames = Object.keys(tables || {});
+      for (const fieldName of fields) {
+        const lower = String(fieldName || '').trim().toLowerCase();
+        let found = false;
+        for (const tab of tableNames) {
+          const resolved = resolveFieldWithAlias(deviceId, tab, lower) || resolveCanonicalField(lower, availableFieldsByTable(deviceId)?.[tab] || new Set());
+          if (resolved) { found = true; break; }
+        }
+        if (!found) return false;
+      }
+      return true;
+    };
     if (!tablesForRoom || !Object.keys(tablesForRoom).length) {
       const devicesToTry = Array.isArray(args.devices) && args.devices.length
         ? args.devices
@@ -1177,9 +1277,7 @@ const extractFieldValue = (row, fieldOrList) => {
           tablesForRoom = t;
           break;
         }
-        const sets = availableFieldsByTable(dev);
-        const matches = desiredFieldsFinal.every((f) => !!resolveCanonicalField(f, sets));
-        if (matches) {
+        if (deviceHasAllFields(dev, desiredFieldsFinal)) {
           args.room = dev;
           tablesForRoom = t;
           break;
@@ -1194,6 +1292,16 @@ const extractFieldValue = (row, fieldOrList) => {
       const keys = Object.keys(tablesForRoom || {});
       if (keys.length) args.table = keys.includes('telemetry') ? 'telemetry' : keys[0];
     }
+
+    // Store resolved binding for reuse within the same scope/request.
+    try {
+      const binding = {
+        room: args.room,
+        table: args.table,
+        field: args.field
+      };
+      TOOL_BINDING_CACHE.set(bindingKey, binding);
+    } catch {}
 
     // Ensure weather-aware tools inherit the building from the current scope when missing.
     const normalizedTool = String(tool || '').toLowerCase();
@@ -1444,16 +1552,17 @@ const extractFieldValue = (row, fieldOrList) => {
   }
 
   // Canonical metric aliases (deterministic; no fuzzy contains)
-  const CANONICAL_FIELD_ALIASES = {
-    co2: ['co2ppm', 'carbondioxide', 'co2_level', 'concentration'],
-    temperature: ['temp', 'temperaturec', 'temp_c', 'airtemp', 'ambienttemp'],
-    humidity: ['hum', 'rh', 'relativehumidity', 'humid'],
-    people_count: ['people', 'count', 'occupants', 'occupancy', 'personcount'],
-    lux: ['illuminance', 'light', 'lightlevel'],
-    pm1: ['pm_1', 'particulate1'],
-    pm25: ['pm_2_5', 'pm2.5', 'particulate25'],
-    pm10: ['pm_10', 'particulate10'],
-    pressure: ['atmpressure', 'barometricpressure'],
+    const CANONICAL_FIELD_ALIASES = {
+      co2: ['co2ppm', 'carbondioxide', 'co2_level', 'concentration'],
+      temperature: ['temp', 'temperaturec', 'temp_c', 'airtemp', 'ambienttemp'],
+      humidity: ['hum', 'rh', 'relativehumidity', 'humid'],
+      people_count: ['people', 'count', 'occupants', 'occupancy', 'personcount'],
+      o3: ['ozone', 'o3_ppb', 'o3ppm'],
+      lux: ['illuminance', 'light', 'lightlevel'],
+      pm1: ['pm_1', 'particulate1'],
+      pm25: ['pm_2_5', 'pm2.5', 'particulate25'],
+      pm10: ['pm_10', 'particulate10'],
+      pressure: ['atmpressure', 'barometricpressure'],
     voc: ['volatileorganiccompounds', 'voc_level'],
     odor_level: ['odor', 'odour', 'odorlevel', 'smell'],
     airExchangeRate: ['air exchange rate', 'airexchangerate', 'airchangerate', 'airchange', 'ach', 'air_exch_rate', 'air_exch'],
@@ -1608,12 +1717,8 @@ const extractFieldValue = (row, fieldOrList) => {
     if (!text) return '';
     let out = String(text).trim();
     if (!out) return '';
+    // Strip code fences but otherwise keep the assistant text intact so valid answers are not blanked.
     out = out.replace(/```[\s\S]*?```/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!out) return '';
-    const lower = out.toLowerCase();
-    const looksJson = (lower.startsWith('{') && lower.endsWith('}')) || (lower.startsWith('[') && lower.endsWith(']'));
-    if (looksJson) return '';
-    if (lower.includes('"action":') || lower.includes('"chart":') || lower.includes('"tool":')) return '';
     return out;
   }
 
@@ -3118,6 +3223,11 @@ function summarizeFieldComparison(entries = []) {
     const questionLower = String(routing.original || '').toLowerCase();
     const lines = [];
 
+    // Fast path for single-metric availability questions (e.g., humidity)
+    if (Array.isArray(metrics) && metrics.length === 1 && metrics[0] === 'humidity' && !intents.chart && !intents.correlation && !intents.histogram) {
+      lines.push('- Simple metric availability: use scope_schema_matrix and compare_rooms_on_metric to list zones/devices measuring humidity; avoid heavy retrieval.');
+    }
+
     if (intents.comparison) {
       lines.push('- Comparison focus detected: call compare_series_cross_room or compare_rooms_on_metric to contrast rooms/zones, and describe which leads/lags.');
     }
@@ -3535,6 +3645,7 @@ function summarizeFieldComparison(entries = []) {
     const floorLabel = selectionLabels?.floor || null;
     const zoneLabel = selectionLabels?.room || null;
 
+    const zonesWithDevices = new Set();
     const deviceMap = new Map();
     const addDeviceEntry = (deviceId) => {
       if (!deviceId || deviceMap.size >= maxDevices) return;
@@ -3576,6 +3687,8 @@ function summarizeFieldComparison(entries = []) {
         '—';
       const metrics = summarizeDeviceMetrics(primaryId).slice(0, 12);
       const shortId = primaryId && primaryId.length > 12 ? `${primaryId.slice(0, 12)}…` : primaryId;
+      const tables = Object.keys(loadRoomTables(primaryId) || {});
+      const hasTelemetry = tables.length > 0;
       deviceMap.set(key, {
         id: primaryId,
         shortId,
@@ -3585,13 +3698,15 @@ function summarizeFieldComparison(entries = []) {
         buildingName,
         floorName,
         zoneName: derivedZoneName,
-        metrics
+        metrics,
+        tables,
+        hasTelemetry
       });
     };
 
     selectionRooms.forEach((id) => addDeviceEntry(id));
 
-    if (deviceMap.size === 0 && selectionZones.length) {
+    if (selectionZones.length) {
       for (const zone of selectionZones) {
         const devices = collectDevicesForZone(zone, { building: selectionLabels?.building, floor: selectionLabels?.floor });
         for (const entry of devices) addDeviceEntry(entry.cloudId || entry.primaryId);
@@ -3668,10 +3783,10 @@ function summarizeFieldComparison(entries = []) {
       for (const floorName of floorNames) {
         formatLines.push(`  - *${floorName || 'Unassigned Floor'}*`);
         const zoneMap = floorMap.get(floorName);
-        if (zoneLabel) {
-          const zoneNorm = normalizeLabel(zoneLabel);
+        const zoneLabelNorm = zoneLabel ? normalizeLabel(zoneLabel) : null;
+        if (zoneLabelNorm && zoneLabelNorm !== 'all') {
           for (const key of Array.from(zoneMap.keys())) {
-            if (normalizeLabel(key) !== zoneNorm) zoneMap.delete(key);
+            if (normalizeLabel(key) !== zoneLabelNorm) zoneMap.delete(key);
           }
         }
         const zoneNames = sortByName(Array.from(zoneMap.keys()));
@@ -3685,11 +3800,20 @@ function summarizeFieldComparison(entries = []) {
             const telemetryNote = describeTelemetryCoverage(stats, rr);
             formatLines.push(`      - ${device.name}${typeSuffix} (${device.shortId}) — metrics: ${metricsPreview} · ${telemetryNote}`);
           }
+          if (devices.length) zonesWithDevices.add(String(zoneName || '').trim().toLowerCase());
           if (zoneMap.get(zoneName).length > devices.length) {
             formatLines.push(`      - … ${zoneMap.get(zoneName).length - devices.length} more devices`);
           }
         }
       }
+    }
+
+    // Gaps: requested zones with no telemetry
+    const requestedZones = new Set(selectionZones.map((z) => String(z || '').trim().toLowerCase()).filter(Boolean));
+    const missingZones = Array.from(requestedZones).filter((z) => !zonesWithDevices.has(z));
+    if (missingZones.length) {
+      formatLines.push('');
+      formatLines.push(`Gaps: No telemetry found for ${missingZones.join(', ')}.`);
     }
 
     if (!deviceMap.size) {
@@ -3778,7 +3902,7 @@ function summarizeFieldComparison(entries = []) {
     if (!spans.length && Array.isArray(selectionZones)) {
       for (const zone of selectionZones) {
         const entries = collectDevicesForZone(zone, scopeLabels);
-        entries.forEach((entry) => pushDevice(entry.cloudId || entry.primaryId || entry.id));
+        entries.forEach((entry) => pushDevice(entry.cloudId || entry.primaryId || entry.id || entry.deviceId));
         if (spans.length) break;
       }
     }
@@ -3824,28 +3948,54 @@ function summarizeFieldComparison(entries = []) {
     return coverage;
   }
 
-  function alignRangeToTelemetry(range = {}, { selectionRooms = [], selectionZones = [], scopeLabels = {}, fallbackRoom = null } = {}) {
-    let coverage = aggregateSelectionCoverage({ selectionRooms, selectionZones, scopeLabels, fallbackRoom });
-    if (!coverage) coverage = aggregateGlobalCoverage();
-    if (!coverage) return { range: range || {}, changed: false, coverage: null };
-    let start = Number.isFinite(range?.start) ? Number(range.start) : coverage.end - 7 * DAY_MS;
-    let end = Number.isFinite(range?.end) ? Number(range.end) : coverage.end;
-    if (!Number.isFinite(start)) start = coverage.start;
-    if (!Number.isFinite(end)) end = coverage.end;
-    let changed = false;
-    if (end < coverage.start || start > coverage.end) {
-      end = coverage.end;
-      start = Math.max(coverage.start, coverage.end - 7 * DAY_MS);
-      changed = true;
+  function pickWindowDays(desiredDays = DEFAULT_WINDOW_DAYS) {
+    let best = ALLOWED_DAY_WINDOWS[0];
+    let bestDiff = Math.abs(best - desiredDays);
+    for (const d of ALLOWED_DAY_WINDOWS) {
+      const diff = Math.abs(d - desiredDays);
+      if (diff < bestDiff) {
+        best = d;
+        bestDiff = diff;
+      }
     }
-    const clampedStart = Math.max(start, coverage.start);
-    const clampedEnd = Math.min(end, coverage.end);
-    if (clampedStart !== start || clampedEnd !== end) changed = true;
+    return best;
+  }
+
+  function coerceRangeToAllowedWindows(range = {}, coverage = null) {
+    const requestedStart = Number.isFinite(range?.start) ? Number(range.start) : null;
+    const requestedEnd = Number.isFinite(range?.end) ? Number(range.end) : null;
+    const coverageEnd = Number.isFinite(coverage?.end) ? Number(coverage.end) : null;
+    const coverageStart = Number.isFinite(coverage?.start) ? Number(coverage.start) : null;
+    const anchorEnd = Math.min(
+      requestedEnd != null ? requestedEnd : FIXED_TODAY_MS,
+      FIXED_TODAY_MS,
+      coverageEnd != null ? coverageEnd : FIXED_TODAY_MS
+    );
+    const desiredMs = requestedStart != null ? Math.max(DAY_MS, anchorEnd - requestedStart) : DEFAULT_WINDOW_DAYS * DAY_MS;
+    const desiredDays = Math.max(1, Math.round(desiredMs / DAY_MS));
+    const windowDays = pickWindowDays(desiredDays);
+    const alignedEnd = coverageEnd != null ? Math.min(anchorEnd, coverageEnd) : anchorEnd;
+    let alignedStart = alignedEnd - (windowDays - 1) * DAY_MS;
+    alignedStart = startOfDayLocal(alignedStart, DEFAULT_TIME_ZONE);
+    if (coverageStart != null && alignedStart < coverageStart) alignedStart = coverageStart;
+    const initialStart = requestedStart != null ? requestedStart : (coverageStart ?? alignedStart);
+    const initialEnd = requestedEnd != null ? requestedEnd : (coverageEnd ?? FIXED_TODAY_MS);
+    const changed =
+      initialEnd !== alignedEnd ||
+      initialStart !== alignedStart ||
+      !ALLOWED_DAY_WINDOWS.includes(windowDays);
     return {
-      range: { start: clampedStart, end: clampedEnd },
+      range: { start: alignedStart, end: alignedEnd },
       changed,
       coverage
     };
+  }
+
+  function alignRangeToTelemetry(range = {}, { selectionRooms = [], selectionZones = [], scopeLabels = {}, fallbackRoom = null } = {}) {
+    let coverage = aggregateSelectionCoverage({ selectionRooms, selectionZones, scopeLabels, fallbackRoom });
+    if (!coverage) coverage = aggregateGlobalCoverage();
+    if (!coverage) return coerceRangeToAllowedWindows(range, null);
+    return coerceRangeToAllowedWindows(range, coverage);
   }
 
   function deviceTablesAvailable(deviceId) {
@@ -3920,10 +4070,15 @@ function summarizeFieldComparison(entries = []) {
         }
       }
     } catch {}
-    const scopeRooms = currentScopeContext.selectionRooms || [];
-    for (const deviceId of scopeRooms) pushCandidate(deviceId);
+    // Prefer zone matches before falling back to generic scope devices
     const zoneDevices = collectDevicesForZone(raw, currentScopeContext.scopeLabels || {});
     zoneDevices.forEach((entry) => pushCandidate(entry.cloudId || entry.primaryId || entry.id));
+    if (!zoneDevices.length) {
+      const neutralZoneDevices = collectDevicesForZone(raw, {});
+      neutralZoneDevices.forEach((entry) => pushCandidate(entry.cloudId || entry.primaryId || entry.id || entry.deviceId));
+    }
+    const scopeRooms = currentScopeContext.selectionRooms || [];
+    for (const deviceId of scopeRooms) pushCandidate(deviceId);
     if (snapshotIndex) {
       const snapZone = findSnapshotZone(raw, currentScopeContext.scopeLabels || {});
       if (snapZone) {
@@ -3936,6 +4091,9 @@ function summarizeFieldComparison(entries = []) {
       const meta = lookupDeviceHierarchy(candidate);
       if (meta?.cloudId && deviceTablesAvailable(meta.cloudId)) return meta.cloudId;
     }
+    // Last resort: explicit room-to-device map
+    const alias = friendlyLookup(raw);
+    if (alias && deviceTablesAvailable(alias)) return alias;
     return candidates.find((c) => deviceTablesAvailable(c)) || candidates.find((c) => c !== raw) || raw;
   }
 
@@ -4348,6 +4506,9 @@ function buildSnapshotIndex() {
       { name: 'energy_high_when_empty', args: { room: 'string', energy_table: 'string', occupancy_table: 'string', energy_threshold: 'number?', start: 'number?', end: 'number?' }, desc: 'Find times when energy was high while occupancy was zero' },
       { name: 'detect_spikes', args: { room: 'string', table: 'string', field: 'string', z: 'number?', start: 'number?', end: 'number?' }, desc: 'Simple z-score spike detection, returns [{ts,value,z}]' },
       { name: 'histogram', args: { room: 'string', table: 'string', field: 'string', bins: 'number?', start: 'number?', end: 'number?' }, desc: 'Histogram bins [{binStart,binEnd,count}]' },
+      { name: 'exceedance_summary', args: { room: 'string', table: 'string', field: 'string', threshold: 'number', start: 'number?', end: 'number?' }, desc: 'Counts/ratio of samples above a threshold plus min/max/avg for context.' },
+      { name: 'percentiles', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', ps: 'number[]?' }, desc: 'Distribution summary: returns configured percentiles (defaults 5/25/50/75/95) for a metric in the window.' },
+      { name: 'trend_summary', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Lightweight regression over time: slope/day, delta, % change, and first/last values to comment on trend direction.' },
       { name: 'data_gaps', args: { room: 'string', table: 'string', field: 'string', max_gap_ms: 'number', start: 'number?', end: 'number?' }, desc: 'Find gaps bigger than max_gap_ms between successive points' },
       { name: 'distinct_values', args: { room: 'string', table: 'string', field: 'string', limit: 'number?' }, desc: 'List distinct values up to limit' },
       { name: 'weekday_exceedance', args: { room: 'string', table: 'string', field: 'string', threshold: 'number', start: 'number?', end: 'number?' }, desc: 'Counts per weekday where field > threshold. Returns [{day, total, exceed, ratio}]' },
@@ -4678,6 +4839,15 @@ function buildSnapshotIndex() {
       return null;
     }
     
+    // Strip inline data when a dataRef is present and drop any series without dataRef.
+    chartObj.series = chartObj.series
+      .filter((s) => s && s.dataRef)
+      .map((s) => {
+        const next = { ...s };
+        if (next.dataRef && next.data) delete next.data;
+        return next;
+      });
+
     // Resolve any dataRef references
     chartObj = resolveChartDataRefs(chartObj, trace);
     
@@ -4810,38 +4980,19 @@ function buildSnapshotIndex() {
     return 'line';
   }
 
-  function buildFallbackChartFromTrace({
+  // Primary chart builder: constructs Highcharts configs from executed tool outputs (dataRef-based),
+  // so charts render even if the LLM does not emit a chart block.
+  function buildChartFromTrace({
     trace,
     question,
     defaultRoom = null,
     selectionRooms = []
   }) {
-    if (!Array.isArray(trace) || !trace.length) return null;
     const qLower = String(question || '').toLowerCase();
 
     for (let i = trace.length - 1; i >= 0; i--) {
       const entry = trace[i];
       if (!entry || !entry.tool) continue;
-
-      if (entry.tool === 'compare_rooms_on_metric' && Array.isArray(entry.result) && entry.result.length) {
-        const numeric = entry.result.filter((r) => Number.isFinite(r.value)).slice(0, 20);
-        if (numeric.length) {
-          const seriesData = numeric.map((r) => [r.friendlyName || r.room, r.value]);
-          const metricLabel = humanizeMetricName(entry.args?.field || 'value');
-          const chart = {
-            chart: { type: 'column' },
-            title: { text: `Busiest by ${metricLabel}` },
-            xAxis: { type: 'category', title: { text: 'Room' } },
-            yAxis: { title: { text: metricLabel } },
-            series: [{
-              name: metricLabel,
-              data: seriesData
-            }]
-          };
-          const valid = validateChart(cloneChart(chart), trace);
-          if (valid) return chart;
-        }
-      }
 
       if (entry.tool === 'scope_heatmap' && entry.result && Array.isArray(entry.result.data) && entry.result.data.length) {
         const metricName = humanizeMetricName(entry.args?.field || 'Value');
@@ -5255,13 +5406,48 @@ function buildSnapshotIndex() {
     const fields = entries.length ? Object.keys(entries[0] || {}) : [];
     const has = (name) => fields.some((f) => String(f).toLowerCase() === String(name).toLowerCase());
     if (has(field)) return field;
-    // Occupancy/people aliases
-    const OCCUPANCY_ALIASES = ['people_count', 'occupancy', 'occupants', 'count', 'value'];
-    if (OCCUPANCY_ALIASES.includes(lower)) {
-      const candidate = ['people_count', 'occupants', 'occupancy', 'count', 'value'].find((f) => has(f));
+    const ALIAS_GROUPS = [
+      ['temperature', 'temp', 'temp_c'],
+      ['humidity', 'relativehumidity', 'rh'],
+      ['co2', 'co₂', 'concentration', 'co2_ppm'],
+      ['voc', 'tvoc'],
+      ['lux', 'light', 'illuminance'],
+      ['o3', 'ozone', 'o3_ppb', 'o3ppm'],
+      ['pm25', 'pm2.5', 'pm2_5', 'pm25_value'],
+      ['pm10', 'pm10_value'],
+      ['nh3', 'ammonia'],
+      ['h2s', 'hydrogen_sulfide'],
+      // Water/flow meter aliases
+      ['water_total', 'cubic_value', 'water', 'flow', 'meter', 'consumption'],
+      // Energy/power aliases
+      ['total_kwh', 'kwh_total', 'kwh', 'kw', 'power', 'energy', 'total_energy'],
+      ['value', 'kwh', 'kw', 'power'], // generic energy field often named value
+      ['people_count', 'occupancy', 'occupants', 'count', 'is_used', 'value'],
+      ['leakage_status', 'leak', 'leak_status'],
+      ['battery', 'battery_level'],
+      ['pressure', 'pressure_hpa']
+    ];
+    for (const group of ALIAS_GROUPS) {
+      if (!group.includes(lower)) continue;
+      const candidate = group.find((name) => has(name));
       if (candidate) return candidate;
     }
     return has(field) ? field : null;
+  }
+
+  function resolveRoomTableFieldRows(room, table, field, start = null, end = null) {
+    const resolvedRoom = resolveDeviceIdForRoom(room) || room;
+    const { table: resolvedTable, rows } = resolveRoomTableRows(resolvedRoom, table, start, end);
+    const fieldName = resolveFieldWithAlias(resolvedRoom, resolvedTable, field) || resolveField(rows, field) || field;
+    return { resolvedRoom, table: resolvedTable, field: fieldName, rows };
+  }
+
+  function resolveRoomTableRows(room, table, start = null, end = null) {
+    const resolvedRoom = resolveDeviceIdForRoom(room) || room;
+    const tables = loadRoomTables(resolvedRoom);
+    const tab = resolveTable(resolvedRoom, table);
+    const rows = sliceByRange(tables[tab] || [], start, end);
+    return { resolvedRoom, table: tab, rows };
   }
 
   function findRoomWithTable(tableName, selectionRooms = [], fallbackRoom = null) {
@@ -6064,17 +6250,12 @@ function parseFieldsFromQuestion(question, availableSets) {
   }
 
   function getHourlySeries(room, table, field, start=null, end=null, { mode = 'avg', resolvedField = null } = {}) {
-    const resolvedRoom = resolveDeviceIdForRoom(room) || room;
-    const t = loadRoomTables(resolvedRoom);
-    const tab = resolveTable(resolvedRoom, table);
-    const arr = t[tab] || [];
-    const fld = resolvedField || resolveFieldWithAlias(resolvedRoom, tab, resolveField(arr, field) || field);
+    const { resolvedRoom, table: tab, field: fld, rows } = resolveRoomTableFieldRows(room, table, resolvedField || field, start, end);
     if (!fld) return [];
     const startNorm = normalizeTsHint(start);
     const endNorm = normalizeTsHint(end);
     const buckets = new Map();
-    for (const r of arr) {
-      if (!withinRange(r.ts, startNorm, endNorm)) continue;
+    for (const r of rows) {
       const v = Number(r[fld]); 
       if (!Number.isFinite(v)) continue;
       const key = floorHour(r.ts);
@@ -6266,12 +6447,16 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
     
     scope_summary() {
-      return {
-        rooms: Array.isArray(currentScopeContext.selectionRooms) ? [...currentScopeContext.selectionRooms] : [],
-        zones: Array.isArray(currentScopeContext.selectionZones) ? [...currentScopeContext.selectionZones] : [],
-        labels: currentScopeContext.scopeLabels ? { ...currentScopeContext.scopeLabels } : {},
-        range: currentScopeContext.range ? { ...currentScopeContext.range } : null
-      };
+      const rooms = Array.isArray(currentScopeContext.selectionRooms) ? [...currentScopeContext.selectionRooms] : [];
+      const zones = Array.isArray(currentScopeContext.selectionZones) ? [...currentScopeContext.selectionZones] : [];
+      const labels = currentScopeContext.scopeLabels ? { ...currentScopeContext.scopeLabels } : {};
+      const range = currentScopeContext.range ? { ...currentScopeContext.range } : null;
+      const schema = {};
+      rooms.forEach((roomId) => {
+        const tables = availableFieldsByTable(roomId);
+        schema[roomId] = tables;
+      });
+      return { rooms, zones, labels, range, schema };
     },
 
     // Multi-line plotting across a scope (tenant/building/floor/zone)
@@ -6306,7 +6491,7 @@ function parseFieldsFromQuestion(question, availableSets) {
         for (const d of devList) {
           const devId = String(d.id);
           const tables = loadRoomTables(devId) || {};
-          const arr = Array.isArray(tables.telemetry) ? tables.telemetry : [];
+          const arr = Array.isArray(tables.telemetry) ? sliceByRange(tables.telemetry, start, end) : [];
           if (!arr.length || !(metric in (arr[0] || {}))) continue;
           const aligned = alignRangeToTelemetry({ start, end }, { selectionRooms: [devId], fallbackRoom: devId });
           const effStart = Number.isFinite(aligned.range?.start) ? aligned.range.start : start;
@@ -6377,7 +6562,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       return ratios;
     },
     
-    fetch_timeseries({ room, table, fields = [], start = null, end = null, limit = 2000, after_ts = null }) {
+    fetch_timeseries({ room, table, fields = [], start = null, end = null, limit = 2000, after_ts = null, scopeRoomLabel = null }) {
       // Map friendly room labels to a concrete device id before loading tables.
       const desiredField = (Array.isArray(fields) && fields[0]) || null;
       const scopeRooms = Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : [];
@@ -6386,16 +6571,32 @@ function parseFieldsFromQuestion(question, availableSets) {
         const matches = devicesWithField(desiredField, scopeRooms);
         return matches.length ? matches[0] : null;
       };
+      const pickZoneDevice = () => {
+        if (!scopeRoomLabel) return null;
+        const zoneDevices = collectDevicesForZone(scopeRoomLabel, currentScopeContext.scopeLabels || {});
+        if (zoneDevices.length) return zoneDevices[0].cloudId || zoneDevices[0].id || zoneDevices[0].deviceId;
+        return null;
+      };
+      const pickZoneDeviceWithField = () => {
+        if (!scopeRoomLabel || !desiredField) return null;
+        const zoneDevices = collectDevicesForZone(scopeRoomLabel, currentScopeContext.scopeLabels || {}) || [];
+        const zoneIds = zoneDevices.map((z) => z.cloudId || z.id || z.deviceId).filter(Boolean);
+        const candidates = devicesWithField(desiredField, zoneIds);
+        return candidates.length ? candidates[0] : null;
+      };
       const resolvedRoom =
+        pickZoneDeviceWithField() ||
+        (desiredField ? pickScopedWithField() : null) ||
+        (scopeRoomLabel && pickZoneDevice()) ||
         (room && room !== 'ALL' && resolveDeviceIdForRoom(room)) ||
         (table && resolveDeviceIdForRoom(table)) ||
         (room === 'ALL' ? pickScopedWithField() : null) ||
-        (desiredField ? pickScopedWithField() : null) ||
         room ||
-        table;
+        table ||
+        (desiredField ? pickScopedWithField() : null);
       const t = loadRoomTables(resolvedRoom);
       const tab = resolveTable(resolvedRoom, table);
-      const arr = t[tab] || [];
+      const baseArr = t[tab] || [];
 
       const coerceValue = (value) => {
         if (value == null) return value;
@@ -6414,7 +6615,7 @@ function parseFieldsFromQuestion(question, availableSets) {
     const resolveAlias = (alias) => {
       if (!hasExplicitFields) return alias;
       if (!resolvedFieldCache.has(alias)) {
-        const resolved = resolveField(arr, alias);
+        const resolved = resolveField(baseArr, alias);
         resolvedFieldCache.set(alias, resolved || alias);
       }
       return resolvedFieldCache.get(alias);
@@ -6440,12 +6641,11 @@ function parseFieldsFromQuestion(question, availableSets) {
 
       // If limit is small (like 1) and no specific start, get from the end (most recent)
       const getLatest = limit <= 5 && !start && !after_ts;
-      const source = getLatest ? [...arr].reverse() : arr;
+      const source = getLatest ? [...baseArr].reverse() : sliceByRange(baseArr, start, end);
 
       const out = [];
       for (const r of source) {
         if (after_ts != null && r.ts <= after_ts) continue;
-        if (!withinRange(r.ts, start, end)) continue;
         out.push(selectFields(r));
         if (limit && out.length >= limit) break;
       }
@@ -6474,15 +6674,28 @@ function parseFieldsFromQuestion(question, availableSets) {
           if (!resolved) return;
           if (!candidates.includes(resolved)) candidates.push(resolved);
         };
-        // Order: explicit scope hint, target room, provided devices, preferred room, original room, any device in scope with the field.
+        const zoneDevices = targetScopeLabel ? collectDevicesForZone(targetScopeLabel, currentScopeContext.scopeLabels || {}) : [];
+        const zoneIds = zoneDevices.map((z) => z.cloudId || z.primaryId || z.id || z.deviceId).filter(Boolean);
+        // Highest confidence: device in the target zone with the field
+        if (desiredField && zoneIds.length) {
+          devicesWithField(desiredField, zoneIds).forEach(push);
+        }
+        // Next: any device explicitly in the target zone
+        if (zoneIds.length) zoneIds.forEach(push);
+        // Then: scoped devices with the field
+        if (desiredField && Array.isArray(devices) && devices.length) {
+          devicesWithField(desiredField, devices).forEach(push);
+        }
+        // Order: explicit scope hint, target room, provided devices, preferred room, original room, any scoped device with the field.
         push(targetScopeLabel);
         push(targetRoom);
         if (Array.isArray(devices)) devices.forEach(push);
         push(preferredRoom);
         push(room);
-        // If still nothing resolves, try any scoped device with the field.
-        const scopedWithField = desiredField ? devicesWithField(desiredField, Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : []) : [];
-        scopedWithField.forEach(push);
+        if (desiredField) {
+          const scopedWithField = devicesWithField(desiredField, Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : []);
+          scopedWithField.forEach(push);
+        }
 
         for (const candidate of candidates) {
           const normalizedRoom = resolveScopeLabelToDevice(candidate) || candidate;
@@ -6540,7 +6753,7 @@ function parseFieldsFromQuestion(question, availableSets) {
           return { error: 'field required', room: roomHint || null, table: targetTable || null };
         }
 
-        const { candidate: resolvedRoom, roomLabel: displayLabel, tab, field: validatedField, rows: arr } = selection;
+        const { candidate: resolvedRoom, roomLabel: displayLabel, tab, field: validatedField, rows } = selection;
         const coverageSpan = assertDataAvailable(resolvedRoom, validatedField, { start: qStart ?? start, end: qEnd ?? end });
         if (!coverageSpan.ok && coverageSpan.coverage) {
           const cov = coverageSpan.coverage;
@@ -6554,27 +6767,26 @@ function parseFieldsFromQuestion(question, availableSets) {
         const friendlyRoomName = displayLabel && displayLabel !== resolvedRoom
           ? displayLabel
           : (deviceFriendlyName(resolvedRoom) || displayLabel || resolvedRoom);
+        const alignedRows = sliceByRange(Array.isArray(rows) ? rows : [], qStart ?? start, qEnd ?? end);
         let totalRows = 0;
         let count = 0, min = Infinity, max = -Infinity, sum = 0;
         let minTs = null, maxTs = null;
-      for (const r of arr) {
-        if (!withinRange(r.ts, qStart ?? start, qEnd ?? end)) continue;
-        totalRows += 1;
-        const raw = r[validatedField];
-        const v = Number(raw);
-        if (!Number.isFinite(v)) continue;
-        count += 1;
-        sum += v;
-        if (v < min) { min = v; minTs = r.ts ?? null; }
-        if (v > max) { max = v; maxTs = r.ts ?? null; }
-      }
+        for (const r of alignedRows) {
+          totalRows += 1;
+          const raw = r[validatedField];
+          const v = Number(raw);
+          if (!Number.isFinite(v)) continue;
+          count += 1;
+          sum += v;
+          if (v < min) { min = v; minTs = r.ts ?? null; }
+          if (v > max) { max = v; maxTs = r.ts ?? null; }
+        }
         const avg = count ? sum / count : NaN;
         if (count === 0) {
           // Non-numeric handling: treat as categorical counts if we saw rows
           const freq = {};
           let nonNumericCount = 0;
-          for (const r of arr) {
-            if (!withinRange(r.ts, qStart ?? start, qEnd ?? end)) continue;
+          for (const r of alignedRows) {
             const raw = r[validatedField];
             if (raw == null || raw === '') continue;
             const v = Number(raw);
@@ -6633,6 +6845,24 @@ function parseFieldsFromQuestion(question, availableSets) {
         }));
       }
       return compute({ targetRoom: room, targetTable: table, targetField: field, targetScopeLabel: scopeRoomLabel, qStart: start, qEnd: end });
+    },
+
+    exceedance_summary({ room, table, field, threshold, start = null, end = null }) {
+      const resolvedRoom = resolveScopeLabelToDevice(room) || resolveDeviceIdForRoom(room) || room;
+      const tab = resolveTable(resolvedRoom, table);
+      const rows = (loadRoomTables(resolvedRoom)[tab]) || [];
+      const filtered = rows.filter((row) => withinRange(row.ts, start, end));
+      if (!filtered.length) return { room: resolvedRoom, table: tab, field, threshold, exceed: 0, total: 0, ratio: 0 };
+      const resolvedField = resolveFieldWithAlias(resolvedRoom, tab, field) || resolveCanonicalField(field, availableFieldsByTable(resolvedRoom)) || field;
+      const numeric = filtered.map((r) => Number(r[resolvedField])).filter(Number.isFinite);
+      if (!numeric.length) return { room: resolvedRoom, table: tab, field: resolvedField, threshold, exceed: 0, total: 0, ratio: 0 };
+      const total = numeric.length;
+      const exceed = numeric.filter((v) => v > threshold).length;
+      const ratio = total ? exceed / total : 0;
+      const max = Math.max(...numeric);
+      const min = Math.min(...numeric);
+      const avg = numeric.reduce((a, b) => a + b, 0) / total;
+      return { room: resolvedRoom, table: tab, field: resolvedField, threshold, exceed, total, ratio, max, min, avg };
     },
     
     get_time_for_value({
@@ -7044,8 +7274,70 @@ function parseFieldsFromQuestion(question, availableSets) {
       };
     },
 
+    percentiles({ room, table, field, start = null, end = null, ps = [5, 25, 50, 75, 95] }) {
+      const resolvedRoom = resolveScopeLabelToDevice(room) || resolveDeviceIdForRoom(room) || room;
+      const tab = resolveTable(resolvedRoom, table);
+      const rows = (loadRoomTables(resolvedRoom)[tab]) || [];
+      const filtered = rows.filter((row) => withinRange(row.ts, start, end));
+      if (!filtered.length) return { count: 0, values: [] };
+      const resolvedField = resolveFieldWithAlias(resolvedRoom, tab, field) || resolveCanonicalField(field, availableFieldsByTable(resolvedRoom)) || field;
+      const numeric = filtered.map((r) => Number(r[resolvedField])).filter(Number.isFinite).sort((a, b) => a - b);
+      if (!numeric.length) return { count: 0, values: [] };
+      const pct = (p) => {
+        const idx = Math.min(numeric.length - 1, Math.max(0, Math.round((p / 100) * (numeric.length - 1))));
+        return numeric[idx];
+      };
+      return {
+        room: resolvedRoom,
+        table: tab,
+        field: resolvedField,
+        count: numeric.length,
+        values: ps.map((p) => ({ p, value: pct(p) }))
+      };
+    },
+
+    trend_summary({ room, table, field, start = null, end = null }) {
+      const resolvedRoom = resolveScopeLabelToDevice(room) || resolveDeviceIdForRoom(room) || room;
+      const tab = resolveTable(resolvedRoom, table);
+      const rows = (loadRoomTables(resolvedRoom)[tab]) || [];
+      const filtered = rows.filter((row) => withinRange(row.ts, start, end));
+      if (filtered.length < 2) return { room: resolvedRoom, table: tab, field, count: filtered.length, message: 'not_enough_points' };
+      const resolvedField = resolveFieldWithAlias(resolvedRoom, tab, field) || resolveCanonicalField(field, availableFieldsByTable(resolvedRoom)) || field;
+      const pts = filtered
+        .map((r) => ({ x: Number(r.ts), y: Number(r[resolvedField]) }))
+        .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+      if (pts.length < 2) return { room: resolvedRoom, table: tab, field: resolvedField, count: pts.length, message: 'not_enough_points' };
+      const n = pts.length;
+      const sumX = pts.reduce((a, b) => a + b.x, 0);
+      const sumY = pts.reduce((a, b) => a + b.y, 0);
+      const sumXY = pts.reduce((a, b) => a + b.x * b.y, 0);
+      const sumX2 = pts.reduce((a, b) => a + b.x * b.x, 0);
+      const denom = (n * sumX2 - sumX * sumX);
+      const slopeMs = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
+      const slopePerDay = slopeMs * 86400000;
+      const first = pts[0];
+      const last = pts[pts.length - 1];
+      const delta = last.y - first.y;
+      const pctChange = first.y !== 0 ? (delta / Math.abs(first.y)) * 100 : null;
+      return {
+        room: resolvedRoom,
+        table: tab,
+        field: resolvedField,
+        count: n,
+        slope_per_day: slopePerDay,
+        slope_per_ms: slopeMs,
+        delta,
+        pct_change: pctChange,
+        first: { ts: first.x, value: first.y },
+        last: { ts: last.x, value: last.y }
+      };
+    },
+
     building_temp_weather_scatter(options = {}) {
-      const result = this.building_temp_weather_corr(options);
+      const resolvedRooms = Array.isArray(options.rooms) ? options.rooms.map((r) => resolveDeviceIdForRoom(r) || r) : (options.room ? [resolveDeviceIdForRoom(options.room) || options.room] : []);
+      const resolvedField = options.field || 'temperature';
+      const opts = { ...options, rooms: resolvedRooms, room: resolvedRooms[0] || options.room, field: resolvedField };
+      const result = this.building_temp_weather_corr(opts);
       if (!result || result.error) return result;
       return {
         ...result,
@@ -7355,23 +7647,38 @@ function parseFieldsFromQuestion(question, availableSets) {
       const desiredField = field;
       const selectionRooms = Array.isArray(currentScopeContext.selectionRooms) ? currentScopeContext.selectionRooms : [];
       const targetRooms = [];
-      // Prefer devices that actually have the field
-      if (desiredField) {
-        const scoped = devicesWithField(desiredField, selectionRooms);
-        scoped.forEach((r) => { if (!targetRooms.includes(r)) targetRooms.push(r); });
-        if (Array.isArray(rooms)) {
-          rooms.forEach((r) => {
-            const resolved = resolveDeviceIdForRoom(r) || friendlyLookup(r) || null;
-            if (resolved && devicesWithField(desiredField, [resolved]).length && !targetRooms.includes(resolved)) {
-              targetRooms.push(resolved);
-            }
-          });
+
+      const pushUnique = (val) => {
+        if (!val || targetRooms.includes(val)) return;
+        targetRooms.push(val);
+      };
+
+      // If explicit rooms were provided, honour them first and ignore broader scope to avoid slow, noisy sweeps.
+      if (Array.isArray(rooms) && rooms.length) {
+        for (const r of rooms) {
+          const resolved = resolveDeviceIdForRoom(r) || friendlyLookup(r) || null;
+          if (!resolved) continue;
+          if (desiredField) {
+            const hasField = devicesWithField(desiredField, [resolved]);
+            if (!hasField.length) continue;
+          }
+          pushUnique(resolved);
         }
       }
-      // Fallback to scoped list if still empty
-      if (!targetRooms.length) {
-        scopedRoomIds(rooms, { limit: 32 }).forEach((r) => { if (!targetRooms.includes(r)) targetRooms.push(r); });
+
+      // Otherwise, use scoped devices that actually carry the requested field.
+      if (!targetRooms.length && desiredField) {
+        const scoped = devicesWithField(desiredField, selectionRooms);
+        scoped.forEach(pushUnique);
       }
+
+      // Final fallback to scoped rooms list (still capped).
+      if (!targetRooms.length) {
+        scopedRoomIds(rooms, { limit: 32 }).forEach(pushUnique);
+      }
+
+      // Keep the comparison tight to avoid huge loops.
+      if (targetRooms.length > 24) targetRooms.length = 24;
       const out = [];
       for (const roomId of targetRooms) {
         const t = loadRoomTables(roomId);
@@ -8822,12 +9129,14 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
 
     compare_metrics_in_room({ room, table, fields = [], agg = 'avg', start = null, end = null }) {
-      const t = loadRoomTables(room);
-      const tab = resolveTable(room, table);
-      const arr = (t[tab] || []).filter(row => withinRange(row.ts, start, end));
+      const resolvedRoom = resolveDeviceIdForRoom(room) || room;
+      const t = loadRoomTables(resolvedRoom);
+      const tab = resolveTable(resolvedRoom, table);
+      const arr = sliceByRange(t[tab] || [], start, end);
       const out = [];
       for (const f of fields) {
-        const vals = arr.map(r => Number(r[f])).filter(Number.isFinite);
+        const fieldResolved = resolveFieldWithAlias(resolvedRoom, tab, f) || resolveField(arr, f) || f;
+        const vals = arr.map(r => Number(r[fieldResolved])).filter(Number.isFinite);
         if (!vals.length) { out.push({ field: f, value: null }); continue; }
         const sum = vals.reduce((a,b)=>a+b,0);
         const avg = sum / vals.length;
@@ -8843,10 +9152,10 @@ function parseFieldsFromQuestion(question, availableSets) {
       if (!room) return [];
       const candidates = gatherCandidateDevices(room);
       const preferredFields = Array.isArray(fields) ? fields : [];
-      const targetRoom = candidates.length ? resolveDeviceForFields(room, preferredFields, candidates) : (normalizeRoomId(room) || String(room));
+      const targetRoom = candidates.length ? resolveDeviceForFields(room, preferredFields, candidates) : (resolveDeviceIdForRoom(room) || normalizeRoomId(room) || String(room));
       const t = loadRoomTables(targetRoom);
       const tab = resolveTable(targetRoom, table);
-      const arr = (t[tab] || []).filter(row => withinRange(row.ts, start, end));
+      const arr = sliceByRange(t[tab] || [], start, end);
       if (!arr.length) return [];
       const sorted = [...arr].sort((a, b) => {
         const tsA = a.ts ?? 0;
@@ -9173,12 +9482,15 @@ function parseFieldsFromQuestion(question, availableSets) {
       if (!Array.isArray(series)) return out;
       for (const s of series) {
         if (!s || !s.room || !s.table || !s.field) continue;
-        const t = loadRoomTables(String(s.room));
-        const arr = (t[String(s.table)] || []).filter(r => withinRange(r.ts, start, end));
-        const name = s.name || `${s.room} ${s.field}`;
+        const resolvedRoom = resolveDeviceIdForRoom(s.room) || s.room;
+        const t = loadRoomTables(String(resolvedRoom));
+        const tab = resolveTable(resolvedRoom, s.table);
+        const arr = sliceByRange(t[String(tab)] || [], start, end);
+        const fieldResolved = resolveFieldWithAlias(resolvedRoom, tab, s.field) || resolveField(arr, s.field) || s.field;
+        const name = s.name || `${resolvedRoom} ${fieldResolved}`;
         const points = [];
         for (const r of arr) {
-          const y = Number(r[s.field]);
+          const y = Number(r[fieldResolved]);
           if (!Number.isFinite(y)) continue;
           points.push({ ts: r.ts, y });
         }
@@ -9461,20 +9773,22 @@ function parseFieldsFromQuestion(question, availableSets) {
       return out;
     },
     histogram({ room, table, field, bins = 10, start = null, end = null }) {
-      const t = loadRoomTables(room);
-      const tab = resolveTable(room, table);
-      const vals = (t[tab] || [])
-        .filter(r => withinRange(r.ts, start, end))
-        .map(r => Number(r[field]))
+      const resolvedRoom = resolveDeviceIdForRoom(room) || room;
+      const tables = loadRoomTables(resolvedRoom);
+      const tabResolved = resolveTable(resolvedRoom, table);
+      const fld = resolveFieldWithAlias(resolvedRoom, tabResolved, field) || resolveField(tables[tabResolved] || [], field) || field;
+      if (!fld) return logToolResult('histogram', { room: resolvedRoom, table: tabResolved, field, bins, start, end }, []);
+      const vals = sliceByRange(tables[tabResolved] || [], start, end)
+        .map(r => Number(r[fld]))
         .filter(Number.isFinite);
       if (!vals.length) {
-        return logToolResult('histogram', { room, table: tab, field, bins, start, end }, []);
+        return logToolResult('histogram', { room: resolvedRoom, table: tabResolved, field: fld, bins, start, end }, []);
       }
       const min = Math.min(...vals);
       const max = Math.max(...vals);
       if (min === max) {
         const single = [{ binStart: min, binEnd: min, count: vals.length }];
-        return logToolResult('histogram', { room, table: tab, field, bins, start, end }, single);
+        return logToolResult('histogram', { room: resolvedRoom, table: tabResolved, field: fld, bins, start, end }, single);
       }
       const safeBins = Math.max(1, Number(bins) || 10);
       const width = max - min;
@@ -9490,7 +9804,7 @@ function parseFieldsFromQuestion(question, availableSets) {
         if (idx < 0) idx = 0;
         out[idx].count += 1;
       }
-      return logToolResult('histogram', { room, table: tab, field, bins: safeBins, start, end }, out);
+      return logToolResult('histogram', { room: resolvedRoom, table: tabResolved, field: fld, bins: safeBins, start, end }, out);
     },
 
     compare_series_cross_room({ series = [], start = null, end = null }) {
@@ -9512,8 +9826,8 @@ function parseFieldsFromQuestion(question, availableSets) {
       return out;
     },
     data_gaps({ room, table, field, max_gap_ms, start = null, end = null }) {
-      const t = loadRoomTables(room);
-      const arr = (t[table] || []).filter(r => withinRange(r.ts, start, end)).filter(r => Number.isFinite(Number(r[field])));
+      const { resolvedRoom, table: tab, field: fld, rows } = resolveRoomTableFieldRows(room, table, field, start, end);
+      const arr = (rows || []).filter(r => Number.isFinite(Number(r[fld])));
       const out = [];
       for (let i=1;i<arr.length;i++) { const gap = arr[i].ts - arr[i-1].ts; if (gap > max_gap_ms) out.push({ from: arr[i-1].ts, to: arr[i].ts, gap }); }
       return out;
@@ -9537,15 +9851,12 @@ function parseFieldsFromQuestion(question, availableSets) {
       }
       return out;
     },
-    distinct_values({ room, table, field, limit = 50 }) {
-      const resolvedRoom = resolveDeviceIdForRoom(room) || room;
-      const t = loadRoomTables(resolvedRoom);
-      const tab = resolveTable(resolvedRoom, table);
+    distinct_values({ room, table, field, limit = 50, start = null, end = null }) {
+      const { resolvedRoom, table: tab, field: fld, rows } = resolveRoomTableFieldRows(room, table, field, start, end);
       const set = new Set();
-      for (const r of (t[tab]||[])) { const v=r[field]; if (v!=null) { set.add(String(v)); if (set.size>=limit) break; } }
+      for (const r of (rows||[])) { const v=r[fld]; if (v!=null) { set.add(String(v)); if (set.size>=limit) break; } }
       return Array.from(set);
-    }
-,
+    },
 
     fetch_table_meta({ room, table }) {
       const resolvedRoom = resolveDeviceIdForRoom(room) || room;
@@ -9597,18 +9908,17 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
     
     hour_of_day_stats({ room, table, field, start = null, end = null }) {
-      const t = loadRoomTables(room);
-      const tab = resolveTable(room, table);
-      const arr = t[tab] || [];
-      const bins = Array.from({ length: 24 }, () => ({ 
+      const { resolvedRoom, table: tab, rows } = resolveRoomTableRows(room, table, start, end);
+      const fld = resolveFieldWithAlias(resolvedRoom, tab, field) || resolveField(rows, field) || field;
+      const arr = rows || [];
+      const bins = Array.from({ length: 24 }, () => ({
         count: 0, 
         sum: 0, 
         min: Infinity, 
         max: -Infinity 
       }));
       for (const r of arr) {
-        if (!withinRange(r.ts, start, end)) continue;
-        const v = Number(r[field]);
+        const v = Number(r[fld]);
         if (!Number.isFinite(v)) continue;
         const h = new Date(r.ts).getHours();
         const b = bins[h];
@@ -9627,16 +9937,12 @@ function parseFieldsFromQuestion(question, availableSets) {
     },
     
     hourly_timeseries({ room, table, field, start = null, end = null }) {
-      const resolvedRoom = resolveDeviceIdForRoom(room) || room;
-      const t = loadRoomTables(resolvedRoom);
-      const tab = resolveTable(resolvedRoom, table);
-      const arr = t[tab] || [];
-      const fld = resolveFieldWithAlias(resolvedRoom, tab, field || resolveField(arr, field));
+      const { resolvedRoom, table: tab, rows } = resolveRoomTableRows(room, table, start, end);
+      const fld = resolveFieldWithAlias(resolvedRoom, tab, field || resolveField(rows, field)) || field;
       const startNorm = normalizeTsHint(start);
       const endNorm = normalizeTsHint(end);
       const buckets = new Map();
-      for (const r of arr) {
-        if (!withinRange(r.ts, startNorm, endNorm)) continue;
+      for (const r of rows) {
         const v = Number(r[fld]); 
         if (!Number.isFinite(v)) continue;
         const key = floorHour(r.ts);
@@ -10248,7 +10554,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       buildAnalysisDirectives,
       buildContextSnippet,
       buildDefaultAnswer,
-      buildFallbackChartFromTrace,
+      buildChartFromTrace,
       buildScopeSummary,
       buildToolSpec,
       chartHasRenderableSeries,
@@ -10300,6 +10606,67 @@ function parseFieldsFromQuestion(question, availableSets) {
       ensureQuestionAnswerCoverage
     };
   }
+
+  // Override critical tools with deterministic room/field resolution and window slicing.
+  tools.compare_series_cross_room = ({ series = [], start = null, end = null }) => {
+    const out = {};
+    if (!Array.isArray(series)) return out;
+    for (const s of series) {
+      if (!s || !s.room || !s.table || !s.field) continue;
+      const { resolvedRoom, table, field, rows } = resolveRoomTableFieldRows(s.room, s.table, s.field, start, end);
+      const name = s.name || `${resolvedRoom} ${field}`;
+      const points = [];
+      for (const r of rows || []) {
+        const y = Number(r[field]);
+        if (!Number.isFinite(y)) continue;
+        points.push({ ts: r.ts, y });
+      }
+      out[name] = points;
+    }
+    return out;
+  };
+
+  tools.daily_avg = ({ room, table, field, start = null, end = null }) => {
+    const { resolvedRoom, table: tab, field: fld, rows } = resolveRoomTableFieldRows(room, table, field, start, end);
+    if (!fld) return [];
+    const buckets = new Map();
+    for (const r of rows || []) {
+      const v = Number(r[fld]);
+      if (!Number.isFinite(v)) continue;
+      const key = startOfDayLocal(r.ts);
+      const b = buckets.get(key) || { sum: 0, n: 0 };
+      b.sum += v;
+      b.n += 1;
+      buckets.set(key, b);
+    }
+    return Array.from(buckets.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([ts, b]) => ({ ts, avg: b.n ? b.sum / b.n : null }));
+  };
+
+  tools.data_gaps = ({ room, table, field, max_gap_ms, start = null, end = null }) => {
+    const { field: fld, rows } = resolveRoomTableFieldRows(room, table, field, start, end);
+    const arr = (rows || []).filter((r) => Number.isFinite(Number(r[fld])));
+    const out = [];
+    for (let i = 1; i < arr.length; i++) {
+      const gap = arr[i].ts - arr[i - 1].ts;
+      if (gap > max_gap_ms) out.push({ from: arr[i - 1].ts, to: arr[i].ts, gap });
+    }
+    return out;
+  };
+
+  tools.distinct_values = ({ room, table, field, limit = 50, start = null, end = null }) => {
+    const { field: fld, rows } = resolveRoomTableFieldRows(room, table, field, start, end);
+    const set = new Set();
+    for (const r of rows || []) {
+      const v = r[fld];
+      if (v != null) {
+        set.add(String(v));
+        if (set.size >= limit) break;
+      }
+    }
+    return Array.from(set);
+  };
   
   const runnerDeps = buildRunnerDependencies();
   const run = createAgentRunner(runnerDeps);

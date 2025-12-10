@@ -25,6 +25,12 @@ const tsFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
   hour12: false,
   timeZone: UI_TIMEZONE
 });
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ALLOWED_DAY_WINDOWS = [1, 7, 30];
+const DEFAULT_WINDOW_DAYS = 7;
+// Anchor all UI ranges to a fixed "today" to reduce unnecessary history scans.
+const FIXED_TODAY_MS = Date.UTC(2025, 9, 20, 22, 59, 59, 999); // 20 Oct 2025 23:59:59 Europe/London
+let currentRangeDays = DEFAULT_WINDOW_DAYS;
 
 const CONVERSATION_STORAGE_KEY = 'avm.conversation-id';
 const randomConversationId = () =>
@@ -83,6 +89,12 @@ function readInputTs(input) {
   if (!input || !input.value) return null;
   const parsed = Date.parse(input.value);
   return Number.isNaN(parsed) ? null : parsed;
+}
+
+function startOfDayLocal(ts) {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
 }
 
 function normalizeTimestamp(ts) {
@@ -252,6 +264,7 @@ async function init() {
   const scopePillEl = document.getElementById('scope-pill');
   const confirmBtn = document.getElementById('confirm-scope');
   const clearBtn = document.getElementById('clear-scope');
+  const rangeButtonsWrap = document.getElementById('range-buttons');
   const selection = {
     tenant: null,
     building: null,
@@ -314,6 +327,23 @@ async function init() {
     sendBtn.disabled = sending || !hasText;
   }
 
+  function applyPresetDays(days) {
+    const targetDays = ALLOWED_DAY_WINDOWS.includes(days) ? days : DEFAULT_WINDOW_DAYS;
+    currentRangeDays = targetDays;
+    const endMs = FIXED_TODAY_MS;
+    const startMs = startOfDayLocal(endMs - (targetDays - 1) * DAY_MS);
+    startEl.value = isoToLocalInput(new Date(startMs).toISOString());
+    endEl.value = isoToLocalInput(new Date(endMs).toISOString());
+    if (rangeButtonsWrap) {
+      rangeButtonsWrap.querySelectorAll('button').forEach((btn) => {
+        const btnDays = Number(btn.dataset.days);
+        btn.classList.toggle('active', btnDays === targetDays);
+      });
+    }
+    updateSelectedRangeDisplay();
+    refreshMetrics();
+  }
+
   function updateSelectedRangeDisplay() {
     if (!rangeDiv) return;
     const start = readInputTs(startEl);
@@ -321,6 +351,7 @@ async function init() {
     const sel = selection || { building: null, floor: null, room: null };
     rangeDiv.innerHTML = `
       <b>Scope:</b> ${sel.building ? 'Building '+sel.building : '—'}${sel.floor ? ' · Floor '+sel.floor : ''}${sel.room ? ' · Room '+(sel.roomLabel || sel.room) : ''}<br>
+      <b>Window:</b> Last ${currentRangeDays} day(s) (anchored to 20 Oct 2025)<br>
       <b>Start:</b> ${formatDateLocal(start)} <span style="color:#3b82f6;">(UTC: ${formatDateUTC(start)})</span><br>
       <b>End:</b> ${formatDateLocal(end)} <span style="color:#3b82f6;">(UTC: ${formatDateUTC(end)})</span>
     `;
@@ -810,11 +841,7 @@ async function init() {
 
 
 
-  const now = new Date();
-  const startInit = new Date(now);
-  startInit.setHours(0, 0, 0, 0);
-  startEl.value = isoToLocalInput(startInit.toISOString());
-  endEl.value = isoToLocalInput(now.toISOString());
+  applyPresetDays(DEFAULT_WINDOW_DAYS);
 
  
 
@@ -1431,6 +1458,14 @@ async function init() {
     }
   });
  
+  if (rangeButtonsWrap) {
+    rangeButtonsWrap.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-days]');
+      if (!btn) return;
+      const days = Number(btn.dataset.days);
+      applyPresetDays(days);
+    });
+  }
   startEl.addEventListener('change', () => { updateSelectedRangeDisplay(); refreshMetrics(); });
   endEl.addEventListener('change', () => { updateSelectedRangeDisplay(); refreshMetrics(); });
 

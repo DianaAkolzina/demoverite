@@ -7,6 +7,9 @@ const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
 const RESULTS_DIR = process.env.TEST_RESULTS_DIR || path.join('data', 'tests');
 const REQUIRED_SCENARIO_COUNT = Number(process.env.TEST_SCENARIO_COUNT || 10);
 const DURATIONS_HOURS = [6, 12, 24, 48, 72, 96, 168, 240, 336, 504];
+const ALLOWED_DAY_WINDOWS = [1, 7, 30];
+const DEFAULT_WINDOW_DAYS = 7;
+const FIXED_TODAY_MS = Date.UTC(2025, 9, 20, 23, 59, 59, 999); // 20 Oct 2025 23:59:59Z
 
 async function fetchJson(url, init) {
   const res = await fetch(`${BASE_URL}${url}`, init);
@@ -68,18 +71,22 @@ function normaliseList(value) {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const RANGE_START_MS = Date.UTC(2024, 8, 1); // 1 Sept 2024
-const RANGE_MAX_START_MS = Date.UTC(2024, 9, 3); // allows 14-day window ending by 17 Oct
-const RANGE_END_LIMIT_MS = Date.UTC(2024, 9, 17, 23, 59, 59, 999);
+function startOfDayUtc(ts) {
+  const d = new Date(ts);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function anchorRange(days = DEFAULT_WINDOW_DAYS) {
+  const windowDays = ALLOWED_DAY_WINDOWS.includes(days) ? days : DEFAULT_WINDOW_DAYS;
+  const end = FIXED_TODAY_MS;
+  const start = startOfDayUtc(end - (windowDays - 1) * DAY_MS);
+  return { start, end };
+}
 
 function createTimeRange() {
-  const totalDays = Math.floor((RANGE_MAX_START_MS - RANGE_START_MS) / DAY_MS);
-  const offsetDays = Math.floor(Math.random() * (totalDays + 1));
-  const start = RANGE_START_MS + offsetDays * DAY_MS;
-  const durationDays = 7 + Math.floor(Math.random() * 8); // 7-14 days
-  let end = start + (durationDays * DAY_MS) - 1;
-  if (end > RANGE_END_LIMIT_MS) end = RANGE_END_LIMIT_MS;
-  return { start, end };
+  const choice = ALLOWED_DAY_WINDOWS[Math.floor(Math.random() * ALLOWED_DAY_WINDOWS.length)];
+  return anchorRange(choice);
 }
 
 function formatRangeText(range) {
@@ -254,8 +261,8 @@ const MANUAL_SCENARIOS = [
       floors: ['First Floor'],
       zones: BOLTON_FIRST_FLOOR_ZONES
     }),
-    question: 'Confirm the visible scope for Bolton First Floor between the selected dates and list the rooms/devices with data.',
-    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+    question: 'Confirm the visible scope for Bolton First Floor between 2025-09-21 and 2025-10-20 and list the rooms/devices with data.',
+    range: anchorRange(30)
   },
   {
     label: 'Standup temperature and humidity',
@@ -268,8 +275,8 @@ const MANUAL_SCENARIOS = [
       devices: ['64214e60-479c-11f0-bf13-bf19a72566f6'],
       deviceZones: { '64214e60-479c-11f0-bf13-bf19a72566f6': 'Standup' }
     }),
-    question: 'Plot temperature and humidity in Standup between 2025-09-10 and 2025-09-24 and summarise highs and lows.',
-    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+    question: 'Plot temperature and humidity in Standup between 2025-09-21 and 2025-10-20 and summarise highs and lows.',
+    range: anchorRange(30)
   },
   {
     label: 'Huddle people count',
@@ -282,8 +289,8 @@ const MANUAL_SCENARIOS = [
       devices: ['29436890-4798-11f0-bf13-bf19a72566f6'],
       deviceZones: { '29436890-4798-11f0-bf13-bf19a72566f6': 'Huddle' }
     }),
-    question: 'Chart people_count for Huddle between 2025-09-10 and 2025-09-24 and call out peak periods.',
-    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+    question: 'Chart people_count for Huddle between 2025-09-21 and 2025-10-20 and call out peak periods.',
+    range: anchorRange(30)
   },
   {
     label: 'Cafe IAQ and comfort',
@@ -296,8 +303,8 @@ const MANUAL_SCENARIOS = [
       devices: ['abc73b80-4797-11f0-bf13-bf19a72566f6'],
       deviceZones: { 'abc73b80-4797-11f0-bf13-bf19a72566f6': 'Cafe' }
     }),
-    question: 'Between 2025-09-10 and 2025-09-24, summarise Cafe CO2, temperature, humidity, and lux; mention any gaps.',
-    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+    question: 'Between 2025-09-21 and 2025-10-20, summarise Cafe CO2, temperature, humidity, and lux; mention any gaps.',
+    range: anchorRange(30)
   },
   {
     label: 'Comms energy trend',
@@ -310,8 +317,8 @@ const MANUAL_SCENARIOS = [
       devices: ['8e00d400-479a-11f0-bf13-bf19a72566f6'],
       deviceZones: { '8e00d400-479a-11f0-bf13-bf19a72566f6': 'Comms' }
     }),
-    question: 'Show total_kwh for Comms between 2025-09-10 and 2025-09-24 and describe daily highs/lows.',
-    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+    question: 'Show total_kwh for Comms between 2025-09-21 and 2025-10-20 and describe daily highs/lows.',
+    range: anchorRange(30)
   },
   {
     label: 'Comms water usage',
@@ -324,8 +331,8 @@ const MANUAL_SCENARIOS = [
       devices: ['4a829030-58b9-11f0-a19e-8f874a1c01d3'],
       deviceZones: { '4a829030-58b9-11f0-a19e-8f874a1c01d3': 'Comms' }
     }),
-    question: 'Chart water_total for Comms between 2025-09-10 and 2025-09-24 and highlight any step changes.',
-    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+    question: 'Chart water_total for Comms between 2025-09-21 and 2025-10-20 and highlight any step changes.',
+    range: anchorRange(30)
   },
   {
     label: 'Toilet ammonia and odour',
@@ -338,8 +345,8 @@ const MANUAL_SCENARIOS = [
       devices: ['2e857e60-58b9-11f0-a19e-8f874a1c01d3'],
       deviceZones: { '2e857e60-58b9-11f0-a19e-8f874a1c01d3': 'Toilet' }
     }),
-    question: 'Plot NH3 and H2S in the Toilet between 2025-09-10 and 2025-09-24 and flag any spikes.',
-    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+    question: 'Plot NH3 and H2S in the Toilet between 2025-09-21 and 2025-10-20 and flag any spikes.',
+    range: anchorRange(30)
   },
   {
     label: 'Toilet leak status',
@@ -352,8 +359,8 @@ const MANUAL_SCENARIOS = [
       devices: ['002f9dc0-58b9-11f0-a19e-8f874a1c01d3'],
       deviceZones: { '002f9dc0-58b9-11f0-a19e-8f874a1c01d3': 'Toilet' }
     }),
-    question: 'Check the leak status readings for the Toilet between 2025-09-10 and 2025-09-24 and confirm if any alerts occurred.',
-    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+    question: 'Check the leak status readings for the Toilet between 2025-09-21 and 2025-10-20 and confirm if any alerts occurred.',
+    range: anchorRange(30)
   },
   {
     label: 'Brainstorm occupancy and comfort',
@@ -369,8 +376,8 @@ const MANUAL_SCENARIOS = [
         'f22ffa70-47a2-11f0-bf13-bf19a72566f6': 'Brainstorm'
       }
     }),
-    question: 'Summarise occupancy (is_used) alongside temperature and humidity for Brainstorm between 2025-09-10 and 2025-09-24.',
-    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-24T23:59:59Z')
+    question: 'Summarise occupancy (is_used) alongside temperature and humidity for Brainstorm between 2025-09-21 and 2025-10-20.',
+    range: anchorRange(30)
   },
   {
     label: 'Cafe temperature vs weather',
@@ -383,8 +390,8 @@ const MANUAL_SCENARIOS = [
       devices: ['abc73b80-4797-11f0-bf13-bf19a72566f6'],
       deviceZones: { 'abc73b80-4797-11f0-bf13-bf19a72566f6': 'Cafe' }
     }),
-    question: 'Compare Cafe indoor temperature against Bolton outdoor weather between 2025-09-10 and 2025-09-17 and describe any relationship.',
-    range: fixedRange('2025-09-10T00:00:00Z', '2025-09-17T23:59:59Z')
+    question: 'Compare Cafe indoor temperature against Bolton outdoor weather between 2025-10-14 and 2025-10-20 and describe any relationship.',
+    range: anchorRange(7)
   }
 ];
 
