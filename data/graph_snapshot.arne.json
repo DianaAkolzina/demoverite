@@ -3,12 +3,12 @@
   "generatedAt": 1765312329441,
   "buildings": [
     {
-      "id": "Building:Arne Retail - Liverpool",
-      "name": "Arne Retail - Liverpool",
+      "id": "Building:alumni_campus",
+      "name": "Alumni Campus",
       "label": "Building",
       "properties": {
         "floorCount": 1,
-        "name": "Arne Retail - Liverpool",
+        "name": "Alumni Campus",
         "id": 77,
         "originalId": 1,
         "isActive": true,
@@ -47,6 +47,20 @@
             "isActive": true
           },
           "cloudId": "64e52540-8c95-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:meter:arne_retail_liverpool",
+          "name": "Utility Meter - Quarry Campus",
+          "label": "Device",
+          "properties": {
+            "name": "Utility Meter - Quarry Campus",
+            "label": "Utility Meter",
+            "id": "Device:meter:arne_retail_liverpool",
+            "isActive": true,
+            "cloudId": "meter-arne_retail_liverpool"
+          },
+          "type": "Meter",
+          "cloudId": "meter-arne_retail_liverpool"
         }
       ],
       "floors": [
@@ -90,6 +104,77 @@
                     "isActive": true
                   },
                   "cloudId": "71908fe0-8d68-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:arne_retail_liverpool-side_entrance",
+                  "name": "Side Entrance Meter - Quarry Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Side Entrance Meter - Quarry Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:arne_retail_liverpool-side_entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-arne_retail_liverpool-side_entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-arne_retail_liverpool-side_entrance"
+                },
+                {
+                  "id": "Device:meter:zone:arne_retail_liverpool-side_entrance",
+                  "name": "Side Entrance Meter - Quarry Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Side Entrance Meter - Quarry Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:arne_retail_liverpool-side_entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-arne_retail_liverpool-side_entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-arne_retail_liverpool-side_entrance"
+                },
+                {
+                  "id": "Device:meter:zone:arne_retail_liverpool-side_entrance",
+                  "name": "Side Entrance Meter - Quarry Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Side Entrance Meter - Quarry Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:arne_retail_liverpool-side_entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-arne_retail_liverpool-side_entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-arne_retail_liverpool-side_entrance"
+                },
+                {
+                  "id": "Device:sensor:side_entrance",
+                  "name": "Side Entrance Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Side Entrance Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:side_entrance",
+                    "isActive": true,
+                    "cloudId": "sensor-side_entrance",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-side_entrance"
+                },
+                {
+                  "id": "Device:meter:zone:arne_retail_liverpool-side_entrance",
+                  "name": "Side Entrance Meter - Quarry Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Side Entrance Meter - Quarry Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:arne_retail_liverpool-side_entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-arne_retail_liverpool-side_entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-arne_retail_liverpool-side_entrance"
                 }
               ]
             },
@@ -121,6 +206,77 @@
                     "isActive": true
                   },
                   "cloudId": "64e52540-8c95-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:arne_retail_liverpool-main_entrance",
+                  "name": "Main Entrance Meter - Quarry Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Main Entrance Meter - Quarry Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:arne_retail_liverpool-main_entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-arne_retail_liverpool-main_entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-arne_retail_liverpool-main_entrance"
+                },
+                {
+                  "id": "Device:meter:zone:arne_retail_liverpool-main_entrance",
+                  "name": "Main Entrance Meter - Quarry Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Main Entrance Meter - Quarry Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:arne_retail_liverpool-main_entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-arne_retail_liverpool-main_entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-arne_retail_liverpool-main_entrance"
+                },
+                {
+                  "id": "Device:meter:zone:arne_retail_liverpool-main_entrance",
+                  "name": "Main Entrance Meter - Quarry Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Main Entrance Meter - Quarry Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:arne_retail_liverpool-main_entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-arne_retail_liverpool-main_entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-arne_retail_liverpool-main_entrance"
+                },
+                {
+                  "id": "Device:sensor:main_entrance",
+                  "name": "Main Entrance Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Main Entrance Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:main_entrance",
+                    "isActive": true,
+                    "cloudId": "sensor-main_entrance",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-main_entrance"
+                },
+                {
+                  "id": "Device:meter:zone:arne_retail_liverpool-main_entrance",
+                  "name": "Main Entrance Meter - Quarry Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Main Entrance Meter - Quarry Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:arne_retail_liverpool-main_entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-arne_retail_liverpool-main_entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-arne_retail_liverpool-main_entrance"
                 }
               ]
             }
@@ -165,15 +321,15 @@
   ],
   "nodes": [
     {
-      "id": "Building:Arne Retail - Liverpool",
+      "id": "Building:alumni_campus",
       "label": "Building",
-      "name": "Arne Retail - Liverpool",
+      "name": "Alumni Campus",
       "nodeType": "Building",
       "hasData": true,
       "dataDevices": 1,
       "properties": {
         "floorCount": 1,
-        "name": "Arne Retail - Liverpool",
+        "name": "Alumni Campus",
         "id": 77,
         "originalId": 1,
         "isActive": true,
@@ -295,17 +451,317 @@
       },
       "x": 70,
       "y": 660
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:arne_retail_liverpool",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:arne_retail_liverpool-side_entrance",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:arne_retail_liverpool-main_entrance",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:sensor:main_entrance",
+      "label": "Device",
+      "name": "Main Entrance Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Main Entrance Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:main_entrance",
+        "isActive": true,
+        "cloudId": "sensor-main_entrance",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-main_entrance"
+    },
+    {
+      "id": "Device:sensor:side_entrance",
+      "label": "Device",
+      "name": "Side Entrance Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Side Entrance Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:side_entrance",
+        "isActive": true,
+        "cloudId": "sensor-side_entrance",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-side_entrance"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:nimbus_campus-main_entrance",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:iaq:nimbus_campus_side_entrance",
+      "label": "Device",
+      "name": "IAQ Sensor - Side Entrance",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Side Entrance",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:nimbus_campus_side_entrance",
+        "isActive": true,
+        "cloudId": "iaq-nimbus_campus_side_entrance",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-nimbus_campus_side_entrance"
+    },
+    {
+      "id": "Device:iaq:nimbus_campus_main_entrance",
+      "label": "Device",
+      "name": "IAQ Sensor - Main Entrance",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Main Entrance",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:nimbus_campus_main_entrance",
+        "isActive": true,
+        "cloudId": "iaq-nimbus_campus_main_entrance",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-nimbus_campus_main_entrance"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:cedar_campus-main_entrance",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_side_entrance",
+      "label": "Device",
+      "name": "IAQ Sensor - Side Entrance",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Side Entrance",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_side_entrance",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_side_entrance",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_side_entrance"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_main_entrance",
+      "label": "Device",
+      "name": "IAQ Sensor - Main Entrance",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Main Entrance",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_main_entrance",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_main_entrance",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_main_entrance"
+    },
+    {
+      "id": "Device:iaq:summit_campus_side_entrance",
+      "label": "Device",
+      "name": "IAQ Sensor - Side Entrance",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Side Entrance",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_side_entrance",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_side_entrance",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_side_entrance"
+    },
+    {
+      "id": "Device:iaq:summit_campus_main_entrance",
+      "label": "Device",
+      "name": "IAQ Sensor - Main Entrance",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Main Entrance",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_main_entrance",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_main_entrance",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_main_entrance"
+    },
+    {
+      "id": "Device:meter:zone:cedar_campus-main_entrance",
+      "label": "Device",
+      "name": "Main Entrance Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Main Entrance Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:cedar_campus-main_entrance",
+        "isActive": true,
+        "cloudId": "meter-zone-cedar_campus-main_entrance"
+      },
+      "cloudId": "meter-zone-cedar_campus-main_entrance"
+    },
+    {
+      "id": "Device:people:cedar_campus_side_entrance_people",
+      "label": "Device",
+      "name": "People Counter - Side Entrance",
+      "nodeType": "Device",
+      "type": "People Counter",
+      "hasData": true,
+      "properties": {
+        "name": "People Counter - Side Entrance",
+        "label": "People Counter",
+        "id": "Device:people:cedar_campus_side_entrance_people",
+        "isActive": true,
+        "cloudId": "people-cedar_campus_side_entrance_people",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "people-cedar_campus_side_entrance_people"
+    },
+    {
+      "id": "Device:people:cedar_campus_main_entrance_people",
+      "label": "Device",
+      "name": "People Counter - Main Entrance",
+      "nodeType": "Device",
+      "type": "People Counter",
+      "hasData": true,
+      "properties": {
+        "name": "People Counter - Main Entrance",
+        "label": "People Counter",
+        "id": "Device:people:cedar_campus_main_entrance_people",
+        "isActive": true,
+        "cloudId": "people-cedar_campus_main_entrance_people",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "people-cedar_campus_main_entrance_people"
+    },
+    {
+      "id": "Device:people:summit_campus_side_entrance_people",
+      "label": "Device",
+      "name": "People Counter - Side Entrance",
+      "nodeType": "Device",
+      "type": "People Counter",
+      "hasData": true,
+      "properties": {
+        "name": "People Counter - Side Entrance",
+        "label": "People Counter",
+        "id": "Device:people:summit_campus_side_entrance_people",
+        "isActive": true,
+        "cloudId": "people-summit_campus_side_entrance_people",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "people-summit_campus_side_entrance_people"
+    },
+    {
+      "id": "Device:people:summit_campus_main_entrance_people",
+      "label": "Device",
+      "name": "People Counter - Main Entrance",
+      "nodeType": "Device",
+      "type": "People Counter",
+      "hasData": true,
+      "properties": {
+        "name": "People Counter - Main Entrance",
+        "label": "People Counter",
+        "id": "Device:people:summit_campus_main_entrance_people",
+        "isActive": true,
+        "cloudId": "people-summit_campus_main_entrance_people",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "people-summit_campus_main_entrance_people"
     }
   ],
   "links": [
     {
       "source": "Floor:119:77",
-      "target": "Building:Arne Retail - Liverpool",
+      "target": "Building:alumni_campus",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:186:77",
-      "target": "Building:Arne Retail - Liverpool",
+      "target": "Building:alumni_campus",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -315,7 +771,7 @@
     },
     {
       "source": "Zone:187:77",
-      "target": "Building:Arne Retail - Liverpool",
+      "target": "Building:alumni_campus",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -335,7 +791,7 @@
     },
     {
       "source": "Device:40",
-      "target": "Building:Arne Retail - Liverpool",
+      "target": "Building:alumni_campus",
       "rel": "IN_BUILDING"
     },
     {
@@ -350,7 +806,287 @@
     },
     {
       "source": "Device:41",
-      "target": "Building:Arne Retail - Liverpool",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:186:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:187:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:main_entrance",
+      "target": "Zone:187:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:main_entrance",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:main_entrance",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:side_entrance",
+      "target": "Zone:186:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:side_entrance",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:side_entrance",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:186:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:187:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_side_entrance",
+      "target": "Zone:186:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_side_entrance",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_side_entrance",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_main_entrance",
+      "target": "Zone:187:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_main_entrance",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_main_entrance",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:187:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_side_entrance",
+      "target": "Zone:186:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_side_entrance",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_side_entrance",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_main_entrance",
+      "target": "Zone:187:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_main_entrance",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_main_entrance",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_side_entrance",
+      "target": "Zone:186:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_side_entrance",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_side_entrance",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_main_entrance",
+      "target": "Zone:187:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_main_entrance",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_main_entrance",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:zone:cedar_campus-main_entrance",
+      "target": "Zone:187:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:zone:cedar_campus-main_entrance",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:zone:cedar_campus-main_entrance",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:people:cedar_campus_side_entrance_people",
+      "target": "Zone:186:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:people:cedar_campus_side_entrance_people",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:people:cedar_campus_side_entrance_people",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:people:cedar_campus_main_entrance_people",
+      "target": "Zone:187:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:people:cedar_campus_main_entrance_people",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:people:cedar_campus_main_entrance_people",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:people:summit_campus_side_entrance_people",
+      "target": "Zone:186:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:people:summit_campus_side_entrance_people",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:people:summit_campus_side_entrance_people",
+      "target": "Building:alumni_campus",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:people:summit_campus_main_entrance_people",
+      "target": "Zone:187:77",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:people:summit_campus_main_entrance_people",
+      "target": "Floor:119:77",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:people:summit_campus_main_entrance_people",
+      "target": "Building:alumni_campus",
       "rel": "IN_BUILDING"
     }
   ]

@@ -3,19 +3,34 @@
   "generatedAt": 1765312336469,
   "buildings": [
     {
-      "id": "Building:Element",
-      "name": "Element",
+      "id": "Building:horizon_yard",
+      "name": "Horizon Yard",
       "label": "Building",
       "properties": {
         "floorCount": 1,
-        "name": "Element",
+        "name": "Horizon Yard",
         "id": 78,
         "originalId": 2,
         "isActive": true,
         "lat": 53.4308695,
         "long": -2.5241922
       },
-      "devices": [],
+      "devices": [
+        {
+          "id": "Device:meter:element",
+          "name": "Utility Meter - Mariner Campus",
+          "label": "Device",
+          "properties": {
+            "name": "Utility Meter - Mariner Campus",
+            "label": "Utility Meter",
+            "id": "Device:meter:element",
+            "isActive": true,
+            "cloudId": "meter-element"
+          },
+          "type": "Meter",
+          "cloudId": "meter-element"
+        }
+      ],
       "floors": [
         {
           "id": "Floor:120:78",
@@ -41,7 +56,79 @@
                 "originalId": 10,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:element-gym",
+                  "name": "Gym Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Gym Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:element-gym",
+                    "isActive": true,
+                    "cloudId": "meter-zone-element-gym"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-element-gym"
+                },
+                {
+                  "id": "Device:meter:zone:element-gym",
+                  "name": "Gym Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Gym Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:element-gym",
+                    "isActive": true,
+                    "cloudId": "meter-zone-element-gym"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-element-gym"
+                },
+                {
+                  "id": "Device:meter:zone:element-gym",
+                  "name": "Gym Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Gym Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:element-gym",
+                    "isActive": true,
+                    "cloudId": "meter-zone-element-gym"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-element-gym"
+                },
+                {
+                  "id": "Device:sensor:gym",
+                  "name": "Gym Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Gym Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:gym",
+                    "isActive": true,
+                    "cloudId": "sensor-gym",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-gym"
+                },
+                {
+                  "id": "Device:meter:zone:element-gym",
+                  "name": "Gym Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Gym Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:element-gym",
+                    "isActive": true,
+                    "cloudId": "meter-zone-element-gym"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-element-gym"
+                }
+              ]
             },
             {
               "id": "Zone:189:78",
@@ -55,7 +142,79 @@
                 "originalId": 9,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:element-reception_cafe",
+                  "name": "Reception + Cafe Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception + Cafe Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:element-reception_cafe",
+                    "isActive": true,
+                    "cloudId": "meter-zone-element-reception_cafe"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-element-reception_cafe"
+                },
+                {
+                  "id": "Device:meter:zone:element-reception_cafe",
+                  "name": "Reception + Cafe Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception + Cafe Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:element-reception_cafe",
+                    "isActive": true,
+                    "cloudId": "meter-zone-element-reception_cafe"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-element-reception_cafe"
+                },
+                {
+                  "id": "Device:meter:zone:element-reception_cafe",
+                  "name": "Reception + Cafe Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception + Cafe Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:element-reception_cafe",
+                    "isActive": true,
+                    "cloudId": "meter-zone-element-reception_cafe"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-element-reception_cafe"
+                },
+                {
+                  "id": "Device:sensor:reception_cafe",
+                  "name": "Reception + Cafe Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception + Cafe Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:reception_cafe",
+                    "isActive": true,
+                    "cloudId": "sensor-reception_cafe",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-reception_cafe"
+                },
+                {
+                  "id": "Device:meter:zone:element-reception_cafe",
+                  "name": "Reception + Cafe Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception + Cafe Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:element-reception_cafe",
+                    "isActive": true,
+                    "cloudId": "meter-zone-element-reception_cafe"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-element-reception_cafe"
+                }
+              ]
             }
           ],
           "devices": []
@@ -63,12 +222,12 @@
       ]
     },
     {
-      "id": "Building:SoapWorks",
-      "name": "SoapWorks",
+      "id": "Building:vertex_yard",
+      "name": "Vertex Yard",
       "label": "Building",
       "properties": {
         "floorCount": 5,
-        "name": "SoapWorks",
+        "name": "Vertex Yard",
         "id": 79,
         "originalId": 1,
         "isActive": true,
@@ -78,19 +237,33 @@
       "devices": [
         {
           "id": "Device:42",
-          "name": "Basement Mechanical_MRty02BgMoo3",
+          "name": "Harbor Campusment Mechanical_MRty02BgMoo3",
           "label": "Device",
           "type": null,
           "properties": {
             "licenseStatus": true,
             "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3",
-            "name": "Basement Mechanical_MRty02BgMoo3",
+            "name": "Harbor Campusment Mechanical_MRty02BgMoo3",
             "id": 42,
             "originalId": 1,
-            "label": "Basement Mechanical",
+            "label": "Harbor Campusment Mechanical",
             "isActive": true
           },
           "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:meter:soapworks",
+          "name": "Utility Meter - Harbor Campus",
+          "label": "Device",
+          "properties": {
+            "name": "Utility Meter - Harbor Campus",
+            "label": "Utility Meter",
+            "id": "Device:meter:soapworks",
+            "isActive": true,
+            "cloudId": "meter-soapworks"
+          },
+          "type": "Meter",
+          "cloudId": "meter-soapworks"
         }
       ],
       "floors": [
@@ -118,7 +291,303 @@
                 "originalId": 7,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:sensor:lobby",
+                  "name": "Lobby Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:lobby",
+                    "isActive": true,
+                    "cloudId": "sensor-lobby",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-lobby",
+                  "name": "Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-lobby"
+                }
+              ]
             }
           ],
           "devices": []
@@ -205,7 +674,79 @@
                 "originalId": 2,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:soapworks-cafe",
+                  "name": "Cafe Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-cafe",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-cafe"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-cafe"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-cafe",
+                  "name": "Cafe Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-cafe",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-cafe"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-cafe"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-cafe",
+                  "name": "Cafe Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-cafe",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-cafe"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-cafe"
+                },
+                {
+                  "id": "Device:sensor:cafe",
+                  "name": "Cafe Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:cafe",
+                    "isActive": true,
+                    "cloudId": "sensor-cafe",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-cafe"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-cafe",
+                  "name": "Cafe Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-cafe",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-cafe"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-cafe"
+                }
+              ]
             },
             {
               "id": "Zone:194:79",
@@ -222,19 +763,90 @@
               "devices": [
                 {
                   "id": "Device:42",
-                  "name": "Basement Mechanical_MRty02BgMoo3",
+                  "name": "Harbor Campusment Mechanical_MRty02BgMoo3",
                   "label": "Device",
                   "type": null,
                   "properties": {
                     "licenseStatus": true,
                     "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3",
-                    "name": "Basement Mechanical_MRty02BgMoo3",
+                    "name": "Harbor Campusment Mechanical_MRty02BgMoo3",
                     "id": 42,
                     "originalId": 1,
-                    "label": "Basement Mechanical",
+                    "label": "Harbor Campusment Mechanical",
                     "isActive": true
                   },
                   "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-comms",
+                  "name": "Comms Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-comms",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-comms"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-comms"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-comms",
+                  "name": "Comms Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-comms",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-comms"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-comms"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-comms",
+                  "name": "Comms Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-comms",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-comms"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-comms"
+                },
+                {
+                  "id": "Device:sensor:comms",
+                  "name": "Comms Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:comms",
+                    "isActive": true,
+                    "cloudId": "sensor-comms",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-comms"
+                },
+                {
+                  "id": "Device:meter:zone:soapworks-comms",
+                  "name": "Comms Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:soapworks-comms",
+                    "isActive": true,
+                    "cloudId": "meter-zone-soapworks-comms"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-soapworks-comms"
                 }
               ]
             },
@@ -306,15 +918,15 @@
   ],
   "nodes": [
     {
-      "id": "Building:Element",
+      "id": "Building:horizon_yard",
       "label": "Building",
-      "name": "Element",
+      "name": "Horizon Yard",
       "nodeType": "Building",
       "hasData": false,
       "dataDevices": 0,
       "properties": {
         "floorCount": 1,
-        "name": "Element",
+        "name": "Horizon Yard",
         "id": 78,
         "originalId": 2,
         "isActive": true,
@@ -400,15 +1012,15 @@
       "y": 440
     },
     {
-      "id": "Building:SoapWorks",
+      "id": "Building:vertex_yard",
       "label": "Building",
-      "name": "SoapWorks",
+      "name": "Vertex Yard",
       "nodeType": "Building",
       "hasData": true,
       "dataDevices": 1,
       "properties": {
         "floorCount": 5,
-        "name": "SoapWorks",
+        "name": "Vertex Yard",
         "id": 79,
         "originalId": 1,
         "isActive": true,
@@ -745,32 +1357,529 @@
     {
       "id": "Device:42",
       "label": "Device",
-      "name": "Basement Mechanical_MRty02BgMoo3",
+      "name": "Harbor Campusment Mechanical_MRty02BgMoo3",
       "nodeType": "Device",
       "deviceType": null,
       "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3",
       "properties": {
         "licenseStatus": true,
         "cloudId": "0c863990-662d-11f0-a19e-8f874a1c01d3",
-        "name": "Basement Mechanical_MRty02BgMoo3",
+        "name": "Harbor Campusment Mechanical_MRty02BgMoo3",
         "id": 42,
         "originalId": 1,
-        "label": "Basement Mechanical",
+        "label": "Harbor Campusment Mechanical",
         "isActive": true
       },
       "x": 540,
       "y": 660
+    },
+    {
+      "id": "Device:meter:atlas_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:element",
+        "isActive": true,
+        "cloudId": "meter-atlas_campus"
+      },
+      "cloudId": "meter-atlas_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:soapworks",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:atlas_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:element-gym",
+        "isActive": true,
+        "cloudId": "meter-atlas_campus"
+      },
+      "cloudId": "meter-atlas_campus"
+    },
+    {
+      "id": "Device:meter:atlas_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:element-reception_cafe",
+        "isActive": true,
+        "cloudId": "meter-atlas_campus"
+      },
+      "cloudId": "meter-atlas_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:soapworks-lobby",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:soapworks-cafe",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:soapworks-comms",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:sensor:cafe",
+      "label": "Device",
+      "name": "Cafe Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Cafe Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:cafe",
+        "isActive": true,
+        "cloudId": "sensor-cafe",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-cafe"
+    },
+    {
+      "id": "Device:sensor:comms",
+      "label": "Device",
+      "name": "Comms Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Comms Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:comms",
+        "isActive": true,
+        "cloudId": "sensor-comms",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-comms"
+    },
+    {
+      "id": "Device:sensor:gym",
+      "label": "Device",
+      "name": "Gym Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Gym Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:gym",
+        "isActive": true,
+        "cloudId": "sensor-gym",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-gym"
+    },
+    {
+      "id": "Device:sensor:lobby",
+      "label": "Device",
+      "name": "Lobby Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Lobby Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:lobby",
+        "isActive": true,
+        "cloudId": "sensor-lobby",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-lobby"
+    },
+    {
+      "id": "Device:sensor:reception_cafe",
+      "label": "Device",
+      "name": "Reception + Cafe Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Reception + Cafe Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:reception_cafe",
+        "isActive": true,
+        "cloudId": "sensor-reception_cafe",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-reception_cafe"
+    },
+    {
+      "id": "Device:meter:atlas_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:juniper_campus-reception_cafe",
+        "isActive": true,
+        "cloudId": "meter-atlas_campus"
+      },
+      "cloudId": "meter-atlas_campus"
+    },
+    {
+      "id": "Device:iaq:juniper_campus_gym",
+      "label": "Device",
+      "name": "IAQ Sensor - Gym",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Gym",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:juniper_campus_gym",
+        "isActive": true,
+        "cloudId": "iaq-juniper_campus_gym",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-juniper_campus_gym"
+    },
+    {
+      "id": "Device:iaq:juniper_campus_reception_cafe",
+      "label": "Device",
+      "name": "IAQ Sensor - Reception + Cafe",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Reception + Cafe",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:juniper_campus_reception_cafe",
+        "isActive": true,
+        "cloudId": "iaq-juniper_campus_reception_cafe",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-juniper_campus_reception_cafe"
+    },
+    {
+      "id": "Device:meter:atlas_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:orchid_campus-cafe",
+        "isActive": true,
+        "cloudId": "meter-atlas_campus"
+      },
+      "cloudId": "meter-atlas_campus"
+    },
+    {
+      "id": "Device:meter:atlas_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:orchid_campus-comms",
+        "isActive": true,
+        "cloudId": "meter-atlas_campus"
+      },
+      "cloudId": "meter-atlas_campus"
+    },
+    {
+      "id": "Device:iaq:orchid_campus_lobby",
+      "label": "Device",
+      "name": "IAQ Sensor - Lobby",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Lobby",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:orchid_campus_lobby",
+        "isActive": true,
+        "cloudId": "iaq-orchid_campus_lobby",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-orchid_campus_lobby"
+    },
+    {
+      "id": "Device:iaq:orchid_campus_cafe",
+      "label": "Device",
+      "name": "IAQ Sensor - Cafe",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Cafe",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:orchid_campus_cafe",
+        "isActive": true,
+        "cloudId": "iaq-orchid_campus_cafe",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-orchid_campus_cafe"
+    },
+    {
+      "id": "Device:iaq:orchid_campus_comms",
+      "label": "Device",
+      "name": "IAQ Sensor - Comms",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Comms",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:orchid_campus_comms",
+        "isActive": true,
+        "cloudId": "iaq-orchid_campus_comms",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-orchid_campus_comms"
+    },
+    {
+      "id": "Device:meter:atlas_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:nimbus_campus-reception_cafe",
+        "isActive": true,
+        "cloudId": "meter-atlas_campus"
+      },
+      "cloudId": "meter-atlas_campus"
+    },
+    {
+      "id": "Device:iaq:nimbus_campus_gym",
+      "label": "Device",
+      "name": "IAQ Sensor - Gym",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Gym",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:nimbus_campus_gym",
+        "isActive": true,
+        "cloudId": "iaq-nimbus_campus_gym",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-nimbus_campus_gym"
+    },
+    {
+      "id": "Device:iaq:nimbus_campus_reception_cafe",
+      "label": "Device",
+      "name": "IAQ Sensor - Reception + Cafe",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Reception + Cafe",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:nimbus_campus_reception_cafe",
+        "isActive": true,
+        "cloudId": "iaq-nimbus_campus_reception_cafe",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-nimbus_campus_reception_cafe"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:orchid_campus-cafe",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:orchid_campus-comms",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:iaq:atlas_campus_gym",
+      "label": "Device",
+      "name": "IAQ Sensor - Gym",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Gym",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:atlas_campus_gym",
+        "isActive": true,
+        "cloudId": "iaq-atlas_campus_gym",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-atlas_campus_gym"
+    },
+    {
+      "id": "Device:iaq:atlas_campus_reception_cafe",
+      "label": "Device",
+      "name": "IAQ Sensor - Reception + Cafe",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Reception + Cafe",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:atlas_campus_reception_cafe",
+        "isActive": true,
+        "cloudId": "iaq-atlas_campus_reception_cafe",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-atlas_campus_reception_cafe"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_lobby",
+      "label": "Device",
+      "name": "IAQ Sensor - Lobby",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Lobby",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_lobby",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_lobby",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_lobby"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_cafe",
+      "label": "Device",
+      "name": "IAQ Sensor - Cafe",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Cafe",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_cafe",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_cafe",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_cafe"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_comms",
+      "label": "Device",
+      "name": "IAQ Sensor - Comms",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Comms",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_comms",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_comms",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_comms"
     }
   ],
   "links": [
     {
       "source": "Floor:120:78",
-      "target": "Building:Element",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:188:78",
-      "target": "Building:Element",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -780,7 +1889,7 @@
     },
     {
       "source": "Zone:189:78",
-      "target": "Building:Element",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -790,32 +1899,32 @@
     },
     {
       "source": "Floor:121:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Floor:122:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Floor:123:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Floor:124:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Floor:125:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:190:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -825,7 +1934,7 @@
     },
     {
       "source": "Zone:191:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -835,7 +1944,7 @@
     },
     {
       "source": "Zone:192:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -845,7 +1954,7 @@
     },
     {
       "source": "Zone:193:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -855,7 +1964,7 @@
     },
     {
       "source": "Zone:194:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -865,7 +1974,7 @@
     },
     {
       "source": "Zone:195:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -875,7 +1984,7 @@
     },
     {
       "source": "Zone:196:79",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -895,7 +2004,472 @@
     },
     {
       "source": "Device:42",
-      "target": "Building:SoapWorks",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Zone:188:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Zone:189:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:190:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:121:79",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:193:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:194:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:cafe",
+      "target": "Zone:193:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:cafe",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:cafe",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:comms",
+      "target": "Zone:194:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:comms",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:comms",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:gym",
+      "target": "Zone:188:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:gym",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:gym",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:lobby",
+      "target": "Zone:190:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:lobby",
+      "target": "Floor:121:79",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:lobby",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:reception_cafe",
+      "target": "Zone:189:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:reception_cafe",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:reception_cafe",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Zone:188:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:190:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Zone:189:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:juniper_campus_gym",
+      "target": "Zone:188:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:juniper_campus_gym",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:juniper_campus_gym",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:juniper_campus_reception_cafe",
+      "target": "Zone:189:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:juniper_campus_reception_cafe",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:juniper_campus_reception_cafe",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:193:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:194:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_lobby",
+      "target": "Zone:190:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_lobby",
+      "target": "Floor:121:79",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_lobby",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_cafe",
+      "target": "Zone:193:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_cafe",
+      "target": "Floor:124:79",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_cafe",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_comms",
+      "target": "Zone:194:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_comms",
+      "target": "Floor:124:79",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_comms",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Zone:189:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_gym",
+      "target": "Zone:188:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_gym",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_gym",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_reception_cafe",
+      "target": "Zone:189:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_reception_cafe",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_reception_cafe",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:193:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:194:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:atlas_campus_gym",
+      "target": "Zone:188:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:atlas_campus_gym",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:atlas_campus_gym",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:atlas_campus_reception_cafe",
+      "target": "Zone:189:78",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:atlas_campus_reception_cafe",
+      "target": "Floor:120:78",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:atlas_campus_reception_cafe",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_lobby",
+      "target": "Zone:190:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_lobby",
+      "target": "Floor:121:79",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_lobby",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_cafe",
+      "target": "Zone:193:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_cafe",
+      "target": "Floor:124:79",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_cafe",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_comms",
+      "target": "Zone:194:79",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_comms",
+      "target": "Floor:124:79",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_comms",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Building:vertex_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:atlas_campus",
+      "target": "Building:vertex_yard",
       "rel": "IN_BUILDING"
     }
   ]

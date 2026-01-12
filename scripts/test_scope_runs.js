@@ -102,6 +102,23 @@ function formatMetricName(metric = '') {
     .replace(/\b([a-z])/g, (m) => m.toUpperCase());
 }
 
+function toCommerceText(text = '') {
+  return String(text || '')
+    .replace(/\bbuildings\b/gi, 'shop owners')
+    .replace(/\bbuilding\b/gi, 'shop owner')
+    .replace(/\bfloors\b/gi, 'shops')
+    .replace(/\bfloor\b/gi, 'shop')
+    .replace(/\bzones\b/gi, 'pages')
+    .replace(/\bzone\b/gi, 'page')
+    .replace(/\brooms\b/gi, 'pages')
+    .replace(/\broom\b/gi, 'page')
+    .replace(/\bdevices\b/gi, 'products')
+    .replace(/\bdevice\b/gi, 'product')
+    .replace(/\bsensors\b/gi, 'products')
+    .replace(/\bmetrics\b/gi, 'KPIs')
+    .replace(/\bmetric\b/gi, 'KPI');
+}
+
 function findDeviceMatch(devices, regex) {
   for (const device of devices) {
     const idx = device.metricsLC.findIndex((m) => regex.test(m));
@@ -181,15 +198,30 @@ function createScenarioScope(ctx, { devices = [], zone = null, additionalZones =
 }
 
 function createScope({ tenant, building, floor = null, zone = null, floors = [], zones = [], devices = [], deviceZones = {} }) {
+  const resolvedFloors = normaliseList(floors.length ? floors : (floor ? [floor] : []));
+  const resolvedZones = normaliseList(zones.length ? zones : (zone ? [zone] : []));
+  const resolvedDevices = normaliseList(devices);
   return {
     tenant: tenant || null,
+    owner: building || null,
+    shop: floor || null,
+    page: zone || null,
+    pages: resolvedZones,
+    shops: resolvedFloors,
+    products: resolvedDevices,
+    productPages: deviceZones,
+    labels: {
+      owner: building || null,
+      shop: floor || null,
+      page: zone || (resolvedZones.length === 1 ? resolvedZones[0] : null)
+    },
     building: building || null,
     floor: floor || null,
     zone: zone || null,
-    room: zone || (zones.length === 1 ? zones[0] : null),
-    floors: normaliseList(floors.length ? floors : (floor ? [floor] : [])),
-    zones: normaliseList(zones.length ? zones : (zone ? [zone] : [])),
-    devices: normaliseList(devices),
+    room: zone || (resolvedZones.length === 1 ? resolvedZones[0] : null),
+    floors: resolvedFloors,
+    zones: resolvedZones,
+    devices: resolvedDevices,
     deviceZones
   };
 }
@@ -619,9 +651,9 @@ function buildBuildingScenarios(ctx) {
 
   function addScenario(label, scope, question, range) {
     scenarios.push({
-      label,
+      label: toCommerceText(label),
       scope,
-      question,
+      question: toCommerceText(question),
       range
     });
   }
@@ -808,22 +840,22 @@ async function runScenario(index, scenario) {
   const range = scenario.range || epochRange(durationHours || DURATIONS_HOURS[0]);
   const payload = {
     messages: [{ role: 'user', content: question }],
-    room: scope.zone || 'ALL',
+    product: null,
     range,
     selection: {
       tenant: scope.tenant || null,
-      building: scope.building || null,
-      floor: scope.floor || null,
-      room: scope.zone || null,
-      devices: normaliseList(scope.devices),
-      zones: normaliseList(scope.zones),
-      floors: normaliseList(scope.floors),
-      deviceZones: scope.deviceZones || {},
+      owner: scope.owner || scope.building || null,
+      shop: scope.shop || scope.floor || null,
+      page: scope.page || scope.zone || null,
+      products: normaliseList(scope.products || scope.devices),
+      pages: normaliseList(scope.pages || scope.zones),
+      shops: normaliseList(scope.shops || scope.floors),
+      productPages: scope.productPages || scope.deviceZones || {},
       labels: {
         tenant: scope.tenant || null,
-        building: scope.building || null,
-        floor: scope.floor || null,
-        room: scope.zone || null
+        owner: scope.owner || scope.building || null,
+        shop: scope.shop || scope.floor || null,
+        page: scope.page || scope.zone || null
       }
     }
   };

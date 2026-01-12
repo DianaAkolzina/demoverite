@@ -206,18 +206,18 @@ function buildScopeDocsFromSnapshots(dataDir) {
     zones.forEach((zone) => {
         const deviceList = Array.from(zone.deviceIds);
         if (!zone.name && !deviceList.length) return;
-      const tenantLabel = tenant ? `Tenant ${tenant}` : 'Default Tenant';
-      const buildingLabel = zone.buildingName || 'Unknown Building';
-      const floorLabel = zone.floorName || 'Unknown Floor';
+      const tenantLabel = tenant ? `Owner Group ${tenant}` : 'Default Owner Group';
+      const buildingLabel = zone.buildingName || 'Unknown Owner';
+      const floorLabel = zone.floorName || 'Unknown Shop';
       const zoneLabel = zone.name || zone.roomId || zone.id;
       const deviceSummaries = [];
       for (const cloudId of deviceList.slice(0, 8)) {
         const deviceNode = deviceByCloudId.get(cloudId);
         if (!deviceNode) continue;
         const metrics = Array.from(deviceMetrics.get(cloudId) || []).slice(0, 5);
-        const metricsText = metrics.length ? metrics.join(', ') : 'unknown metrics';
+        const metricsText = metrics.length ? metrics.join(', ') : 'unknown KPIs';
         const typeHint = deviceNode.type ? `, ${deviceNode.type}` : '';
-        deviceSummaries.push(`- ${deviceNode.name || cloudId} (${cloudId}${typeHint}) — metrics: ${metricsText}`);
+        deviceSummaries.push(`- ${deviceNode.name || cloudId} (${cloudId}${typeHint}) — KPIs: ${metricsText}`);
       }
       const aggregateMetrics = new Set();
       deviceList.forEach((cloudId) => {
@@ -225,13 +225,13 @@ function buildScopeDocsFromSnapshots(dataDir) {
         if (set) set.forEach((m) => aggregateMetrics.add(m));
       });
       const text = [
-        `Scope Snapshot (${tenantLabel}): Building ${buildingLabel}, Floor ${floorLabel}, Zone ${zoneLabel}.`,
-        zone.roomId ? `Room identifier: ${zone.roomId}.` : null,
-        deviceSummaries.length ? `Devices (${deviceList.length}):\n${deviceSummaries.join('\n')}` : 'Devices: none recorded in snapshot.',
+        `Scope Snapshot (${tenantLabel}): Owner ${buildingLabel}, Shop ${floorLabel}, Page ${zoneLabel}.`,
+        zone.roomId ? `Page identifier: ${zone.roomId}.` : null,
+        deviceSummaries.length ? `Products (${deviceList.length}):\n${deviceSummaries.join('\n')}` : 'Products: none recorded in snapshot.',
         deviceList.length > deviceSummaries.length
-          ? `(+${deviceList.length - deviceSummaries.length} additional devices omitted for brevity)`
+          ? `(+${deviceList.length - deviceSummaries.length} additional products omitted for brevity)`
           : null,
-        `Primary metrics: ${aggregateMetrics.size ? Array.from(aggregateMetrics).slice(0, 8).join(', ') : 'unknown'}.`
+        `Primary KPIs: ${aggregateMetrics.size ? Array.from(aggregateMetrics).slice(0, 8).join(', ') : 'unknown'}.`
       ]
         .filter(Boolean)
         .join('\n');
@@ -382,7 +382,7 @@ function buildTelemetrySummaries({ rooms, loadRoomTables, maxRooms = Number(proc
         })
         .slice(0, 6)
         .join('; ');
-      const text = `Telemetry summary for device ${room} table ${table}. Metrics: ${metrics.join(', ') || 'unknown'}. Coverage: ${tsMin ? new Date(tsMin).toISOString() : 'n/a'} → ${tsMax ? new Date(tsMax).toISOString() : 'n/a'}. Recent stats: ${statLines || 'insufficient numeric samples'}.`;
+      const text = `Telemetry summary for product ${room} table ${table}. KPIs: ${metrics.join(', ') || 'unknown'}. Coverage: ${tsMin ? new Date(tsMin).toISOString() : 'n/a'} → ${tsMax ? new Date(tsMax).toISOString() : 'n/a'}. Recent stats: ${statLines || 'insufficient numeric samples'}.`;
       summaries.push({
         id: `t_${room}_${table}_${summaries.length}`,
         text,
@@ -419,7 +419,7 @@ function buildWeatherDocs(dataDir) {
         const avgH = humidity.reduce((a, b) => a + b, 0) / humidity.length;
         lineParts.push(`humidity ${humidity[0].toFixed(1)}–${humidity.at(-1).toFixed(1)}% (avg ${avgH.toFixed(1)}%)`);
       }
-      const text = `Weather cache for ${building}. Coverage: ${tsMin ? new Date(tsMin).toISOString() : 'unknown'} → ${tsMax ? new Date(tsMax).toISOString() : 'unknown'}. ${lineParts.join('. ')}`;
+      const text = `Market signals cache for ${building}. Coverage: ${tsMin ? new Date(tsMin).toISOString() : 'unknown'} → ${tsMax ? new Date(tsMax).toISOString() : 'unknown'}. ${lineParts.join('. ')}`;
       docs.push({
         id: `w_${building}_${docs.length}`,
         text,
@@ -463,7 +463,7 @@ for (const room of rooms) {
     const first = rows?.[0] || {};
     const keys = Object.keys(first);
     const preview = JSON.stringify(rows.slice(0, 3));
-    const text = `Room ${room} Table ${t} has keys ${keys.join(', ')}. Sample: ${preview}`;
+    const text = `Product ${room} Table ${t} has keys ${keys.join(', ')}. Sample: ${preview}`;
     docs.push({ id: `s_${id++}`, text, meta: { type: 'schema', room, table: t } });
   }
 }

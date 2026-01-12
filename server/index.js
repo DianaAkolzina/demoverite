@@ -14,7 +14,7 @@ import { createLLMClient } from './llm_client.js';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const s3LocalDir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+const s3LocalDir = path.join(root, process.env.LOCAL_TELEMETRY_DIR || process.env.S3_LOCAL_DIR || 'data/local_telemetry');
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CSV_STATS_CACHE = new Map();
 const SNAPSHOT_CACHE = new Map();
@@ -35,6 +35,9 @@ if (fs.existsSync(envPath)) {
     }
   });
 }
+// Demo mode: default to local snapshots/telemetry instead of Neo4j/S3
+if (!process.env.USE_SNAPSHOT_GRAPH) process.env.USE_SNAPSHOT_GRAPH = '1';
+if (!process.env.NEO4J_DISABLE) process.env.NEO4J_DISABLE = '1';
 
 const LLM_TEMPERATURE = Number(process.env.LLM_TEMPERATURE ?? 0.3);
 const LLM_MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 8192); // Increased default for richer replies
@@ -93,6 +96,38 @@ function cacheGet(map, key, ttlMs) {
 }
 function cacheSet(map, key, v) {
   try { map.set(key, { t: Date.now(), v }); } catch {}
+}
+function normalizeSelection(selection = null) {
+  if (!selection || typeof selection !== 'object') return null;
+  const labels = { ...(selection.labels && typeof selection.labels === 'object' ? selection.labels : {}) };
+  if (labels.owner && !labels.building) labels.building = labels.owner;
+  if (labels.shop && !labels.floor) labels.floor = labels.shop;
+  if (labels.page && !labels.room) labels.room = labels.page;
+  if (!labels.owner && labels.building) labels.owner = labels.building;
+  if (!labels.shop && labels.floor) labels.shop = labels.floor;
+  if (!labels.page && labels.room) labels.page = labels.room;
+  return {
+    ...selection,
+    owner: selection.owner ?? selection.building ?? null,
+    shop: selection.shop ?? selection.floor ?? null,
+    page: selection.page ?? selection.room ?? null,
+    products: Array.isArray(selection.products) ? selection.products : selection.devices,
+    pages: Array.isArray(selection.pages) ? selection.pages : selection.zones,
+    shops: Array.isArray(selection.shops) ? selection.shops : selection.floors,
+    productPages: (selection.productPages && typeof selection.productPages === 'object')
+      ? selection.productPages
+      : selection.deviceZones,
+    building: selection.building ?? selection.owner ?? null,
+    floor: selection.floor ?? selection.shop ?? null,
+    room: selection.room ?? selection.page ?? null,
+    devices: Array.isArray(selection.devices) ? selection.devices : selection.products,
+    zones: Array.isArray(selection.zones) ? selection.zones : selection.pages,
+    floors: Array.isArray(selection.floors) ? selection.floors : selection.shops,
+    deviceZones: (selection.deviceZones && typeof selection.deviceZones === 'object')
+      ? selection.deviceZones
+      : selection.productPages,
+    labels
+  };
 }
 const publicDir = path.join(root, 'public');
 // Device alias map (lightweight resolver using data/device_aliases.json)
@@ -218,115 +253,11 @@ async function neo4jVerifyConnectivityFromEnv(env = process.env) {
 }
 
 async function ensureDatastores() {
-  const skipCheck = (process.env.NEO4J_SKIP_CHECK || '0') === '1';
-  if (skipCheck) console.warn('[startup] Skipping Neo4j readiness wait (NEO4J_SKIP_CHECK=1)');
-  // Neo4j is REQUIRED
-  const { NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD } = process.env;
-  if (!NEO4J_URI || !NEO4J_USERNAME || !NEO4J_PASSWORD) {
-    console.error('[startup] Neo4j env missing. Set NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD');
-    process.exit(1);
-  }
-  let ok = skipCheck ? true : false; let attempts = 0; const maxAttempts = Number(process.env.NEO4J_WAIT_ATTEMPTS || 150); // ~5 minutes at 2s
-  while (!ok && attempts < maxAttempts) {
-    attempts++;
-    try {
-      ok = await neo4jVerifyConnectivityFromEnv(process.env);
-      if (!ok) {
-        if (attempts % 5 === 0) console.log(`[startup] Waiting for Neo4j... attempt ${attempts}/${maxAttempts}`);
-        await wait(2000);
-      }
-    } catch (e) {
-      if (attempts % 5 === 0) console.warn('[startup] Neo4j check error:', String(e));
-      await wait(2000);
-    }
-  }
-  if (!ok) {
-    const allowDegraded = (process.env.NEO4J_ALLOW_DEGRADED || process.env.NEO4J_ALLOW_FALLBACK || '0') === '1';
-    if (allowDegraded) {
-      console.error('[startup] Neo4j not reachable after waiting. Continuing in degraded mode.');
-    } else {
-      console.error('[startup] Neo4j not reachable after waiting. Exiting.');
-      process.exit(1);
-    }
-  }
-  if ((process.env.NEO4J_FORCE_POPULATE || '0') === '1' || (process.env.NEO4J_SKIP_POPULATE || '0') !== '1') {
-    console.log('[startup] Populating Neo4j graph…');
-    await runCmd('node', ['scripts/populate_neo4j.js']);
-  }
-  // After Neo4j step, attempt to capture a lightweight graph snapshot for agent/UI
-  try {
-    console.log('[startup][graph] Taking snapshot...');
-    const outDir = path.join(root, 'data');
-    try { fs.mkdirSync(outDir, { recursive: true }); } catch (e) { console.warn('[startup][graph] mkdir failed:', String(e)); }
-    const g = createGraphFromEnv(process.env);
-    let snap = { nodes: [], links: [] };
-    if (g && g.fullHierarchy) {
-      snap = await g.fullHierarchy(null);
-      const nodes = snap?.nodes?.length || 0; const links = snap?.links?.length || 0;
-      console.log('[startup][graph] Snapshot computed: nodes', nodes, 'links', links);
-      if (!nodes || !links) console.warn('[startup][graph] Warning: snapshot has low counts (nodes or links missing). Check relationship names and filters.');
-      // Optional per-building weather
-      if ((process.env.WEATHER_FETCH_ALL_BUILDINGS || '1') === '1') {
-        try {
-          const { records } = await g.runQuery('MATCH (b:Building) RETURN b.name AS name, b.lat AS lat, b.long AS lon, b.latitude AS lat2, b.longitude AS lon2');
-          const items = (records || []).map(r => ({
-            name: r.get('name'),
-            lat: r.get('lat') ?? r.get('lat2'),
-            lon: r.get('lon') ?? r.get('lon2')
-          })).filter(x => x && x.name);
-          console.log('[startup][weather] Buildings discovered:', items.length);
-          for (const it of items) {
-            try { const res = await fetchAndCacheWeatherForBuilding(it.name, it.lat, it.lon); if (res && res.ok) console.log(`[startup][weather] Cached for ${it.name}: rows=${res.rows}`); } catch (e) { console.warn('[startup][weather] Fetch failed:', String(e)); }
-            await wait(300);
-          }
-        } catch (e) { console.warn('[startup][weather] Prefetch step failed:', String(e)); }
-      }
-    } else {
-      console.warn('[startup][graph] Adapter not configured or missing fullHierarchy; writing empty snapshot for UI baselines');
-    }
-    const snapPath = path.join(outDir, 'graph_snapshot.json');
-    const snapshotPayload = {
-      tenant: snap?.tenant || null,
-      generatedAt: Date.now(),
-      buildings: Array.isArray(snap?.buildings) ? snap.buildings : [],
-      nodes: Array.isArray(snap?.nodes) ? snap.nodes : [],
-      links: Array.isArray(snap?.links) ? snap.links : []
-    };
-    // Preserve existing snapshot if new one is empty
-    if (snapshotPayload.nodes.length === 0 && snapshotPayload.links.length === 0 && fs.existsSync(snapPath)) {
-      console.warn('[startup][graph] New snapshot is empty; preserving existing cache at', snapPath);
-    } else {
-      fs.writeFileSync(snapPath, JSON.stringify(snapshotPayload, null, 2));
-      console.log('[startup][graph] Wrote snapshot to', snapPath);
-    }
-
-    // Also create per-tenant snapshots best-effort
-    try {
-      if (g && g.runQuery) {
-        const { records = [] } = await g.runQuery('MATCH (t:Tenant) RETURN DISTINCT t.name AS name ORDER BY name');
-        const tenants = records.map(r => r.get('name')).filter(Boolean);
-        const slug = (s) => String(s).trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
-        for (const t of tenants) {
-          try {
-            const tsnap = await g.fullHierarchy(t);
-            const file = path.join(outDir, `graph_snapshot.${slug(t)}.json`);
-            if ((tsnap.nodes || []).length || (tsnap.links || []).length) {
-              const payload = {
-                tenant: tsnap?.tenant || t || null,
-                generatedAt: Date.now(),
-                buildings: Array.isArray(tsnap?.buildings) ? tsnap.buildings : [],
-                nodes: Array.isArray(tsnap?.nodes) ? tsnap.nodes : [],
-                links: Array.isArray(tsnap?.links) ? tsnap.links : []
-              };
-              fs.writeFileSync(file, JSON.stringify(payload, null, 2));
-              console.log('[startup][graph] Wrote tenant snapshot:', file);
-            }
-          } catch (e) { console.warn('[startup][graph] Tenant snapshot failed:', t, String(e)); }
-        }
-      }
-    } catch (e) { console.warn('[startup][graph] Enumerating tenants failed:', String(e)); }
-  } catch (e) {
-    console.error('[startup][graph] Snapshot failed:', e?.stack || String(e));
+  // For demo mode we rely solely on local snapshots and telemetry.
+  try { fs.mkdirSync(s3LocalDir, { recursive: true }); } catch {}
+  const snapPath = path.join(root, 'data', 'graph_snapshot.json');
+  if (!fs.existsSync(snapPath)) {
+    console.warn('[startup] graph_snapshot.json missing in data/. Populate local hierarchy before running.');
   }
   if (process.env.CHROMA_URL && (process.env.CHROMA_SKIP_INDEX || '0') !== '1') {
     const base = String(process.env.CHROMA_URL).replace(/\/$/, '');
@@ -356,7 +287,7 @@ async function ensureDatastores() {
 }
 
 function listRooms() {
-  // Enumerate device CSVs from local S3 mirror only
+// Enumerate device CSVs from the local telemetry directory
   try {
     if (!fs.existsSync(s3LocalDir)) return [];
     return fs.readdirSync(s3LocalDir).filter(f => f.endsWith('.csv')).map(f => f.replace(/\.csv$/i, ''));
@@ -477,7 +408,7 @@ function parseCSV(filePath) {
 }
 
 function loadRoomTables(room) {
-  // S3 mode: interpret room as deviceId and load its telemetry CSV
+  // Local mode: interpret room as deviceId and load its telemetry CSV
   try {
     const resolvedRoom = resolveAliasOrSelf(room);
     const filePath = path.join(s3LocalDir, `${resolvedRoom}.csv`);
@@ -1700,7 +1631,7 @@ const server = http.createServer(async (req, res) => {
         if (zones.length) return sendJson(res, 200, { rooms: zones, source: 'graph.zones' });
       }
     } catch {}
-    return sendJson(res, 200, { rooms: listRooms(), source: 's3.devices' });
+    return sendJson(res, 200, { rooms: listRooms(), source: 'local.devices' });
   }
 
   if (pathname === '/api/weather' && req.method === 'GET') {
@@ -1811,7 +1742,7 @@ const server = http.createServer(async (req, res) => {
       if (!g || !g.devicesByScope) return sendJson(res, 500, { error: 'graph_not_configured' });
 
       // S3 device set and quick file info
-      const s3Dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+      const s3Dir = s3LocalDir;
       const s3Set = new Set();
       const s3Files = new Map(); // id -> { path, hasRows, headers }
       try {
@@ -2046,7 +1977,7 @@ const server = http.createServer(async (req, res) => {
         if (!g || !g.devicesByScope) return sendJson(res, 500, { error: 'graph_not_configured' });
         const { devices = [] } = await g.devicesByScope({ tenant: null, building, floor, zone: null, type: null });
         const deviceIds = Array.from(new Set(devices.map(d => String(d.id)).filter(Boolean)));
-        const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+        const dir = s3LocalDir;
         const fieldSet = new Set();
         let tsMin = Infinity, tsMax = -Infinity;
         let inRangeCount = 0;
@@ -2329,7 +2260,7 @@ const server = http.createServer(async (req, res) => {
       // Filter to S3-present devices only
       let ids = deviceIds.slice();
       try {
-        const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+        const dir = s3LocalDir;
         if (fs.existsSync(dir)) {
           const s3set = new Set(fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.csv')).map(f => f.replace(/\.csv$/i, '')));
           ids = ids.filter(id => s3set.has(String(id)));
@@ -2342,7 +2273,7 @@ const server = http.createServer(async (req, res) => {
 
       // Collect rows across devices
       const rows = [];
-      const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+      const dir = s3LocalDir;
       for (const id of ids) {
         try {
           const file = path.join(dir, `${id}.csv`);
@@ -2389,20 +2320,28 @@ const server = http.createServer(async (req, res) => {
       let conversationState = null;
       try {
         const payload = JSON.parse(body || '{}');
-        const { messages = [], room, range, selection } = payload;
+        const { messages = [], product, room, range, selection: selectionRaw } = payload;
+        const selection = normalizeSelection(selectionRaw);
         conversationId = String(payload.conversationId || '').trim();
         if (!conversationId) conversationId = randomUUID();
         conversationState = conversationStore.ensure(conversationId);
         if (DEBUG_HTTP) console.log('[API/chat] selection:', selection, 'conversationId=', conversationId);
-        // Compute effective scope from UI selection (building/floor/room(zone))
-        // In S3-only mode, a "room" is a deviceId; zones are mapped to devices via graph.
-        let effRoom = room || null;
+        // Compute effective scope from UI selection (owner/shop/page).
+        // In S3-only mode, a "product" is a deviceId; pages are mapped to products via graph.
+        let effRoom = product || room || null;
         let scopeNote = '';
         let selectionRooms = [];
         let selectionZones = [];
         let selectionFloors = [];
+        const preferSelectionDevices = Boolean(selection && Array.isArray(selection.devices) && selection.devices.length);
+        if (preferSelectionDevices) {
+          selectionRooms = selection.devices.map((d) => String(d)).filter(Boolean);
+          if (Array.isArray(selection.zones)) selectionZones = selection.zones.map((z) => String(z)).filter(Boolean);
+          if (Array.isArray(selection.floors)) selectionFloors = selection.floors.map((f) => String(f)).filter(Boolean);
+          if (!effRoom) effRoom = 'ALL';
+        }
         try {
-          if (selection && (selection.building || selection.floor || selection.room)) {
+          if (!preferSelectionDevices && selection && (selection.building || selection.floor || selection.room)) {
             const g = createGraphFromEnv(process.env);
             // If a specific zone (room) is selected, gather devices in that zone
             if (selection.room && g && g.devicesByScope) {
@@ -2463,7 +2402,7 @@ const server = http.createServer(async (req, res) => {
               } catch {}
               const floorsOut = floorsList.length ? floorsList : (selection.floor ? [selection.floor] : []);
               selectionFloors = floorsOut.slice();
-              scopeNote = `Scope: ${selection.tenant ? 'tenant='+selection.tenant+' ' : ''}building=${selection.building||''} floor=${selection.floor||''} floors=[${floorsOut.slice(0,30).map(x=>`"${x}"`).join(', ')}${floorsOut.length>30?' …':''}] zones=[${roomsList.slice(0,30).map(z=>`"${z}"`).join(', ')}${roomsList.length>30?' …':''}]`;
+              scopeNote = `Scope: ${selection.tenant ? 'merchant='+selection.tenant+' ' : ''}owner=${selection.owner||''} shop=${selection.shop||''} shops=[${floorsOut.slice(0,30).map(x=>`"${x}"`).join(', ')}${floorsOut.length>30?' …':''}] pages=[${roomsList.slice(0,30).map(z=>`"${z}"`).join(', ')}${roomsList.length>30?' …':''}]`;
             } else if (g && (selection.building || selection.floor)) {
               // Building/floor scope: list zones by name and gather devices
               let roomsList = [];
@@ -2536,7 +2475,7 @@ const server = http.createServer(async (req, res) => {
               } catch {}
               const floorsOut2 = (floorsList2.length ? floorsList2 : (selection.floor ? [selection.floor] : []));
               selectionFloors = floorsOut2.slice();
-              scopeNote = `Scope: ${selection.tenant ? 'tenant='+selection.tenant+' ' : ''}${selection.building ? 'building='+selection.building+' ' : ''}${selection.floor ? 'floor='+selection.floor+' ' : ''}${floorsOut2.length ? ('floors=['+floorsOut2.slice(0,30).map(x=>`"${x}"`).join(', ')+(floorsOut2.length>30?' …':'')+'] ') : ''}zones=[${roomsList.slice(0,30).map(z=>`"${z}"`).join(', ')}${roomsList.length>30?' …':''}]`;
+              scopeNote = `Scope: ${selection.tenant ? 'merchant='+selection.tenant+' ' : ''}${selection.owner ? 'owner='+selection.owner+' ' : ''}${selection.shop ? 'shop='+selection.shop+' ' : ''}${floorsOut2.length ? ('shops=['+floorsOut2.slice(0,30).map(x=>`"${x}"`).join(', ')+(floorsOut2.length>30?' …':'')+'] ') : ''}pages=[${roomsList.slice(0,30).map(z=>`"${z}"`).join(', ')}${roomsList.length>30?' …':''}]`;
             }
           }
         } catch (e) { if (DEBUG_HTTP) console.warn('[API/chat] selection resolution failed:', String(e)); }
@@ -2561,7 +2500,7 @@ const server = http.createServer(async (req, res) => {
             } catch {}
             const zList = selectionZones || [];
             selectionFloors = floorsListAll.slice();
-            scopeNote = `Scope: buildings=[${buildingsList.slice(0,30).map(x=>`"${x}"`).join(', ')}${buildingsList.length>30?' …':''}] floors=[${floorsListAll.slice(0,30).map(x=>`"${x}"`).join(', ')}${floorsListAll.length>30?' …':''}] zones=[${zList.slice(0,30).map(z=>`"${z}"`).join(', ')}${zList.length>30?' …':''}]`;
+            scopeNote = `Scope: owners=[${buildingsList.slice(0,30).map(x=>`"${x}"`).join(', ')}${buildingsList.length>30?' …':''}] shops=[${floorsListAll.slice(0,30).map(x=>`"${x}"`).join(', ')}${floorsListAll.length>30?' …':''}] pages=[${zList.slice(0,30).map(z=>`"${z}"`).join(', ')}${zList.length>30?' …':''}]`;
           } catch {}
         }
         if ((!selectionRooms || !selectionRooms.length) && selection && Array.isArray(selection.devices)) {
@@ -2620,7 +2559,16 @@ const server = http.createServer(async (req, res) => {
           selectionZones = [String(selection.labels.room)];
         }
         if (!scopeNote && (selectionRooms.length || selectionZones.length || selectionFloors.length)) {
-          scopeNote = `Scope: ${selection && selection.labels && selection.labels.tenant ? 'tenant='+selection.labels.tenant+' ' : ''}${selection && selection.labels && selection.labels.building ? 'building='+selection.labels.building+' ' : ''}${selection && selection.labels && selection.labels.floor ? 'floor='+selection.labels.floor+' ' : ''}${selection && selection.labels && selection.labels.floor ? '' : selectionFloors.length ? `floors=[${selectionFloors.slice(0,30).map(x=>`\"${x}\"`).join(', ')}${selectionFloors.length>30?' …':''}] ` : ''}zones=[${selectionZones.slice(0,30).map(z=>`\"${z}\"`).join(', ')}${selectionZones.length>30?' …':''}] devices=[${selectionRooms.slice(0,20).map(d=>`\"${d}\"`).join(', ')}${selectionRooms.length>20?' …':''}]`;
+          scopeNote = `Scope: ${selection && selection.labels && selection.labels.tenant ? 'merchant='+selection.labels.tenant+' ' : ''}${selection && selection.labels && selection.labels.owner ? 'owner='+selection.labels.owner+' ' : ''}${selection && selection.labels && selection.labels.shop ? 'shop='+selection.labels.shop+' ' : ''}${selection && selection.labels && selection.labels.shop ? '' : selectionFloors.length ? `shops=[${selectionFloors.slice(0,30).map(x=>`\"${x}\"`).join(', ')}${selectionFloors.length>30?' …':''}] ` : ''}pages=[${selectionZones.slice(0,30).map(z=>`\"${z}\"`).join(', ')}${selectionZones.length>30?' …':''}] products=[${selectionRooms.slice(0,20).map(d=>`\"${d}\"`).join(', ')}${selectionRooms.length>20?' …':''}]`;
+        }
+        if (scopeNote) {
+          const labelCategory = selection?.labels?.category || selection?.category || null;
+          const labelProduct = selection?.labels?.product || selection?.product || null;
+          const extras = [
+            labelCategory ? `category=${labelCategory}` : null,
+            labelProduct ? `product=${labelProduct}` : null
+          ].filter(Boolean);
+          if (extras.length) scopeNote = `${scopeNote} ${extras.join(' ')}`;
         }
 
         if (DEBUG_HTTP) console.log('[API/chat] effective room=', effRoom, 'note=', scopeNote);
@@ -2635,7 +2583,7 @@ const server = http.createServer(async (req, res) => {
         }) || conversationState;
         const tables = effRoom && effRoom !== 'ALL' ? loadRoomTables(effRoom) : {};
         const context = {
-          instruction: 'You are a building analytics chat assistant. Answer succinctly. If plotting helps, include a JSON HighchartsOptions with yAxis as time and xAxis as chosen metric. Do not include code fences in the JSON.',
+          instruction: 'You are an e-commerce analytics chat assistant. Answer succinctly. If plotting helps, include a JSON HighchartsOptions with xAxis as time and yAxis as the chosen KPI. Do not include code fences in the JSON.',
           tables: Object.keys(tables),
           sampleRows: Object.fromEntries(Object.entries(tables).map(([k, v]) => [k, v.slice(0, 5)])),
           range: scopeRange || {},
@@ -2918,7 +2866,7 @@ const server = http.createServer(async (req, res) => {
         building: (selection && selection.building) ? String(selection.building) : null,
         floor: (selection && selection.floor) ? String(selection.floor) : null,
         zone: (selection && selection.room) ? String(selection.room) : null,
-        scopeLabels: selection && selection.labels ? selection.labels : null,
+        scopeLabels: selection?.labels ?? {},
         scopeFloors: selectionFloors,
         scopeDeviceZones: selectionDeviceZones,
         attempt,
@@ -3263,7 +3211,7 @@ const server = http.createServer(async (req, res) => {
           const zNode = zone && ((fNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && ['BELONGS_TO_FLOOR','PART_OF_FLOOR'].includes(l.rel) && l.target===fNode.id)))
                                   || (!fNode && bNode && zones.find(z => String(z.name)===String(zone) && links.some(l => l.source===z.id && ['LOCATED_IN_BUILDING','PART_OF_BUILDING'].includes(l.rel) && l.target===bNode.id)))
                                   || zones.find(z => String(z.name)===String(zone))) || null;
-          const s3Dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+          const s3Dir = s3LocalDir;
           const s3set = fs.existsSync(s3Dir) ? new Set(fs.readdirSync(s3Dir).filter(f=>/\.csv$/i.test(f)).map(f=>f.replace(/\.csv$/i,''))) : new Set();
           const pushDev = (devId) => {
             const d = byId.get(devId);
@@ -3335,7 +3283,7 @@ const server = http.createServer(async (req, res) => {
       const allDevIds = deviceIds.slice();
       // Filter to S3-present devices (cloud_id-based filenames)
       try {
-        const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+        const dir = s3LocalDir;
         if (fs.existsSync(dir)) {
           const s3set = new Set(fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.csv')).map(f => f.replace(/\.csv$/i, '')));
           deviceIds = deviceIds.filter(id => s3set.has(String(id)));
@@ -3378,7 +3326,7 @@ const server = http.createServer(async (req, res) => {
         for (const r of (records || [])) graphKeys.set(String(r.get('id')), (r.get('keys') || []).filter(Boolean));
       } catch {}
       // 2) Fallback to S3 headers when no graph keys present
-      const dir = path.join(root, process.env.S3_LOCAL_DIR || 'CSVex_s3');
+      const dir = s3LocalDir;
       const idsForFields = deviceIds.length ? deviceIds : allDevIds;
       for (const id of idsForFields) {
         let fields = graphKeys.get(id) || [];
@@ -3490,8 +3438,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 function buildPrompt(question, room) {
-  return `You are a building analytics assistant. Answer the user's question about room "${room}" using the provided context.
-If a chart will help, return a JSON block labeled HighchartsOptions that can be parsed by JSON.parse, with yAxis as time (datetime type) and xAxis as the metric of interest (temperature, energy, CO2, etc.). Keep text answer concise and include reasoning only if asked.`;
+  return `You are an e-commerce analytics assistant. Answer the user's question about the selected owner/shop/page/product scope "${room}" using the provided context.
+If a chart will help, return a JSON block labeled HighchartsOptions that can be parsed by JSON.parse, with yAxis as time (datetime type) and xAxis as the metric of interest (sales, conversion rate, traffic, CAC, etc.). Keep text answer concise and include reasoning only if asked.`;
 }
 
 function listKnowledge() {

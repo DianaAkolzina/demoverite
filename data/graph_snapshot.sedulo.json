@@ -3,19 +3,34 @@
   "generatedAt": 1765312337152,
   "buildings": [
     {
-      "id": "Building:Cornwall Building",
-      "name": "Cornwall Building",
+      "id": "Building:aurora_yard",
+      "name": "Aurora Yard",
       "label": "Building",
       "properties": {
         "floorCount": 1,
-        "name": "Cornwall Building",
+        "name": "Aurora Yard",
         "id": 86,
         "originalId": 1,
         "isActive": true,
         "lat": 52.482125,
         "long": -1.9026252
       },
-      "devices": [],
+      "devices": [
+        {
+          "id": "Device:meter:cornwall_building",
+          "name": "Utility Meter - Mariner Campus",
+          "label": "Device",
+          "properties": {
+            "name": "Utility Meter - Mariner Campus",
+            "label": "Utility Meter",
+            "id": "Device:meter:cornwall_building",
+            "isActive": true,
+            "cloudId": "meter-cornwall_building"
+          },
+          "type": "Meter",
+          "cloudId": "meter-cornwall_building"
+        }
+      ],
       "floors": [
         {
           "id": "Floor:134:86",
@@ -41,7 +56,205 @@
                 "originalId": 4,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:cornwall_building-comms_room",
+                  "name": "Comms Room Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-comms_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-comms_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-comms_room"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-comms_room",
+                  "name": "Comms Room Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-comms_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-comms_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-comms_room"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-comms_room",
+                  "name": "Comms Room Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-comms_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-comms_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-comms_room"
+                },
+                {
+                  "id": "Device:sensor:comms_room",
+                  "name": "Comms Room Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:comms_room",
+                    "isActive": true,
+                    "cloudId": "sensor-comms_room",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-comms_room"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-comms_room",
+                  "name": "Comms Room Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-comms_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-comms_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-comms_room"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-comms_room",
+                  "name": "Comms Room Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-comms_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-comms_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-comms_room"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-comms_room",
+                  "name": "Comms Room Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-comms_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-comms_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-comms_room"
+                },
+                {
+                  "id": "Device:meter:ember_campus",
+                  "name": "Utility Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:cornwall_building",
+                    "isActive": true,
+                    "cloudId": "meter-ember_campus"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-ember_campus"
+                },
+                {
+                  "id": "Device:meter:ember_campus",
+                  "name": "Utility Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:cornwall_building",
+                    "isActive": true,
+                    "cloudId": "meter-ember_campus"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-ember_campus"
+                },
+                {
+                  "id": "Device:meter:ember_campus",
+                  "name": "Utility Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:cornwall_building",
+                    "isActive": true,
+                    "cloudId": "meter-ember_campus"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-ember_campus"
+                },
+                {
+                  "id": "Device:meter:ember_campus",
+                  "name": "Utility Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:cornwall_building",
+                    "isActive": true,
+                    "cloudId": "meter-ember_campus"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-ember_campus"
+                },
+                {
+                  "id": "Device:meter:quartz_campus",
+                  "name": "Utility Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:cornwall_building",
+                    "isActive": true,
+                    "cloudId": "meter-quartz_campus"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-quartz_campus"
+                },
+                {
+                  "id": "Device:meter:quartz_campus",
+                  "name": "Utility Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:cornwall_building",
+                    "isActive": true,
+                    "cloudId": "meter-quartz_campus"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-quartz_campus"
+                },
+                {
+                  "id": "Device:meter:quartz_campus",
+                  "name": "Utility Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:cornwall_building",
+                    "isActive": true,
+                    "cloudId": "meter-quartz_campus"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-quartz_campus"
+                }
+              ]
             },
             {
               "id": "Zone:224:86",
@@ -55,7 +268,947 @@
                 "originalId": 1,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:sensor:cafe_lounge",
+                  "name": "Cafe + Lounge Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "sensor-cafe_lounge",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                  "name": "Cafe + Lounge Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Cafe + Lounge Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-cafe_lounge"
+                }
+              ]
             },
             {
               "id": "Zone:225:86",
@@ -69,7 +1222,947 @@
                 "originalId": 3,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:sensor:workspace",
+                  "name": "Workspace Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:workspace",
+                    "isActive": true,
+                    "cloudId": "sensor-workspace",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cornwall_building-workspace",
+                  "name": "Workspace Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cornwall_building-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cornwall_building-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cornwall_building-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:quartz_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:quartz_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-quartz_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-quartz_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                },
+                {
+                  "id": "Device:meter:zone:cedar_campus-workspace",
+                  "name": "Workspace Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Workspace Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:cedar_campus-workspace",
+                    "isActive": true,
+                    "cloudId": "meter-zone-cedar_campus-workspace"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-cedar_campus-workspace"
+                }
+              ]
             }
           ],
           "devices": []
@@ -79,15 +2172,15 @@
   ],
   "nodes": [
     {
-      "id": "Building:Cornwall Building",
+      "id": "Building:aurora_yard",
       "label": "Building",
-      "name": "Cornwall Building",
+      "name": "Aurora Yard",
       "nodeType": "Building",
       "hasData": false,
       "dataDevices": 0,
       "properties": {
         "floorCount": 1,
-        "name": "Cornwall Building",
+        "name": "Aurora Yard",
         "id": 86,
         "originalId": 1,
         "isActive": true,
@@ -188,17 +2281,298 @@
       },
       "x": 140,
       "y": 440
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:cornwall_building",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:cornwall_building-comms_room",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:cornwall_building-cafe_lounge",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:cornwall_building-workspace",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:sensor:cafe_lounge",
+      "label": "Device",
+      "name": "Cafe + Lounge Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Cafe + Lounge Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:cafe_lounge",
+        "isActive": true,
+        "cloudId": "sensor-cafe_lounge",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-cafe_lounge"
+    },
+    {
+      "id": "Device:sensor:comms_room",
+      "label": "Device",
+      "name": "Comms Room Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Comms Room Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:comms_room",
+        "isActive": true,
+        "cloudId": "sensor-comms_room",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-comms_room"
+    },
+    {
+      "id": "Device:sensor:workspace",
+      "label": "Device",
+      "name": "Workspace Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Workspace Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:workspace",
+        "isActive": true,
+        "cloudId": "sensor-workspace",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-workspace"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:quartz_campus-cafe_lounge",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:quartz_campus-workspace",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:iaq:quartz_campus_comms_room",
+      "label": "Device",
+      "name": "IAQ Sensor - Comms Room",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Comms Room",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:quartz_campus_comms_room",
+        "isActive": true,
+        "cloudId": "iaq-quartz_campus_comms_room",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-quartz_campus_comms_room"
+    },
+    {
+      "id": "Device:iaq:quartz_campus_cafe_lounge",
+      "label": "Device",
+      "name": "IAQ Sensor - Cafe + Lounge",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Cafe + Lounge",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:quartz_campus_cafe_lounge",
+        "isActive": true,
+        "cloudId": "iaq-quartz_campus_cafe_lounge",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-quartz_campus_cafe_lounge"
+    },
+    {
+      "id": "Device:iaq:quartz_campus_workspace",
+      "label": "Device",
+      "name": "IAQ Sensor - Workspace",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Workspace",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:quartz_campus_workspace",
+        "isActive": true,
+        "cloudId": "iaq-quartz_campus_workspace",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-quartz_campus_workspace"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:cedar_campus-cafe_lounge",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:cedar_campus-workspace",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_comms_room",
+      "label": "Device",
+      "name": "IAQ Sensor - Comms Room",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Comms Room",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_comms_room",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_comms_room",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_comms_room"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_cafe_lounge",
+      "label": "Device",
+      "name": "IAQ Sensor - Cafe + Lounge",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Cafe + Lounge",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_cafe_lounge",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_cafe_lounge",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_cafe_lounge"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_workspace",
+      "label": "Device",
+      "name": "IAQ Sensor - Workspace",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Workspace",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_workspace",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_workspace",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_workspace"
     }
   ],
   "links": [
     {
       "source": "Floor:134:86",
-      "target": "Building:Cornwall Building",
+      "target": "Building:aurora_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:223:86",
-      "target": "Building:Cornwall Building",
+      "target": "Building:aurora_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -208,7 +2582,7 @@
     },
     {
       "source": "Zone:224:86",
-      "target": "Building:Cornwall Building",
+      "target": "Building:aurora_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -218,13 +2592,288 @@
     },
     {
       "source": "Zone:225:86",
-      "target": "Building:Cornwall Building",
+      "target": "Building:aurora_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:225:86",
       "target": "Floor:134:86",
       "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:223:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:224:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:225:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:cafe_lounge",
+      "target": "Zone:224:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:cafe_lounge",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:cafe_lounge",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:comms_room",
+      "target": "Zone:223:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:comms_room",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:comms_room",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:workspace",
+      "target": "Zone:225:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:workspace",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:workspace",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:223:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:224:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:225:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_comms_room",
+      "target": "Zone:223:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_comms_room",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_comms_room",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_cafe_lounge",
+      "target": "Zone:224:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_cafe_lounge",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_cafe_lounge",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_workspace",
+      "target": "Zone:225:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_workspace",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_workspace",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:224:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:225:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_comms_room",
+      "target": "Zone:223:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_comms_room",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_comms_room",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_cafe_lounge",
+      "target": "Zone:224:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_cafe_lounge",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_cafe_lounge",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_workspace",
+      "target": "Zone:225:86",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_workspace",
+      "target": "Floor:134:86",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_workspace",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:aurora_yard",
+      "rel": "IN_BUILDING"
     }
   ]
 }

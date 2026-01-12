@@ -10,13 +10,17 @@ const METRIC_MISS_FACTOR = Number(process.env.RAG_METRIC_MISS_FACTOR || 0.85);
 
 function buildAugmentedQuery(base, scope = {}) {
   const parts = [String(base || '')];
-  if (scope?.room && scope.room !== 'ALL') parts.push(`room:${scope.room}`);
+  if (scope?.room && scope.room !== 'ALL') parts.push(`product:${scope.room}`);
+  if (scope?.page) parts.push(`page:${scope.page}`);
   if (scope?.building) parts.push(`building:${scope.building}`);
+  if (scope?.owner) parts.push(`owner:${scope.owner}`);
   if (scope?.tenant) parts.push(`tenant:${scope.tenant}`);
   if (Array.isArray(scope?.metrics) && scope.metrics.length) parts.push(`metrics:${scope.metrics.join(',')}`);
   if (scope?.timeHints?.granularity) parts.push(`granularity:${scope.timeHints.granularity}`);
   if (scope?.timeHints?.future) parts.push('forecast:true');
   if (scope?.zones && scope.zones.length) parts.push(`zones:${scope.zones.slice(0, 3).join('|')}`);
+  if (scope?.pages && scope.pages.length) parts.push(`pages:${scope.pages.slice(0, 3).join('|')}`);
+  if (scope?.shop) parts.push(`shop:${scope.shop}`);
   return parts.filter(Boolean).join(' | ');
 }
 
@@ -138,7 +142,10 @@ export async function hybridRetrieve({ query, ragIndex, vectorClient, k = 6, pre
 
   // Optional: Python SBERT reranker (SciBERT ST) for top-M
   async function sbertRerank(query, items) {
-    const enabled = String(process.env.RERANK_ENABLED || '1') === '1';
+    const enabled = String(
+      process.env.RERANK_ENABLED ||
+      (process.env.RERANK_PYTHON_BIN ? '1' : '0')
+    ) === '1';
     if (!enabled || rerankDisabled || !items.length) return items;
     const topM = Math.min(Number(process.env.RERANK_TOP || 20), items.length);
     const subset = items.slice(0, topM);

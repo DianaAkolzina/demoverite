@@ -1,28 +1,19 @@
-Reasoning Guide for Queries and Math Mapping (Updated)
+# Commerce Reasoning Guide
 
-- Time windows:
-  - Always use the exact Start and End dates provided by the user.
-  - Do not predict values for dates that are already in the past.
-  - If a user asks for the “best day/time” without a historical qualifier, interpret it as future planning and use forecasting or seasonality.
+1) Identify scope (owner, shop, page, category, product).
+2) Pull KPI series and summarize baseline stats.
+3) Look for changes, spikes, or drops.
+4) Attribute drivers (page, spend, market signals).
+5) Provide recommendations tied to KPIs.
 
-- Word → Math mapping:
-  - best, most, highest, peak → max
-  - worst, least, lowest, minimum → min
-  - total, sum → sum
-  - average, avg, mean → avg
-  - trend, over time → time series
-  - relationship, influence → scatter/correlation
-  - distribution → histogram
-  - share, composition → pie/stacked
+Diagnostic checklist
+- Is the scope correct (owner/shop/page/product)?
+- Are we looking at a numeric KPI vs text field?
+- Is the time window aligned with available telemetry?
+- If results are empty, call fetch_table_meta and adapt.
 
-- Tool selection hints (use exact tool names; see tools_playbook.md for details):
-  - max/min/sum/avg over period → `stats({ room, table, field, start, end })`
-  - compare rooms on one metric (timeseries) → `compare_series_cross_room` (line chart with dataRef)
-  - rank rooms by a metric → `compare_rooms_on_metric` (bar chart)
-  - compare multiple metrics within a room → `compare_metrics_in_room`
-  - busiest hour/day patterns → `hour_of_day_stats`
-  - correlations among metrics → `correlation_matrix`
-  - no rows in window → inspect `fetch_table_meta` and adapt within available range
-- Empty datasets: still return the chart object (with the original tool dataRef) and explain that the selected window has no rows; note any fallback range you considered.
-
-See also: tools_playbook.md (Authoritative) for current tool list, chart patterns (prefer dataRef; small arrays allowed for short windows), and scope/time window rules.
+Actionable framing
+- Traffic issue: focus on visits, sessions, bounce_rate.
+- Funnel issue: focus on add_to_cart_rate and conversion_rate.
+- Revenue issue: focus on sales_amount, avg_order_value, order_count.
+- Marketing issue: focus on ad_spend, cpc, roas.

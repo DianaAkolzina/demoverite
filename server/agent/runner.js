@@ -98,8 +98,12 @@ export function createAgentRunner(ctx) {
       building,
       floor,
       room,
+      owner: scopeLabels?.owner || building || null,
+      shop: scopeLabels?.shop || floor || null,
+      page: scopeLabels?.page || zone || null,
       rooms: selectionRooms,
       zones: selectionZones,
+      pages: selectionZones,
       metrics: routing.metrics,
       timeHints: routing.timeHints
     };
@@ -232,7 +236,7 @@ export function createAgentRunner(ctx) {
       })
       .filter(Boolean);
 
-    const hasAnalysisKeywords = /\b(co2|temperature|temp|humidity|occupancy|people|count|trend|compare|chart|plot|graph|forecast|correlat|analy[sz]|kwh|energy)\b/i.test(questionLower);
+    const hasAnalysisKeywords = /\b(sales|orders|order|revenue|aov|avg order|conversion|add to cart|cart|checkout|visits|sessions|traffic|bounce|roas|cpc|spend|product|category|page|shop|owner|forecast|predict|trend|compare|chart|plot|graph|correlat|analy[sz])\b/i.test(questionLower);
     const directScopeAsk = /^\s*(what['’]s|what is|show|describe|tell me)\s+(the\s+)?scope\b/i.test(questionLower) || /current scope\b/i.test(questionLower);
     const scopeOnlyQuestion =
       (directScopeAsk || questionIsScopeInquiry(question) || /\bscope\b/.test(questionLower)) &&
@@ -286,14 +290,14 @@ export function createAgentRunner(ctx) {
     const scopeSchemaLine = scopeSummary && scopeSummary.schema
       ? `Scope devices and schema headers: ${JSON.stringify(scopeSummary.schema)}`
       : '';
-    const sys = `You are a senior data analyst agent for building operations.
+    const sys = `You are a senior data analyst agent for e-commerce performance.
 ${convMemory ? `=== CONVERSATION MEMORY ===\n${convMemory}\n` : ''}
 ${connectorNote ? `${connectorNote}\n` : ''}
-Selected room: ${room || '(none)'}.
-Zones in scope: ${zonesLine}
-Devices in scope: ${devicesLine}
-${namedRoomDeviceHints.length ? `User-named rooms resolved to devices: ${namedRoomDeviceHints.join(' | ')}` : ''}
-${room === 'ALL' && selectionRooms && selectionRooms.length ? `IMPORTANT: Cross-room analysis MUST be limited to ONLY these devices and their parent zones. Do NOT introduce other scopes.` : ''}
+Selected product: ${room || '(none)'}.
+Pages in scope: ${zonesLine}
+Products in scope: ${devicesLine}
+${namedRoomDeviceHints.length ? `User-named pages resolved to products: ${namedRoomDeviceHints.join(' | ')}` : ''}
+${room === 'ALL' && selectionRooms && selectionRooms.length ? `IMPORTANT: Cross-page analysis MUST be limited to ONLY these products and their parent pages. Do NOT introduce other scopes.` : ''}
 ${scopeSnapshotNote}
 ${scopeSchemaLine}
 Selected time window: 
@@ -304,7 +308,7 @@ MANDATORY: Always use this time window for all analysis and answers. Do NOT inve
 
 FREEDOM TO ANALYZE: You are encouraged to analyze the data, derive insights, and synthesize conclusions. Use tools as needed; if tools are insufficient, explain and proceed with reasoned analysis using available data. Always produce deeper analysis (min/avg/max with timestamps, gaps/missingness, notable spikes/drops, short recommendations).
 
-DOMAIN NOTE: "Zone" and "Room" are synonyms in this system. When the user mentions a zone, treat it exactly as a room, and vice versa. Use graph relationships (Building → Floor → Zone) to understand placement.
+DOMAIN NOTE: "Page" and legacy "Room/Zone" are synonyms in this data. Use the hierarchy Shop Owner → Shop → Page to understand placement.
 
 ${routerDirectives}
 
@@ -315,7 +319,7 @@ RULE: Do NOT dump or quote long passages from knowledge. If you use it, REPHRASE
 CONSISTENCY RULE: Build every conclusion from the tools you run—do NOT fall back to placeholder text.
 AGGREGATION RULE: When comparing metrics, compute stats (count/min/max/avg) or aggregates (compare_rooms_on_metric, stats) and cite those numbers.
 
-${intent.weatherQuestion ? 'WEATHER TASK: Questions mentioning weather or outside conditions REQUIRE you to call weather_fetch (or building_temp_weather_corr) for the current building so you can compare indoor vs outdoor signals.' : ''}
+${intent.weatherQuestion ? 'WEATHER TASK: Use Market Signals metrics or call weather_fetch for the selected shop owner when weather context is required.' : ''}
 
 === CRITICAL CHART RULES ===
 NEVER embed data arrays directly in chart JSON. This will ALWAYS cause truncation and failure.
@@ -344,30 +348,30 @@ CORRECT (REQUIRED - use dataRef):
 The backend automatically resolves dataRef to extract data from your tool call results.
 You ONLY provide the reference. The backend handles data extraction.
 
-CHART STYLE: Pick a chart type that fits the metric (e.g., column for occupancy counts, line for smooth trends, area for cumulative energy, scatter for correlations, histogram for distributions). Always explain in prose what the chart shows and why it matters.
+CHART STYLE: Pick a chart type that fits the KPI (e.g., column for order counts, line for smooth trends, area for cumulative revenue, scatter for correlations, histogram for distributions). Always explain in prose what the chart shows and why it matters.
 
 === CHART EXAMPLES WITH dataRef ===
 
 Line chart (timeseries):
 {
   "chart": {"type": "line"},
-  "title": {"text": "Temperature Over Time"},
+  "title": {"text": "Sales Amount Over Time"},
   "xAxis": {"type": "datetime"},
-  "yAxis": {"title": {"text": "°C"}},
+  "yAxis": {"title": {"text": "Sales ($)"}},
   "series": [{
-    "name": "Temperature",
-    "dataRef": {"tool": "fetch_timeseries", "xField": "ts", "yField": "temperature"}
+    "name": "Sales Amount",
+    "dataRef": {"tool": "fetch_timeseries", "xField": "ts", "yField": "sales_amount"}
   }]
 }
 
 Ratio/computed metric chart:
 {
   "chart": {"type": "line"},
-  "title": {"text": "CO2 per Person"},
+  "title": {"text": "Conversion Rate (Orders / Sessions)"},
   "xAxis": {"type": "datetime"},
-  "yAxis": {"title": {"text": "CO2 / Person"}},
+  "yAxis": {"title": {"text": "Conversion Rate"}},
   "series": [{
-    "name": "CO2 per Person",
+    "name": "Conversion Rate",
     "dataRef": {"tool": "compute_ratio", "xField": "ts", "yField": "ratio"}
   }]
 }
@@ -375,9 +379,9 @@ Ratio/computed metric chart:
 Forecast chart (historical + prediction):
 {
   "chart": {"type": "line"},
-  "title": {"text": "Humidity Forecast"},
+  "title": {"text": "Orders Forecast"},
   "xAxis": {"type": "datetime"},
-  "yAxis": {"title": {"text": "Humidity %"}},
+  "yAxis": {"title": {"text": "Orders"}},
   "series": [
     {
       "name": "Historical",
@@ -415,8 +419,8 @@ Weather data chart:
 If you want to answer in plain text (no chart, no structured data), respond with:
 { "action": "final_text", "answer": "<your answer>" }
 === ANALYSIS RULES ===
-- Always assume the selected room/time window for analysis. Do NOT ask the user for dates; use the provided window as defaults for tools.
-- When calling tools, if args omit room/start/end, fill them with the selected room and time window.
+- Always assume the selected product/time window for analysis. Do NOT ask the user for dates; use the provided window as defaults for tools.
+- When calling tools, if args omit room/start/end, fill them with the selected product and time window.
 - Charts: strictly use dataRef series pointing to tool outputs. Do not embed inline data arrays.
 - For every chart/metric analyzed, report min/avg/max with timestamps, latest value, any data gaps/missingness, and call out spikes/drops and trends. Add 1–2 concise recommendations or next checks when relevant.
 
@@ -441,17 +445,17 @@ If you want to answer in plain text (no chart, no structured data), respond with
 
 Tools: ${buildToolSpec()}.
 Notes: 
-- In weather data, temperature field is 'temp'.
-- Use 'hour_of_day_stats' for "best time" by CO2 or occupancy.
-- Use 'busiest_day_of_week' for questions about "busiest day", "which weekday", "most crowded day", "highest occupancy day", etc.
+- In market signal data, temperature field is 'temp'.
+- Use 'hour_of_day_stats' for "best time" by traffic or orders.
+- Use 'busiest_day_of_week' for questions about "busiest day", "which weekday", "highest orders day", etc.
 - Use 'histogram' when the user asks for a distribution or histogram.
-- Use 'compare_metrics_in_room' for comparing multiple metrics within one room, and 'compare_rooms_on_metric' to rank rooms by an aggregate.
-- Use 'scope_daily_percentile' when users request multi-room percentile/occupied-period summaries (e.g., “daily 95th percentile CO₂ with occupied median”).
-For IAQ table: common fields are temperature, humidity, co2, pm25, pm10, lux, airexchangerate
-When user asks to COMPARE between rooms or metrics, prefer these tools:
-- compare_series_cross_room (timeseries across rooms)
-- compare_rooms_on_metric (rank rooms by agg over window)
-- compare_metrics_in_room (compare multiple fields within one room)
+- Use 'compare_metrics_in_room' for comparing multiple KPIs within one product, and 'compare_rooms_on_metric' to rank products by an aggregate.
+- Use 'scope_daily_percentile' when users request multi-product percentile/occupied-period summaries (e.g., “daily 95th percentile sales with median traffic”).
+For KPI tables: common fields include visits, sessions, conversion_rate, add_to_cart_rate, order_count, sales_amount, avg_order_value, ad_spend, cpc, roas.
+When user asks to COMPARE between pages/products or KPIs, prefer these tools:
+- compare_series_cross_room (timeseries across products/pages)
+- compare_rooms_on_metric (rank products by agg over window)
+- compare_metrics_in_room (compare multiple fields within one product)
 - correlation_matrix (pairwise correlations among metrics)
 Context: ${JSON.stringify(ctx).slice(0, 5000)}`;
 
@@ -1443,7 +1447,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         if (errors.length) {
           convo.push({
             role: 'user',
-            content: `Plan error: ${errors[0]}. Provide {"action":"plan","steps":[{"id":"S1","goal":"Review CO2 trend","tool":"fetch_timeseries","inputs":["co2"]}, {"id":"S2","goal":"Compare rooms on CO2","tool":"compare_rooms_on_metric","inputs":["co2"]}]}`
+            content: `Plan error: ${errors[0]}. Provide {"action":"plan","steps":[{"id":"S1","goal":"Review sales trend","tool":"fetch_timeseries","inputs":["sales_amount"]}, {"id":"S2","goal":"Compare products on sales_amount","tool":"compare_rooms_on_metric","inputs":["sales_amount"]}]}`
           });
           continue STEP_LOOP;
         }
@@ -1710,7 +1714,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
                 series: lineSeries
               } : null;
             }
-            const baseAnswer = entries.length ? 'Compared series across rooms.' : 'No data available to compare in the selected period.';
+            const baseAnswer = entries.length ? 'Compared series across products/pages.' : 'No data available to compare in the selected period.';
             let answerText = buildDefaultAnswer({
               question,
               chart,
@@ -1777,7 +1781,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
             const summary = Object.fromEntries(
               Object.entries(tables).map(([k, v]) => [k, Object.keys((v||[])[0] || {})])
             );
-            let answer = `Available data for room ${r}: ` + 
+            let answer = `Available data for product ${r}: ` + 
               Object.entries(summary)
                 .map(([t, cols]) => `${t} [${cols.join(', ')}]`)
                 .join('; ');
@@ -2025,14 +2029,14 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         if (needsRoomComparison && !comparisonSatisfied) {
           convo.push({
             role: 'user',
-            content: `REMINDER: You still need to compare ${comparisonRoomsList || 'the selected rooms'} using compare_rooms_on_metric or compare_series_cross_room before finalizing. Call the comparison tool and summarize the differences.`
+            content: `REMINDER: You still need to compare ${comparisonRoomsList || 'the selected products/pages'} using compare_rooms_on_metric or compare_series_cross_room before finalizing. Call the comparison tool and summarize the differences.`
           });
           continue STEP_LOOP;
         }
         if (requireRoomRanking && !rankingSatisfied) {
           convo.push({
             role: 'user',
-            content: `REMINDER: You still need to rank ${rankingRoomsList || 'the selected rooms'} by their occupancy metrics. Call compare_rooms_on_metric (preferred) or compare_series_cross_room on people_count/occupancy to produce the ranking and identify underused rooms before finalizing.`
+            content: `REMINDER: You still need to rank ${rankingRoomsList || 'the selected products/pages'} by their traffic KPIs. Call compare_rooms_on_metric (preferred) or compare_series_cross_room on visits/sessions to produce the ranking and identify underperforming pages before finalizing.`
           });
           continue STEP_LOOP;
         }
@@ -2180,7 +2184,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
               chartRetryCount++;
               convo.push({
                 role: 'user',
-                content: 'REMINDER: A room ranking was requested. Include a column or bar chart that references compare_rooms_on_metric (or another comparison tool) via dataRef so the busiest and underused rooms are visualized before finalizing.'
+                content: 'REMINDER: A product/page ranking was requested. Include a column or bar chart that references compare_rooms_on_metric (or another comparison tool) via dataRef so the busiest and underperforming pages are visualized before finalizing.'
               });
               continue STEP_LOOP;
             }
@@ -2295,14 +2299,14 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
         if (needsRoomComparison && !comparisonSatisfied) {
           convo.push({
             role: 'user',
-            content: `REMINDER: You must compare ${comparisonRoomsList || 'the selected rooms'} using compare_rooms_on_metric or compare_series_cross_room before providing the final answer.`
+            content: `REMINDER: You must compare ${comparisonRoomsList || 'the selected products/pages'} using compare_rooms_on_metric or compare_series_cross_room before providing the final answer.`
           });
           continue STEP_LOOP;
         }
         if (requireRoomRanking && !rankingSatisfied) {
           convo.push({
             role: 'user',
-            content: `REMINDER: You must rank ${rankingRoomsList || 'the selected rooms'} using compare_rooms_on_metric (or compare_series_cross_room) before providing the final answer. Report the busiest and underused rooms.`
+            content: `REMINDER: You must rank ${rankingRoomsList || 'the selected products/pages'} using compare_rooms_on_metric (or compare_series_cross_room) before providing the final answer. Report the top and underperforming pages.`
           });
           continue STEP_LOOP;
         }
@@ -2416,7 +2420,7 @@ If you provide a chart, you MUST use dataRef, never embed data arrays.`
               lines.push(`- ${label}: detectors=[${dets.join(', ')||'—'}], metrics=[${Array.from(fieldSet).sort().join(', ')||'—'}]`);
             }
             if (lines.length) {
-              return { message: assistantMessage(`Metrics by room in current scope:\n${lines.join('\n')}`), chart: null, trace };
+              return { message: assistantMessage(`KPIs by product in current scope:\n${lines.join('\n')}`), chart: null, trace };
             }
           }
         } catch (e) { log('detectors summary in tool_results fallback failed:', String(e)); }

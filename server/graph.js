@@ -3,6 +3,11 @@
 
 import fs from 'fs';
 import path from 'path';
+import url from 'url';
+
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, '..');
+const defaultDataDir = path.join(repoRoot, 'data');
 
 export function createGraphClient({ uri, username, password, database }) {
   let driver = null;
@@ -791,7 +796,231 @@ export function createGraphClient({ uri, username, password, database }) {
   };
 }
 
+function loadSnapshot(dataDir, tenant = null) {
+  const slug = (s) => String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const file = tenant ? path.join(dataDir, `graph_snapshot.${slug(tenant)}.json`) : path.join(dataDir, 'graph_snapshot.json');
+  if (!fs.existsSync(file)) return null;
+  try {
+    const snap = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (!Array.isArray(snap.nodes) || !Array.isArray(snap.links)) return null;
+    return snap;
+  } catch {
+    return null;
+  }
+}
+
+function makeRecords(rows = []) {
+  return rows.map((row) => ({
+    get: (k) => row[k]
+  }));
+}
+
+function inferMetaFromLinks(nodes, links, devNode) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const typeOf = (n) => (n?.nodeType || n?.label);
+  const devId = devNode?.id;
+  const out = { building: null, floor: null, zone: null };
+  if (!devId) return out;
+  const rels = links.filter((l) => l.source === devId || l.target === devId);
+  for (const l of rels) {
+    const other = l.source === devId ? l.target : l.source;
+    const on = byId.get(other);
+    const t = typeOf(on);
+    if (!on) continue;
+    if (t === 'Zone' && !out.zone) out.zone = on.name || on.id || null;
+    if (t === 'Floor' && !out.floor) out.floor = on.name || on.id || null;
+    if (t === 'Building' && !out.building) out.building = on.name || on.id || null;
+  }
+  // Walk up the hierarchy if needed (zone -> floor -> building)
+  if (!out.floor && out.zone) {
+    const z = Array.isArray(nodes) ? nodes.find((n) => n.name === out.zone || n.id === out.zone) : null;
+    const l = z ? links.find((lk) => lk.source === z.id && ['BELONGS_TO_FLOOR', 'LOCATED_ON_FLOOR', 'PART_OF_FLOOR'].includes(lk.rel)) : null;
+    const f = l ? byId.get(l.target) : null;
+    if (f) out.floor = f.name || f.id || out.floor;
+  }
+  if (!out.building && out.floor) {
+    const f = Array.isArray(nodes) ? nodes.find((n) => n.name === out.floor || n.id === out.floor) : null;
+    const l = f ? links.find((lk) => lk.source === f.id && ['LOCATED_IN_BUILDING', 'PART_OF_BUILDING', 'BELONGS_TO_BUILDING'].includes(lk.rel)) : null;
+    const b = l ? byId.get(l.target) : null;
+    if (b) out.building = b.name || b.id || out.building;
+  }
+  if (!out.building && out.zone) {
+    const z = Array.isArray(nodes) ? nodes.find((n) => n.name === out.zone || n.id === out.zone) : null;
+    const l = z ? links.find((lk) => lk.source === z.id && ['LOCATED_IN_BUILDING', 'PART_OF_BUILDING', 'BELONGS_TO_BUILDING'].includes(lk.rel)) : null;
+    const b = l ? byId.get(l.target) : null;
+    if (b) out.building = b.name || b.id || out.building;
+  }
+  return out;
+}
+
+function createSnapshotGraph({ dataDir = defaultDataDir } = {}) {
+  const listSnapshots = () => {
+    try {
+      if (!fs.existsSync(dataDir)) return [];
+      return fs.readdirSync(dataDir).filter((f) => /^graph_snapshot(\.|$)/.test(f) && f.endsWith('.json'));
+    } catch {
+      return [];
+    }
+  };
+
+  const tenants = () => {
+    const out = new Set();
+    for (const f of listSnapshots()) {
+      if (f === 'graph_snapshot.json') { out.add(null); continue; }
+      const m = f.match(/^graph_snapshot\.(.+)\.json$/);
+      if (m) out.add(m[1]);
+    }
+    return Array.from(out);
+  };
+
+  const stats = () => {
+    const snap = loadSnapshot(dataDir, null) || { nodes: [], links: [] };
+    return {
+      nodes: (snap.nodes || []).length,
+      relationships: (snap.links || []).length,
+      tenants: tenants().length,
+      zones: (snap.nodes || []).filter((n) => (n.nodeType || n.label) === 'Zone').length,
+      devices: (snap.nodes || []).filter((n) => (n.nodeType || n.label) === 'Device').length,
+      error: null
+    };
+  };
+
+  const runQuery = async (cypher, params = {}) => {
+    const snap = loadSnapshot(dataDir, params.tenant || null) || loadSnapshot(dataDir, null) || { nodes: [], links: [] };
+    const nodes = Array.isArray(snap.nodes) ? snap.nodes : [];
+    const links = Array.isArray(snap.links) ? snap.links : [];
+    const typeOf = (n) => (n?.nodeType || n?.label);
+
+    // Buildings with coordinates
+    if (/MATCH \(b:Building\)/.test(cypher)) {
+      const rows = nodes
+        .filter((n) => typeOf(n) === 'Building')
+        .map((b) => ({
+          name: b.name || b.id,
+          lat: b.lat ?? b.properties?.lat ?? b.properties?.latitude ?? null,
+          lat2: b.properties?.latitude ?? null,
+          lon: b.long ?? b.lon ?? b.properties?.lon ?? b.properties?.longitude ?? null,
+          lon2: b.properties?.longitude ?? null
+        }));
+      return { records: makeRecords(rows) };
+    }
+
+    // Tenants
+    if (/MATCH \(t:Tenant\)/.test(cypher)) {
+      const rows = tenants().map((t) => ({ name: t || 'default' }));
+      return { records: makeRecords(rows) };
+    }
+
+    // Zones / rooms
+    if (/MATCH \(z:Zone\)/.test(cypher)) {
+      const rows = nodes
+        .filter((n) => typeOf(n) === 'Zone')
+        .map((z) => ({ room: z.roomId || String(z.id || z.name || '').replace(/^Zone:/, '') || z.name || null }))
+        .filter((r) => r.room);
+      rows.sort((a, b) => String(a.room).localeCompare(String(b.room)));
+      return { records: makeRecords(rows) };
+    }
+
+    // Telemetry keys by device ids (UNWIND query)
+    if (/HAS_TELEMETRY_KEY/.test(cypher) || /collect\(DISTINCT k.name/.test(cypher)) {
+      const ids = Array.isArray(params.ids) ? params.ids.map(String) : [];
+      const rows = [];
+      for (const id of ids) {
+        const norm = String(id).toLowerCase().replace(/[-_]/g, '');
+        const matchDev = nodes.find((n) => typeOf(n) === 'Device' && String(n.cloudId || n.id || n.deviceId || n.name).toLowerCase().replace(/[-_]/g, '') === norm);
+        const keys = [];
+        if (matchDev) {
+          for (const l of links) {
+            const a = nodes.find((n) => n.id === l.source);
+            const b = nodes.find((n) => n.id === l.target);
+            if ((l.rel === 'HAS_TELEMETRY_KEY' || l.rel === 'MEASURES')) {
+              if ((a && a.id === matchDev.id && (b?.name))) keys.push(b.name);
+              if ((b && b.id === matchDev.id && (a?.name))) keys.push(a.name);
+            }
+          }
+        }
+        rows.push({ id, keys: Array.from(new Set(keys)) });
+      }
+      return { records: makeRecords(rows) };
+    }
+
+    return { records: [] };
+  };
+
+  const buildDeviceList = () => {
+    const snap = loadSnapshot(dataDir, null) || { nodes: [], links: [] };
+    const nodes = Array.isArray(snap.nodes) ? snap.nodes : [];
+    const links = Array.isArray(snap.links) ? snap.links : [];
+    const devices = nodes.filter((n) => (n.nodeType || n.label) === 'Device');
+    return devices.map((d) => {
+      const meta = inferMetaFromLinks(nodes, links, d);
+      return {
+        id: String(d.cloudId || d.id || d.deviceId || d.name || '').trim(),
+        name: d.name || d.id,
+        type: d.deviceType || d.type || d.properties?.label || null,
+        ...meta
+      };
+    }).filter((d) => d.id);
+  };
+
+  const devicesByScope = async ({ building = null, floor = null, zone = null } = {}) => {
+    const list = buildDeviceList().filter((d) => {
+      if (building && String(d.building || '').trim() !== String(building).trim()) return false;
+      if (floor && String(d.floor || '').trim() !== String(floor).trim()) return false;
+      if (zone && String(d.zone || '').trim() !== String(zone).trim()) return false;
+      return true;
+    });
+    return { devices: list };
+  };
+
+  const roomsByScope = async ({ building = null, floor = null } = {}) => {
+    const snap = loadSnapshot(dataDir, null) || { nodes: [], links: [] };
+    const nodes = Array.isArray(snap.nodes) ? snap.nodes : [];
+    const links = Array.isArray(snap.links) ? snap.links : [];
+    const typeOf = (n) => (n?.nodeType || n?.label);
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const rooms = [];
+    for (const n of nodes) {
+      if (typeOf(n) !== 'Zone') continue;
+      let keep = true;
+      if (building) {
+        const rel = links.find((l) => l.source === n.id && ['LOCATED_IN_BUILDING', 'PART_OF_BUILDING', 'BELONGS_TO_BUILDING'].includes(l.rel));
+        const b = rel ? byId.get(rel.target) : null;
+        keep = b && (b.name === building || b.id === building);
+      }
+      if (keep && floor) {
+        const rel = links.find((l) => l.source === n.id && ['BELONGS_TO_FLOOR', 'LOCATED_ON_FLOOR', 'PART_OF_FLOOR'].includes(l.rel));
+        const f = rel ? byId.get(rel.target) : null;
+        keep = f && (f.name === floor || f.id === floor);
+      }
+      if (keep) rooms.push(n.roomId || String(n.id || n.name || '').replace(/^Zone:/, '') || n.name);
+    }
+    return { rooms: Array.from(new Set(rooms)).filter(Boolean) };
+  };
+
+  return {
+    fullHierarchy: async (tenant = null) => loadSnapshot(dataDir, tenant) || { tenant, nodes: [], links: [], buildings: [] },
+    runQuery,
+    stats,
+    ping: async () => ({ ok: true }),
+    devicesByScope,
+    roomsByScope,
+    devicesByZoneType: async () => ({ counts: [] }),
+    subgraphByZoneType: async () => ({ nodes: [], links: [] }),
+    roomsByTenant: async () => ({ rooms: [] }),
+    close: async () => {}
+  };
+}
+
 export function createGraphFromEnv(env = process.env) {
+  // Prefer snapshot-backed graph when Neo4j credentials are absent or explicitly disabled.
+  const shouldUseSnapshot = (env.USE_SNAPSHOT_GRAPH || env.NEO4J_DISABLE || env.NEO4J_SKIP_CHECK || '0') === '1'
+    || !(env.NEO4J_URI && env.NEO4J_USERNAME && env.NEO4J_PASSWORD);
+  if (shouldUseSnapshot) {
+    const dataDir = env.DATA_DIR ? path.resolve(env.DATA_DIR) : defaultDataDir;
+    const snap = loadSnapshot(dataDir, null);
+    if (snap) return createSnapshotGraph({ dataDir });
+  }
   const uri = env.NEO4J_URI;
   const username = env.NEO4J_USERNAME;
   const password = env.NEO4J_PASSWORD;
@@ -799,3 +1028,5 @@ export function createGraphFromEnv(env = process.env) {
   if (!uri || !username || !password) return null;
   return createGraphClient({ uri, username, password, database });
 }
+
+export { createSnapshotGraph };

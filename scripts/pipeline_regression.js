@@ -19,8 +19,7 @@ const WARMUP_TOKEN = '[startup][llm] Warmup ok';
 const WARMUP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 const TEST_RUNS = [
-  { label: 'buildings', description: 'Deterministic building regression suites', command: ['node', 'scripts/run_building_regression.js'] },
-  { label: 'scope', description: 'Multi-building scope/device coverage suites', command: ['node', 'scripts/test_scope_runs.js'] }
+  { label: 'scope', description: 'Commerce scope/device coverage suites', command: ['node', 'scripts/test_scope_runs.js'] }
 ];
 
 function logInfo(message) {

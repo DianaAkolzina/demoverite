@@ -337,8 +337,11 @@ const extractFieldValue = (row, fieldOrList) => {
     } catch { return null; }
   }
 
-  function findSnapshotZone(label, { building, floor } = {}) {
+  function findSnapshotZone(label, opts) {
     if (!snapshotIndex) return null;
+    const safeOpts = opts && typeof opts === 'object' ? opts : {};
+    const building = safeOpts.building || null;
+    const floor = safeOpts.floor || null;
     const raw = String(label || '').trim();
     if (!raw) return null;
     const key = raw.toLowerCase();
@@ -462,7 +465,7 @@ const extractFieldValue = (row, fieldOrList) => {
   function summarizeZoneRecordForScope(zoneRecord, { maxDevices = 4 } = {}) {
     if (!zoneRecord) return null;
     const deviceIds = Array.isArray(zoneRecord.devices) ? zoneRecord.devices.filter(Boolean) : [];
-    const header = `Zone ${zoneRecord.name || zoneRecord.id} · Floor ${zoneRecord.floorName || 'n/a'} · Building ${zoneRecord.buildingName || 'n/a'}`;
+    const header = `Page ${zoneRecord.name || zoneRecord.id} · Shop ${zoneRecord.floorName || 'n/a'} · Owner ${zoneRecord.buildingName || 'n/a'}`;
     const deviceLines = [];
     for (const deviceId of deviceIds.slice(0, maxDevices)) {
       const summary = describeDeviceForScopeSummary(deviceId);
@@ -476,15 +479,18 @@ const extractFieldValue = (row, fieldOrList) => {
   function formatScopeHeaderLine(scopeLabels = {}, selectionFloors = [], selectionZones = []) {
     const parts = [];
     const tenant = scopeLabels?.tenant ? String(scopeLabels.tenant).trim() : '';
-    const building = scopeLabels?.building ? String(scopeLabels.building).trim() : '';
-    const roomLabel = scopeLabels?.room ? String(scopeLabels.room).trim() : '';
-    const floorLabel = scopeLabels?.floor ? String(scopeLabels.floor).trim() : '';
-    const scopeSegment = tenant && building ? `${tenant} › ${building}` : (building || tenant || '');
+    const owner = scopeLabels?.owner ? String(scopeLabels.owner).trim()
+      : (scopeLabels?.building ? String(scopeLabels.building).trim() : '');
+    const pageLabel = scopeLabels?.page ? String(scopeLabels.page).trim()
+      : (scopeLabels?.room ? String(scopeLabels.room).trim() : '');
+    const shopLabel = scopeLabels?.shop ? String(scopeLabels.shop).trim()
+      : (scopeLabels?.floor ? String(scopeLabels.floor).trim() : '');
+    const scopeSegment = tenant && owner ? `${tenant} › ${owner}` : (owner || tenant || '');
     if (scopeSegment) parts.push(scopeSegment);
-    const floors = Array.from(new Set([floorLabel, ...selectionFloors].filter(Boolean)));
-    if (floors.length) parts.push(`Floors: ${floors.slice(0, 4).join(', ')}${floors.length > 4 ? '…' : ''}`);
-    const zones = Array.from(new Set([roomLabel, ...selectionZones].filter(Boolean)));
-    if (zones.length) parts.push(`Zones: ${zones.slice(0, 4).join(', ')}${zones.length > 4 ? '…' : ''}`);
+    const shops = Array.from(new Set([shopLabel, ...selectionFloors].filter(Boolean)));
+    if (shops.length) parts.push(`Shops: ${shops.slice(0, 4).join(', ')}${shops.length > 4 ? '…' : ''}`);
+    const pages = Array.from(new Set([pageLabel, ...selectionZones].filter(Boolean)));
+    if (pages.length) parts.push(`Pages: ${pages.slice(0, 4).join(', ')}${pages.length > 4 ? '…' : ''}`);
     return parts.length ? `Scope: ${parts.join(' · ')}` : '';
   }
 
@@ -511,15 +517,17 @@ const extractFieldValue = (row, fieldOrList) => {
     if (!snapshotIndex) return '';
     const lines = [];
     const headerParts = [];
-    if (scopeLabels?.tenant) headerParts.push(`tenant: ${scopeLabels.tenant}`);
-    if (scopeLabels?.building) headerParts.push(`building: ${scopeLabels.building}`);
+    if (scopeLabels?.tenant) headerParts.push(`owner group: ${scopeLabels.tenant}`);
+    if (scopeLabels?.owner || scopeLabels?.building) {
+      headerParts.push(`owner: ${scopeLabels.owner || scopeLabels.building}`);
+    }
     const floorSet = new Set();
     (selectionFloors || []).forEach((f) => { if (f) floorSet.add(String(f)); });
-    if (scopeLabels?.floor) floorSet.add(String(scopeLabels.floor));
-    if (floorSet.size) headerParts.push(`floors: ${Array.from(floorSet).join(', ')}`);
+    if (scopeLabels?.shop || scopeLabels?.floor) floorSet.add(String(scopeLabels.shop || scopeLabels.floor));
+    if (floorSet.size) headerParts.push(`shops: ${Array.from(floorSet).join(', ')}`);
     if (selectionZones?.length) {
       const zoneList = selectionZones.slice(0, 6).join(', ');
-      headerParts.push(`zones: ${zoneList}${selectionZones.length > 6 ? '…' : ''}`);
+      headerParts.push(`pages: ${zoneList}${selectionZones.length > 6 ? '…' : ''}`);
     }
     const seenZones = new Set();
     const pushZone = (zoneRecord) => {
@@ -531,6 +539,7 @@ const extractFieldValue = (row, fieldOrList) => {
       }
     };
     (selectionZones || []).forEach((label) => pushZone(findSnapshotZone(label, scopeLabels)));
+    if (scopeLabels?.page) pushZone(findSnapshotZone(scopeLabels.page, scopeLabels));
     if (scopeLabels?.room) pushZone(findSnapshotZone(scopeLabels.room, scopeLabels));
     if (scopeLabels?.zone) pushZone(findSnapshotZone(scopeLabels.zone, scopeLabels));
     if (!lines.length && scopeDeviceZones && typeof scopeDeviceZones === 'object') {
@@ -562,17 +571,17 @@ const extractFieldValue = (row, fieldOrList) => {
       sections.push(`Scope focus → ${headerParts.join(' · ')}`);
     }
     if (trimmedZones.length) {
-      sections.push('Scope snapshot:');
+      sections.push('Page snapshot:');
       sections.push(...trimmedZones);
     }
     if (deviceHighlights.length) {
-      sections.push(`Device highlights: ${deviceHighlights.join(' | ')}`);
+      sections.push(`Product highlights: ${deviceHighlights.join(' | ')}`);
     }
     // Identify obvious gaps: zones requested but with no devices/telemetry
     const gaps = [];
     const selectionZoneSet = new Set((selectionZones || []).map((z) => String(z).trim().toLowerCase()).filter(Boolean));
-    if (selectionZoneSet.size && deviceHighlights.length === 0) gaps.push('Selected zones have no device highlights.');
-    if (selectionZoneSet.size && (!lines.length)) gaps.push('No devices found for requested zones.');
+    if (selectionZoneSet.size && deviceHighlights.length === 0) gaps.push('Selected pages have no product highlights.');
+    if (selectionZoneSet.size && (!lines.length)) gaps.push('No products found for requested pages.');
     if (gaps.length) sections.push(`Gaps: ${gaps.join(' ')}`);
     const text = sections.join('\n').trim();
     if (!text) return '';
@@ -582,8 +591,8 @@ const extractFieldValue = (row, fieldOrList) => {
   function buildAliasHints(selectionRooms = [], scopeDeviceZones = {}, scopeLabels = {}) {
     if (!Array.isArray(selectionRooms) || !selectionRooms.length) return null;
     const hints = [];
-    const building = scopeLabels.building || null;
-    const floor = scopeLabels.floor || null;
+    const building = scopeLabels.building || scopeLabels.owner || null;
+    const floor = scopeLabels.floor || scopeLabels.shop || null;
     const seen = new Set();
     const add = (line) => {
       if (!line) return;
@@ -3763,15 +3772,15 @@ function summarizeFieldComparison(entries = []) {
     const buildingNames = sortByName(Array.from(grouped.keys()));
     const formatLines = [];
     formatLines.push('**Scope Overview**');
-    if (tenantLabel) formatLines.push(`- Tenant: ${tenantLabel}`);
-    if (buildingLabel) formatLines.push(`- Building: ${buildingLabel}`);
-    if (floorLabel) formatLines.push(`- Floor filter: ${floorLabel}`);
-    if (zoneLabel) formatLines.push(`- Zone filter: ${zoneLabel}`);
+    if (tenantLabel) formatLines.push(`- Owner group: ${tenantLabel}`);
+    if (buildingLabel) formatLines.push(`- Owner: ${buildingLabel}`);
+    if (floorLabel) formatLines.push(`- Shop filter: ${floorLabel}`);
+    if (zoneLabel) formatLines.push(`- Page filter: ${zoneLabel}`);
     if (formatLines.length === 1) formatLines.push('- No explicit selection filters.');
     formatLines.push('');
-    formatLines.push('**Devices by Building / Floor / Zone**');
+    formatLines.push('**Products by Owner / Shop / Page**');
     for (const buildingName of buildingNames) {
-      formatLines.push(`- **${buildingName || 'Unknown Building'}**`);
+      formatLines.push(`- **${buildingName || 'Unknown Owner'}**`);
       const floorMap = grouped.get(buildingName);
       if (floorLabel) {
         const floorNorm = normalizeLabel(floorLabel);
@@ -3781,7 +3790,7 @@ function summarizeFieldComparison(entries = []) {
       }
       const floorNames = sortByName(Array.from(floorMap.keys()));
       for (const floorName of floorNames) {
-        formatLines.push(`  - *${floorName || 'Unassigned Floor'}*`);
+        formatLines.push(`  - *${floorName || 'Unassigned Shop'}*`);
         const zoneMap = floorMap.get(floorName);
         const zoneLabelNorm = zoneLabel ? normalizeLabel(zoneLabel) : null;
         if (zoneLabelNorm && zoneLabelNorm !== 'all') {
@@ -3791,18 +3800,18 @@ function summarizeFieldComparison(entries = []) {
         }
         const zoneNames = sortByName(Array.from(zoneMap.keys()));
         for (const zoneName of zoneNames) {
-          formatLines.push(`    - ${zoneName || 'Unassigned Zone'}`);
+          formatLines.push(`    - ${zoneName || 'Unassigned Page'}`);
           const devices = zoneMap.get(zoneName).slice(0, 8);
           for (const device of devices) {
             const typeSuffix = device.type ? ` [${device.type}]` : '';
             const metricsPreview = device.metrics.length ? device.metrics.slice(0, 12).join(', ') : 'n/a';
             const stats = getCsvStats(device.id);
             const telemetryNote = describeTelemetryCoverage(stats, rr);
-            formatLines.push(`      - ${device.name}${typeSuffix} (${device.shortId}) — metrics: ${metricsPreview} · ${telemetryNote}`);
+            formatLines.push(`      - ${device.name}${typeSuffix} (${device.shortId}) — KPIs: ${metricsPreview} · ${telemetryNote}`);
           }
           if (devices.length) zonesWithDevices.add(String(zoneName || '').trim().toLowerCase());
           if (zoneMap.get(zoneName).length > devices.length) {
-            formatLines.push(`      - … ${zoneMap.get(zoneName).length - devices.length} more devices`);
+            formatLines.push(`      - … ${zoneMap.get(zoneName).length - devices.length} more products`);
           }
         }
       }
@@ -3817,7 +3826,7 @@ function summarizeFieldComparison(entries = []) {
     }
 
     if (!deviceMap.size) {
-      formatLines.push('- No devices resolved for the current scope (CSV data missing or mapping incomplete).');
+      formatLines.push('- No products resolved for the current scope (CSV data missing or mapping incomplete).');
     }
     formatLines.push('');
     formatLines.push('**Time Window**');
@@ -4477,29 +4486,29 @@ function buildSnapshotIndex() {
 
   function toolDefs() {
     return [
-      { name: 'list_rooms', args: {}, desc: 'List available rooms' },
-      { name: 'list_tables', args: { room: 'string' }, desc: 'List available tables in a room' },
+      { name: 'list_rooms', args: {}, desc: 'List available products' },
+      { name: 'list_tables', args: { room: 'string' }, desc: 'List available tables for a product' },
       { name: 'get_schema', args: { room: 'string', table: 'string' }, desc: 'Get first row keys for a table' },
-      { name: 'fetch_timeseries', args: { room: 'string', table: 'string', fields: 'string[]', start: 'number?', end: 'number?', limit: 'number?', after_ts: 'number?' }, desc: 'Fetch timeseries points as [{ts, field1, ...}] with optional paging using after_ts' },
-      { name: 'compare_series_cross_room', args: { series: '[{room:string,table:string,field:string,name?:string}]', start: 'number?', end: 'number?' }, desc: 'Compare arbitrary series across rooms. Returns an object of arrays keyed by series name: {"name": [{ts, y}], ...}' },
+      { name: 'fetch_timeseries', args: { room: 'string', table: 'string', fields: 'string[]', start: 'number?', end: 'number?', limit: 'number?', after_ts: 'number?' }, desc: 'Fetch timeseries points as [{ts, field1, ...}] for a product with optional paging using after_ts' },
+      { name: 'compare_series_cross_room', args: { series: '[{room:string,table:string,field:string,name?:string}]', start: 'number?', end: 'number?' }, desc: 'Compare arbitrary series across products/pages. Returns an object of arrays keyed by series name: {"name": [{ts, y}], ...}' },
       { name: 'pair_timeseries', args: { room: 'string', table1: 'string', field1: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Pair two fields by nearest timestamps within a time window (default ±30min). Returns [{x, y, ts1, ts2, dt}] for scatter plots' },
       { name: 'compute_ratio', args: { room: 'string', table1: 'string', field1: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?', zero_if_denominator_zero: 'boolean?' }, desc: 'Compute ratio of field1/field2 with time-window matching. Returns [{ts, ratio}]. If zero_if_denominator_zero=true, returns 0 when denominator is 0, otherwise skips that point' },
       { name: 'stats', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Compute count,min,max,avg,sum' },
-      { name: 'get_time_for_value', args: { room: 'string?', table: 'string?', field: 'string?', metric: 'string?', value: 'number?', mode: 'string?', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Locate the timestamp for a metric value (or its min/max when value omitted). Returns { ts, value, mode }' },
-      { name: 'correlate', args: { room: 'string', table1: 'string', field1: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Pearson correlation between two fields from room tables. Uses time-window matching (default ±30min) to handle different sampling rates' },
-      { name: 'correlate_cross_room', args: { room1: 'string', table1: 'string', field1: 'string', room2: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Correlate metrics between different rooms with time-window matching' },
-      { name: 'ratio_cross_room', args: { room1: 'string', table1: 'string', field1: 'string', room2: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?', zero_if_denominator_zero: 'boolean?' }, desc: 'Compute field1/field2 across rooms using time-window matching (default ±15min). Returns [{ts, ratio, v1, v2}] and summary stats.' },
-      { name: 'correlate_weather_room', args: { room: 'string', table: 'string', field_room: 'string', field_weather: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Correlate room metric with weather metric (temp, humidity, wind_speed, clouds, etc)' },
-      { name: 'weather_correlate', args: { field1: 'string', field2: 'string', start: 'number?', end: 'number?', room: 'string?', building: 'string?' }, desc: 'Pearson correlation between two weather fields (temp, humidity, wind_speed, clouds, etc) scoped to current building when available' },
-      { name: 'building_temp_weather_corr', args: { rooms: 'string[]?', building: 'string?', field: 'string?', weather_field: 'string?', start: 'number?', end: 'number?', bucket_minutes: 'number?' }, desc: 'Aggregate average internal temperature across rooms and correlate it with outside weather temperature. Returns scatter-ready data and correlation stats.' },
-      { name: 'building_temp_weather_scatter', args: { rooms: 'string[]?', building: 'string?', field: 'string?', weather_field: 'string?', start: 'number?', end: 'number?', bucket_minutes: 'number?' }, desc: 'Alias of building_temp_weather_corr that exposes the scatter pairing for plotting internal vs outside temperatures.' },
-      { name: 'weather_fetch', args: { room: 'string?', building: 'string?', fields: 'string[]', start: 'number?', end: 'number?', limit: 'number?' }, desc: 'Fetch weather rows scoped to the current building or provided overrides' },
-      { name: 'latest_value', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Latest ts and value for a field in a table within range' },
-      { name: 'latest_per_room', args: { table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Latest value per room for a field' },
-      { name: 'scope_multiline', args: { tenant: 'string?', building: 'string?', floor: 'string?', zone: 'string?', metric: 'string', start: 'number?', end: 'number?', limit_per_series: 'number?' }, desc: 'Multi-line plotting: for a scope (tenant/building/floor/zone), returns a series per device for the given metric. Uses S3 telemetry and graph mapping.' },
-      { name: 'current_occupied_rooms', args: { threshold: 'number?' }, desc: 'Rooms currently occupied based on latest people_count > threshold (default 0)' },
-      { name: 'occupancy_current_total', args: {}, desc: 'Sum of latest people_count across all rooms' },
-      { name: 'rooms_unused_since', args: { duration_ms: 'number' }, desc: 'Rooms with no people_count > 0 in the last duration_ms' },
+      { name: 'get_time_for_value', args: { room: 'string?', table: 'string?', field: 'string?', metric: 'string?', value: 'number?', mode: 'string?', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Locate the timestamp for a KPI value (or its min/max when value omitted). Returns { ts, value, mode }' },
+      { name: 'correlate', args: { room: 'string', table1: 'string', field1: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Pearson correlation between two fields from product tables. Uses time-window matching (default ±30min) to handle different sampling rates' },
+      { name: 'correlate_cross_room', args: { room1: 'string', table1: 'string', field1: 'string', room2: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Correlate metrics between different products/pages with time-window matching' },
+      { name: 'ratio_cross_room', args: { room1: 'string', table1: 'string', field1: 'string', room2: 'string', table2: 'string', field2: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?', zero_if_denominator_zero: 'boolean?' }, desc: 'Compute field1/field2 across products/pages using time-window matching (default ±15min). Returns [{ts, ratio, v1, v2}] and summary stats.' },
+      { name: 'correlate_weather_room', args: { room: 'string', table: 'string', field_room: 'string', field_weather: 'string', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Correlate product KPI with external signal metrics (temp, humidity, wind_speed, clouds, etc)' },
+      { name: 'weather_correlate', args: { field1: 'string', field2: 'string', start: 'number?', end: 'number?', room: 'string?', building: 'string?' }, desc: 'Pearson correlation between two external signal fields (temp, humidity, wind_speed, clouds, etc) scoped to the current shop owner when available' },
+      { name: 'building_temp_weather_corr', args: { rooms: 'string[]?', building: 'string?', field: 'string?', weather_field: 'string?', start: 'number?', end: 'number?', bucket_minutes: 'number?' }, desc: 'Aggregate a KPI across products and correlate it with external temperature. Returns scatter-ready data and correlation stats.' },
+      { name: 'building_temp_weather_scatter', args: { rooms: 'string[]?', building: 'string?', field: 'string?', weather_field: 'string?', start: 'number?', end: 'number?', bucket_minutes: 'number?' }, desc: 'Alias of building_temp_weather_corr that exposes the scatter pairing for plotting KPI vs external temperature.' },
+      { name: 'weather_fetch', args: { room: 'string?', building: 'string?', fields: 'string[]', start: 'number?', end: 'number?', limit: 'number?' }, desc: 'Fetch external signal rows scoped to the current shop owner or provided overrides' },
+      { name: 'latest_value', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Latest ts and value for a KPI in a product table within range' },
+      { name: 'latest_per_room', args: { table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Latest value per product/page for a KPI' },
+      { name: 'scope_multiline', args: { tenant: 'string?', building: 'string?', floor: 'string?', zone: 'string?', metric: 'string', start: 'number?', end: 'number?', limit_per_series: 'number?' }, desc: 'Multi-line plotting: for a scope (owner/shop/page), returns a series per product for the given KPI. Uses S3 telemetry and graph mapping.' },
+      { name: 'current_occupied_rooms', args: { threshold: 'number?' }, desc: 'Legacy occupancy helper (not used in the commerce demo)' },
+      { name: 'occupancy_current_total', args: {}, desc: 'Legacy occupancy helper (not used in the commerce demo)' },
+      { name: 'rooms_unused_since', args: { duration_ms: 'number' }, desc: 'Legacy occupancy helper (not used in the commerce demo)' },
       { name: 'busiest_day_of_week', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', agg: 'string?' }, desc: 'Day of week with highest average or sum for field' },
       { name: 'weekday_weekend_comparison', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Compare average field on weekdays vs weekends' },
       { name: 'energy_delta_kwh', args: { room: 'string', start: 'number?', end: 'number?' }, desc: 'Delta of total_kwh over period' },
@@ -4513,7 +4522,7 @@ function buildSnapshotIndex() {
       { name: 'distinct_values', args: { room: 'string', table: 'string', field: 'string', limit: 'number?' }, desc: 'List distinct values up to limit' },
       { name: 'weekday_exceedance', args: { room: 'string', table: 'string', field: 'string', threshold: 'number', start: 'number?', end: 'number?' }, desc: 'Counts per weekday where field > threshold. Returns [{day, total, exceed, ratio}]' },
       { name: 'fetch_table_meta', args: { room: 'string', table: 'string' }, desc: 'Get table size, ts range, and fields' },
-      { name: 'dump_room', args: { room: 'string', start: 'number?', end: 'number?', max_rows_per_table: 'number?' }, desc: 'Return raw rows per table for the room (use carefully; may be large)'},
+      { name: 'dump_room', args: { room: 'string', start: 'number?', end: 'number?', max_rows_per_table: 'number?' }, desc: 'Return raw rows per table for a product/page (use carefully; may be large)'},
       { name: 'hour_of_day_stats', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Aggregate a field by hour-of-day across the selected window, returning [{hour, count, avg, min, max}]' },
       { name: 'hourly_timeseries', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?' }, desc: 'Aggregate to hourly buckets (absolute time), returns [{ts, avg}] for plotting' },
       { name: 'forecast_hourly_naive', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', horizon_hours: 'number?' }, desc: 'Naive forecast: repeat last hourly value for N hours into future. Returns [{ts, forecast}]' },
@@ -4521,39 +4530,39 @@ function buildSnapshotIndex() {
       { name: 'forecast_from_profile', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', days: 'number?' }, desc: 'Forecast next N days using hour-of-day profile from historical data. Returns [{ts, forecast}]' },
       { name: 'forecast_exponential_smoothing', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', alpha: 'number?', horizon_hours: 'number?' }, desc: 'Simple exponential smoothing forecast' },
       { name: 'forecast_moving_average', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', window: 'number?', horizon_hours: 'number?' }, desc: 'Moving average forecast' },
-      { name: 'scope_summary', args: { selectionRooms: 'string[]?', selectionZones: 'string[]?', selectionFloors: 'string[]?', selectionLabels: 'object?', range: 'object?' }, desc: 'Summarize the current selection scope (devices, metrics, telemetry coverage, and time window).' },
+      { name: 'scope_summary', args: { selectionRooms: 'string[]?', selectionZones: 'string[]?', selectionFloors: 'string[]?', selectionLabels: 'object?', range: 'object?' }, desc: 'Summarize the current selection scope (products, KPIs, telemetry coverage, and time window).' },
       { name: 'forecast_seasonal_hourly', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', horizon_hours: 'number?' }, desc: 'Seasonal naive forecast using previous weeks' },
       { name: 'forecast_polyfit', args: { room: 'string', table: 'string', field: 'string', start: 'number?', end: 'number?', degree: 'number?', horizon_hours: 'number?' }, desc: 'Polynomial regression forecast (degree 2)' },
-      { name: 'graph_rooms_by_tenant', args: { tenant: 'string' }, desc: 'List rooms permitted for a tenant from Neo4j' },
-      { name: 'graph_devices_by_scope', args: { tenant: 'string?', building: 'string?', floor: 'string?', zone: 'string?', type: 'string?' }, desc: 'List devices within the provided scope from Neo4j' },
-      { name: 'graph_rooms_by_scope', args: { building: 'string?', floor: 'string?' }, desc: 'List room IDs within a building and/or floor scope (uses graph snapshot if available, else local inference)' },
-      { name: 'scope_list_buildings', args: {}, desc: 'List buildings from graph snapshot (fallback: infer from room IDs)' },
-      { name: 'scope_list_floors', args: { building: 'string' }, desc: 'List floors for a building (graph snapshot fallback: infer from room IDs)' },
-      { name: 'scope_list_rooms', args: { building: 'string?', floor: 'string?' }, desc: 'List rooms filtered by building and/or floor' },
-      { name: 'scope_list_detectors', args: { room: 'string' }, desc: 'List detectors/sensor types present in a room based on available tables' },
-      { name: 'graph_zone_devices', args: { room: 'string' }, desc: 'List devices and measured metric types for a room (from graph snapshot)' },
+      { name: 'graph_rooms_by_tenant', args: { tenant: 'string' }, desc: 'List products permitted for an owner group from Neo4j' },
+      { name: 'graph_devices_by_scope', args: { tenant: 'string?', building: 'string?', floor: 'string?', zone: 'string?', type: 'string?' }, desc: 'List products within the provided scope from Neo4j' },
+      { name: 'graph_rooms_by_scope', args: { building: 'string?', floor: 'string?' }, desc: 'List page IDs within an owner/shop scope (uses graph snapshot if available, else local inference)' },
+      { name: 'scope_list_buildings', args: {}, desc: 'List shop owners from the snapshot (fallback: infer from page IDs)' },
+      { name: 'scope_list_floors', args: { building: 'string' }, desc: 'List shops for an owner (snapshot fallback: infer from page IDs)' },
+      { name: 'scope_list_rooms', args: { building: 'string?', floor: 'string?' }, desc: 'List pages filtered by owner and/or shop' },
+      { name: 'scope_list_detectors', args: { room: 'string' }, desc: 'List data tables present for a product based on available telemetry' },
+      { name: 'graph_zone_devices', args: { room: 'string' }, desc: 'List products and KPI types for a page (from graph snapshot)' },
       { name: 'vector_search_docs', args: { query: 'string', k: 'number?' }, desc: 'Search documentation via vector store (fallbacks to TF-IDF if unavailable)' },
-      { name: 'aggregate_stats_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Aggregate a metric across all rooms (sum, avg, min, max) over the selected window' },
-      { name: 'aggregate_hourly_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Aggregate per-hour across rooms (sum or avg) returning [{ts, y}]' },
-      { name: 'compare_field_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Compute per-room value (avg/sum/peak) for ranking and comparison' },
-      { name: 'scope_heatmap', args: { rooms: 'string[]', table: 'string', field: 'string', start: 'number?', end: 'number?', bucket_minutes: 'number?', agg: 'string?' }, desc: 'Build a room-by-time heatmap for the given metric. Returns { rooms, timestamps, data, summary } where data items map to [x=time index, y=room index, value]' },
-      { name: 'compare_rooms_on_metric', args: { rooms: 'string[]?', table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Rank rooms by metric aggregate within selection (uses selectionRooms if rooms omitted). Returns [{room, value}] sorted desc.' },
-      { name: 'comfort_band_summary', args: { rooms: 'string[]?', table: 'string?', field: 'string?', minComfort: 'number?', maxComfort: 'number?', start: 'number?', end: 'number?', limit: 'number?' }, desc: 'Summarize % of samples within the comfort temperature band per room. Returns sorted room summaries plus overall stats.' },
-      { name: 'scope_daily_percentile', args: { rooms: 'string[]?', table: 'string?', value_field: 'string?', occupancy_field: 'string?', percentile: 'number?', days: 'number?', start: 'number?', end: 'number?' }, desc: 'Per-room daily percentile/median stats for a multi-room scope. Returns { series: { \"Room Name\": [{ts,p95,occupied_median}] }, summary: [{room,label,avg_p95,worst_p95,occupied_median}] } for charting rankings and multi-series lines.' },
+      { name: 'aggregate_stats_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Aggregate a KPI across all products (sum, avg, min, max) over the selected window' },
+      { name: 'aggregate_hourly_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Aggregate per-hour across products (sum or avg) returning [{ts, y}]' },
+      { name: 'compare_field_across_rooms', args: { table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Compute per-product value (avg/sum/peak) for ranking and comparison' },
+      { name: 'scope_heatmap', args: { rooms: 'string[]', table: 'string', field: 'string', start: 'number?', end: 'number?', bucket_minutes: 'number?', agg: 'string?' }, desc: 'Build a product-by-time heatmap for the given KPI. Returns { items, timestamps, data, summary } where data items map to [x=time index, y=item index, value]' },
+      { name: 'compare_rooms_on_metric', args: { rooms: 'string[]?', table: 'string', field: 'string', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Rank products by KPI aggregate within selection (uses selectionRooms if rooms omitted). Returns [{room, value}] sorted desc.' },
+      { name: 'comfort_band_summary', args: { rooms: 'string[]?', table: 'string?', field: 'string?', minComfort: 'number?', maxComfort: 'number?', start: 'number?', end: 'number?', limit: 'number?' }, desc: 'Legacy comfort analysis (not used in the commerce demo).' },
+      { name: 'scope_daily_percentile', args: { rooms: 'string[]?', table: 'string?', value_field: 'string?', occupancy_field: 'string?', percentile: 'number?', days: 'number?', start: 'number?', end: 'number?' }, desc: 'Per-product daily percentile/median stats for a multi-product scope. Returns { series: { \"Product\": [{ts,p95,occupied_median}] }, summary: [{room,label,avg_p95,worst_p95,occupied_median}] } for charting rankings and multi-series lines.' },
       { name: 'timeseries_regression_join', args: { metrics: '[{room:string,field:string,table?:string,mode?:"avg"|"sum"|"delta",alias?:string}]', regressions: '[{name?:string,x:string,y:string}]', start: 'number?', end: 'number?', bucket_minutes: 'number?', forward_fill_minutes: 'number?', timeZone: 'string?' }, desc: 'Align/aggregate multiple metrics (e.g., IAQ vs dwell) and compute regression stats plus scatter-ready arrays.' },
       { name: 'occupancy_people_insight', args: { occupancy_room: 'string', people_room: 'string', occupancy_field: 'string?', people_fields: 'string[]?', bucket_minutes: 'number?', start: 'number?', end: 'number?', timeZone: 'string?' }, desc: '15-minute utilisation vs people counter analysis with heatmaps, peak windows, and regression scatter.' },
       { name: 'odor_event_monitor', args: { odor_room: 'string', odor_fields: 'string[]?', people_room: 'string?', people_fields: 'string[]?', window_minutes: 'number?', threshold: 'number?', min_duration_minutes: 'number?', context_minutes: 'number?', start: 'number?', end: 'number?', timeZone: 'string?' }, desc: 'Rolling z-score detection for odor sensors with per-day counts and optional entrance-flow medians.' },
-      { name: 'scope_schema_matrix', args: { rooms: 'string[]?', include_tables: 'boolean?' }, desc: 'Enumerate scoped devices with the metrics/tables they expose so you can build schema maps or availability matrices.' },
+      { name: 'scope_schema_matrix', args: { rooms: 'string[]?', include_tables: 'boolean?' }, desc: 'Enumerate scoped products with the KPIs/tables they expose so you can build schema maps or availability matrices.' },
       { name: 'grid_align_timeseries', args: { series: '[{room:string,table?:string,field:string,alias?:string}]', start: 'number?', end: 'number?', bucket_minutes: 'number?', forward_fill_minutes: 'number?', timeZone: 'string?' }, desc: 'Align multiple metrics on a shared time grid (default 5-minute Europe/London) with forward-fill tolerance and completeness stats for heatmaps.' },
-      { name: 'ventilation_effectiveness', args: { rooms: 'string[]?', start: 'number?', end: 'number?', value_field: 'string?', air_field: 'string?', percentile: 'number?' }, desc: 'Joins daily airExchangeRate with CO₂ percentiles per room/day, returning scatter points plus regression (slope/intercept/R²).' },
+      { name: 'ventilation_effectiveness', args: { rooms: 'string[]?', start: 'number?', end: 'number?', value_field: 'string?', air_field: 'string?', percentile: 'number?' }, desc: 'Legacy IAQ analysis (not used in the commerce demo).' },
       { name: 'daypart_boxplot', args: { rooms: 'string[]', field: 'string', occupancy_field: 'string?', table: 'string?', start: 'number?', end: 'number?', timeZone: 'string?' }, desc: 'Build boxplot quartiles for 08-12 / 12-16 / 16-20 windows and companion occupancy medians for dual-axis overlays.' },
       { name: 'energy_iaq_linkage', args: { links: '[{name:string,energyRooms:string[],iaqRoom:string}]', start: 'number?', end: 'number?', bucket: '\"hourly\"|\"daily\"?', iaq_fields: 'string[]?' }, desc: 'Aggregates SmallPower/Lighting meters and IAQ sensors per area, returning aligned hourly/daily datasets for dual-axis panels.' },
-      { name: 'device_health_summary', args: { rooms: 'string[]?', lookback_days: 'number?' }, desc: 'Summarise IAQ device health (latest battery/RSSI/voltage, sparklines, missingness alerts) for dashboards.' },
+      { name: 'device_health_summary', args: { rooms: 'string[]?', lookback_days: 'number?' }, desc: 'Legacy device health summary (not used in the commerce demo).' },
       { name: 'weekday_weekend_pm_profile', args: { rooms: 'string[]', field: 'string?', bucket_minutes: 'number?', start: 'number?', end: 'number?', timeZone: 'string?' }, desc: 'Compare weekday vs weekend diurnal PM profiles (median per 30-min bin) and report uplift percentages.' },
-      { name: 'table_sample', args: { room: 'string', table: 'string', fields: 'string[]?', limit: 'number?', order: '"asc" | "desc"?', start: 'number?', end: 'number?' }, desc: 'Return up to N rows from a room table (ts + selected fields) respecting an optional time window. Useful for table extracts.' },
-      { name: 'compare_metrics_in_room', args: { room: 'string', table: 'string', fields: 'string[]', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Compare multiple metrics within one room; returns [{field, value}]' },
-      { name: 'common_metrics_in_scope', args: { rooms: 'string[]?' }, desc: 'List metrics common to all scoped rooms (intersection of first-row keys excluding ts)' },
-      { name: 'correlation_matrix', args: { room: 'string', table: 'string', fields: 'string[]', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Pairwise Pearson correlation among fields within a room/table over the window' }
+      { name: 'table_sample', args: { room: 'string', table: 'string', fields: 'string[]?', limit: 'number?', order: '"asc" | "desc"?', start: 'number?', end: 'number?' }, desc: 'Return up to N rows from a product table (ts + selected fields) respecting an optional time window. Useful for table extracts.' },
+      { name: 'compare_metrics_in_room', args: { room: 'string', table: 'string', fields: 'string[]', agg: 'string?', start: 'number?', end: 'number?' }, desc: 'Compare multiple KPIs within one product; returns [{field, value}]' },
+      { name: 'common_metrics_in_scope', args: { rooms: 'string[]?' }, desc: 'List KPIs common to all scoped products (intersection of first-row keys excluding ts)' },
+      { name: 'correlation_matrix', args: { room: 'string', table: 'string', fields: 'string[]', start: 'number?', end: 'number?', time_window_ms: 'number?' }, desc: 'Pairwise Pearson correlation among fields within a product/table over the window' }
     ];
   }
 
@@ -9359,7 +9368,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       }
       const rooms = listRooms();
       const set = new Set();
-      for (const r of rooms) { const m = String(r).match(/^([A-Za-z])_/); if (m) set.add(`Building ${m[1].toUpperCase()}`); }
+      for (const r of rooms) { const m = String(r).match(/^([A-Za-z])_/); if (m) set.add(`Owner ${m[1].toUpperCase()}`); }
       return Array.from(set).sort();
     },
 
@@ -9395,7 +9404,7 @@ function parseFieldsFromQuestion(question, availableSets) {
       const rooms = listRooms();
       const set = new Set();
       const b = (String(building||'').match(/([A-Za-z])$/) || [,''])[1].toUpperCase();
-      for (const r of rooms) { const m = String(r).match(/^([A-Za-z])_(F\d+)_/); if (m && (!b || m[1].toUpperCase()===b)) set.add(`Floor ${m[2].slice(1)}`); }
+      for (const r of rooms) { const m = String(r).match(/^([A-Za-z])_(F\d+)_/); if (m && (!b || m[1].toUpperCase()===b)) set.add(`Shop ${m[2].slice(1)}`); }
       return Array.from(set).sort((a,b)=> Number(a.split(' ').at(-1)) - Number(b.split(' ').at(-1)));
     },
 

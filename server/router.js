@@ -96,7 +96,7 @@ export function classifyQuery(question) {
       'which has', 'who has', 'where has', 'top', 'bottom', 'ranked', 'ranking',
       'highest', 'lowest', 'most', 'least', 'better', 'worse', 'improve', 'decline',
       'increase', 'decrease', 'rise', 'fall', 'growth', 'drop', 'change over', 'over time',
-      'across rooms', 'cross room', 'cross building', 'across zones',
+      'across pages', 'cross page', 'across products', 'cross product', 'cross owner', 'across shops',
       'variation', 'fluctuation', 'delta', 'trend', 'trajectory', 'moving average',
       'seasonal', 'periodic', 'pattern of change', 'comparing', 'contrast', 'difference in'
     ]),

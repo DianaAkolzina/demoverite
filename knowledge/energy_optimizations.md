@@ -1,7 +1,4 @@
-Energy optimization tips
+# Pricing & Promo Optimizations
 
-- Track total_kwh delta over selected window.
-- Identify peak usage times; align with occupancy.
-- Flag energy high when occupancy is zero.
-- Compare weekday vs weekend usage.
-
+Optimize ROAS and AOV by testing offers and timing.
+Use page-level conversion_rate changes to validate promotions.

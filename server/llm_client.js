@@ -109,7 +109,7 @@ export function createLLMClient({ env = process.env, logger = console } = {}) {
       async chat(messages, context = {}) {
         if (!env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY missing');
         const adapted = [
-          { role: 'system', content: 'You are a data analyst for smart buildings.' },
+          { role: 'system', content: 'You are a data analyst for e-commerce performance.' },
           ...cleanMessages(messages).map((m) => ({ role: m.role, content: m.content })),
           { role: 'user', content: `Context JSON (truncated):\n${JSON.stringify(context).slice(0, 6000)}` }
         ];

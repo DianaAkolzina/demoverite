@@ -1,6 +1,4 @@
-HVAC scheduling hints
+# Campaign Scheduling
 
-- Pre-heat or pre-cool before occupancy peaks.
-- Night/weekend setbacks when occupancy is low.
-- Use outside temperature correlation to optimize start times.
-
+Align marketing bursts with forecasted demand windows.
+Use hourly trends to time offers during peak sessions.

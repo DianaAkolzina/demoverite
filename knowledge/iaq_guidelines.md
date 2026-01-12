@@ -1,7 +1,4 @@
-IAQ guidelines
+# Site Performance Guidelines
 
-- CO2 comfort: aim under ~1000 ppm for typical office.
-- PM2.5: lower is better; track spikes.
-- Humidity: target ~40–60%.
-- Temperature comfort: ~20–22°C for office.
-
+Aim for stable conversion_rate and low bounce_rate during peak traffic.
+Watch checkout conversion dips during traffic spikes.

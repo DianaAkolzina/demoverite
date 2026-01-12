@@ -3,19 +3,34 @@
   "generatedAt": 1765312335345,
   "buildings": [
     {
-      "id": "Building:Transmission building ",
-      "name": "Transmission building ",
+      "id": "Building:aspen_yard",
+      "name": "Aspen Yard",
       "label": "Building",
       "properties": {
         "floorCount": 1,
-        "name": "Transmission building ",
+        "name": "Aspen Yard",
         "id": 85,
         "originalId": 1,
         "isActive": true,
         "lat": 53.47837130000001,
         "long": -2.2550535
       },
-      "devices": [],
+      "devices": [
+        {
+          "id": "Device:meter:transmission_building",
+          "name": "Utility Meter - Mariner Campus",
+          "label": "Device",
+          "properties": {
+            "name": "Utility Meter - Mariner Campus",
+            "label": "Utility Meter",
+            "id": "Device:meter:transmission_building",
+            "isActive": true,
+            "cloudId": "meter-transmission_building"
+          },
+          "type": "Meter",
+          "cloudId": "meter-transmission_building"
+        }
+      ],
       "floors": [
         {
           "id": "Floor:133:85",
@@ -41,7 +56,79 @@
                 "originalId": 1,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:transmission_building-reception",
+                  "name": "Reception Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:transmission_building-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-transmission_building-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-transmission_building-reception"
+                },
+                {
+                  "id": "Device:meter:zone:transmission_building-reception",
+                  "name": "Reception Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:transmission_building-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-transmission_building-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-transmission_building-reception"
+                },
+                {
+                  "id": "Device:meter:zone:transmission_building-reception",
+                  "name": "Reception Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:transmission_building-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-transmission_building-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-transmission_building-reception"
+                },
+                {
+                  "id": "Device:sensor:reception",
+                  "name": "Reception Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:reception",
+                    "isActive": true,
+                    "cloudId": "sensor-reception",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-reception"
+                },
+                {
+                  "id": "Device:meter:zone:transmission_building-reception",
+                  "name": "Reception Meter - Mariner Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Mariner Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:transmission_building-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-transmission_building-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-transmission_building-reception"
+                }
+              ]
             }
           ],
           "devices": []
@@ -51,15 +138,15 @@
   ],
   "nodes": [
     {
-      "id": "Building:Transmission building ",
+      "id": "Building:aspen_yard",
       "label": "Building",
-      "name": "Transmission building ",
+      "name": "Aspen Yard",
       "nodeType": "Building",
       "hasData": false,
       "dataDevices": 0,
       "properties": {
         "floorCount": 1,
-        "name": "Transmission building ",
+        "name": "Aspen Yard",
         "id": 85,
         "originalId": 1,
         "isActive": true,
@@ -126,23 +213,213 @@
       },
       "x": 0,
       "y": 440
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:transmission_building",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:transmission_building-reception",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:sensor:reception",
+      "label": "Device",
+      "name": "Reception Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Reception Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:reception",
+        "isActive": true,
+        "cloudId": "sensor-reception",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-reception"
+    },
+    {
+      "id": "Device:iaq:nimbus_campus_reception",
+      "label": "Device",
+      "name": "IAQ Sensor - Reception",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Reception",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:nimbus_campus_reception",
+        "isActive": true,
+        "cloudId": "iaq-nimbus_campus_reception",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-nimbus_campus_reception"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_reception",
+      "label": "Device",
+      "name": "IAQ Sensor - Reception",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Reception",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_reception",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_reception",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_reception"
+    },
+    {
+      "id": "Device:iaq:summit_campus_reception",
+      "label": "Device",
+      "name": "IAQ Sensor - Reception",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Reception",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_reception",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_reception",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_reception"
     }
   ],
   "links": [
     {
       "source": "Floor:133:85",
-      "target": "Building:Transmission building ",
+      "target": "Building:aspen_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:222:85",
-      "target": "Building:Transmission building ",
+      "target": "Building:aspen_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:222:85",
       "target": "Floor:133:85",
       "rel": "BELONGS_TO_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:aspen_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:222:85",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:133:85",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:aspen_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:reception",
+      "target": "Zone:222:85",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:reception",
+      "target": "Floor:133:85",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:reception",
+      "target": "Building:aspen_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:222:85",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_reception",
+      "target": "Zone:222:85",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_reception",
+      "target": "Floor:133:85",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_reception",
+      "target": "Building:aspen_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_reception",
+      "target": "Zone:222:85",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_reception",
+      "target": "Floor:133:85",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_reception",
+      "target": "Building:aspen_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_reception",
+      "target": "Zone:222:85",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_reception",
+      "target": "Floor:133:85",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_reception",
+      "target": "Building:aspen_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:aspen_yard",
+      "rel": "IN_BUILDING"
     }
   ]
 }

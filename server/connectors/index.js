@@ -10,7 +10,7 @@ export function initConnectorRegistry({ root, env = process.env } = {}) {
   const graphConnector = new Connector({
     id: 'neo4j',
     label: 'Neo4j Graph',
-    description: 'Tenant/building topology and relationships.',
+    description: 'Owner/shop topology and relationships.',
     check: async () => {
       const graph = createGraphFromEnv(env);
       if (!graph?.ping) {
@@ -49,7 +49,7 @@ export function initConnectorRegistry({ root, env = process.env } = {}) {
   const telemetryConnector = new Connector({
     id: 'telemetry',
     label: 'Telemetry Cache',
-    description: 'CSVex_s3 mirror and cached device tables.',
+    description: 'CSVex_s3 mirror and cached product tables.',
     check: async () => {
       try {
         const dir = path.join(root || process.cwd(), env.S3_LOCAL_DIR || 'CSVex_s3');
@@ -69,8 +69,8 @@ export function initConnectorRegistry({ root, env = process.env } = {}) {
 
   const weatherConnector = new Connector({
     id: 'weather',
-    label: 'Synthetic Weather Cache',
-    description: 'Cached weather series in data/weather_buildings.',
+    label: 'Market Signals Cache',
+    description: 'Cached market signal series in data/weather_buildings.',
     check: async () => {
       try {
         const dir = path.join(root || process.cwd(), 'data', 'weather_buildings');

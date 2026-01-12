@@ -50,17 +50,17 @@ function summarizeState(state) {
   const parts = [];
   const scope = state.scope || {};
   const scopeBits = [];
-  if (scope.tenant) scopeBits.push(`tenant ${scope.tenant}`);
-  if (scope.building) scopeBits.push(`building ${scope.building}`);
-  if (scope.floor) scopeBits.push(`floor ${scope.floor}`);
-  if (scope.zone || scope.room) scopeBits.push(`zone ${scope.zone || scope.room}`);
+  if (scope.tenant) scopeBits.push(`owner group ${scope.tenant}`);
+  if (scope.building) scopeBits.push(`owner ${scope.building}`);
+  if (scope.floor) scopeBits.push(`shop ${scope.floor}`);
+  if (scope.zone || scope.room) scopeBits.push(`page ${scope.zone || scope.room}`);
   if (Array.isArray(scope.devices) && scope.devices.length) scopeBits.push(`${scope.devices.length} scoped devices`);
   if (scopeBits.length) parts.push(`Scope memory: ${scopeBits.join(', ')}.`);
   const rangeLine = formatRange(state.lastRange);
   if (rangeLine) parts.push(rangeLine);
   if (Array.isArray(state.metrics) && state.metrics.length) {
     const metricList = state.metrics.slice(0, 5).map((m) => m.name).filter(Boolean).join(', ');
-    if (metricList) parts.push(`Recently analysed metrics: ${metricList}.`);
+    if (metricList) parts.push(`Recently analyzed KPIs: ${metricList}.`);
   }
   if (state.preferences?.granularity) {
     parts.push(`User prefers ${state.preferences.granularity} granularity when possible.`);

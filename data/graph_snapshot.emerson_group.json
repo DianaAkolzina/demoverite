@@ -3,19 +3,34 @@
   "generatedAt": 1765312334554,
   "buildings": [
     {
-      "id": "Building:Regent House",
-      "name": "Regent House",
+      "id": "Building:nimbus_yard",
+      "name": "Nimbus Yard",
       "label": "Building",
       "properties": {
         "floorCount": 2,
-        "name": "Regent House",
+        "name": "Nimbus Yard",
         "id": 74,
         "originalId": 2,
         "isActive": true,
         "lat": 53.4095173,
         "long": -2.1641114
       },
-      "devices": [],
+      "devices": [
+        {
+          "id": "Device:meter:regent_house",
+          "name": "Utility Meter - Harbor Campus",
+          "label": "Device",
+          "properties": {
+            "name": "Utility Meter - Harbor Campus",
+            "label": "Utility Meter",
+            "id": "Device:meter:regent_house",
+            "isActive": true,
+            "cloudId": "meter-regent_house"
+          },
+          "type": "Meter",
+          "cloudId": "meter-regent_house"
+        }
+      ],
       "floors": [
         {
           "id": "Floor:111:74",
@@ -41,7 +56,79 @@
                 "originalId": 11,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:regent_house-ground_floor_reception_lobby",
+                  "name": "Ground Floor Reception + Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Ground Floor Reception + Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:regent_house-ground_floor_reception_lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-regent_house-ground_floor_reception_lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-regent_house-ground_floor_reception_lobby"
+                },
+                {
+                  "id": "Device:meter:zone:regent_house-ground_floor_reception_lobby",
+                  "name": "Ground Floor Reception + Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Ground Floor Reception + Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:regent_house-ground_floor_reception_lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-regent_house-ground_floor_reception_lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-regent_house-ground_floor_reception_lobby"
+                },
+                {
+                  "id": "Device:meter:zone:regent_house-ground_floor_reception_lobby",
+                  "name": "Ground Floor Reception + Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Ground Floor Reception + Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:regent_house-ground_floor_reception_lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-regent_house-ground_floor_reception_lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-regent_house-ground_floor_reception_lobby"
+                },
+                {
+                  "id": "Device:sensor:ground_floor_reception_lobby",
+                  "name": "Ground Floor Reception + Lobby Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Ground Floor Reception + Lobby Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:ground_floor_reception_lobby",
+                    "isActive": true,
+                    "cloudId": "sensor-ground_floor_reception_lobby",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-ground_floor_reception_lobby"
+                },
+                {
+                  "id": "Device:meter:zone:regent_house-ground_floor_reception_lobby",
+                  "name": "Ground Floor Reception + Lobby Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Ground Floor Reception + Lobby Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:regent_house-ground_floor_reception_lobby",
+                    "isActive": true,
+                    "cloudId": "meter-zone-regent_house-ground_floor_reception_lobby"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-regent_house-ground_floor_reception_lobby"
+                }
+              ]
             }
           ],
           "devices": []
@@ -70,7 +157,79 @@
                 "originalId": 12,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:regent_house-11th_floor_reception_hub",
+                  "name": "11th Floor Reception + Hub Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "11th Floor Reception + Hub Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:regent_house-11th_floor_reception_hub",
+                    "isActive": true,
+                    "cloudId": "meter-zone-regent_house-11th_floor_reception_hub"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-regent_house-11th_floor_reception_hub"
+                },
+                {
+                  "id": "Device:meter:zone:regent_house-11th_floor_reception_hub",
+                  "name": "11th Floor Reception + Hub Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "11th Floor Reception + Hub Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:regent_house-11th_floor_reception_hub",
+                    "isActive": true,
+                    "cloudId": "meter-zone-regent_house-11th_floor_reception_hub"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-regent_house-11th_floor_reception_hub"
+                },
+                {
+                  "id": "Device:meter:zone:regent_house-11th_floor_reception_hub",
+                  "name": "11th Floor Reception + Hub Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "11th Floor Reception + Hub Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:regent_house-11th_floor_reception_hub",
+                    "isActive": true,
+                    "cloudId": "meter-zone-regent_house-11th_floor_reception_hub"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-regent_house-11th_floor_reception_hub"
+                },
+                {
+                  "id": "Device:sensor:11th_floor_reception_hub",
+                  "name": "11th Floor Reception + Hub Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "11th Floor Reception + Hub Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:11th_floor_reception_hub",
+                    "isActive": true,
+                    "cloudId": "sensor-11th_floor_reception_hub",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-11th_floor_reception_hub"
+                },
+                {
+                  "id": "Device:meter:zone:regent_house-11th_floor_reception_hub",
+                  "name": "11th Floor Reception + Hub Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "11th Floor Reception + Hub Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:regent_house-11th_floor_reception_hub",
+                    "isActive": true,
+                    "cloudId": "meter-zone-regent_house-11th_floor_reception_hub"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-regent_house-11th_floor_reception_hub"
+                }
+              ]
             }
           ],
           "devices": []
@@ -78,12 +237,12 @@
       ]
     },
     {
-      "id": "Building:55 King Street",
-      "name": "55 King Street",
+      "id": "Building:quartz_yard",
+      "name": "Quartz Yard",
       "label": "Building",
       "properties": {
         "floorCount": 5,
-        "name": "55 King Street",
+        "name": "Quartz Yard",
         "id": 75,
         "originalId": 1,
         "isActive": true,
@@ -298,6 +457,20 @@
             "isActive": true
           },
           "cloudId": "548e6250-66d5-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:meter:55_king_street",
+          "name": "Utility Meter - Harbor Campus",
+          "label": "Device",
+          "properties": {
+            "name": "Utility Meter - Harbor Campus",
+            "label": "Utility Meter",
+            "id": "Device:meter:55_king_street",
+            "isActive": true,
+            "cloudId": "meter-55_king_street"
+          },
+          "type": "Meter",
+          "cloudId": "meter-55_king_street"
         }
       ],
       "floors": [
@@ -389,6 +562,77 @@
                     "isActive": true
                   },
                   "cloudId": "cf271990-6648-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_1",
+                  "name": "Suite 6.1 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.1 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_1",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_1"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_1"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_1",
+                  "name": "Suite 6.1 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.1 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_1",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_1"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_1"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_1",
+                  "name": "Suite 6.1 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.1 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_1",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_1"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_1"
+                },
+                {
+                  "id": "Device:sensor:suite_6_1",
+                  "name": "Suite 6.1 Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.1 Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:suite_6_1",
+                    "isActive": true,
+                    "cloudId": "sensor-suite_6_1",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-suite_6_1"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_1",
+                  "name": "Suite 6.1 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.1 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_1",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_1"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_1"
                 }
               ]
             },
@@ -404,7 +648,191 @@
                 "originalId": 4,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                },
+                {
+                  "id": "Device:sensor:corridor",
+                  "name": "Corridor Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:corridor",
+                    "isActive": true,
+                    "cloudId": "sensor-corridor",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-corridor"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-corridor",
+                  "name": "Corridor Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Corridor Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-corridor",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-corridor"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-corridor"
+                }
+              ]
             },
             {
               "id": "Zone:176:75",
@@ -434,6 +862,77 @@
                     "isActive": true
                   },
                   "cloudId": "fa5d8730-6647-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-orbit_suit",
+                  "name": "Orbit Suit Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Orbit Suit Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-orbit_suit",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-orbit_suit"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-orbit_suit"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-orbit_suit",
+                  "name": "Orbit Suit Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Orbit Suit Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-orbit_suit",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-orbit_suit"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-orbit_suit"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-orbit_suit",
+                  "name": "Orbit Suit Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Orbit Suit Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-orbit_suit",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-orbit_suit"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-orbit_suit"
+                },
+                {
+                  "id": "Device:sensor:orbit_suit",
+                  "name": "Orbit Suit Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Orbit Suit Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:orbit_suit",
+                    "isActive": true,
+                    "cloudId": "sensor-orbit_suit",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-orbit_suit"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-orbit_suit",
+                  "name": "Orbit Suit Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Orbit Suit Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-orbit_suit",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-orbit_suit"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-orbit_suit"
                 }
               ]
             },
@@ -465,6 +964,62 @@
                     "isActive": true
                   },
                   "cloudId": "600552a0-664a-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_2",
+                  "name": "Suite 6.2 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.2 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_2",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_2"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_2"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_2",
+                  "name": "Suite 6.2 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.2 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_2",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_2"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_2"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_2",
+                  "name": "Suite 6.2 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.2 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_2",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_2"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_2"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_2",
+                  "name": "Suite 6.2 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.2 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_2",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_2"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_2"
                 }
               ]
             },
@@ -496,6 +1051,62 @@
                     "isActive": true
                   },
                   "cloudId": "8bd8ce20-664a-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_3",
+                  "name": "Suite 6.3 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.3 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_3",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_3"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_3"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_3",
+                  "name": "Suite 6.3 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.3 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_3",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_3"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_3"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_3",
+                  "name": "Suite 6.3 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.3 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_3",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_3"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_3"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_3",
+                  "name": "Suite 6.3 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.3 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_3",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_3"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_3"
                 }
               ]
             },
@@ -527,6 +1138,62 @@
                     "isActive": true
                   },
                   "cloudId": "ae728840-664a-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_4",
+                  "name": "Suite 6.4 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.4 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_4",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_4"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_4"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_4",
+                  "name": "Suite 6.4 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.4 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_4",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_4"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_4"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_4",
+                  "name": "Suite 6.4 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.4 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_4",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_4"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_4"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_4",
+                  "name": "Suite 6.4 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.4 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_4",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_4"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_4"
                 }
               ]
             },
@@ -622,6 +1289,62 @@
                     "isActive": true
                   },
                   "cloudId": "548e6250-66d5-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_5",
+                  "name": "Suite 6.5 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.5 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_5",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_5"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_5"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_5",
+                  "name": "Suite 6.5 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.5 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_5",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_5"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_5"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_5",
+                  "name": "Suite 6.5 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.5 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_5",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_5"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_5"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-suite_6_5",
+                  "name": "Suite 6.5 Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Suite 6.5 Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-suite_6_5",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-suite_6_5"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-suite_6_5"
                 }
               ]
             }
@@ -861,7 +1584,79 @@
                 "originalId": 2,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:55_king_street-reception",
+                  "name": "Reception Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-reception"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-reception",
+                  "name": "Reception Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-reception"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-reception",
+                  "name": "Reception Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-reception"
+                },
+                {
+                  "id": "Device:sensor:reception",
+                  "name": "Reception Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:reception",
+                    "isActive": true,
+                    "cloudId": "sensor-reception",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-reception"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-reception",
+                  "name": "Reception Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-reception"
+                }
+              ]
             }
           ],
           "devices": []
@@ -890,7 +1685,79 @@
                 "originalId": 1,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:55_king_street-comms_room",
+                  "name": "Comms Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-comms_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-comms_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-comms_room"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-comms_room",
+                  "name": "Comms Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-comms_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-comms_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-comms_room"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-comms_room",
+                  "name": "Comms Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-comms_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-comms_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-comms_room"
+                },
+                {
+                  "id": "Device:sensor:comms_room",
+                  "name": "Comms Room Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:comms_room",
+                    "isActive": true,
+                    "cloudId": "sensor-comms_room",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-comms_room"
+                },
+                {
+                  "id": "Device:meter:zone:55_king_street-comms_room",
+                  "name": "Comms Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Comms Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:55_king_street-comms_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-55_king_street-comms_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-55_king_street-comms_room"
+                }
+              ]
             }
           ],
           "devices": []
@@ -956,19 +1823,34 @@
       ]
     },
     {
-      "id": "Building:Futura Park",
-      "name": "Futura Park",
+      "id": "Building:juniper_yard",
+      "name": "Juniper Yard",
       "label": "Building",
       "properties": {
         "floorCount": 1,
-        "name": "Futura Park",
+        "name": "Juniper Yard",
         "id": 76,
         "originalId": 3,
         "isActive": true,
         "lat": 53.5859993,
         "long": -2.540975
       },
-      "devices": [],
+      "devices": [
+        {
+          "id": "Device:meter:futura_park",
+          "name": "Utility Meter - Harbor Campus",
+          "label": "Device",
+          "properties": {
+            "name": "Utility Meter - Harbor Campus",
+            "label": "Utility Meter",
+            "id": "Device:meter:futura_park",
+            "isActive": true,
+            "cloudId": "meter-futura_park"
+          },
+          "type": "Meter",
+          "cloudId": "meter-futura_park"
+        }
+      ],
       "floors": [
         {
           "id": "Floor:118:76",
@@ -994,7 +1876,79 @@
                 "originalId": 13,
                 "isActive": true
               },
-              "devices": []
+              "devices": [
+                {
+                  "id": "Device:meter:zone:futura_park-ground_floor_audio",
+                  "name": "Ground Floor Audio Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Ground Floor Audio Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:futura_park-ground_floor_audio",
+                    "isActive": true,
+                    "cloudId": "meter-zone-futura_park-ground_floor_audio"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-futura_park-ground_floor_audio"
+                },
+                {
+                  "id": "Device:meter:zone:futura_park-ground_floor_audio",
+                  "name": "Ground Floor Audio Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Ground Floor Audio Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:futura_park-ground_floor_audio",
+                    "isActive": true,
+                    "cloudId": "meter-zone-futura_park-ground_floor_audio"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-futura_park-ground_floor_audio"
+                },
+                {
+                  "id": "Device:meter:zone:futura_park-ground_floor_audio",
+                  "name": "Ground Floor Audio Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Ground Floor Audio Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:futura_park-ground_floor_audio",
+                    "isActive": true,
+                    "cloudId": "meter-zone-futura_park-ground_floor_audio"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-futura_park-ground_floor_audio"
+                },
+                {
+                  "id": "Device:sensor:ground_floor_audio",
+                  "name": "Ground Floor Audio Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Ground Floor Audio Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:ground_floor_audio",
+                    "isActive": true,
+                    "cloudId": "sensor-ground_floor_audio",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-ground_floor_audio"
+                },
+                {
+                  "id": "Device:meter:zone:futura_park-ground_floor_audio",
+                  "name": "Ground Floor Audio Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Ground Floor Audio Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:futura_park-ground_floor_audio",
+                    "isActive": true,
+                    "cloudId": "meter-zone-futura_park-ground_floor_audio"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-futura_park-ground_floor_audio"
+                }
+              ]
             }
           ],
           "devices": []
@@ -1004,15 +1958,15 @@
   ],
   "nodes": [
     {
-      "id": "Building:Regent House",
+      "id": "Building:nimbus_yard",
       "label": "Building",
-      "name": "Regent House",
+      "name": "Nimbus Yard",
       "nodeType": "Building",
       "hasData": false,
       "dataDevices": 0,
       "properties": {
         "floorCount": 2,
-        "name": "Regent House",
+        "name": "Nimbus Yard",
         "id": 74,
         "originalId": 2,
         "isActive": true,
@@ -1139,15 +2093,15 @@
       "y": 440
     },
     {
-      "id": "Building:55 King Street",
+      "id": "Building:quartz_yard",
       "label": "Building",
-      "name": "55 King Street",
+      "name": "Quartz Yard",
       "nodeType": "Building",
       "hasData": true,
       "dataDevices": 1,
       "properties": {
         "floorCount": 5,
-        "name": "55 King Street",
+        "name": "Quartz Yard",
         "id": 75,
         "originalId": 1,
         "isActive": true,
@@ -1242,7 +2196,7 @@
     {
       "id": "Floor:115:75",
       "label": "Floor",
-      "name": "Basement",
+      "name": "Harbor Campusment",
       "nodeType": "Floor",
       "node": {
         "identity": {
@@ -1271,7 +2225,7 @@
         "elementId": "4:b30e3f1f-353b-4465-9056-c8cc60f48764:278"
       },
       "properties": {
-        "name": "Basement",
+        "name": "Harbor Campusment",
         "zoneCount": 1,
         "id": 115,
         "originalId": 1,
@@ -1550,15 +2504,15 @@
       "y": 440
     },
     {
-      "id": "Building:Futura Park",
+      "id": "Building:juniper_yard",
       "label": "Building",
-      "name": "Futura Park",
+      "name": "Juniper Yard",
       "nodeType": "Building",
       "hasData": false,
       "dataDevices": 0,
       "properties": {
         "floorCount": 1,
-        "name": "Futura Park",
+        "name": "Juniper Yard",
         "id": 76,
         "originalId": 3,
         "isActive": true,
@@ -1872,22 +2826,1128 @@
       },
       "x": 620,
       "y": 660
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:regent_house",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:55_king_street",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:futura_park",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:regent_house-ground_floor_reception_lobby",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:regent_house-11th_floor_reception_hub",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:55_king_street-suite_6_1",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:55_king_street-corridor",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:55_king_street-orbit_suit",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:55_king_street-suite_6_2",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:55_king_street-suite_6_3",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:55_king_street-suite_6_4",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:55_king_street-suite_6_5",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:55_king_street-reception",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:55_king_street-comms_room",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:futura_park-ground_floor_audio",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:sensor:11th_floor_reception_hub",
+      "label": "Device",
+      "name": "11th Floor Reception + Hub Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "11th Floor Reception + Hub Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:11th_floor_reception_hub",
+        "isActive": true,
+        "cloudId": "sensor-11th_floor_reception_hub",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-11th_floor_reception_hub"
+    },
+    {
+      "id": "Device:sensor:comms_room",
+      "label": "Device",
+      "name": "Comms Room Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Comms Room Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:comms_room",
+        "isActive": true,
+        "cloudId": "sensor-comms_room",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-comms_room"
+    },
+    {
+      "id": "Device:sensor:corridor",
+      "label": "Device",
+      "name": "Corridor Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Corridor Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:corridor",
+        "isActive": true,
+        "cloudId": "sensor-corridor",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-corridor"
+    },
+    {
+      "id": "Device:sensor:ground_floor_audio",
+      "label": "Device",
+      "name": "Ground Floor Audio Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Ground Floor Audio Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:ground_floor_audio",
+        "isActive": true,
+        "cloudId": "sensor-ground_floor_audio",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-ground_floor_audio"
+    },
+    {
+      "id": "Device:sensor:ground_floor_reception_lobby",
+      "label": "Device",
+      "name": "Ground Floor Reception + Lobby Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Ground Floor Reception + Lobby Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:ground_floor_reception_lobby",
+        "isActive": true,
+        "cloudId": "sensor-ground_floor_reception_lobby",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-ground_floor_reception_lobby"
+    },
+    {
+      "id": "Device:sensor:orbit_suit",
+      "label": "Device",
+      "name": "Orbit Suit Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Orbit Suit Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:orbit_suit",
+        "isActive": true,
+        "cloudId": "sensor-orbit_suit",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-orbit_suit"
+    },
+    {
+      "id": "Device:sensor:reception",
+      "label": "Device",
+      "name": "Reception Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Reception Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:reception",
+        "isActive": true,
+        "cloudId": "sensor-reception",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-reception"
+    },
+    {
+      "id": "Device:sensor:suite_6_1",
+      "label": "Device",
+      "name": "Suite 6.1 Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Suite 6.1 Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:suite_6_1",
+        "isActive": true,
+        "cloudId": "sensor-suite_6_1",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-suite_6_1"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:nimbus_campus-11th_floor_reception_hub",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:iaq:nimbus_campus_ground_floor_reception_lobby",
+      "label": "Device",
+      "name": "IAQ Sensor - Ground Floor Reception + Lobby",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Ground Floor Reception + Lobby",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:nimbus_campus_ground_floor_reception_lobby",
+        "isActive": true,
+        "cloudId": "iaq-nimbus_campus_ground_floor_reception_lobby",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-nimbus_campus_ground_floor_reception_lobby"
+    },
+    {
+      "id": "Device:iaq:nimbus_campus_11th_floor_reception_hub",
+      "label": "Device",
+      "name": "IAQ Sensor - 11th Floor Reception + Hub",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - 11th Floor Reception + Hub",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:nimbus_campus_11th_floor_reception_hub",
+        "isActive": true,
+        "cloudId": "iaq-nimbus_campus_11th_floor_reception_hub",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-nimbus_campus_11th_floor_reception_hub"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-corridor",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-orbit_suit",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-suite_6_2",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-suite_6_3",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-suite_6_4",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-suite_6_5",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-reception",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-comms_room",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:iaq:harbor_campus_suite_6_1",
+      "label": "Device",
+      "name": "IAQ Sensor - Suite 6.1",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Suite 6.1",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:harbor_campus_suite_6_1",
+        "isActive": true,
+        "cloudId": "iaq-harbor_campus_suite_6_1",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-harbor_campus_suite_6_1"
+    },
+    {
+      "id": "Device:iaq:harbor_campus_corridor",
+      "label": "Device",
+      "name": "IAQ Sensor - Corridor",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Corridor",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:harbor_campus_corridor",
+        "isActive": true,
+        "cloudId": "iaq-harbor_campus_corridor",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-harbor_campus_corridor"
+    },
+    {
+      "id": "Device:iaq:harbor_campus_orbit_suit",
+      "label": "Device",
+      "name": "IAQ Sensor - Orbit Suit",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Orbit Suit",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:harbor_campus_orbit_suit",
+        "isActive": true,
+        "cloudId": "iaq-harbor_campus_orbit_suit",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-harbor_campus_orbit_suit"
+    },
+    {
+      "id": "Device:iaq:harbor_campus_suite_6_2",
+      "label": "Device",
+      "name": "IAQ Sensor - Suite 6.2",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Suite 6.2",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:harbor_campus_suite_6_2",
+        "isActive": true,
+        "cloudId": "iaq-harbor_campus_suite_6_2",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-harbor_campus_suite_6_2"
+    },
+    {
+      "id": "Device:iaq:harbor_campus_suite_6_3",
+      "label": "Device",
+      "name": "IAQ Sensor - Suite 6.3",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Suite 6.3",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:harbor_campus_suite_6_3",
+        "isActive": true,
+        "cloudId": "iaq-harbor_campus_suite_6_3",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-harbor_campus_suite_6_3"
+    },
+    {
+      "id": "Device:iaq:harbor_campus_suite_6_4",
+      "label": "Device",
+      "name": "IAQ Sensor - Suite 6.4",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Suite 6.4",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:harbor_campus_suite_6_4",
+        "isActive": true,
+        "cloudId": "iaq-harbor_campus_suite_6_4",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-harbor_campus_suite_6_4"
+    },
+    {
+      "id": "Device:iaq:harbor_campus_suite_6_5",
+      "label": "Device",
+      "name": "IAQ Sensor - Suite 6.5",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Suite 6.5",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:harbor_campus_suite_6_5",
+        "isActive": true,
+        "cloudId": "iaq-harbor_campus_suite_6_5",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-harbor_campus_suite_6_5"
+    },
+    {
+      "id": "Device:iaq:harbor_campus_reception",
+      "label": "Device",
+      "name": "IAQ Sensor - Reception",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Reception",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:harbor_campus_reception",
+        "isActive": true,
+        "cloudId": "iaq-harbor_campus_reception",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-harbor_campus_reception"
+    },
+    {
+      "id": "Device:iaq:harbor_campus_comms_room",
+      "label": "Device",
+      "name": "IAQ Sensor - Comms Room",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Comms Room",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:harbor_campus_comms_room",
+        "isActive": true,
+        "cloudId": "iaq-harbor_campus_comms_room",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-harbor_campus_comms_room"
+    },
+    {
+      "id": "Device:iaq:orchid_campus_ground_floor_audio",
+      "label": "Device",
+      "name": "IAQ Sensor - Ground Floor Audio",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Ground Floor Audio",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:orchid_campus_ground_floor_audio",
+        "isActive": true,
+        "cloudId": "iaq-orchid_campus_ground_floor_audio",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-orchid_campus_ground_floor_audio"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:cedar_campus-11th_floor_reception_hub",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_ground_floor_reception_lobby",
+      "label": "Device",
+      "name": "IAQ Sensor - Ground Floor Reception + Lobby",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Ground Floor Reception + Lobby",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_ground_floor_reception_lobby",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_ground_floor_reception_lobby",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_ground_floor_reception_lobby"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_11th_floor_reception_hub",
+      "label": "Device",
+      "name": "IAQ Sensor - 11th Floor Reception + Hub",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - 11th Floor Reception + Hub",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_11th_floor_reception_hub",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_11th_floor_reception_hub",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_11th_floor_reception_hub"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-corridor",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-orbit_suit",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-suite_6_2",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-suite_6_3",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-suite_6_4",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-suite_6_5",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-reception",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:harbor_campus-comms_room",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:iaq:summit_campus_ground_floor_reception_lobby",
+      "label": "Device",
+      "name": "IAQ Sensor - Ground Floor Reception + Lobby",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Ground Floor Reception + Lobby",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_ground_floor_reception_lobby",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_ground_floor_reception_lobby",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_ground_floor_reception_lobby"
+    },
+    {
+      "id": "Device:iaq:summit_campus_11th_floor_reception_hub",
+      "label": "Device",
+      "name": "IAQ Sensor - 11th Floor Reception + Hub",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - 11th Floor Reception + Hub",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_11th_floor_reception_hub",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_11th_floor_reception_hub",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_11th_floor_reception_hub"
+    },
+    {
+      "id": "Device:iaq:summit_campus_suite_6_1",
+      "label": "Device",
+      "name": "IAQ Sensor - Suite 6.1",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Suite 6.1",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_suite_6_1",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_suite_6_1",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_suite_6_1"
+    },
+    {
+      "id": "Device:iaq:summit_campus_corridor",
+      "label": "Device",
+      "name": "IAQ Sensor - Corridor",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Corridor",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_corridor",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_corridor",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_corridor"
+    },
+    {
+      "id": "Device:iaq:summit_campus_orbit_suit",
+      "label": "Device",
+      "name": "IAQ Sensor - Orbit Suit",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Orbit Suit",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_orbit_suit",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_orbit_suit",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_orbit_suit"
+    },
+    {
+      "id": "Device:iaq:summit_campus_suite_6_2",
+      "label": "Device",
+      "name": "IAQ Sensor - Suite 6.2",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Suite 6.2",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_suite_6_2",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_suite_6_2",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_suite_6_2"
+    },
+    {
+      "id": "Device:iaq:summit_campus_suite_6_3",
+      "label": "Device",
+      "name": "IAQ Sensor - Suite 6.3",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Suite 6.3",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_suite_6_3",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_suite_6_3",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_suite_6_3"
+    },
+    {
+      "id": "Device:iaq:summit_campus_suite_6_4",
+      "label": "Device",
+      "name": "IAQ Sensor - Suite 6.4",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Suite 6.4",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_suite_6_4",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_suite_6_4",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_suite_6_4"
+    },
+    {
+      "id": "Device:iaq:summit_campus_suite_6_5",
+      "label": "Device",
+      "name": "IAQ Sensor - Suite 6.5",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Suite 6.5",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_suite_6_5",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_suite_6_5",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_suite_6_5"
+    },
+    {
+      "id": "Device:iaq:summit_campus_reception",
+      "label": "Device",
+      "name": "IAQ Sensor - Reception",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Reception",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_reception",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_reception",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_reception"
+    },
+    {
+      "id": "Device:iaq:summit_campus_comms_room",
+      "label": "Device",
+      "name": "IAQ Sensor - Comms Room",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Comms Room",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_comms_room",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_comms_room",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_comms_room"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_ground_floor_audio",
+      "label": "Device",
+      "name": "IAQ Sensor - Ground Floor Audio",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Ground Floor Audio",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_ground_floor_audio",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_ground_floor_audio",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_ground_floor_audio"
     }
   ],
   "links": [
     {
       "source": "Floor:111:74",
-      "target": "Building:Regent House",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Floor:112:74",
-      "target": "Building:Regent House",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:172:74",
-      "target": "Building:Regent House",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1897,7 +3957,7 @@
     },
     {
       "source": "Zone:173:74",
-      "target": "Building:Regent House",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1907,32 +3967,32 @@
     },
     {
       "source": "Floor:113:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Floor:114:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Floor:115:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Floor:116:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Floor:117:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:174:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1942,7 +4002,7 @@
     },
     {
       "source": "Zone:175:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1952,7 +4012,7 @@
     },
     {
       "source": "Zone:176:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1962,7 +4022,7 @@
     },
     {
       "source": "Zone:177:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1972,7 +4032,7 @@
     },
     {
       "source": "Zone:178:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1982,7 +4042,7 @@
     },
     {
       "source": "Zone:179:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1992,7 +4052,7 @@
     },
     {
       "source": "Zone:180:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -2002,7 +4062,7 @@
     },
     {
       "source": "Zone:181:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -2012,7 +4072,7 @@
     },
     {
       "source": "Zone:182:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -2022,7 +4082,7 @@
     },
     {
       "source": "Zone:183:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -2032,7 +4092,7 @@
     },
     {
       "source": "Zone:184:75",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -2042,12 +4102,12 @@
     },
     {
       "source": "Floor:118:76",
-      "target": "Building:Futura Park",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:185:76",
-      "target": "Building:Futura Park",
+      "target": "Building:juniper_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -2067,7 +4127,7 @@
     },
     {
       "source": "Device:27",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2082,7 +4142,7 @@
     },
     {
       "source": "Device:28",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2097,7 +4157,7 @@
     },
     {
       "source": "Device:29",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2112,7 +4172,7 @@
     },
     {
       "source": "Device:30",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2127,7 +4187,7 @@
     },
     {
       "source": "Device:31",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2142,7 +4202,7 @@
     },
     {
       "source": "Device:32",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2157,7 +4217,7 @@
     },
     {
       "source": "Device:33",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2172,7 +4232,7 @@
     },
     {
       "source": "Device:34",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2187,7 +4247,7 @@
     },
     {
       "source": "Device:35",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2202,7 +4262,7 @@
     },
     {
       "source": "Device:36",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2217,7 +4277,7 @@
     },
     {
       "source": "Device:37",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2232,7 +4292,7 @@
     },
     {
       "source": "Device:38",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -2247,7 +4307,1097 @@
     },
     {
       "source": "Device:39",
-      "target": "Building:55 King Street",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:172:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:111:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:173:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:112:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:174:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:175:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:176:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:177:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:178:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:179:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:180:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:181:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:111:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:182:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:115:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:185:76",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:111:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:11th_floor_reception_hub",
+      "target": "Zone:173:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:11th_floor_reception_hub",
+      "target": "Floor:112:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:11th_floor_reception_hub",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:comms_room",
+      "target": "Zone:182:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:comms_room",
+      "target": "Floor:115:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:comms_room",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:corridor",
+      "target": "Zone:175:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:corridor",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:corridor",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:ground_floor_audio",
+      "target": "Zone:185:76",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:ground_floor_audio",
+      "target": "Floor:111:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:ground_floor_audio",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:ground_floor_reception_lobby",
+      "target": "Zone:172:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:ground_floor_reception_lobby",
+      "target": "Floor:111:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:ground_floor_reception_lobby",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:orbit_suit",
+      "target": "Zone:176:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:orbit_suit",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:orbit_suit",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:reception",
+      "target": "Zone:181:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:reception",
+      "target": "Floor:111:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:reception",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:suite_6_1",
+      "target": "Zone:174:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:suite_6_1",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:suite_6_1",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:172:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:174:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:185:76",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:173:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:112:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_ground_floor_reception_lobby",
+      "target": "Zone:172:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_ground_floor_reception_lobby",
+      "target": "Floor:111:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_ground_floor_reception_lobby",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_11th_floor_reception_hub",
+      "target": "Zone:173:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_11th_floor_reception_hub",
+      "target": "Floor:112:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:nimbus_campus_11th_floor_reception_hub",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:175:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:176:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:177:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:178:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:179:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:180:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:181:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:111:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:182:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:115:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_1",
+      "target": "Zone:174:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_1",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_1",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_corridor",
+      "target": "Zone:175:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_corridor",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_corridor",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_orbit_suit",
+      "target": "Zone:176:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_orbit_suit",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_orbit_suit",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_2",
+      "target": "Zone:177:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_2",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_2",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_3",
+      "target": "Zone:178:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_3",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_3",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_4",
+      "target": "Zone:179:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_4",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_4",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_5",
+      "target": "Zone:180:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_5",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_suite_6_5",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_reception",
+      "target": "Zone:181:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_reception",
+      "target": "Floor:114:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_reception",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_comms_room",
+      "target": "Zone:182:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_comms_room",
+      "target": "Floor:115:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:harbor_campus_comms_room",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_ground_floor_audio",
+      "target": "Zone:185:76",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_ground_floor_audio",
+      "target": "Floor:118:76",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:orchid_campus_ground_floor_audio",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:173:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:112:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_ground_floor_reception_lobby",
+      "target": "Zone:172:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_ground_floor_reception_lobby",
+      "target": "Floor:111:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_ground_floor_reception_lobby",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_11th_floor_reception_hub",
+      "target": "Zone:173:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_11th_floor_reception_hub",
+      "target": "Floor:112:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_11th_floor_reception_hub",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:175:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:176:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:177:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:178:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:179:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:180:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:181:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:111:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:182:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Floor:115:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_ground_floor_reception_lobby",
+      "target": "Zone:172:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_ground_floor_reception_lobby",
+      "target": "Floor:111:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_ground_floor_reception_lobby",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_11th_floor_reception_hub",
+      "target": "Zone:173:74",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_11th_floor_reception_hub",
+      "target": "Floor:112:74",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_11th_floor_reception_hub",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_1",
+      "target": "Zone:174:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_1",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_1",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_corridor",
+      "target": "Zone:175:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_corridor",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_corridor",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_orbit_suit",
+      "target": "Zone:176:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_orbit_suit",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_orbit_suit",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_2",
+      "target": "Zone:177:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_2",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_2",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_3",
+      "target": "Zone:178:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_3",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_3",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_4",
+      "target": "Zone:179:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_4",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_4",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_5",
+      "target": "Zone:180:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_5",
+      "target": "Floor:113:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_suite_6_5",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_reception",
+      "target": "Zone:181:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_reception",
+      "target": "Floor:114:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_reception",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:summit_campus_comms_room",
+      "target": "Zone:182:75",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_comms_room",
+      "target": "Floor:115:75",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_comms_room",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_ground_floor_audio",
+      "target": "Zone:185:76",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_ground_floor_audio",
+      "target": "Floor:118:76",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_ground_floor_audio",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:juniper_yard",
       "rel": "IN_BUILDING"
     }
   ]

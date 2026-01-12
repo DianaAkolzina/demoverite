@@ -3,12 +3,12 @@
   "generatedAt": 1765312338093,
   "buildings": [
     {
-      "id": "Building:Site Monitoring Kit 2",
-      "name": "Site Monitoring Kit 2",
+      "id": "Building:cobalt_yard",
+      "name": "Cobalt Yard",
       "label": "Building",
       "properties": {
         "floorCount": 1,
-        "name": "Site Monitoring Kit 2",
+        "name": "Cobalt Yard",
         "id": 80,
         "originalId": 2,
         "isActive": true,
@@ -202,6 +202,141 @@
                     "isActive": true
                   },
                   "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:sensor:portable",
+                  "name": "Portable Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Portable Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:portable",
+                    "isActive": true,
+                    "cloudId": "sensor-portable",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-portable"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
                 }
               ]
             }
@@ -292,12 +427,12 @@
       ]
     },
     {
-      "id": "Building:Site Monitoring Kit 1",
-      "name": "Site Monitoring Kit 1",
+      "id": "Building:driftwood_yard",
+      "name": "Driftwood Yard",
       "label": "Building",
       "properties": {
         "floorCount": 1,
-        "name": "Site Monitoring Kit 1",
+        "name": "Driftwood Yard",
         "id": 81,
         "originalId": 1,
         "isActive": true,
@@ -352,6 +487,20 @@
             "isActive": true
           },
           "cloudId": "4edb6b50-5e51-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:meter:site_monitoring_kit_1",
+          "name": "Utility Meter - Harbor Campus",
+          "label": "Device",
+          "properties": {
+            "name": "Utility Meter - Harbor Campus",
+            "label": "Utility Meter",
+            "id": "Device:meter:site_monitoring_kit_1",
+            "isActive": true,
+            "cloudId": "meter-site_monitoring_kit_1"
+          },
+          "type": "Meter",
+          "cloudId": "meter-site_monitoring_kit_1"
         }
       ],
       "floors": [
@@ -427,6 +576,126 @@
                     "isActive": true
                   },
                   "cloudId": "4edb6b50-5e51-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:47",
+                  "name": "Water Meter_MbiKu6lQAq1Y",
+                  "label": "Device",
+                  "properties": {
+                    "licenseStatus": true,
+                    "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+                    "name": "Water Meter_MbiKu6lQAq1Y",
+                    "id": 47,
+                    "originalId": 17,
+                    "label": "Water Meter",
+                    "isActive": true
+                  },
+                  "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3"
                 }
               ]
             }
@@ -485,12 +754,12 @@
       ]
     },
     {
-      "id": "Building:Salford Office",
-      "name": "Salford Office",
+      "id": "Building:ember_yard",
+      "name": "Ember Yard",
       "label": "Building",
       "properties": {
         "floorCount": 2,
-        "name": "Salford Office",
+        "name": "Ember Yard",
         "id": 82,
         "originalId": 3,
         "isActive": true,
@@ -593,6 +862,20 @@
             "isActive": true
           },
           "cloudId": "3dec03b0-5da5-11f0-a19e-8f874a1c01d3"
+        },
+        {
+          "id": "Device:meter:salford_office",
+          "name": "Utility Meter - Harbor Campus",
+          "label": "Device",
+          "properties": {
+            "name": "Utility Meter - Harbor Campus",
+            "label": "Utility Meter",
+            "id": "Device:meter:salford_office",
+            "isActive": true,
+            "cloudId": "meter-salford_office"
+          },
+          "type": "Meter",
+          "cloudId": "meter-salford_office"
         }
       ],
       "floors": [
@@ -636,6 +919,133 @@
                     "isActive": true
                   },
                   "cloudId": "7dd934b0-5da1-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-office_space",
+                  "name": "Office Space Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Office Space Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-office_space",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-office_space"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-office_space"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-office_space",
+                  "name": "Office Space Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Office Space Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-office_space",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-office_space"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-office_space"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-office_space",
+                  "name": "Office Space Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Office Space Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-office_space",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-office_space"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-office_space"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-office_space",
+                  "name": "Office Space Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Office Space Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-office_space",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-office_space"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-office_space"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-office_space",
+                  "name": "Office Space Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Office Space Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-office_space",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-office_space"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-office_space"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-office_space",
+                  "name": "Office Space Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Office Space Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-office_space",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-office_space"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-office_space"
+                },
+                {
+                  "id": "Device:sensor:office_space",
+                  "name": "Office Space Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Office Space Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:office_space",
+                    "isActive": true,
+                    "cloudId": "sensor-office_space",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-office_space"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-office_space",
+                  "name": "Office Space Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Office Space Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-office_space",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-office_space"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-office_space"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-office_space",
+                  "name": "Office Space Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Office Space Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-office_space",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-office_space"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-office_space"
                 }
               ]
             }
@@ -699,6 +1109,77 @@
                     "isActive": true
                   },
                   "cloudId": "6bf5e730-5da5-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-reception",
+                  "name": "Reception Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-reception"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-reception",
+                  "name": "Reception Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-reception"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-reception",
+                  "name": "Reception Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-reception"
+                },
+                {
+                  "id": "Device:sensor:reception",
+                  "name": "Reception Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:reception",
+                    "isActive": true,
+                    "cloudId": "sensor-reception",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-reception"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-reception",
+                  "name": "Reception Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Reception Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-reception",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-reception"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-reception"
                 }
               ]
             },
@@ -730,6 +1211,77 @@
                     "isActive": true
                   },
                   "cloudId": "940c81c0-5da5-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-entrance",
+                  "name": "Entrance Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Entrance Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-entrance"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-entrance",
+                  "name": "Entrance Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Entrance Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-entrance"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-entrance",
+                  "name": "Entrance Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Entrance Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-entrance"
+                },
+                {
+                  "id": "Device:sensor:entrance",
+                  "name": "Entrance Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Entrance Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:entrance",
+                    "isActive": true,
+                    "cloudId": "sensor-entrance",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-entrance"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-entrance",
+                  "name": "Entrance Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Entrance Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-entrance",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-entrance"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-entrance"
                 }
               ]
             },
@@ -793,6 +1345,133 @@
                     "isActive": true
                   },
                   "cloudId": "3dec03b0-5da5-11f0-a19e-8f874a1c01d3"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-utility_room",
+                  "name": "Utility Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-utility_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-utility_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-utility_room"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-utility_room",
+                  "name": "Utility Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-utility_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-utility_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-utility_room"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-utility_room",
+                  "name": "Utility Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-utility_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-utility_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-utility_room"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-utility_room",
+                  "name": "Utility Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-utility_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-utility_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-utility_room"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-utility_room",
+                  "name": "Utility Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-utility_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-utility_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-utility_room"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-utility_room",
+                  "name": "Utility Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-utility_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-utility_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-utility_room"
+                },
+                {
+                  "id": "Device:sensor:utility_room",
+                  "name": "Utility Room Sensor",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Room Sensor",
+                    "label": "Environmental Sensor",
+                    "id": "Device:sensor:utility_room",
+                    "isActive": true,
+                    "cloudId": "sensor-utility_room",
+                    "deviceType": "Sensor"
+                  },
+                  "type": "Sensor",
+                  "cloudId": "sensor-utility_room"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-utility_room",
+                  "name": "Utility Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-utility_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-utility_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-utility_room"
+                },
+                {
+                  "id": "Device:meter:zone:salford_office-utility_room",
+                  "name": "Utility Room Meter - Harbor Campus",
+                  "label": "Device",
+                  "properties": {
+                    "name": "Utility Room Meter - Harbor Campus",
+                    "label": "Utility Meter",
+                    "id": "Device:meter:zone:salford_office-utility_room",
+                    "isActive": true,
+                    "cloudId": "meter-zone-salford_office-utility_room"
+                  },
+                  "type": "Meter",
+                  "cloudId": "meter-zone-salford_office-utility_room"
                 }
               ]
             }
@@ -885,15 +1564,15 @@
   ],
   "nodes": [
     {
-      "id": "Building:Site Monitoring Kit 2",
+      "id": "Building:cobalt_yard",
       "label": "Building",
-      "name": "Site Monitoring Kit 2",
+      "name": "Cobalt Yard",
       "nodeType": "Building",
       "hasData": true,
       "dataDevices": 1,
       "properties": {
         "floorCount": 1,
-        "name": "Site Monitoring Kit 2",
+        "name": "Cobalt Yard",
         "id": 80,
         "originalId": 2,
         "isActive": true,
@@ -962,15 +1641,15 @@
       "y": 440
     },
     {
-      "id": "Building:Site Monitoring Kit 1",
+      "id": "Building:driftwood_yard",
       "label": "Building",
-      "name": "Site Monitoring Kit 1",
+      "name": "Driftwood Yard",
       "nodeType": "Building",
       "hasData": true,
       "dataDevices": 1,
       "properties": {
         "floorCount": 1,
-        "name": "Site Monitoring Kit 1",
+        "name": "Driftwood Yard",
         "id": 81,
         "originalId": 1,
         "isActive": true,
@@ -1039,15 +1718,15 @@
       "y": 440
     },
     {
-      "id": "Building:Salford Office",
+      "id": "Building:ember_yard",
       "label": "Building",
-      "name": "Salford Office",
+      "name": "Ember Yard",
       "nodeType": "Building",
       "hasData": true,
       "dataDevices": 1,
       "properties": {
         "floorCount": 2,
-        "name": "Salford Office",
+        "name": "Ember Yard",
         "id": 82,
         "originalId": 3,
         "isActive": true,
@@ -1284,19 +1963,19 @@
       "y": 660
     },
     {
-      "id": "Device:47",
+      "id": "Device:meter:summit_campus",
       "label": "Device",
-      "name": "Water Meter_MbiKu6lQAq1Y",
+      "name": "Utility Meter - Harbor Campus",
       "nodeType": "Device",
       "deviceType": null,
-      "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
+      "cloudId": "meter-summit_campus",
       "properties": {
         "licenseStatus": true,
-        "cloudId": "2e0522a0-9866-11f0-a19e-8f874a1c01d3",
-        "name": "Water Meter_MbiKu6lQAq1Y",
+        "cloudId": "meter-summit_campus",
+        "name": "Utility Meter - Harbor Campus",
         "id": 47,
         "originalId": 17,
-        "label": "Water Meter",
+        "label": "Utility Meter",
         "isActive": true
       },
       "x": 200,
@@ -1472,17 +2151,447 @@
       },
       "x": 1050,
       "y": 660
+    },
+    {
+      "id": "Device:meter:summit_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:site_monitoring_kit_1",
+        "isActive": true,
+        "cloudId": "meter-summit_campus"
+      },
+      "cloudId": "meter-summit_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:salford_office",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:salford_office-office_space",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:salford_office-reception",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:salford_office-entrance",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:salford_office-utility_room",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:sensor:entrance",
+      "label": "Device",
+      "name": "Entrance Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Entrance Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:entrance",
+        "isActive": true,
+        "cloudId": "sensor-entrance",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-entrance"
+    },
+    {
+      "id": "Device:sensor:office_space",
+      "label": "Device",
+      "name": "Office Space Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Office Space Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:office_space",
+        "isActive": true,
+        "cloudId": "sensor-office_space",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-office_space"
+    },
+    {
+      "id": "Device:sensor:portable",
+      "label": "Device",
+      "name": "Portable Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Portable Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:portable",
+        "isActive": true,
+        "cloudId": "sensor-portable",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-portable"
+    },
+    {
+      "id": "Device:sensor:reception",
+      "label": "Device",
+      "name": "Reception Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Reception Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:reception",
+        "isActive": true,
+        "cloudId": "sensor-reception",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-reception"
+    },
+    {
+      "id": "Device:sensor:utility_room",
+      "label": "Device",
+      "name": "Utility Room Sensor",
+      "nodeType": "Device",
+      "type": "Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Room Sensor",
+        "label": "Environmental Sensor",
+        "id": "Device:sensor:utility_room",
+        "isActive": true,
+        "cloudId": "sensor-utility_room",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "sensor-utility_room"
+    },
+    {
+      "id": "Device:iaq:summit_campus_portable",
+      "label": "Device",
+      "name": "IAQ Sensor - Portable",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Portable",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:summit_campus_portable",
+        "isActive": true,
+        "cloudId": "iaq-summit_campus_portable",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-summit_campus_portable"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:quartz_campus-reception",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:quartz_campus-entrance",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:quartz_campus-utility_room",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:iaq:quartz_campus_office_space",
+      "label": "Device",
+      "name": "IAQ Sensor - Office Space",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Office Space",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:quartz_campus_office_space",
+        "isActive": true,
+        "cloudId": "iaq-quartz_campus_office_space",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-quartz_campus_office_space"
+    },
+    {
+      "id": "Device:iaq:quartz_campus_reception",
+      "label": "Device",
+      "name": "IAQ Sensor - Reception",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Reception",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:quartz_campus_reception",
+        "isActive": true,
+        "cloudId": "iaq-quartz_campus_reception",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-quartz_campus_reception"
+    },
+    {
+      "id": "Device:iaq:quartz_campus_entrance",
+      "label": "Device",
+      "name": "IAQ Sensor - Entrance",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Entrance",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:quartz_campus_entrance",
+        "isActive": true,
+        "cloudId": "iaq-quartz_campus_entrance",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-quartz_campus_entrance"
+    },
+    {
+      "id": "Device:iaq:quartz_campus_utility_room",
+      "label": "Device",
+      "name": "IAQ Sensor - Utility Room",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Utility Room",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:quartz_campus_utility_room",
+        "isActive": true,
+        "cloudId": "iaq-quartz_campus_utility_room",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-quartz_campus_utility_room"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:cedar_campus-reception",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:cedar_campus-entrance",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:meter:cedar_campus",
+      "label": "Device",
+      "name": "Utility Meter - Harbor Campus",
+      "nodeType": "Device",
+      "type": "Meter",
+      "hasData": true,
+      "properties": {
+        "name": "Utility Meter - Harbor Campus",
+        "label": "Utility Meter",
+        "id": "Device:meter:zone:cedar_campus-utility_room",
+        "isActive": true,
+        "cloudId": "meter-cedar_campus"
+      },
+      "cloudId": "meter-cedar_campus"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_office_space",
+      "label": "Device",
+      "name": "IAQ Sensor - Office Space",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Office Space",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_office_space",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_office_space",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_office_space"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_reception",
+      "label": "Device",
+      "name": "IAQ Sensor - Reception",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Reception",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_reception",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_reception",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_reception"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_entrance",
+      "label": "Device",
+      "name": "IAQ Sensor - Entrance",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Entrance",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_entrance",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_entrance",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_entrance"
+    },
+    {
+      "id": "Device:iaq:cedar_campus_utility_room",
+      "label": "Device",
+      "name": "IAQ Sensor - Utility Room",
+      "nodeType": "Device",
+      "type": "IAQ Sensor",
+      "hasData": true,
+      "properties": {
+        "name": "IAQ Sensor - Utility Room",
+        "label": "IAQ Sensor",
+        "id": "Device:iaq:cedar_campus_utility_room",
+        "isActive": true,
+        "cloudId": "iaq-cedar_campus_utility_room",
+        "deviceType": "Sensor"
+      },
+      "cloudId": "iaq-cedar_campus_utility_room"
     }
   ],
   "links": [
     {
       "source": "Floor:126:80",
-      "target": "Building:Site Monitoring Kit 2",
+      "target": "Building:ember_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:197:80",
-      "target": "Building:Site Monitoring Kit 2",
+      "target": "Building:ember_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1492,12 +2601,12 @@
     },
     {
       "source": "Floor:127:81",
-      "target": "Building:Site Monitoring Kit 1",
+      "target": "Building:ember_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:198:81",
-      "target": "Building:Site Monitoring Kit 1",
+      "target": "Building:ember_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1507,17 +2616,17 @@
     },
     {
       "source": "Floor:128:82",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Floor:129:82",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
       "source": "Zone:199:82",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1527,7 +2636,7 @@
     },
     {
       "source": "Zone:200:82",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1537,7 +2646,7 @@
     },
     {
       "source": "Zone:201:82",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1547,7 +2656,7 @@
     },
     {
       "source": "Zone:202:82",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
       "rel": "LOCATED_IN_BUILDING"
     },
     {
@@ -1567,7 +2676,7 @@
     },
     {
       "source": "Device:43",
-      "target": "Building:Site Monitoring Kit 2",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1582,7 +2691,7 @@
     },
     {
       "source": "Device:44",
-      "target": "Building:Site Monitoring Kit 2",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1597,7 +2706,7 @@
     },
     {
       "source": "Device:45",
-      "target": "Building:Site Monitoring Kit 2",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1612,22 +2721,22 @@
     },
     {
       "source": "Device:46",
-      "target": "Building:Site Monitoring Kit 2",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
-      "source": "Device:47",
+      "source": "Device:meter:summit_campus",
       "target": "Zone:197:80",
       "rel": "LOCATED_IN_ZONE"
     },
     {
-      "source": "Device:47",
+      "source": "Device:meter:summit_campus",
       "target": "Floor:126:80",
       "rel": "LOCATED_ON_FLOOR"
     },
     {
-      "source": "Device:47",
-      "target": "Building:Site Monitoring Kit 2",
+      "source": "Device:meter:summit_campus",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1642,7 +2751,7 @@
     },
     {
       "source": "Device:48",
-      "target": "Building:Site Monitoring Kit 1",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1657,7 +2766,7 @@
     },
     {
       "source": "Device:49",
-      "target": "Building:Site Monitoring Kit 1",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1672,7 +2781,7 @@
     },
     {
       "source": "Device:50",
-      "target": "Building:Site Monitoring Kit 1",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1687,7 +2796,7 @@
     },
     {
       "source": "Device:51",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1702,7 +2811,7 @@
     },
     {
       "source": "Device:52",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1717,7 +2826,7 @@
     },
     {
       "source": "Device:53",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1732,7 +2841,7 @@
     },
     {
       "source": "Device:54",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1747,7 +2856,7 @@
     },
     {
       "source": "Device:55",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     },
     {
@@ -1762,7 +2871,422 @@
     },
     {
       "source": "Device:56",
-      "target": "Building:Salford Office",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:199:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:128:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:200:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:201:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:202:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:entrance",
+      "target": "Zone:201:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:entrance",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:entrance",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:office_space",
+      "target": "Zone:199:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:office_space",
+      "target": "Floor:128:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:office_space",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:portable",
+      "target": "Zone:197:80",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:portable",
+      "target": "Floor:126:80",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:portable",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:reception",
+      "target": "Zone:200:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:reception",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:reception",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:sensor:utility_room",
+      "target": "Zone:202:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:sensor:utility_room",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:sensor:utility_room",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:summit_campus",
+      "target": "Zone:198:81",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:199:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_portable",
+      "target": "Zone:197:80",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:summit_campus_portable",
+      "target": "Floor:126:80",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:summit_campus_portable",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:200:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:201:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:202:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_office_space",
+      "target": "Zone:199:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_office_space",
+      "target": "Floor:128:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_office_space",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_reception",
+      "target": "Zone:200:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_reception",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_reception",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_entrance",
+      "target": "Zone:201:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_entrance",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_entrance",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_utility_room",
+      "target": "Zone:202:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_utility_room",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:quartz_campus_utility_room",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:200:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:201:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Zone:202:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_office_space",
+      "target": "Zone:199:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_office_space",
+      "target": "Floor:128:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_office_space",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_reception",
+      "target": "Zone:200:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_reception",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_reception",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_entrance",
+      "target": "Zone:201:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_entrance",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_entrance",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_utility_room",
+      "target": "Zone:202:82",
+      "rel": "LOCATED_IN_ZONE"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_utility_room",
+      "target": "Floor:129:82",
+      "rel": "LOCATED_ON_FLOOR"
+    },
+    {
+      "source": "Device:iaq:cedar_campus_utility_room",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
+      "rel": "IN_BUILDING"
+    },
+    {
+      "source": "Device:meter:cedar_campus",
+      "target": "Building:ember_yard",
       "rel": "IN_BUILDING"
     }
   ]

@@ -1,0 +1,1466 @@
+ts,temp,humidity,pressure,wind_speed,wind_deg,clouds,weather_main,weather_desc
+1725148800000,17.4,71,1008,3.5,280,63,Clouds,scattered clouds
+1725152400000,16.6,67,1012,3.4,256,48,Clouds,scattered clouds
+1725156000000,17.3,67,1011,2.8,303,58,Clouds,scattered clouds
+1725159600000,20.3,65,1007,3.4,79,40,Clouds,scattered clouds
+1725163200000,19.8,63,1018,3.6,155,62,Clouds,scattered clouds
+1725166800000,22,64,1019,2.8,42,57,Clouds,scattered clouds
+1725170400000,23.6,55,1019,3.9,95,46,Clouds,scattered clouds
+1725174000000,21.9,64,1016,4.3,310,45,Clouds,scattered clouds
+1725177600000,24.3,65,1007,3.9,110,46,Clouds,scattered clouds
+1725181200000,22.7,64,1017,4.7,55,44,Clouds,scattered clouds
+1725184800000,22.5,57,1015,5.9,29,52,Clouds,scattered clouds
+1725188400000,20.4,66,1009,5.1,72,42,Clouds,scattered clouds
+1725192000000,19.7,67,1008,5.6,118,57,Clouds,scattered clouds
+1725195600000,19.3,71,1008,4.8,299,60,Clouds,scattered clouds
+1725199200000,15.9,74,1017,6.1,316,47,Clouds,scattered clouds
+1725202800000,15.5,68,1016,6.2,298,64,Clouds,scattered clouds
+1725206400000,14.5,72,1016,5.6,254,48,Clouds,scattered clouds
+1725210000000,13.8,73,1010,4.8,147,67,Clouds,scattered clouds
+1725213600000,12.9,69,1018,4.6,206,56,Clouds,scattered clouds
+1725217200000,11.3,74,1012,3.8,256,53,Clouds,scattered clouds
+1725220800000,12.1,75,1015,4.3,357,55,Clouds,scattered clouds
+1725224400000,11.7,71,1007,4.1,340,67,Clouds,scattered clouds
+1725228000000,12.7,72,1018,4,155,69,Clouds,scattered clouds
+1725231600000,12.1,76,1014,1.8,262,53,Clouds,scattered clouds
+1725235200000,11.8,69,1019,3.5,95,57,Clouds,scattered clouds
+1725238800000,13.5,73,1016,4.4,245,53,Clouds,scattered clouds
+1725242400000,12.4,70,1012,4.5,235,59,Clouds,scattered clouds
+1725246000000,15.7,73,1017,4.4,55,50,Clouds,scattered clouds
+1725249600000,16.7,64,1015,5.7,29,58,Clouds,scattered clouds
+1725253200000,14.5,70,1011,4.2,303,60,Clouds,scattered clouds
+1725256800000,14.8,71,1007,5.5,79,46,Clouds,scattered clouds
+1725260400000,17.5,66,1018,6.4,155,65,Clouds,scattered clouds
+1725264000000,16.2,74,1017,5.5,38,49,Clouds,scattered clouds
+1725267600000,14.9,71,1008,5.4,337,56,Clouds,scattered clouds
+1725271200000,14.8,73,1016,5.9,310,51,Clouds,scattered clouds
+1725274800000,12.5,79,1007,4.9,110,58,Clouds,scattered clouds
+1725278400000,13.2,74,1017,5.6,81,62,Clouds,scattered clouds
+1725282000000,11.7,77,1017,4.6,107,66,Clouds,scattered clouds
+1725285600000,10.5,78,1009,4.2,72,51,Clouds,scattered clouds
+1725289200000,9.1,75,1010,3,168,49,Clouds,scattered clouds
+1725292800000,7.4,86,1008,2.8,299,71,Clouds,scattered clouds
+1725296400000,6.1,85,1017,3.6,316,57,Clouds,scattered clouds
+1725300000000,5.5,79,1010,1.5,39,70,Clouds,scattered clouds
+1725303600000,5.9,83,1016,3.3,254,57,Clouds,scattered clouds
+1725307200000,5.5,78,1012,4.1,235,65,Clouds,scattered clouds
+1725310800000,4.1,80,1018,3.8,206,65,Clouds,scattered clouds
+1725314400000,5.5,81,1012,3.8,256,59,Clouds,scattered clouds
+1725318000000,4.5,82,1011,3.9,303,70,Clouds,scattered clouds
+1725321600000,4.3,80,1007,5.6,340,75,Clouds,scattered clouds
+1725325200000,6.6,79,1018,6.2,155,75,Clouds,scattered clouds
+1725328800000,5.5,84,1019,5.3,42,73,Clouds,scattered clouds
+1725332400000,7.2,75,1019,6,95,62,Clouds,scattered clouds
+1725336000000,8.3,81,1016,6,310,58,Clouds,scattered clouds
+1725339600000,9.6,82,1007,5,110,60,Clouds,scattered clouds
+1725343200000,9.7,80,1017,5.3,55,56,Clouds,scattered clouds
+1725346800000,8.1,74,1015,5.9,29,66,Clouds,scattered clouds
+1725350400000,7.7,78,1011,3.9,303,67,Clouds,scattered clouds
+1725354000000,8.3,81,1008,4.5,118,68,Clouds,scattered clouds
+1725357600000,8.6,84,1008,3.2,299,70,Clouds,scattered clouds
+1725361200000,7,85,1017,3.4,38,58,Clouds,scattered clouds
+1725364800000,5.1,82,1008,2.8,337,66,Clouds,scattered clouds
+1725368400000,4,87,1018,3.5,118,62,Clouds,scattered clouds
+1725372000000,1.4,91,1010,3.5,141,78,Snow,light snow showers
+1725375600000,2.6,87,1017,4.1,81,72,Clouds,scattered clouds
+1725379200000,0.1,86,1009,3.6,132,66,Clouds,scattered clouds
+1725382800000,-0.4,91,1009,4.3,72,61,Snow,light snow showers
+1725386400000,-2.6,89,1010,3.9,168,60,Snow,light snow showers
+1725390000000,-2.7,87,1019,4.3,337,77,Clouds,overcast clouds
+1725393600000,-4.6,97,1017,5.9,316,66,Snow,light snow showers
+1725397200000,-2.6,90,1011,6.1,247,67,Snow,light snow showers
+1725400800000,-4.5,95,1016,5.8,254,66,Snow,light snow showers
+1725404400000,-4,90,1012,6,235,74,Snow,light snow showers
+1725408000000,-3.2,95,1017,5.5,55,68,Snow,light snow showers
+1725411600000,-2.7,91,1012,4.6,256,66,Snow,light snow showers
+1725415200000,-2.9,91,1011,4.1,303,77,Snow,light snow showers
+1725418800000,-1,90,1007,4.9,79,61,Snow,light snow showers
+1725422400000,-0.7,88,1018,5.2,155,82,Clouds,overcast clouds
+1725426000000,-1.3,95,1017,3.8,38,66,Snow,light snow showers
+1725429600000,-1,90,1008,3.2,337,72,Snow,light snow showers
+1725433200000,-1.6,92,1016,3.4,310,67,Snow,light snow showers
+1725436800000,0.6,93,1007,2.3,110,69,Snow,light snow showers
+1725440400000,-0.9,93,1017,3.3,55,66,Snow,light snow showers
+1725444000000,-1,92,1017,3.5,107,78,Snow,light snow showers
+1725447600000,-1.7,92,1009,4,72,63,Snow,light snow showers
+1725451200000,-5.7,97,1008,4.7,118,81,Snow,light snow showers
+1725454800000,-7.1,97,1008,4.2,299,80,Snow,light snow showers
+1725458400000,-6,97,1017,5.8,316,66,Snow,light snow showers
+1725462000000,-9.4,96,1010,5,9,69,Snow,light snow showers
+1725465600000,-8.7,97,1018,6.3,118,70,Snow,light snow showers
+1725469200000,-10,97,1018,5.8,87,71,Snow,light snow showers
+1725472800000,-12,97,1017,6,81,80,Snow,light snow showers
+1725476400000,-12,97,1009,5,132,75,Snow,light snow showers
+1725480000000,-12,97,1014,5.4,348,66,Snow,light snow showers
+1725483600000,-12,97,1010,4,168,66,Snow,light snow showers
+1725487200000,-12,97,1008,4.1,258,84,Snow,light snow showers
+1725490800000,-12,97,1017,4.8,316,66,Snow,light snow showers
+1725494400000,-12,97,1011,4.4,247,72,Snow,light snow showers
+1725498000000,-12,97,1008,3.2,312,73,Snow,light snow showers
+1725501600000,-11.2,97,1012,3.3,235,80,Snow,light snow showers
+1725505200000,-10.6,97,1017,2.8,55,70,Snow,light snow showers
+1725508800000,-10.8,97,1015,4.2,29,84,Snow,light snow showers
+1725512400000,-9.2,97,1011,2.9,303,82,Snow,light snow showers
+1725516000000,-9,97,1008,4.4,118,81,Snow,light snow showers
+1725519600000,-8.2,97,1008,3.9,299,80,Snow,light snow showers
+1725523200000,-9.3,97,1017,4.9,38,68,Snow,light snow showers
+1725526800000,-10.8,97,1008,5,337,78,Snow,light snow showers
+1725530400000,-10.6,97,1016,5.9,310,71,Snow,light snow showers
+1725534000000,-12,97,1010,5.9,141,83,Snow,light snow showers
+1725537600000,-12,97,1017,6,81,80,Snow,light snow showers
+1725541200000,-12,97,1017,5.3,107,82,Snow,light snow showers
+1725544800000,-12,97,1009,5.2,72,66,Snow,light snow showers
+1725548400000,-12,97,1010,4.2,168,66,Snow,light snow showers
+1725552000000,-12,97,1019,4,337,85,Snow,light snow showers
+1725555600000,-12,97,1017,5.1,316,66,Snow,light snow showers
+1725559200000,-12,97,1011,4.8,247,72,Snow,light snow showers
+1725562800000,-12,97,1018,4.5,118,70,Snow,light snow showers
+1725566400000,-12,97,1018,3.5,87,71,Snow,light snow showers
+1725570000000,-12,97,1008,1.8,188,68,Snow,light snow showers
+1725573600000,-12,97,1009,2.4,132,75,Snow,light snow showers
+1725577200000,-12,97,1009,3.1,14,69,Snow,light snow showers
+1725580800000,-12,97,1010,2.9,168,66,Snow,light snow showers
+1725584400000,-12,97,1008,3.7,258,84,Snow,light snow showers
+1725588000000,-12,97,1017,4.3,168,82,Snow,light snow showers
+1725591600000,-11.2,97,1011,5.6,247,72,Snow,light snow showers
+1725595200000,-9.3,97,1008,5.2,312,73,Snow,light snow showers
+1725598800000,-8.5,97,1015,5,98,65,Snow,light snow showers
+1725602400000,-9.4,97,1017,5.6,55,70,Snow,light snow showers
+1725606000000,-8,97,1017,5.4,107,82,Snow,light snow showers
+1725609600000,-9.7,97,1009,5.3,72,66,Snow,light snow showers
+1725613200000,-11,97,1008,5.5,118,81,Snow,light snow showers
+1725616800000,-10.2,97,1008,4.4,299,80,Snow,light snow showers
+1725620400000,-12,97,1017,4.8,38,68,Snow,light snow showers
+1725624000000,-12,97,1010,4.1,9,70,Snow,light snow showers
+1725627600000,-12,97,1018,4.9,118,70,Snow,light snow showers
+1725631200000,-12,97,1010,4,141,83,Snow,light snow showers
+1725634800000,-12,97,1017,3.6,81,80,Snow,light snow showers
+1725638400000,-12,97,1009,2.2,132,75,Snow,light snow showers
+1725642000000,-12,97,1014,3.1,348,66,Snow,light snow showers
+1725645600000,-12,97,1010,2.5,168,66,Snow,light snow showers
+1725649200000,-12,97,1008,3.4,258,84,Snow,light snow showers
+1725652800000,-12,97,1017,4.9,316,66,Snow,light snow showers
+1725656400000,-12,97,1011,5.3,247,72,Snow,light snow showers
+1725660000000,-12,97,1012,5.9,43,75,Snow,light snow showers
+1725663600000,-12,97,1018,5.5,87,71,Snow,light snow showers
+1725667200000,-12,97,1012,5,45,80,Snow,light snow showers
+1725670800000,-12,97,1009,5.1,132,75,Snow,light snow showers
+1725674400000,-11.6,97,1009,5.3,14,69,Snow,light snow showers
+1725678000000,-11.6,97,1018,5.9,101,77,Snow,light snow showers
+1725681600000,-10.1,97,1008,4.8,258,84,Snow,light snow showers
+1725685200000,-10.9,97,1017,4.8,168,82,Snow,light snow showers
+1725688800000,-8.3,94,1012,5.2,306,66,Snow,light snow showers
+1725692400000,-10.2,97,1008,4.4,312,73,Snow,light snow showers
+1725696000000,-10.1,97,1008,3.7,29,88,Snow,light snow showers
+1725699600000,-10.4,97,1014,2.6,22,90,Snow,light snow showers
+1725703200000,-11.4,97,1017,2.9,107,82,Snow,light snow showers
+1725706800000,-12,97,1009,2.4,72,66,Snow,light snow showers
+1725710400000,-12,97,1008,3.2,118,81,Snow,light snow showers
+1725714000000,-12,97,1019,2.7,337,85,Snow,light snow showers
+1725717600000,-12,97,1017,4.6,316,66,Snow,light snow showers
+1725721200000,-12,97,1010,4,9,70,Snow,light snow showers
+1725724800000,-12,97,1018,5.6,118,70,Snow,light snow showers
+1725728400000,-12,97,1018,5.3,87,71,Snow,light snow showers
+1725732000000,-12,97,1008,4.3,188,68,Snow,light snow showers
+1725735600000,-12,97,1009,5,132,75,Snow,light snow showers
+1725739200000,-12,97,1009,5.3,14,69,Snow,light snow showers
+1725742800000,-12,97,1010,4.6,168,66,Snow,light snow showers
+1725746400000,-12,97,1008,4.9,258,84,Snow,light snow showers
+1725750000000,-12,97,1012,5.6,308,75,Snow,light snow showers
+1725753600000,-12,97,1011,5.7,247,72,Snow,light snow showers
+1725757200000,-12,97,1008,4.7,312,73,Snow,light snow showers
+1725760800000,-11.1,97,1018,4.6,87,71,Snow,light snow showers
+1725764400000,-11.6,97,1012,3.5,45,80,Snow,light snow showers
+1725768000000,-9.8,97,1016,3.5,254,68,Snow,light snow showers
+1725771600000,-9.4,95,1009,2.7,14,67,Snow,light snow showers
+1725775200000,-8.8,97,1018,3,101,77,Snow,light snow showers
+1725778800000,-8.9,97,1014,3.5,53,80,Snow,light snow showers
+1725782400000,-9.4,97,1017,3.3,168,82,Snow,light snow showers
+1725786000000,-10.1,97,1016,3.8,119,68,Snow,light snow showers
+1725789600000,-11.7,97,1017,4.3,322,82,Snow,light snow showers
+1725793200000,-12,97,1008,4.5,29,88,Snow,light snow showers
+1725796800000,-12,97,1014,4.1,22,90,Snow,light snow showers
+1725800400000,-12,97,1017,5.2,107,82,Snow,light snow showers
+1725804000000,-12,97,1014,5.7,348,66,Snow,light snow showers
+1725807600000,-12,97,1010,4.6,168,66,Snow,light snow showers
+1725811200000,-12,97,1019,4.7,337,85,Snow,light snow showers
+1725814800000,-12,97,1017,6,316,66,Snow,light snow showers
+1725818400000,-12,97,1011,5.9,247,72,Snow,light snow showers
+1725822000000,-12,97,1012,5.9,43,75,Snow,light snow showers
+1725825600000,-12,97,1018,5,87,71,Snow,light snow showers
+1725829200000,-12,97,1012,3.9,45,80,Snow,light snow showers
+1725832800000,-12,97,1009,3.5,132,75,Snow,light snow showers
+1725836400000,-12,97,1009,3.1,14,69,Snow,light snow showers
+1725840000000,-12,97,1016,2.6,44,72,Snow,light snow showers
+1725843600000,-12,97,1008,2.2,258,84,Snow,light snow showers
+1725847200000,-12,97,1017,2.9,168,82,Snow,light snow showers
+1725850800000,-11.8,97,1011,4.3,247,72,Snow,light snow showers
+1725854400000,-10.3,97,1008,4,312,73,Snow,light snow showers
+1725858000000,-10.9,97,1008,4.2,29,88,Snow,light snow showers
+1725861600000,-8.7,97,1012,4.4,45,80,Snow,light snow showers
+1725865200000,-8.9,97,1016,5.2,254,68,Snow,light snow showers
+1725868800000,-8.9,97,1013,5,45,75,Snow,light snow showers
+1725872400000,-9.6,97,1018,5.9,101,77,Snow,light snow showers
+1725876000000,-12,97,1016,5.3,354,82,Snow,light snow showers
+1725879600000,-12,97,1014,5.7,264,70,Snow,light snow showers
+1725883200000,-12,97,1016,5.2,119,68,Snow,light snow showers
+1725886800000,-12,97,1017,5.1,322,82,Snow,light snow showers
+1725890400000,-12,97,1008,4.7,29,88,Snow,light snow showers
+1725894000000,-12,97,1009,5,304,82,Snow,light snow showers
+1725897600000,-12,97,1007,3.7,186,83,Snow,light snow showers
+1725901200000,-12,97,1014,4,348,66,Snow,light snow showers
+1725904800000,-12,97,1010,2.4,168,66,Snow,light snow showers
+1725908400000,-12,97,1008,2.3,258,84,Snow,light snow showers
+1725912000000,-12,97,1012,3.1,308,75,Snow,light snow showers
+1725915600000,-12,97,1011,3.9,247,72,Snow,light snow showers
+1725919200000,-12,97,1008,3.7,312,73,Snow,light snow showers
+1725922800000,-12,97,1018,4.4,87,71,Snow,light snow showers
+1725926400000,-12,97,1012,4.1,45,80,Snow,light snow showers
+1725930000000,-12,97,1016,4.7,17,89,Snow,light snow showers
+1725933600000,-12,97,1009,4.9,14,69,Snow,light snow showers
+1725937200000,-10.3,97,1018,5.8,101,77,Snow,light snow showers
+1725940800000,-8.3,97,1008,5,258,84,Snow,light snow showers
+1725944400000,-8.1,97,1017,5.3,168,82,Snow,light snow showers
+1725948000000,-8.2,97,1016,5.3,119,68,Snow,light snow showers
+1725951600000,-7.2,94,1008,5.3,312,71,Snow,light snow showers
+1725955200000,-9.4,97,1008,4.9,29,88,Snow,light snow showers
+1725958800000,-7.3,95,1014,4,22,88,Snow,light snow showers
+1725962400000,-9.2,97,1016,4.6,254,68,Snow,light snow showers
+1725966000000,-9.5,97,1018,3.4,165,88,Snow,light snow showers
+1725969600000,-11.7,97,1018,2.8,314,73,Snow,light snow showers
+1725973200000,-12,97,1016,3,354,82,Snow,light snow showers
+1725976800000,-12,97,1014,3,264,70,Snow,light snow showers
+1725980400000,-12,97,1016,2.6,119,68,Snow,light snow showers
+1725984000000,-12,97,1010,3.1,305,79,Snow,light snow showers
+1725987600000,-12,97,1012,3.8,122,90,Snow,light snow showers
+1725991200000,-12,97,1009,4.6,304,82,Snow,light snow showers
+1725994800000,-12,97,1007,4,186,83,Snow,light snow showers
+1725998400000,-12,97,1007,4,46,86,Snow,light snow showers
+1726002000000,-12,97,1015,5.9,26,67,Snow,light snow showers
+1726005600000,-12,97,1019,4.5,303,78,Snow,light snow showers
+1726009200000,-12,97,1014,4.7,262,69,Snow,light snow showers
+1726012800000,-12,97,1016,6.2,298,87,Snow,light snow showers
+1726016400000,-12,97,1016,5.8,254,68,Snow,light snow showers
+1726020000000,-10.9,97,1010,5.1,147,87,Snow,light snow showers
+1726023600000,-11.6,97,1018,5,206,78,Snow,light snow showers
+1726027200000,-8.1,97,1012,4.2,256,72,Snow,light snow showers
+1726030800000,-7,97,1015,4.8,357,72,Snow,light snow showers
+1726034400000,-9.2,96,1007,4.7,340,88,Snow,light snow showers
+1726038000000,-9.1,97,1018,4.6,155,89,Snow,light snow showers
+1726041600000,-6.6,97,1014,2.4,262,69,Snow,light snow showers
+1726045200000,-9.1,94,1019,3.2,95,77,Snow,light snow showers
+1726048800000,-7.6,97,1016,3.8,245,73,Snow,light snow showers
+1726052400000,-8.5,95,1012,3.9,235,79,Snow,light snow showers
+1726056000000,-12,97,1017,3.9,55,70,Snow,light snow showers
+1726059600000,-11.5,97,1015,5.2,29,85,Snow,light snow showers
+1726063200000,-12,97,1011,3.8,303,82,Snow,light snow showers
+1726066800000,-12,97,1007,5.2,79,66,Snow,light snow showers
+1726070400000,-12,97,1018,6.2,155,89,Snow,light snow showers
+1726074000000,-12,97,1017,5.4,38,68,Snow,light snow showers
+1726077600000,-12,97,1008,5.4,337,78,Snow,light snow showers
+1726081200000,-12,97,1016,6,310,71,Snow,light snow showers
+1726084800000,-12,97,1007,5.1,110,72,Snow,light snow showers
+1726088400000,-12,97,1017,5.8,81,80,Snow,light snow showers
+1726092000000,-12,97,1017,4.9,107,82,Snow,light snow showers
+1726095600000,-12,97,1009,4.7,72,66,Snow,light snow showers
+1726099200000,-12,97,1010,3.5,168,66,Snow,light snow showers
+1726102800000,-12,97,1019,3.2,303,78,Snow,light snow showers
+1726106400000,-9.8,97,1014,2.8,262,69,Snow,light snow showers
+1726110000000,-10.5,97,1010,2.1,39,84,Snow,light snow showers
+1726113600000,-8.4,97,1016,2.9,254,68,Snow,light snow showers
+1726117200000,-7.9,94,1012,3.5,235,78,Snow,light snow showers
+1726120800000,-5.9,92,1018,3.3,206,74,Snow,light snow showers
+1726124400000,-8.3,97,1012,3.3,256,72,Snow,light snow showers
+1726128000000,-7.7,97,1011,3.5,303,82,Snow,light snow showers
+1726131600000,-8.2,95,1007,5.3,340,86,Snow,light snow showers
+1726135200000,-7.7,96,1018,6,155,89,Snow,light snow showers
+1726138800000,-7.5,97,1019,5.1,42,84,Snow,light snow showers
+1726142400000,-9,94,1019,5.9,95,77,Snow,light snow showers
+1726146000000,-10.8,97,1016,6,310,71,Snow,light snow showers
+1726149600000,-11.8,97,1007,5.1,110,72,Snow,light snow showers
+1726153200000,-12,97,1017,5.5,55,70,Snow,light snow showers
+1726156800000,-12,97,1015,6.2,29,85,Snow,light snow showers
+1726160400000,-12,97,1011,4.2,303,82,Snow,light snow showers
+1726164000000,-12,97,1008,5,118,81,Snow,light snow showers
+1726167600000,-12,97,1008,3.7,299,80,Snow,light snow showers
+1726171200000,-12,97,1017,4,38,68,Snow,light snow showers
+1726174800000,-12,97,1008,3.4,337,78,Snow,light snow showers
+1726178400000,-12,97,1018,3.9,118,70,Snow,light snow showers
+1726182000000,-12,97,1010,2.9,141,83,Snow,light snow showers
+1726185600000,-12,97,1017,3.5,81,80,Snow,light snow showers
+1726189200000,-10.2,97,1009,3.1,132,75,Snow,light snow showers
+1726192800000,-10.7,97,1009,3.8,72,66,Snow,light snow showers
+1726196400000,-8.5,96,1010,3.4,168,65,Snow,light snow showers
+1726200000000,-8.4,97,1008,5.5,284,74,Snow,light snow showers
+1726203600000,-7.9,97,1014,4.3,262,69,Snow,light snow showers
+1726207200000,-7.1,92,1019,5.8,95,75,Snow,light snow showers
+1726210800000,-5.4,96,1016,5.7,254,67,Snow,light snow showers
+1726214400000,-4.6,90,1012,6.1,235,75,Snow,light snow showers
+1726218000000,-5.1,97,1017,5.6,55,70,Snow,light snow showers
+1726221600000,-7.3,96,1012,4.8,256,71,Snow,light snow showers
+1726225200000,-8.1,97,1011,4.4,303,82,Snow,light snow showers
+1726228800000,-7.9,97,1007,5.3,79,66,Snow,light snow showers
+1726232400000,-7.8,97,1018,5.7,155,89,Snow,light snow showers
+1726236000000,-11.3,97,1017,4.4,38,68,Snow,light snow showers
+1726239600000,-11,97,1008,3.8,337,78,Snow,light snow showers
+1726243200000,-11.2,97,1016,3.9,310,71,Snow,light snow showers
+1726246800000,-12,97,1007,2.5,110,72,Snow,light snow showers
+1726250400000,-11.9,97,1017,2.7,55,70,Snow,light snow showers
+1726254000000,-12,97,1017,2.9,107,82,Snow,light snow showers
+1726257600000,-12,97,1009,3.4,72,66,Snow,light snow showers
+1726261200000,-12,97,1008,4.2,118,81,Snow,light snow showers
+1726264800000,-12,97,1008,3.8,299,80,Snow,light snow showers
+1726268400000,-12,97,1017,5.4,316,66,Snow,light snow showers
+1726272000000,-12,97,1010,4.8,9,70,Snow,light snow showers
+1726275600000,-10.6,97,1018,6.2,118,70,Snow,light snow showers
+1726279200000,-9.3,97,1018,5.8,87,71,Snow,light snow showers
+1726282800000,-7.8,97,1017,6,81,80,Snow,light snow showers
+1726286400000,-6.8,94,1009,5.1,132,73,Snow,light snow showers
+1726290000000,-6.8,97,1014,5.6,348,66,Snow,light snow showers
+1726293600000,-4.9,92,1010,4.3,168,62,Snow,light snow showers
+1726297200000,-4.7,95,1008,4.5,258,83,Snow,light snow showers
+1726300800000,-5.5,97,1014,3.9,262,69,Snow,light snow showers
+1726304400000,-5.5,90,1019,4.8,95,74,Snow,light snow showers
+1726308000000,-6.1,97,1016,4.3,310,71,Snow,light snow showers
+1726311600000,-5.7,92,1012,3.9,235,76,Snow,light snow showers
+1726315200000,-8.3,97,1017,2.9,55,70,Snow,light snow showers
+1726318800000,-6.6,92,1015,3.6,29,80,Snow,light snow showers
+1726322400000,-7.3,96,1011,2.4,303,81,Snow,light snow showers
+1726326000000,-11,97,1008,3.9,118,81,Snow,light snow showers
+1726329600000,-11.9,97,1008,3.4,299,80,Snow,light snow showers
+1726333200000,-10.1,97,1017,4.5,38,68,Snow,light snow showers
+1726336800000,-12,97,1008,4.7,337,78,Snow,light snow showers
+1726340400000,-10.8,97,1016,5.6,310,71,Snow,light snow showers
+1726344000000,-12,97,1010,5.7,141,83,Snow,light snow showers
+1726347600000,-12,97,1017,6,81,80,Snow,light snow showers
+1726351200000,-10.8,97,1017,5.4,107,82,Snow,light snow showers
+1726354800000,-10.3,97,1009,5.4,72,66,Snow,light snow showers
+1726358400000,-9.2,97,1010,4.4,168,66,Snow,light snow showers
+1726362000000,-8.1,93,1019,4.4,337,82,Snow,light snow showers
+1726365600000,-7.3,97,1017,5.5,316,66,Snow,light snow showers
+1726369200000,-6.3,95,1011,5.2,247,70,Snow,light snow showers
+1726372800000,-5.9,97,1018,5,118,70,Snow,light snow showers
+1726376400000,-4.7,97,1018,4.1,87,71,Snow,light snow showers
+1726380000000,-2,93,1008,2.3,188,65,Snow,light snow showers
+1726383600000,-2.6,89,1009,2.4,132,69,Snow,light snow showers
+1726387200000,-1.1,85,1009,2.5,14,59,Clouds,scattered clouds
+1726390800000,-2.4,89,1010,2.3,168,60,Snow,light snow showers
+1726394400000,-3.4,94,1008,3.2,258,81,Snow,light snow showers
+1726398000000,-2.2,96,1017,3.9,168,81,Snow,light snow showers
+1726401600000,-4.7,89,1019,5,95,73,Snow,light snow showers
+1726405200000,-4.5,96,1016,5.4,310,70,Snow,light snow showers
+1726408800000,-5.7,97,1007,4.8,110,72,Snow,light snow showers
+1726412400000,-5.1,97,1017,5.4,55,70,Snow,light snow showers
+1726416000000,-6,97,1017,5.3,107,82,Snow,light snow showers
+1726419600000,-8.2,97,1009,5.4,72,66,Snow,light snow showers
+1726423200000,-8.8,97,1008,5.7,118,81,Snow,light snow showers
+1726426800000,-7.9,97,1008,4.7,299,80,Snow,light snow showers
+1726430400000,-6.9,97,1017,5.2,38,68,Snow,light snow showers
+1726434000000,-7.1,93,1010,4.6,9,67,Snow,light snow showers
+1726437600000,-7.3,97,1018,5.4,118,70,Snow,light snow showers
+1726441200000,-6.2,97,1010,4.5,141,83,Snow,light snow showers
+1726444800000,-4.5,95,1017,4.2,81,79,Snow,light snow showers
+1726448400000,-4.7,92,1009,2.8,132,71,Snow,light snow showers
+1726452000000,-2.6,97,1014,3,348,66,Snow,light snow showers
+1726455600000,-0.5,87,1010,1.9,168,58,Clouds,scattered clouds
+1726459200000,-0.5,90,1008,2.8,258,79,Snow,light snow showers
+1726462800000,1.2,91,1017,4.4,316,61,Snow,light snow showers
+1726466400000,0.7,86,1011,4.9,247,63,Clouds,scattered clouds
+1726470000000,3.7,83,1012,5.5,43,64,Clouds,scattered clouds
+1726473600000,2.1,90,1018,5.2,87,65,Rain,light rain
+1726477200000,2.5,89,1012,4.8,45,73,Clouds,scattered clouds
+1726480800000,3.6,82,1009,5,132,63,Clouds,scattered clouds
+1726484400000,1.5,82,1009,5.2,14,57,Clouds,scattered clouds
+1726488000000,0.8,90,1018,6,101,71,Snow,light snow showers
+1726491600000,1.3,88,1008,5,258,77,Clouds,overcast clouds
+1726495200000,0.4,93,1017,5.1,168,79,Snow,light snow showers
+1726498800000,-1.4,86,1012,5.5,306,60,Clouds,scattered clouds
+1726502400000,-2,93,1016,5.3,310,68,Snow,light snow showers
+1726506000000,-3.1,96,1010,4.9,141,83,Snow,light snow showers
+1726509600000,-1,91,1017,4.6,81,76,Snow,light snow showers
+1726513200000,-2.2,94,1017,3.5,107,79,Snow,light snow showers
+1726516800000,-3.5,94,1009,3,72,64,Snow,light snow showers
+1726520400000,-3.1,95,1008,2.9,118,79,Snow,light snow showers
+1726524000000,-3,87,1019,2.1,337,77,Clouds,overcast clouds
+1726527600000,-2.2,95,1017,4,316,64,Snow,light snow showers
+1726531200000,1.5,83,1010,3.5,9,58,Clouds,scattered clouds
+1726534800000,0.7,91,1018,5.1,118,65,Snow,light snow showers
+1726538400000,4.2,88,1018,5,87,63,Clouds,scattered clouds
+1726542000000,5.4,84,1008,4,188,58,Clouds,scattered clouds
+1726545600000,5.1,80,1009,4.8,132,62,Clouds,scattered clouds
+1726549200000,5.7,77,1009,5.2,14,53,Clouds,scattered clouds
+1726552800000,7.9,76,1010,4.6,168,50,Clouds,scattered clouds
+1726556400000,8.3,79,1008,5,258,70,Clouds,scattered clouds
+1726560000000,9.7,77,1012,5.8,308,60,Clouds,scattered clouds
+1726563600000,7.6,78,1011,6,247,57,Clouds,scattered clouds
+1726567200000,8.3,76,1008,5.1,312,56,Clouds,scattered clouds
+1726570800000,8.3,83,1018,5.1,87,59,Clouds,scattered clouds
+1726574400000,8.1,82,1012,4,45,67,Clouds,scattered clouds
+1726578000000,7.4,86,1016,4.1,254,59,Clouds,scattered clouds
+1726581600000,5.8,77,1009,3.3,14,53,Clouds,scattered clouds
+1726585200000,6.2,84,1018,3.5,101,66,Clouds,scattered clouds
+1726588800000,5.3,82,1014,3,53,68,Clouds,scattered clouds
+1726592400000,3.9,89,1017,2.7,168,75,Clouds,scattered clouds
+1726596000000,4.5,87,1016,3.3,119,60,Clouds,scattered clouds
+1726599600000,3.5,85,1017,3.8,322,72,Clouds,scattered clouds
+1726603200000,4.7,87,1010,4.7,141,75,Clouds,scattered clouds
+1726606800000,3.3,86,1017,5.2,81,71,Clouds,scattered clouds
+1726610400000,6.6,83,1017,4.9,107,71,Clouds,scattered clouds
+1726614000000,7.9,84,1014,5.5,348,56,Clouds,scattered clouds
+1726617600000,6.4,78,1010,4.5,168,51,Clouds,scattered clouds
+1726621200000,7.6,74,1019,4.7,337,67,Clouds,scattered clouds
+1726624800000,11.5,79,1017,6.1,316,51,Clouds,scattered clouds
+1726628400000,10.9,74,1011,6.1,247,54,Clouds,scattered clouds
+1726632000000,12.2,73,1012,6.2,43,56,Clouds,scattered clouds
+1726635600000,13.9,76,1018,5.3,87,54,Clouds,scattered clouds
+1726639200000,13.7,75,1012,4.3,45,62,Clouds,scattered clouds
+1726642800000,16.3,67,1009,4,132,51,Clouds,scattered clouds
+1726646400000,16.6,64,1009,3.7,14,43,Clouds,scattered clouds
+1726650000000,17,68,1016,3.2,44,48,Clouds,scattered clouds
+1726653600000,16.9,69,1008,2.5,258,62,Clouds,scattered clouds
+1726657200000,16.3,74,1017,2.3,168,63,Clouds,scattered clouds
+1726660800000,15.6,68,1011,3.7,247,49,Clouds,scattered clouds
+1726664400000,14.3,69,1008,3.5,312,51,Clouds,scattered clouds
+1726668000000,15.8,69,1008,3.7,29,66,Clouds,scattered clouds
+1726671600000,15.3,73,1012,4,45,61,Clouds,scattered clouds
+1726675200000,13.5,79,1016,4.8,254,53,Clouds,scattered clouds
+1726678800000,14.5,77,1013,4.7,45,59,Clouds,scattered clouds
+1726682400000,12.9,76,1018,5.7,101,60,Clouds,scattered clouds
+1726686000000,12.2,69,1016,5.2,354,59,Clouds,scattered clouds
+1726689600000,14.2,66,1014,5.7,264,45,Clouds,scattered clouds
+1726693200000,12.9,77,1016,5.3,119,51,Clouds,scattered clouds
+1726696800000,14.7,71,1017,5.3,322,61,Clouds,scattered clouds
+1726700400000,15.4,74,1010,5.6,141,65,Clouds,scattered clouds
+1726704000000,18.2,69,1008,4,188,45,Clouds,scattered clouds
+1726707600000,19.4,63,1009,4.3,132,48,Clouds,scattered clouds
+1726711200000,19.3,70,1014,4.5,348,45,Clouds,scattered clouds
+1726714800000,20.5,61,1010,2.9,168,38,Clouds,scattered clouds
+1726718400000,23,62,1008,2.9,258,56,Clouds,scattered clouds
+1726722000000,25.3,59,1012,3.3,308,45,Clouds,scattered clouds
+1726725600000,25.8,56,1011,3.3,247,39,Clouds,scattered clouds
+1726729200000,25.9,55,1008,3.1,312,39,Clouds,scattered clouds
+1726732800000,26.6,61,1018,3.9,87,42,Clouds,scattered clouds
+1726736400000,27.7,58,1012,3.6,45,49,Clouds,scattered clouds
+1726740000000,28.5,49,1016,4.3,17,51,Clouds,scattered clouds
+1726743600000,27.2,51,1009,4.6,14,32,Clouds,scattered clouds
+1726747200000,27.6,58,1018,5.5,101,46,Clouds,scattered clouds
+1726750800000,26,58,1008,4.8,258,53,Clouds,scattered clouds
+1726754400000,26,62,1017,5.2,168,54,Clouds,scattered clouds
+1726758000000,24.1,63,1016,5.3,119,41,Clouds,scattered clouds
+1726761600000,25.9,55,1008,5.5,312,39,Clouds,scattered clouds
+1726765200000,23.6,60,1008,5.1,29,59,Clouds,scattered clouds
+1726768800000,23.7,58,1014,4.3,22,58,Clouds,scattered clouds
+1726772400000,25,65,1016,5,254,42,Clouds,scattered clouds
+1726776000000,24.5,62,1018,3.9,165,59,Clouds,scattered clouds
+1726779600000,24.2,59,1018,3.3,314,43,Clouds,scattered clouds
+1726783200000,26.3,52,1016,3.6,354,46,Clouds,scattered clouds
+1726786800000,27.1,51,1014,3.5,264,33,Clouds,scattered clouds
+1726790400000,27.4,59,1016,2.7,119,38,Clouds,scattered clouds
+1726794000000,28.9,55,1010,2.5,305,46,Clouds,scattered clouds
+1726797600000,29.8,56,1012,3.2,122,57,Clouds,scattered clouds
+1726801200000,33.8,50,1008,2.7,188,30,Clouds,scattered clouds
+1726804800000,34.2,45,1009,3.7,132,34,Clouds,scattered clouds
+1726808400000,34.1,43,1009,4.3,14,26,Clouds,scattered clouds
+1726812000000,36,45,1016,4.6,44,30,Clouds,scattered clouds
+1726815600000,35.5,47,1008,4.7,258,44,Clouds,scattered clouds
+1726819200000,36,50,1017,5.1,168,44,Clouds,scattered clouds
+1726822800000,36,44,1011,6.1,247,30,Clouds,scattered clouds
+1726826400000,36,43,1008,5.5,312,30,Clouds,scattered clouds
+1726830000000,36,49,1012,4.6,61,27,Clouds,scattered clouds
+1726833600000,36,48,1012,5,45,41,Clouds,scattered clouds
+1726837200000,35.7,52,1016,5.2,254,32,Clouds,scattered clouds
+1726840800000,34.5,43,1009,4.6,14,25,Clouds,scattered clouds
+1726844400000,35.1,49,1018,5,101,38,Clouds,scattered clouds
+1726848000000,34.5,42,1016,4,354,38,Clouds,scattered clouds
+1726851600000,33.9,53,1017,3.5,168,46,Clouds,scattered clouds
+1726855200000,33.4,52,1016,3.1,119,32,Clouds,scattered clouds
+1726858800000,33.3,49,1017,2.6,322,43,Clouds,scattered clouds
+1726862400000,32.8,49,1008,2.5,29,50,Clouds,scattered clouds
+1726866000000,33.5,54,1009,3.6,304,47,Clouds,scattered clouds
+1726869600000,34.4,47,1007,3.2,186,43,Clouds,scattered clouds
+1726873200000,36,48,1018,3.4,165,48,Clouds,scattered clouds
+1726876800000,36,45,1018,3.7,314,32,Clouds,scattered clouds
+1726880400000,36,41,1016,4.7,354,37,Clouds,scattered clouds
+1726884000000,36,50,1009,4.5,278,39,Clouds,scattered clouds
+1726887600000,36,47,1011,6.1,156,47,Clouds,scattered clouds
+1726891200000,36,46,1010,5.3,305,39,Clouds,scattered clouds
+1726894800000,36,48,1012,5.5,122,51,Clouds,scattered clouds
+1726898400000,36,45,1010,4.8,317,42,Clouds,scattered clouds
+1726902000000,36,40,1016,5.2,17,44,Clouds,scattered clouds
+1726905600000,36,41,1009,4.9,14,24,Clouds,scattered clouds
+1726909200000,36,48,1018,5.3,101,38,Clouds,scattered clouds
+1726912800000,36,46,1008,4,258,44,Clouds,scattered clouds
+1726916400000,36,50,1017,3.8,168,44,Clouds,scattered clouds
+1726920000000,36,45,1011,4.4,260,30,Clouds,scattered clouds
+1726923600000,36,43,1008,3.2,312,30,Clouds,scattered clouds
+1726927200000,36,45,1008,2.5,29,47,Clouds,scattered clouds
+1726930800000,34.1,51,1012,2.4,45,42,Clouds,scattered clouds
+1726934400000,35.1,53,1016,3.4,254,33,Clouds,scattered clouds
+1726938000000,34.2,50,1018,3.1,165,50,Clouds,scattered clouds
+1726941600000,34.1,50,1018,4.7,101,39,Clouds,scattered clouds
+1726945200000,33.9,43,1016,4.4,354,39,Clouds,scattered clouds
+1726948800000,33.9,43,1014,5.2,264,26,Clouds,scattered clouds
+1726952400000,34.5,51,1016,5,119,31,Clouds,scattered clouds
+1726956000000,35.7,46,1010,5.2,305,39,Clouds,scattered clouds
+1726959600000,36,48,1012,5.5,122,51,Clouds,scattered clouds
+1726963200000,36,51,1009,5.9,304,45,Clouds,scattered clouds
+1726966800000,36,46,1007,4.9,186,42,Clouds,scattered clouds
+1726970400000,36,48,1018,4.6,165,48,Clouds,scattered clouds
+1726974000000,36,47,1014,4.3,303,40,Clouds,scattered clouds
+1726977600000,36,49,1018,3.8,128,50,Clouds,scattered clouds
+1726981200000,36,50,1009,3.8,278,39,Clouds,scattered clouds
+1726984800000,36,47,1011,4.8,156,47,Clouds,scattered clouds
+1726988400000,36,46,1015,2.9,122,26,Clouds,scattered clouds
+1726992000000,36,46,1012,3.1,83,27,Clouds,scattered clouds
+1726995600000,36,45,1010,2,317,42,Clouds,scattered clouds
+1726999200000,36,46,1007,1.9,184,41,Clouds,scattered clouds
+1727002800000,36,47,1015,3.7,357,32,Clouds,scattered clouds
+1727006400000,36,42,1007,4.4,340,44,Clouds,scattered clouds
+1727010000000,36,44,1008,5.1,284,32,Clouds,scattered clouds
+1727013600000,36,48,1014,3.9,262,30,Clouds,scattered clouds
+1727017200000,36,40,1019,5.5,95,34,Clouds,scattered clouds
+1727020800000,34.5,48,1016,5.5,254,29,Clouds,scattered clouds
+1727024400000,34,44,1012,6,235,38,Clouds,scattered clouds
+1727028000000,32.5,53,1017,5.6,55,34,Clouds,scattered clouds
+1727031600000,35,45,1012,4.9,256,30,Clouds,scattered clouds
+1727035200000,34.1,47,1011,4.6,303,42,Clouds,scattered clouds
+1727038800000,35.4,47,1007,5.5,79,26,Clouds,scattered clouds
+1727042400000,35.3,45,1018,6,155,48,Clouds,scattered clouds
+1727046000000,36,50,1017,4.8,38,30,Clouds,scattered clouds
+1727049600000,36,45,1008,4.3,337,36,Clouds,scattered clouds
+1727053200000,36,47,1016,4.5,310,31,Clouds,scattered clouds
+1727056800000,36,51,1007,3.1,110,35,Clouds,scattered clouds
+1727060400000,36,48,1017,3.1,55,31,Clouds,scattered clouds
+1727064000000,36,48,1017,2.4,107,42,Clouds,scattered clouds
+1727067600000,36,47,1009,2.9,72,26,Clouds,scattered clouds
+1727071200000,36,48,1008,3.7,118,41,Clouds,scattered clouds
+1727074800000,36,51,1008,3.3,299,43,Clouds,scattered clouds
+1727078400000,36,50,1017,5,316,28,Clouds,scattered clouds
+1727082000000,36,41,1010,4.4,9,25,Clouds,scattered clouds
+1727085600000,36,49,1018,5.9,118,32,Clouds,scattered clouds
+1727089200000,36,50,1018,5.6,87,33,Clouds,scattered clouds
+1727092800000,36,47,1017,6,81,40,Clouds,scattered clouds
+1727096400000,36,43,1009,5.1,132,32,Clouds,scattered clouds
+1727100000000,36,41,1011,5.4,87,29,Clouds,scattered clouds
+1727103600000,36,42,1007,6,340,44,Clouds,scattered clouds
+1727107200000,32.9,48,1018,6.2,155,50,Clouds,scattered clouds
+1727110800000,32.2,52,1014,4.2,262,34,Clouds,scattered clouds
+1727114400000,34.4,42,1019,5.2,95,35,Clouds,scattered clouds
+1727118000000,32.3,52,1016,4.8,310,35,Clouds,scattered clouds
+1727121600000,34.7,43,1012,4.5,235,37,Clouds,scattered clouds
+1727125200000,35.3,49,1017,3.5,55,31,Clouds,scattered clouds
+1727128800000,34.6,42,1015,3.9,29,41,Clouds,scattered clouds
+1727132400000,35.1,45,1011,1.8,303,41,Clouds,scattered clouds
+1727136000000,36,48,1008,3.3,118,41,Clouds,scattered clouds
+1727139600000,36,51,1008,2.9,299,43,Clouds,scattered clouds
+1727143200000,36,50,1017,4,38,30,Clouds,scattered clouds
+1727146800000,36,45,1008,4.3,337,36,Clouds,scattered clouds
+1727150400000,36,47,1016,5.3,310,31,Clouds,scattered clouds
+1727154000000,36,49,1010,5.5,141,45,Clouds,scattered clouds
+1727157600000,36,47,1017,5.8,81,40,Clouds,scattered clouds
+1727161200000,36,48,1017,5.3,107,42,Clouds,scattered clouds
+1727164800000,36,47,1009,5.4,72,26,Clouds,scattered clouds
+1727168400000,36,43,1010,4.6,168,23,Clouds,scattered clouds
+1727172000000,36,40,1019,4.6,337,40,Clouds,scattered clouds
+1727175600000,36,50,1017,5.8,316,28,Clouds,scattered clouds
+1727179200000,36,44,1011,5.6,247,30,Clouds,scattered clouds
+1727182800000,36,49,1018,5.5,118,32,Clouds,scattered clouds
+1727186400000,36,50,1018,4.6,87,33,Clouds,scattered clouds
+1727190000000,34.6,49,1008,2.9,188,30,Clouds,scattered clouds
+1727193600000,35.2,44,1009,3,132,33,Clouds,scattered clouds
+1727197200000,31.8,46,1009,2.6,14,28,Clouds,scattered clouds
+1727200800000,33.8,45,1007,3.2,340,46,Clouds,scattered clouds
+1727204400000,33.5,47,1018,4.1,155,49,Clouds,scattered clouds
+1727208000000,33.4,53,1017,3.7,38,33,Clouds,scattered clouds
+1727211600000,34.9,41,1019,4.6,95,35,Clouds,scattered clouds
+1727215200000,35.3,48,1016,5,310,32,Clouds,scattered clouds
+1727218800000,35.6,51,1007,4.4,110,35,Clouds,scattered clouds
+1727222400000,36,48,1017,5.2,55,31,Clouds,scattered clouds
+1727226000000,36,48,1017,5.2,107,42,Clouds,scattered clouds
+1727229600000,36,47,1009,5.3,72,26,Clouds,scattered clouds
+1727233200000,36,48,1008,5.7,118,41,Clouds,scattered clouds
+1727236800000,36,51,1008,4.8,299,43,Clouds,scattered clouds
+1727240400000,36,50,1017,5.4,38,30,Clouds,scattered clouds
+1727244000000,36,41,1010,4.9,9,25,Clouds,scattered clouds
+1727247600000,36,49,1018,5.8,118,32,Clouds,scattered clouds
+1727251200000,36,49,1010,5,141,45,Clouds,scattered clouds
+1727254800000,36,47,1017,4.7,81,40,Clouds,scattered clouds
+1727258400000,36,43,1009,3.4,132,32,Clouds,scattered clouds
+1727262000000,36,50,1014,3.5,348,29,Clouds,scattered clouds
+1727265600000,36,43,1010,1.9,168,23,Clouds,scattered clouds
+1727269200000,36,46,1008,2.2,258,44,Clouds,scattered clouds
+1727272800000,36,50,1017,3.8,316,28,Clouds,scattered clouds
+1727276400000,34.5,46,1011,4.4,247,31,Clouds,scattered clouds
+1727280000000,32.6,49,1012,5,43,36,Clouds,scattered clouds
+1727283600000,33.3,53,1018,4.8,87,35,Clouds,scattered clouds
+1727287200000,33.6,51,1012,4.5,45,43,Clouds,scattered clouds
+1727290800000,33.2,46,1009,4.8,132,35,Clouds,scattered clouds
+1727294400000,31.7,46,1009,5.1,14,28,Clouds,scattered clouds
+1727298000000,32,53,1018,5.9,101,41,Clouds,scattered clouds
+1727301600000,33.9,46,1018,6.5,155,49,Clouds,scattered clouds
+1727305200000,35.9,50,1017,5.5,38,30,Clouds,scattered clouds
+1727308800000,36,45,1008,5.2,337,36,Clouds,scattered clouds
+1727312400000,36,47,1016,5.7,310,31,Clouds,scattered clouds
+1727316000000,36,49,1010,5.3,141,45,Clouds,scattered clouds
+1727319600000,36,47,1017,5.1,81,40,Clouds,scattered clouds
+1727323200000,36,48,1017,4,107,42,Clouds,scattered clouds
+1727326800000,36,47,1009,3.6,72,26,Clouds,scattered clouds
+1727330400000,36,48,1008,3.5,118,41,Clouds,scattered clouds
+1727334000000,36,40,1019,1.9,337,40,Clouds,scattered clouds
+1727337600000,36,50,1017,3.4,316,28,Clouds,scattered clouds
+1727341200000,36,41,1010,3,9,25,Clouds,scattered clouds
+1727344800000,36,49,1018,4.6,118,32,Clouds,scattered clouds
+1727348400000,36,50,1018,4.5,87,33,Clouds,scattered clouds
+1727352000000,36,47,1008,3.6,188,28,Clouds,scattered clouds
+1727355600000,36,43,1009,4.5,132,32,Clouds,scattered clouds
+1727359200000,35,42,1009,4.9,14,25,Clouds,scattered clouds
+1727362800000,32.9,46,1010,4.4,168,26,Clouds,scattered clouds
+1727366400000,33.2,50,1008,5,258,46,Clouds,scattered clouds
+1727370000000,32.2,50,1012,5.9,308,38,Clouds,scattered clouds
+1727373600000,30.7,50,1011,6.1,247,35,Clouds,scattered clouds
+1727377200000,30.6,49,1008,5.3,312,35,Clouds,scattered clouds
+1727380800000,30.1,57,1018,5.4,87,38,Clouds,scattered clouds
+1727384400000,33,52,1012,4.4,45,44,Clouds,scattered clouds
+1727388000000,30.7,58,1016,4.6,254,37,Clouds,scattered clouds
+1727391600000,34.1,43,1009,3.8,14,26,Clouds,scattered clouds
+1727395200000,35.5,49,1018,4.1,101,38,Clouds,scattered clouds
+1727398800000,33.8,48,1014,3.6,53,41,Clouds,scattered clouds
+1727402400000,34.9,51,1017,2.7,38,31,Clouds,scattered clouds
+1727406000000,36,41,1010,2.6,9,25,Clouds,scattered clouds
+1727409600000,36,49,1018,4.2,118,32,Clouds,scattered clouds
+1727413200000,36,49,1010,4.2,141,45,Clouds,scattered clouds
+1727416800000,36,47,1017,4.8,81,40,Clouds,scattered clouds
+1727420400000,36,48,1017,4.5,107,42,Clouds,scattered clouds
+1727424000000,36,50,1014,5.2,348,29,Clouds,scattered clouds
+1727427600000,36,43,1010,4.3,168,23,Clouds,scattered clouds
+1727431200000,36,40,1019,4.6,337,40,Clouds,scattered clouds
+1727434800000,36,50,1017,6.1,316,28,Clouds,scattered clouds
+1727438400000,36,44,1011,6.2,247,30,Clouds,scattered clouds
+1727442000000,35.2,46,1012,6.3,43,34,Clouds,scattered clouds
+1727445600000,33.3,53,1018,5.6,87,35,Clouds,scattered clouds
+1727449200000,32.3,53,1012,4.7,45,44,Clouds,scattered clouds
+1727452800000,31.3,49,1009,4.4,132,36,Clouds,scattered clouds
+1727456400000,32.4,45,1009,4.2,14,27,Clouds,scattered clouds
+1727460000000,31.9,50,1016,3.7,44,34,Clouds,scattered clouds
+1727463600000,30.2,53,1008,3.1,258,49,Clouds,scattered clouds
+1727467200000,29.4,58,1017,2.8,168,51,Clouds,scattered clouds
+1727470800000,31.4,49,1011,3.3,247,34,Clouds,scattered clouds
+1727474400000,30.1,50,1008,2.9,312,35,Clouds,scattered clouds
+1727478000000,31.9,50,1008,3.2,29,51,Clouds,scattered clouds
+1727481600000,32.5,53,1012,3.5,45,44,Clouds,scattered clouds
+1727485200000,35,53,1016,4.4,254,33,Clouds,scattered clouds
+1727488800000,33.4,55,1013,4.4,45,41,Clouds,scattered clouds
+1727492400000,36,48,1018,5.4,101,38,Clouds,scattered clouds
+1727496000000,36,41,1016,5.1,354,37,Clouds,scattered clouds
+1727499600000,36,40,1014,5.6,264,24,Clouds,scattered clouds
+1727503200000,36,41,1010,5.2,9,25,Clouds,scattered clouds
+1727506800000,36,49,1018,6.4,118,32,Clouds,scattered clouds
+1727510400000,36,49,1010,5.8,141,45,Clouds,scattered clouds
+1727514000000,36,47,1008,4.3,188,28,Clouds,scattered clouds
+1727517600000,36,43,1009,4.6,132,32,Clouds,scattered clouds
+1727521200000,35.9,50,1014,5,348,29,Clouds,scattered clouds
+1727524800000,35.7,43,1010,3.4,168,23,Clouds,scattered clouds
+1727528400000,35.1,47,1008,3.5,258,44,Clouds,scattered clouds
+1727532000000,33.2,49,1012,3.9,308,37,Clouds,scattered clouds
+1727535600000,32.8,48,1011,3.7,247,33,Clouds,scattered clouds
+1727539200000,30.3,50,1008,2.5,312,35,Clouds,scattered clouds
+1727542800000,31.6,55,1018,3.3,87,37,Clouds,scattered clouds
+1727546400000,29,57,1012,3.1,45,47,Clouds,scattered clouds
+1727550000000,28.9,49,1016,3.8,17,50,Clouds,scattered clouds
+1727553600000,30.1,48,1009,4.1,14,30,Clouds,scattered clouds
+1727557200000,28.6,57,1018,5.2,101,45,Clouds,scattered clouds
+1727560800000,30.1,53,1008,4.6,258,49,Clouds,scattered clouds
+1727564400000,31.6,56,1017,5,168,49,Clouds,scattered clouds
+1727568000000,31.6,54,1016,5.3,119,34,Clouds,scattered clouds
+1727571600000,31.6,48,1008,5.5,312,34,Clouds,scattered clouds
+1727575200000,32.7,49,1008,5.3,29,50,Clouds,scattered clouds
+1727578800000,33.1,46,1014,4.5,22,49,Clouds,scattered clouds
+1727582400000,36,52,1016,5.3,254,32,Clouds,scattered clouds
+1727586000000,36,48,1018,4.3,165,48,Clouds,scattered clouds
+1727589600000,35.4,45,1018,3.8,314,32,Clouds,scattered clouds
+1727593200000,35.7,41,1016,4.1,354,37,Clouds,scattered clouds
+1727596800000,36,40,1014,4.1,264,24,Clouds,scattered clouds
+1727600400000,36,41,1010,3.1,9,25,Clouds,scattered clouds
+1727604000000,36,45,1012,3.8,43,33,Clouds,scattered clouds
+1727607600000,34.5,51,1018,2.9,87,34,Clouds,scattered clouds
+1727611200000,35.7,48,1008,2.1,188,29,Clouds,scattered clouds
+1727614800000,34.5,45,1009,3.2,132,33,Clouds,scattered clouds
+1727618400000,31.9,46,1009,3.8,14,28,Clouds,scattered clouds
+1727622000000,30.2,52,1016,4.2,44,35,Clouds,scattered clouds
+1727625600000,30.5,53,1008,4.3,258,49,Clouds,scattered clouds
+1727629200000,29.3,58,1017,4.8,168,51,Clouds,scattered clouds
+1727632800000,27.2,54,1011,6,247,38,Clouds,scattered clouds
+1727636400000,28.5,52,1008,5.4,312,37,Clouds,scattered clouds
+1727640000000,27.2,59,1012,4.6,61,35,Clouds,scattered clouds
+1727643600000,27.5,59,1012,5.1,45,49,Clouds,scattered clouds
+1727647200000,28.1,61,1016,5.5,254,39,Clouds,scattered clouds
+1727650800000,28.5,50,1009,5,14,31,Clouds,scattered clouds
+1727654400000,28.4,57,1018,5.4,101,45,Clouds,scattered clouds
+1727658000000,30.4,47,1016,4.4,354,42,Clouds,scattered clouds
+1727661600000,31,56,1017,4,168,49,Clouds,scattered clouds
+1727665200000,30.9,55,1016,3.6,119,34,Clouds,scattered clouds
+1727668800000,32,51,1017,3.2,322,45,Clouds,scattered clouds
+1727672400000,32,50,1008,2.6,29,51,Clouds,scattered clouds
+1727676000000,33.9,53,1009,3,304,47,Clouds,scattered clouds
+1727679600000,32.4,50,1007,2.6,186,45,Clouds,scattered clouds
+1727683200000,34.8,49,1018,2.9,165,49,Clouds,scattered clouds
+1727686800000,34.9,46,1018,3.2,314,33,Clouds,scattered clouds
+1727690400000,31.6,46,1016,4.3,354,41,Clouds,scattered clouds
+1727694000000,30.7,56,1009,4.2,278,44,Clouds,scattered clouds
+1727697600000,32.3,51,1011,5.9,156,50,Clouds,scattered clouds
+1727701200000,29.2,53,1012,6.2,43,39,Clouds,scattered clouds
+1727704800000,30.1,57,1018,5.8,87,38,Clouds,scattered clouds
+1727708400000,28.8,57,1012,5.1,45,48,Clouds,scattered clouds
+1727712000000,25.1,53,1016,5.3,17,54,Clouds,scattered clouds
+1727715600000,26,53,1009,5.1,14,33,Clouds,scattered clouds
+1727719200000,25,61,1018,5.6,101,48,Clouds,scattered clouds
+1727722800000,24.6,60,1008,4.4,258,54,Clouds,scattered clouds
+1727726400000,24.2,64,1017,4.3,168,56,Clouds,scattered clouds
+1727730000000,23.8,59,1011,4.9,260,42,Clouds,scattered clouds
+1727733600000,23.8,57,1008,3.7,312,41,Clouds,scattered clouds
+1727737200000,23.6,60,1008,3,29,59,Clouds,scattered clouds
+1727740800000,24.5,62,1012,2.4,45,52,Clouds,scattered clouds
+1727744400000,25.2,65,1016,2.8,254,42,Clouds,scattered clouds
+1727748000000,26.7,59,1018,2.5,165,57,Clouds,scattered clouds
+1727751600000,28.7,57,1018,4.2,101,45,Clouds,scattered clouds
+1727755200000,28,50,1016,4,354,44,Clouds,scattered clouds
+1727758800000,27.9,50,1014,4.8,264,32,Clouds,scattered clouds
+1727762400000,30,56,1016,4.7,119,35,Clouds,scattered clouds
+1727766000000,28.3,55,1010,4.9,305,46,Clouds,scattered clouds
+1727769600000,29.3,56,1012,5.4,122,57,Clouds,scattered clouds
+1727773200000,28.5,60,1009,5.9,304,52,Clouds,scattered clouds
+1727776800000,29.3,54,1007,5,186,48,Clouds,scattered clouds
+1727780400000,25.8,60,1018,4.7,165,58,Clouds,scattered clouds
+1727784000000,25.4,60,1014,4.6,303,50,Clouds,scattered clouds
+1727787600000,24.1,63,1018,4.2,128,61,Clouds,scattered clouds
+1727791200000,24,64,1009,4.2,278,51,Clouds,scattered clouds
+1727794800000,23.7,61,1011,5.3,156,59,Clouds,scattered clouds
+1727798400000,21.9,63,1015,3.5,122,40,Clouds,scattered clouds
+1727802000000,20,68,1012,2.8,61,42,Clouds,scattered clouds
+1727805600000,19.3,68,1012,2.8,45,57,Clouds,scattered clouds
+1727809200000,19.3,72,1016,2.8,254,48,Clouds,scattered clouds
+1727812800000,17.5,63,1009,2.6,14,42,Clouds,scattered clouds
+1727816400000,18,69,1018,3.8,101,55,Clouds,scattered clouds
+1727820000000,19,60,1017,3.1,343,46,Clouds,scattered clouds
+1727823600000,18.2,72,1017,3.9,168,61,Clouds,scattered clouds
+1727827200000,19.6,69,1016,4.4,119,45,Clouds,scattered clouds
+1727830800000,18.9,63,1008,4.9,312,46,Clouds,scattered clouds
+1727834400000,21.9,62,1008,5,29,60,Clouds,scattered clouds
+1727838000000,20.8,69,1009,5.8,304,60,Clouds,scattered clouds
+1727841600000,21.7,69,1016,5.6,254,46,Clouds,scattered clouds
+1727845200000,23.4,63,1018,4.8,165,60,Clouds,scattered clouds
+1727848800000,22.1,61,1018,4.5,314,45,Clouds,scattered clouds
+1727852400000,23.2,56,1016,5.1,354,49,Clouds,scattered clouds
+1727856000000,23.2,65,1009,4.4,278,52,Clouds,scattered clouds
+1727859600000,22.6,63,1011,5.6,156,60,Clouds,scattered clouds
+1727863200000,21,64,1010,4.2,305,53,Clouds,scattered clouds
+1727866800000,20.1,67,1012,4.1,122,66,Clouds,scattered clouds
+1727870400000,18.4,72,1009,4,304,62,Clouds,scattered clouds
+1727874000000,19.6,69,1009,2.3,88,58,Clouds,scattered clouds
+1727877600000,17.3,69,1007,1.8,46,63,Clouds,scattered clouds
+1727881200000,14.5,73,1014,2.1,303,61,Clouds,scattered clouds
+1727884800000,13.1,76,1018,2.4,128,72,Clouds,scattered clouds
+1727888400000,13.4,78,1007,4.6,82,51,Clouds,scattered clouds
+1727892000000,10.5,78,1016,4.6,316,70,Clouds,scattered clouds
+1727895600000,12.4,75,1015,4,122,49,Clouds,scattered clouds
+1727899200000,9.9,83,1012,5.4,294,60,Clouds,scattered clouds
+1727902800000,11.8,77,1012,4.8,45,64,Clouds,scattered clouds
+1727906400000,11.8,81,1016,5.5,254,55,Clouds,scattered clouds
+1727910000000,10.6,75,1014,6.3,133,71,Clouds,scattered clouds
+1727913600000,10.5,79,1018,6,101,62,Clouds,scattered clouds
+1727917200000,12.4,69,1016,5.3,354,59,Clouds,scattered clouds
+1727920800000,12.7,78,1017,5,168,67,Clouds,scattered clouds
+1727924400000,12.1,78,1016,4.9,119,52,Clouds,scattered clouds
+1727928000000,13.8,73,1010,4.5,305,60,Clouds,scattered clouds
+1727931600000,14.2,71,1008,4.2,29,68,Clouds,scattered clouds
+1727935200000,13.7,77,1009,4.4,304,66,Clouds,scattered clouds
+1727938800000,14,72,1007,3,186,63,Clouds,scattered clouds
+1727942400000,13.6,75,1018,2.3,165,70,Clouds,scattered clouds
+1727946000000,15.2,72,1014,1.8,303,60,Clouds,scattered clouds
+1727949600000,13.6,75,1018,2,128,71,Clouds,scattered clouds
+1727953200000,11.9,79,1009,2.8,278,62,Clouds,scattered clouds
+1727956800000,10.2,77,1011,4.7,156,72,Clouds,scattered clouds
+1727960400000,9.2,78,1010,4.1,305,64,Clouds,scattered clouds
+1727964000000,6.9,81,1012,4.7,83,55,Clouds,scattered clouds
+1727967600000,6.5,80,1010,4.4,317,70,Clouds,scattered clouds
+1727971200000,4.9,86,1009,4.5,88,72,Clouds,scattered clouds
+1727974800000,5.1,84,1007,4.6,46,75,Clouds,scattered clouds
+1727978400000,1.4,88,1017,5.6,164,61,Clouds,scattered clouds
+1727982000000,3,83,1010,5.8,204,73,Clouds,scattered clouds
+1727985600000,2.3,92,1007,6.2,82,62,Rain,light rain
+1727989200000,1.1,89,1018,6.2,333,64,Snow,light snow showers
+1727992800000,0.1,89,1015,4.4,122,60,Snow,light snow showers
+1727996400000,0.2,94,1012,5.2,294,70,Snow,light snow showers
+1728000000000,0.9,92,1018,5.3,330,71,Snow,light snow showers
+1728003600000,1.8,85,1012,3.3,256,62,Clouds,scattered clouds
+1728007200000,3.6,83,1011,2.7,303,71,Clouds,scattered clouds
+1728010800000,2.3,82,1007,3.6,340,76,Clouds,overcast clouds
+1728014400000,3.8,83,1018,3.5,155,78,Clouds,overcast clouds
+1728018000000,4.4,88,1017,3.1,38,61,Clouds,scattered clouds
+1728021600000,4.7,77,1019,4,95,64,Clouds,scattered clouds
+1728025200000,4.8,85,1016,4.5,310,61,Clouds,scattered clouds
+1728028800000,5.3,88,1007,4,110,65,Clouds,scattered clouds
+1728032400000,3.7,87,1017,4.8,55,62,Clouds,scattered clouds
+1728036000000,2.7,88,1017,4.9,107,74,Clouds,scattered clouds
+1728039600000,2.9,87,1009,5.2,72,58,Clouds,scattered clouds
+1728043200000,-0.5,91,1008,5.7,118,77,Snow,light snow showers
+1728046800000,-1.4,96,1008,4.8,299,79,Snow,light snow showers
+1728050400000,-2.5,96,1017,5.5,38,67,Snow,light snow showers
+1728054000000,-4.2,90,1010,5.1,9,64,Snow,light snow showers
+1728057600000,-4.3,97,1018,6.1,118,70,Snow,light snow showers
+1728061200000,-7.8,97,1010,5.4,141,83,Snow,light snow showers
+1728064800000,-7.5,97,1017,5.2,81,80,Snow,light snow showers
+1728068400000,-9.2,97,1009,3.9,132,75,Snow,light snow showers
+1728072000000,-9.3,97,1014,4.1,348,66,Snow,light snow showers
+1728075600000,-8.9,97,1010,2.5,168,66,Snow,light snow showers
+1728079200000,-10.3,97,1008,2.4,258,84,Snow,light snow showers
+1728082800000,-9.7,97,1017,3.2,316,66,Snow,light snow showers
+1728086400000,-8,97,1011,3.8,247,72,Snow,light snow showers
+1728090000000,-8.6,97,1012,4.5,43,75,Snow,light snow showers
+1728093600000,-9.3,97,1018,4.3,87,71,Snow,light snow showers
+1728097200000,-7.5,97,1012,4.1,45,80,Snow,light snow showers
+1728100800000,-6.7,95,1012,4.2,256,70,Snow,light snow showers
+1728104400000,-5.4,94,1011,4.3,303,80,Snow,light snow showers
+1728108000000,-7.1,97,1008,5.5,118,81,Snow,light snow showers
+1728111600000,-6.6,95,1018,6.4,155,88,Snow,light snow showers
+1728115200000,-6.4,97,1017,5.6,38,68,Snow,light snow showers
+1728118800000,-6.6,96,1008,5.4,337,77,Snow,light snow showers
+1728122400000,-8.4,97,1016,5.9,310,71,Snow,light snow showers
+1728126000000,-9.9,97,1010,5.6,141,83,Snow,light snow showers
+1728129600000,-11.5,97,1017,5.5,81,80,Snow,light snow showers
+1728133200000,-12,97,1017,4.5,107,82,Snow,light snow showers
+1728136800000,-12,97,1009,4.1,72,66,Snow,light snow showers
+1728140400000,-12,97,1008,4,118,81,Snow,light snow showers
+1728144000000,-12,97,1019,2.5,337,85,Snow,light snow showers
+1728147600000,-12,97,1017,3.5,316,66,Snow,light snow showers
+1728151200000,-12,97,1010,2.4,9,70,Snow,light snow showers
+1728154800000,-12,97,1018,4,118,70,Snow,light snow showers
+1728158400000,-12,97,1018,4,87,71,Snow,light snow showers
+1728162000000,-12,97,1008,3.2,188,68,Snow,light snow showers
+1728165600000,-12,97,1009,4.1,132,75,Snow,light snow showers
+1728169200000,-12,97,1009,4.6,14,69,Snow,light snow showers
+1728172800000,-12,97,1010,4.2,168,66,Snow,light snow showers
+1728176400000,-12,97,1008,4.9,258,84,Snow,light snow showers
+1728180000000,-12,97,1012,5.8,308,75,Snow,light snow showers
+1728183600000,-11.9,97,1011,6.2,247,72,Snow,light snow showers
+1728187200000,-11.3,97,1008,5.5,312,73,Snow,light snow showers
+1728190800000,-9.6,97,1018,5.7,87,71,Snow,light snow showers
+1728194400000,-8.5,97,1012,4.8,45,80,Snow,light snow showers
+1728198000000,-10.8,97,1016,5,254,68,Snow,light snow showers
+1728201600000,-10.5,97,1011,3.8,303,82,Snow,light snow showers
+1728205200000,-10.9,97,1008,4.4,118,81,Snow,light snow showers
+1728208800000,-11.6,97,1008,3.1,299,80,Snow,light snow showers
+1728212400000,-12,97,1017,3.3,38,68,Snow,light snow showers
+1728216000000,-12,97,1010,2.5,9,70,Snow,light snow showers
+1728219600000,-12,97,1018,3.6,118,70,Snow,light snow showers
+1728223200000,-12,97,1010,3.7,141,83,Snow,light snow showers
+1728226800000,-12,97,1017,4.3,81,80,Snow,light snow showers
+1728230400000,-12,97,1017,4,107,82,Snow,light snow showers
+1728234000000,-12,97,1014,4.8,348,66,Snow,light snow showers
+1728237600000,-12,97,1010,4,168,66,Snow,light snow showers
+1728241200000,-12,97,1019,4.3,337,85,Snow,light snow showers
+1728244800000,-12,97,1017,6,316,66,Snow,light snow showers
+1728248400000,-12,97,1011,6.1,247,72,Snow,light snow showers
+1728252000000,-12,97,1012,6.4,43,75,Snow,light snow showers
+1728255600000,-12,97,1018,5.8,87,71,Snow,light snow showers
+1728259200000,-12,97,1012,4.9,45,80,Snow,light snow showers
+1728262800000,-12,97,1009,4.7,132,75,Snow,light snow showers
+1728266400000,-12,97,1009,4.6,14,69,Snow,light snow showers
+1728270000000,-11.6,97,1016,4.2,44,72,Snow,light snow showers
+1728273600000,-12,97,1008,3.6,258,84,Snow,light snow showers
+1728277200000,-9.5,97,1017,3.4,168,82,Snow,light snow showers
+1728280800000,-9.4,97,1011,3.8,247,72,Snow,light snow showers
+1728284400000,-9.2,97,1008,2.7,312,73,Snow,light snow showers
+1728288000000,-10,97,1008,2.6,29,88,Snow,light snow showers
+1728291600000,-12,97,1012,2.9,45,80,Snow,light snow showers
+1728295200000,-11.7,97,1016,3.9,254,68,Snow,light snow showers
+1728298800000,-12,97,1013,3.9,45,75,Snow,light snow showers
+1728302400000,-12,97,1008,4.8,118,81,Snow,light snow showers
+1728306000000,-12,97,1019,4.1,337,85,Snow,light snow showers
+1728309600000,-12,97,1017,5.8,316,66,Snow,light snow showers
+1728313200000,-12,97,1010,5.1,9,70,Snow,light snow showers
+1728316800000,-12,97,1018,6.3,118,70,Snow,light snow showers
+1728320400000,-12,97,1010,5.9,141,83,Snow,light snow showers
+1728324000000,-12,97,1008,4.5,188,68,Snow,light snow showers
+1728327600000,-12,97,1009,4.9,132,75,Snow,light snow showers
+1728331200000,-12,97,1014,5.3,348,66,Snow,light snow showers
+1728334800000,-12,97,1010,3.9,168,66,Snow,light snow showers
+1728338400000,-12,97,1008,4,258,84,Snow,light snow showers
+1728342000000,-12,97,1012,4.4,308,75,Snow,light snow showers
+1728345600000,-12,97,1011,4.3,247,72,Snow,light snow showers
+1728349200000,-12,97,1008,3.1,312,73,Snow,light snow showers
+1728352800000,-12,97,1018,2.9,87,71,Snow,light snow showers
+1728356400000,-9.9,97,1012,2.5,45,80,Snow,light snow showers
+1728360000000,-11.2,97,1016,3.2,17,89,Snow,light snow showers
+1728363600000,-9.9,96,1009,3.6,14,68,Snow,light snow showers
+1728367200000,-8.8,97,1018,4.7,101,77,Snow,light snow showers
+1728370800000,-10.1,97,1008,4.2,258,84,Snow,light snow showers
+1728374400000,-9.9,97,1017,4.7,168,82,Snow,light snow showers
+1728378000000,-9.1,97,1016,5.1,119,68,Snow,light snow showers
+1728381600000,-11.1,97,1008,5.4,312,73,Snow,light snow showers
+1728385200000,-12,97,1008,5.3,29,88,Snow,light snow showers
+1728388800000,-12,97,1014,4.6,22,90,Snow,light snow showers
+1728392400000,-12,97,1016,5.5,254,68,Snow,light snow showers
+1728396000000,-12,97,1018,4.6,165,88,Snow,light snow showers
+1728399600000,-12,97,1018,4.1,314,73,Snow,light snow showers
+1728403200000,-12,97,1019,3.9,337,85,Snow,light snow showers
+1728406800000,-12,97,1017,5,316,66,Snow,light snow showers
+1728410400000,-12,97,1010,3.7,9,70,Snow,light snow showers
+1728414000000,-12,97,1012,4.4,43,75,Snow,light snow showers
+1728417600000,-12,97,1018,3.3,87,71,Snow,light snow showers
+1728421200000,-12,97,1008,1.6,188,68,Snow,light snow showers
+1728424800000,-12,97,1009,2.6,132,75,Snow,light snow showers
+1728428400000,-12,97,1009,3.2,14,69,Snow,light snow showers
+1728432000000,-12,97,1016,3.7,44,72,Snow,light snow showers
+1728435600000,-12,97,1008,3.9,258,84,Snow,light snow showers
+1728439200000,-12,97,1017,4.5,168,82,Snow,light snow showers
+1728442800000,-12,97,1011,5.7,247,72,Snow,light snow showers
+1728446400000,-11.1,97,1008,5.3,312,73,Snow,light snow showers
+1728450000000,-8.7,97,1012,4.5,61,66,Snow,light snow showers
+1728453600000,-10.3,97,1012,5.1,45,80,Snow,light snow showers
+1728457200000,-9,97,1016,5.6,254,68,Snow,light snow showers
+1728460800000,-8.4,94,1009,5.2,14,66,Snow,light snow showers
+1728464400000,-11,97,1018,5.7,101,77,Snow,light snow showers
+1728468000000,-11.3,97,1016,4.8,354,82,Snow,light snow showers
+1728471600000,-12,97,1017,4.4,168,82,Snow,light snow showers
+1728475200000,-12,97,1016,4.2,119,68,Snow,light snow showers
+1728478800000,-12,97,1017,3.8,322,82,Snow,light snow showers
+1728482400000,-12,97,1008,3.2,29,88,Snow,light snow showers
+1728486000000,-12,97,1009,3.3,304,82,Snow,light snow showers
+1728489600000,-12,97,1007,2,186,83,Snow,light snow showers
+1728493200000,-12,97,1018,2.3,165,88,Snow,light snow showers
+1728496800000,-12,97,1018,2.6,314,73,Snow,light snow showers
+1728500400000,-12,97,1019,3.2,337,85,Snow,light snow showers
+1728504000000,-12,97,1012,4.8,308,75,Snow,light snow showers
+1728507600000,-12,97,1011,5.4,247,72,Snow,light snow showers
+1728511200000,-12,97,1012,6,43,75,Snow,light snow showers
+1728514800000,-12,97,1018,5.6,87,71,Snow,light snow showers
+1728518400000,-12,97,1012,5,45,80,Snow,light snow showers
+1728522000000,-12,97,1016,5.3,17,89,Snow,light snow showers
+1728525600000,-12,97,1009,5.2,14,69,Snow,light snow showers
+1728529200000,-10.3,97,1018,5.8,101,77,Snow,light snow showers
+1728532800000,-11.2,97,1008,4.7,258,84,Snow,light snow showers
+1728536400000,-8,97,1017,4.7,168,82,Snow,light snow showers
+1728540000000,-8.8,97,1011,5.4,260,72,Snow,light snow showers
+1728543600000,-8.9,97,1008,4.3,312,73,Snow,light snow showers
+1728547200000,-7.9,97,1008,3.6,29,88,Snow,light snow showers
+1728550800000,-10.6,97,1012,3,45,80,Snow,light snow showers
+1728554400000,-10,97,1016,3,254,68,Snow,light snow showers
+1728558000000,-11.8,97,1018,1.9,165,88,Snow,light snow showers
+1728561600000,-12,97,1018,3.6,101,77,Snow,light snow showers
+1728565200000,-12,97,1016,3.4,354,82,Snow,light snow showers
+1728568800000,-12,97,1014,4.3,264,70,Snow,light snow showers
+1728572400000,-12,97,1016,4.3,119,68,Snow,light snow showers
+1728576000000,-12,97,1010,4.6,305,79,Snow,light snow showers
+1728579600000,-12,97,1012,5.1,122,90,Snow,light snow showers
+1728583200000,-12,97,1009,5.7,304,82,Snow,light snow showers
+1728586800000,-12,97,1007,4.9,186,83,Snow,light snow showers
+1728590400000,-12,97,1018,4.8,165,88,Snow,light snow showers
+1728594000000,-12,97,1014,4.7,303,80,Snow,light snow showers
+1728597600000,-12,97,1018,4.4,128,88,Snow,light snow showers
+1728601200000,-12,97,1012,5.6,308,75,Snow,light snow showers
+1728604800000,-12,97,1011,5.6,247,72,Snow,light snow showers
+1728608400000,-12,97,1008,4.6,312,73,Snow,light snow showers
+1728612000000,-11.5,97,1012,3.3,61,66,Snow,light snow showers
+1728615600000,-10.9,97,1012,3.4,45,80,Snow,light snow showers
+1728619200000,-10.3,97,1016,3.4,254,68,Snow,light snow showers
+1728622800000,-9.4,95,1009,2.6,14,67,Snow,light snow showers
+1728626400000,-7.5,97,1018,3.2,101,77,Snow,light snow showers
+1728630000000,-6.5,91,1017,2.5,343,71,Snow,light snow showers
+1728633600000,-6.9,97,1017,3.4,168,82,Snow,light snow showers
+1728637200000,-9,97,1016,4,119,68,Snow,light snow showers
+1728640800000,-9.9,97,1008,4.5,312,73,Snow,light snow showers
+1728644400000,-9.7,97,1008,4.6,29,88,Snow,light snow showers
+1728648000000,-10.2,97,1009,5.5,304,82,Snow,light snow showers
+1728651600000,-12,97,1016,5.4,254,68,Snow,light snow showers
+1728655200000,-12,97,1018,4.7,165,88,Snow,light snow showers
+1728658800000,-12,97,1018,4.6,314,73,Snow,light snow showers
+1728662400000,-12,97,1016,5.3,354,82,Snow,light snow showers
+1728666000000,-12,97,1009,4.7,278,77,Snow,light snow showers
+1728669600000,-12,97,1011,5.9,156,87,Snow,light snow showers
+1728673200000,-12,97,1010,4.6,305,79,Snow,light snow showers
+1728676800000,-12,97,1012,4.5,122,90,Snow,light snow showers
+1728680400000,-12,97,1009,4.5,304,82,Snow,light snow showers
+1728684000000,-12,97,1009,2.9,88,80,Snow,light snow showers
+1728687600000,-12,97,1007,2.4,46,86,Snow,light snow showers
+1728691200000,-12,97,1014,2,303,80,Snow,light snow showers
+1728694800000,-12,97,1018,1.8,128,88,Snow,light snow showers
+1728698400000,-10.6,97,1007,4.1,82,66,Snow,light snow showers
+1728702000000,-9.5,97,1011,4.5,260,72,Snow,light snow showers
+1728705600000,-9.3,97,1008,4.2,312,73,Snow,light snow showers
+1728709200000,-7.3,97,1008,4.3,29,88,Snow,light snow showers
+1728712800000,-7,97,1012,4.5,45,80,Snow,light snow showers
+1728716400000,-7.7,97,1016,5.3,254,68,Snow,light snow showers
+1728720000000,-5.6,95,1014,6.1,133,87,Snow,light snow showers
+1728723600000,-6.2,97,1018,5.9,101,77,Snow,light snow showers
+1728727200000,-7.4,93,1016,5.3,354,78,Snow,light snow showers
+1728730800000,-9.8,97,1017,5.2,168,82,Snow,light snow showers
+1728734400000,-10.7,97,1016,5.2,119,68,Snow,light snow showers
+1728738000000,-11.7,97,1010,4.9,305,79,Snow,light snow showers
+1728741600000,-11,97,1008,4.6,29,88,Snow,light snow showers
+1728745200000,-12,97,1009,4.9,304,82,Snow,light snow showers
+1728748800000,-12,97,1007,3.5,186,83,Snow,light snow showers
+1728752400000,-12,97,1018,2.9,165,88,Snow,light snow showers
+1728756000000,-12,97,1014,2.4,303,80,Snow,light snow showers
+1728759600000,-12,97,1018,1.7,128,88,Snow,light snow showers
+1728763200000,-12,97,1009,2.2,278,77,Snow,light snow showers
+1728766800000,-12,97,1011,4.1,156,87,Snow,light snow showers
+1728770400000,-12,97,1010,3.6,305,79,Snow,light snow showers
+1728774000000,-12,97,1012,4.2,83,68,Snow,light snow showers
+1728777600000,-11.2,97,1010,4,317,84,Snow,light snow showers
+1728781200000,-12,97,1009,4.2,88,80,Snow,light snow showers
+1728784800000,-10.4,97,1007,4.4,46,86,Snow,light snow showers
+1728788400000,-9,97,1017,5.5,164,68,Snow,light snow showers
+1728792000000,-8.9,97,1010,5.8,204,85,Snow,light snow showers
+1728795600000,-7,97,1007,6.3,82,66,Snow,light snow showers
+1728799200000,-6.2,97,1018,6.4,333,70,Snow,light snow showers
+1728802800000,-5.7,93,1008,5.3,312,70,Snow,light snow showers
+1728806400000,-5.6,95,1008,4.8,29,87,Snow,light snow showers
+1728810000000,-5.1,93,1016,5.5,321,71,Snow,light snow showers
+1728813600000,-6.5,97,1016,4.5,254,68,Snow,light snow showers
+1728817200000,-8.1,97,1018,3.3,165,88,Snow,light snow showers
+1728820800000,-7.9,97,1018,4,101,77,Snow,light snow showers
+1728824400000,-10.8,97,1016,2.9,354,82,Snow,light snow showers
+1728828000000,-11,97,1009,1.9,278,77,Snow,light snow showers
+1728831600000,-11.7,97,1016,2.8,119,68,Snow,light snow showers
+1728835200000,-12,97,1010,3.2,305,79,Snow,light snow showers
+1728838800000,-12,97,1012,3.9,122,90,Snow,light snow showers
+1728842400000,-12,97,1009,4.7,304,82,Snow,light snow showers
+1728846000000,-12,97,1009,3.9,88,80,Snow,light snow showers
+1728849600000,-12,97,1007,4.1,46,86,Snow,light snow showers
+1728853200000,-12,97,1014,4.5,303,80,Snow,light snow showers
+1728856800000,-12,97,1018,4.4,128,88,Snow,light snow showers
+1728860400000,-11.9,97,1009,4.8,278,77,Snow,light snow showers
+1728864000000,-11.7,97,1016,5.8,316,85,Snow,light snow showers
+1728867600000,-9.3,97,1015,4.8,122,67,Snow,light snow showers
+1728871200000,-9.2,97,1012,5.3,83,68,Snow,light snow showers
+1728874800000,-9.3,97,1010,4.4,317,84,Snow,light snow showers
+1728878400000,-6.9,97,1007,3.7,184,81,Snow,light snow showers
+1728882000000,-5.7,91,1015,5.3,294,79,Snow,light snow showers
+1728885600000,-3.9,94,1017,4.1,164,66,Snow,light snow showers
+1728889200000,-3.3,88,1010,4.1,111,82,Snow,light snow showers
+1728892800000,-4.3,97,1007,3.8,82,66,Snow,light snow showers
+1728896400000,-3.1,94,1018,3.5,333,68,Snow,light snow showers
+1728900000000,-4.1,92,1015,3.5,170,64,Snow,light snow showers
+1728903600000,-5.6,95,1008,3.3,29,87,Snow,light snow showers
+1728907200000,-6.8,97,1009,4.3,304,82,Snow,light snow showers
+1728910800000,-8,97,1016,4.5,254,68,Snow,light snow showers
+1728914400000,-8.8,97,1018,4,165,88,Snow,light snow showers
+1728918000000,-8.3,97,1014,4.3,303,80,Snow,light snow showers
+1728921600000,-8.3,94,1016,5.1,354,79,Snow,light snow showers
+1728925200000,-9.2,97,1009,4.8,278,77,Snow,light snow showers
+1728928800000,-11.4,97,1011,6.3,156,87,Snow,light snow showers
+1728932400000,-11.9,97,1010,5.3,305,79,Snow,light snow showers
+1728936000000,-12,97,1012,5.4,83,68,Snow,light snow showers
+1728939600000,-10.2,97,1010,4.6,317,84,Snow,light snow showers
+1728943200000,-11.7,97,1009,4.2,88,80,Snow,light snow showers
+1728946800000,-9.8,97,1007,3.8,46,86,Snow,light snow showers
+1728950400000,-8.1,97,1014,3.6,303,80,Snow,light snow showers
+1728954000000,-9,97,1010,4.2,204,85,Snow,light snow showers
+1728957600000,-5.2,97,1007,4.2,82,66,Snow,light snow showers
+1728961200000,-5.2,97,1016,3.3,316,85,Snow,light snow showers
+1728964800000,-3.4,94,1015,1.9,122,64,Snow,light snow showers
+1728968400000,-3.6,97,1012,3.5,294,72,Snow,light snow showers
+1728972000000,-2.2,91,1011,4.4,146,67,Snow,light snow showers
+1728975600000,-0.9,91,1007,3,184,76,Snow,light snow showers
+1728979200000,-2.8,94,1011,5.1,169,84,Snow,light snow showers
+1728982800000,-2.1,92,1017,4.9,164,64,Snow,light snow showers
+1728986400000,-2.2,87,1010,5.7,111,81,Clouds,overcast clouds
+1728990000000,-2.3,93,1018,5.3,83,72,Snow,light snow showers
+1728993600000,-3,94,1018,6.4,333,68,Snow,light snow showers
+1728997200000,-4.7,97,1015,4.6,122,73,Snow,light snow showers
+1729000800000,-4.2,90,1012,6,235,74,Snow,light snow showers
+1729004400000,-5.4,97,1017,5.5,55,70,Snow,light snow showers
+1729008000000,-5.2,97,1017,5.1,107,82,Snow,light snow showers
+1729011600000,-6.8,96,1011,4.2,303,81,Snow,light snow showers
+1729015200000,-8.1,97,1008,4.9,118,81,Snow,light snow showers
+1729018800000,-7.3,97,1008,3.6,299,80,Snow,light snow showers
+1729022400000,-9.2,97,1017,3.9,38,68,Snow,light snow showers
+1729026000000,-6.3,92,1010,3,9,66,Snow,light snow showers
+1729029600000,-5.4,97,1018,3.7,118,70,Snow,light snow showers
+1729033200000,-7.2,97,1010,3.1,141,83,Snow,light snow showers
+1729036800000,-6.2,97,1017,3.7,81,80,Snow,light snow showers
+1729040400000,-2.5,94,1017,3.5,107,79,Snow,light snow showers
+1729044000000,-2.3,96,1014,4.3,348,66,Snow,light snow showers
+1729047600000,-1.9,88,1010,3.6,168,59,Snow,light snow showers
+1729051200000,-0.2,84,1019,4,337,75,Clouds,scattered clouds
+1729054800000,-0.5,93,1017,5.7,316,63,Snow,light snow showers
+1729058400000,2.2,84,1011,6,247,62,Clouds,scattered clouds
+1729062000000,2.6,85,1012,6.4,43,65,Clouds,scattered clouds
+1729065600000,3.1,89,1018,5.8,87,64,Clouds,scattered clouds
+1729069200000,3.2,88,1012,5.1,45,72,Clouds,scattered clouds
+1729072800000,2.7,83,1009,5,132,64,Clouds,scattered clouds
+1729076400000,2.1,82,1009,4.9,14,56,Clouds,scattered clouds
+1729080000000,2.6,85,1016,4.6,44,62,Clouds,scattered clouds
+1729083600000,0,89,1008,4.1,258,78,Snow,light snow showers
+1729087200000,0.1,93,1017,3.9,168,79,Snow,light snow showers
+1729090800000,-0.5,88,1011,4.4,247,65,Clouds,scattered clouds
+1729094400000,-0.9,87,1008,3.3,312,65,Clouds,scattered clouds
+1729098000000,-1.5,90,1008,2.5,29,83,Snow,light snow showers
+1729101600000,-0.9,93,1017,2.8,55,66,Snow,light snow showers
+1729105200000,-2,93,1017,3.1,107,79,Snow,light snow showers
+1729108800000,-2.7,94,1009,3.6,72,64,Snow,light snow showers
+1729112400000,-1.3,92,1008,4.4,118,77,Snow,light snow showers
+1729116000000,-2.1,86,1019,3.7,337,77,Clouds,overcast clouds
+1729119600000,-0.8,94,1017,5.5,316,63,Snow,light snow showers
+1729123200000,0.7,84,1010,4.8,9,59,Clouds,scattered clouds
+1729126800000,1.7,90,1018,6.2,118,64,Snow,light snow showers
+1729130400000,4.3,88,1010,5.9,141,76,Clouds,overcast clouds
+1729134000000,3.4,86,1008,4.6,188,60,Clouds,scattered clouds
+1729137600000,6.1,79,1009,5.1,132,61,Clouds,scattered clouds
+1729141200000,6.3,86,1014,5.6,348,57,Clouds,scattered clouds
+1729144800000,7.8,76,1010,4.2,168,50,Clouds,scattered clouds
+1729148400000,7.1,81,1008,4.4,258,71,Clouds,scattered clouds
+1729152000000,8,79,1012,4.9,308,61,Clouds,scattered clouds
+1729155600000,8.6,77,1011,4.8,247,56,Clouds,scattered clouds
+1729159200000,9.8,74,1008,3.7,312,55,Clouds,scattered clouds
+1729162800000,8.4,83,1018,3.5,87,59,Clouds,scattered clouds
+1729166400000,6.6,84,1012,2.3,45,69,Clouds,scattered clouds
+1729170000000,7.2,75,1016,2.7,17,71,Clouds,scattered clouds
+1729173600000,6.8,76,1009,3.1,14,52,Clouds,scattered clouds
+1729177200000,7,83,1018,4.2,101,65,Clouds,scattered clouds
+1729180800000,6.6,81,1008,3.7,258,72,Clouds,scattered clouds
+1729184400000,4.9,88,1017,4.3,168,74,Clouds,scattered clouds
+1729188000000,4.8,86,1016,4.8,119,59,Clouds,scattered clouds
+1729191600000,5.1,80,1008,5.2,312,59,Clouds,scattered clouds
+1729195200000,4.5,83,1008,5.1,29,77,Clouds,overcast clouds
+1729198800000,4.6,81,1014,4.6,22,77,Clouds,overcast clouds
+1729202400000,5,85,1017,5.4,107,72,Clouds,scattered clouds
+1729206000000,6,86,1014,5.7,348,58,Clouds,scattered clouds
+1729209600000,8.6,76,1010,4.4,168,49,Clouds,scattered clouds
+1729213200000,10.8,70,1019,4.3,337,64,Clouds,scattered clouds
+1729216800000,12,78,1017,5.4,316,51,Clouds,scattered clouds
+1729220400000,11.7,70,1010,4.2,9,49,Clouds,scattered clouds
+1729224000000,12.6,73,1012,4.9,43,55,Clouds,scattered clouds
+1729227600000,13.8,76,1018,3.9,87,54,Clouds,scattered clouds
+1729231200000,16.6,71,1008,2.2,188,47,Clouds,scattered clouds
+1729234800000,15.4,68,1009,2.2,132,52,Clouds,scattered clouds
+1729238400000,17,64,1009,2.7,14,42,Clouds,scattered clouds
+1729242000000,18.1,66,1016,3.1,44,47,Clouds,scattered clouds
+1729245600000,16.1,70,1008,3.4,258,63,Clouds,scattered clouds
+1729249200000,18.4,71,1017,4,168,61,Clouds,scattered clouds
+1729252800000,16.9,67,1011,5.3,247,48,Clouds,scattered clouds
+1729256400000,17,65,1008,5,312,48,Clouds,scattered clouds
+1729260000000,14.7,74,1012,4.3,61,47,Clouds,scattered clouds
+1729263600000,15.1,73,1012,5,45,61,Clouds,scattered clouds
+1729267200000,15.3,77,1016,5.6,254,52,Clouds,scattered clouds
+1729270800000,12.6,69,1009,5.3,14,46,Clouds,scattered clouds
+1729274400000,13.2,75,1018,5.9,101,59,Clouds,scattered clouds
+1729278000000,13.3,68,1016,5.1,354,58,Clouds,scattered clouds
+1729281600000,13.9,77,1017,4.8,168,66,Clouds,scattered clouds
+1729285200000,14.4,75,1016,4.6,119,50,Clouds,scattered clouds
+1729288800000,14.3,72,1017,4.3,322,62,Clouds,scattered clouds
+1729292400000,16.6,68,1008,3.8,29,65,Clouds,scattered clouds
+1729296000000,17.7,73,1009,3.9,304,62,Clouds,scattered clouds
+1729299600000,19.9,65,1007,2.5,186,57,Clouds,scattered clouds
+1729303200000,20.4,69,1014,2.8,348,44,Clouds,scattered clouds
+1729306800000,21,61,1010,2,168,37,Clouds,scattered clouds
+1729310400000,23.4,55,1019,2.6,337,52,Clouds,scattered clouds
+1729314000000,22.7,62,1012,4.3,308,47,Clouds,scattered clouds
+1729317600000,26.4,55,1011,5,247,39,Clouds,scattered clouds
+1729321200000,27.5,55,1012,5.6,43,41,Clouds,scattered clouds
+1729324800000,25.4,62,1018,5.3,87,43,Clouds,scattered clouds
+1729328400000,25.7,61,1012,4.9,45,51,Clouds,scattered clouds
+1729332000000,25.5,53,1016,5.2,17,54,Clouds,scattered clouds
+1729335600000,26.8,52,1009,5.3,14,33,Clouds,scattered clouds
+1729339200000,25.5,60,1018,6,101,48,Clouds,scattered clouds
+1729342800000,25.5,59,1008,4.9,258,54,Clouds,scattered clouds
+1729346400000,23.5,65,1017,5,168,56,Clouds,scattered clouds
+1729350000000,24.7,58,1011,5.7,260,41,Clouds,scattered clouds
+1729353600000,23.9,57,1008,4.7,312,41,Clouds,scattered clouds
+1729357200000,23.7,60,1008,4.1,29,59,Clouds,scattered clouds
+1729360800000,23.4,63,1012,3.5,45,53,Clouds,scattered clouds
+1729364400000,23.1,67,1016,3.5,254,44,Clouds,scattered clouds
+1729368000000,23.1,63,1018,2.3,165,61,Clouds,scattered clouds
+1729371600000,24.1,62,1018,3,101,49,Clouds,scattered clouds
+1729375200000,26,53,1016,2.9,354,46,Clouds,scattered clouds
+1729378800000,27.4,50,1014,3.7,264,33,Clouds,scattered clouds
+1729382400000,27.4,59,1016,3.8,119,38,Clouds,scattered clouds
+1729386000000,30.2,53,1010,4.2,305,44,Clouds,scattered clouds
+1729389600000,30.3,55,1012,4.8,122,56,Clouds,scattered clouds
+1729393200000,31.1,57,1009,5.4,304,50,Clouds,scattered clouds
+1729396800000,34.2,48,1007,4.7,186,43,Clouds,scattered clouds
+1729400400000,33.7,53,1014,5.7,348,31,Clouds,scattered clouds
+1729404000000,34.9,46,1016,5.2,44,31,Clouds,scattered clouds
+1729407600000,36,46,1008,5,258,44,Clouds,scattered clouds
+1729411200000,36,46,1012,5.8,308,34,Clouds,scattered clouds
+1729414800000,36,44,1011,5.9,247,30,Clouds,scattered clouds
+1729418400000,36,43,1008,5,312,30,Clouds,scattered clouds
+1729422000000,36,49,1012,3.8,61,27,Clouds,scattered clouds
+1729425600000,36,48,1012,3.9,45,41,Clouds,scattered clouds
+1729429200000,36,52,1016,3.9,254,32,Clouds,scattered clouds
+1729432800000,35.9,41,1009,3.1,14,24,Clouds,scattered clouds
+1729436400000,34.5,50,1018,3.4,101,39,Clouds,scattered clouds
+1729440000000,34.6,41,1017,1.9,343,31,Clouds,scattered clouds
+1729443600000,32.8,54,1017,2.9,168,48,Clouds,scattered clouds
+1729447200000,33.1,52,1016,3.4,119,32,Clouds,scattered clouds
+1729450800000,34.5,44,1008,4,312,31,Clouds,scattered clouds
+1729454400000,33.7,48,1008,4.2,29,49,Clouds,scattered clouds
+1729458000000,33,54,1009,5.2,304,48,Clouds,scattered clouds
+1729461600000,35.1,53,1016,5.2,254,33,Clouds,scattered clouds
+1729465200000,36,48,1018,4.6,165,48,Clouds,scattered clouds
+1729468800000,36,45,1018,4.5,314,32,Clouds,scattered clouds
+1729472400000,36,41,1016,5.3,354,37,Clouds,scattered clouds
+1729476000000,36,50,1009,4.8,278,39,Clouds,scattered clouds
+1729479600000,36,47,1011,6.2,156,47,Clouds,scattered clouds
+1729483200000,36,46,1010,5,305,39,Clouds,scattered clouds
+1729486800000,36,48,1012,4.9,122,51,Clouds,scattered clouds
+1729490400000,36,51,1009,5,304,45,Clouds,scattered clouds
+1729494000000,36,49,1009,3.4,88,42,Clouds,scattered clouds
+1729497600000,36,47,1007,2.9,46,45,Clouds,scattered clouds
+1729501200000,36,45,1016,3,44,30,Clouds,scattered clouds
+1729504800000,36,46,1008,2.4,258,44,Clouds,scattered clouds
+1729508400000,36,50,1017,2.4,168,44,Clouds,scattered clouds
+1729512000000,36,45,1011,3.9,260,30,Clouds,scattered clouds
+1729515600000,36,43,1008,3.7,312,30,Clouds,scattered clouds
+1729519200000,35.6,46,1008,3.9,29,47,Clouds,scattered clouds
+1729522800000,36,48,1012,4.1,45,41,Clouds,scattered clouds
+1729526400000,33.5,55,1016,4.9,254,34,Clouds,scattered clouds
+1729530000000,34.1,47,1014,5.9,133,49,Clouds,scattered clouds
+1729533600000,34.6,50,1018,5.8,101,39,Clouds,scattered clouds
+1729537200000,32.6,45,1016,5.3,354,40,Clouds,scattered clouds
+1729540800000,35.4,51,1017,5.3,168,45,Clouds,scattered clouds
+1729544400000,34.8,50,1016,5.3,119,30,Clouds,scattered clouds
+1729548000000,35.1,47,1010,5.1,305,40,Clouds,scattered clouds
+1729551600000,36,45,1008,4.9,29,47,Clouds,scattered clouds
+1729555200000,36,51,1009,5.3,304,45,Clouds,scattered clouds
+1729558800000,36,46,1007,4,186,42,Clouds,scattered clouds
+1729562400000,36,48,1018,3.4,165,48,Clouds,scattered clouds
+1729566000000,36,47,1014,3,303,40,Clouds,scattered clouds
+1729569600000,36,49,1018,2.3,128,50,Clouds,scattered clouds
+1729573200000,36,50,1009,2.1,278,39,Clouds,scattered clouds
+1729576800000,36,47,1011,3.6,156,47,Clouds,scattered clouds
+1729580400000,36,46,1010,3,305,39,Clouds,scattered clouds
+1729584000000,36,46,1012,3.7,83,27,Clouds,scattered clouds
+1729587600000,36,45,1010,3.6,317,42,Clouds,scattered clouds
+1729591200000,36,49,1009,3.8,88,42,Clouds,scattered clouds
+1729594800000,36,47,1007,4,46,45,Clouds,scattered clouds
+1729598400000,36,46,1017,5.3,164,27,Clouds,scattered clouds
+1729602000000,36,40,1017,4.7,343,30,Clouds,scattered clouds
+1729605600000,34.9,52,1017,5.2,168,45,Clouds,scattered clouds
+1729609200000,36,49,1016,5.3,119,29,Clouds,scattered clouds
+1729612800000,35.8,43,1008,5.5,312,30,Clouds,scattered clouds
+1729616400000,32.5,49,1008,5.1,29,50,Clouds,scattered clouds
+1729620000000,34.3,46,1016,5.9,321,33,Clouds,scattered clouds
+1729623600000,32.1,57,1016,4.9,254,36,Clouds,scattered clouds
+1729627200000,33.7,50,1018,3.8,165,50,Clouds,scattered clouds
+1729630800000,33.5,51,1018,4.5,101,40,Clouds,scattered clouds
+1729634400000,35,42,1016,3.5,354,38,Clouds,scattered clouds
+1729638000000,34.8,51,1009,2.5,278,40,Clouds,scattered clouds
+1729641600000,36,49,1016,2.5,119,29,Clouds,scattered clouds
+1729645200000,36,46,1010,2.6,305,39,Clouds,scattered clouds
+1729648800000,36,48,1012,3.3,122,51,Clouds,scattered clouds
+1729652400000,36,51,1009,4.2,304,45,Clouds,scattered clouds
+1729656000000,36,49,1009,3.4,88,42,Clouds,scattered clouds
+1729659600000,36,47,1007,3.8,46,45,Clouds,scattered clouds
+1729663200000,36,47,1014,4.2,303,40,Clouds,scattered clouds
+1729666800000,36,49,1018,4.2,128,50,Clouds,scattered clouds
+1729670400000,36,50,1009,4.7,278,39,Clouds,scattered clouds
+1729674000000,36,47,1016,5.8,316,46,Clouds,scattered clouds
+1729677600000,36,46,1015,4.9,122,26,Clouds,scattered clouds
+1729681200000,36,46,1012,5.4,83,27,Clouds,scattered clouds
+1729684800000,36,45,1010,4.7,317,42,Clouds,scattered clouds
+1729688400000,36,46,1007,4.1,184,41,Clouds,scattered clouds
+1729692000000,35.2,42,1015,5.7,294,40,Clouds,scattered clouds
+1729695600000,34.2,48,1017,4.5,164,29,Clouds,scattered clouds
+1729699200000,34.8,43,1010,4.6,111,45,Clouds,scattered clouds
+1729702800000,34.9,52,1017,3.3,168,45,Clouds,scattered clouds
+1729706400000,34.3,51,1016,2.9,119,31,Clouds,scattered clouds
+1729710000000,32.5,48,1015,3.1,170,29,Clouds,scattered clouds
+1729713600000,32.6,49,1008,2.7,29,50,Clouds,scattered clouds
+1729717200000,34.3,53,1009,3.8,304,47,Clouds,scattered clouds
+1729720800000,36,52,1016,4,254,32,Clouds,scattered clouds
+1729724400000,36,48,1018,3.6,165,48,Clouds,scattered clouds
+1729728000000,36,47,1014,3.9,303,40,Clouds,scattered clouds
+1729731600000,36,41,1016,4.8,354,37,Clouds,scattered clouds
+1729735200000,36,50,1009,4.6,278,39,Clouds,scattered clouds
+1729738800000,36,47,1011,6.2,156,47,Clouds,scattered clouds
+1729742400000,36,46,1010,5.3,305,39,Clouds,scattered clouds
+1729746000000,36,46,1012,5.5,83,27,Clouds,scattered clouds
+1729749600000,36,45,1010,4.8,317,42,Clouds,scattered clouds
+1729753200000,36,49,1009,4.5,88,42,Clouds,scattered clouds
+1729756800000,36,47,1007,4.2,46,45,Clouds,scattered clouds
+1729760400000,36,47,1014,4,303,40,Clouds,scattered clouds
+1729764000000,36,44,1010,4.7,204,42,Clouds,scattered clouds
+1729767600000,36,51,1007,4.8,82,29,Clouds,scattered clouds
+1729771200000,36,47,1016,3.8,316,46,Clouds,scattered clouds
+1729774800000,36,46,1015,2.4,122,26,Clouds,scattered clouds
+1729778400000,35,52,1012,3,294,36,Clouds,scattered clouds
+1729782000000,35.2,46,1011,3.8,146,32,Clouds,scattered clouds
+1729785600000,34.1,49,1007,2.5,184,43,Clouds,scattered clouds
+1729789200000,32.4,52,1011,4.6,169,50,Clouds,scattered clouds
+1729792800000,32.1,51,1017,4.5,164,31,Clouds,scattered clouds
+1729796400000,31.4,47,1010,5.3,111,49,Clouds,scattered clouds
+1729800000000,33,44,1014,5.5,45,37,Clouds,scattered clouds
+1729803600000,31.9,54,1016,5.1,119,33,Clouds,scattered clouds
+1729807200000,32.8,50,1010,5.2,305,42,Clouds,scattered clouds
+1729810800000,33.9,48,1008,5.3,29,49,Clouds,scattered clouds
+1729814400000,36,51,1009,5.9,304,45,Clouds,scattered clouds
+1729818000000,36,49,1009,4.6,88,42,Clouds,scattered clouds
+1729821600000,36,48,1018,4.5,165,48,Clouds,scattered clouds
+1729825200000,36,47,1014,4.3,303,40,Clouds,scattered clouds
+1729828800000,36,49,1018,3.7,128,50,Clouds,scattered clouds
+1729832400000,36,50,1009,3.7,278,39,Clouds,scattered clouds
+1729836000000,36,47,1016,4.2,316,46,Clouds,scattered clouds
+1729839600000,36,46,1015,2.8,122,26,Clouds,scattered clouds
+1729843200000,36,46,1012,2.9,83,27,Clouds,scattered clouds
+1729846800000,36,45,1010,2,317,42,Clouds,scattered clouds
+1729850400000,36,49,1009,2.3,88,42,Clouds,scattered clouds
+1729854000000,36,41,1015,4.4,294,39,Clouds,scattered clouds
+1729857600000,36,46,1017,4.1,164,27,Clouds,scattered clouds
+1729861200000,36,44,1010,4.7,204,42,Clouds,scattered clouds
+1729864800000,35.5,52,1007,5.6,82,30,Clouds,scattered clouds
+1729868400000,34.4,49,1018,6,333,32,Clouds,scattered clouds
+1729872000000,33.6,52,1017,5.6,2,46,Clouds,scattered clouds
+1729875600000,33,55,1012,5.9,294,38,Clouds,scattered clouds
+1729879200000,32.6,46,1015,6.2,73,45,Clouds,scattered clouds
+1729882800000,33.3,50,1007,4.5,184,43,Clouds,scattered clouds
+1729886400000,32.5,52,1011,6.1,169,50,Clouds,scattered clouds
+1729890000000,32.1,51,1012,4.2,162,37,Clouds,scattered clouds
+1729893600000,33.9,44,1010,5.6,111,46,Clouds,scattered clouds
+1729897200000,33.1,50,1017,3.8,226,31,Clouds,scattered clouds
+1729900800000,36,49,1016,4.1,119,29,Clouds,scattered clouds
+1729904400000,36,46,1010,3.6,305,39,Clouds,scattered clouds
+1729908000000,36,46,1012,3.3,83,27,Clouds,scattered clouds
+1729911600000,36,51,1009,3.3,304,45,Clouds,scattered clouds
+1729915200000,36,49,1009,1.9,88,42,Clouds,scattered clouds
+1729918800000,36,47,1007,2.3,46,45,Clouds,scattered clouds
+1729922400000,36,47,1014,2.9,303,40,Clouds,scattered clouds
+1729926000000,36,44,1010,4.4,204,42,Clouds,scattered clouds
+1729929600000,36,51,1007,5.3,82,29,Clouds,scattered clouds
+1729933200000,36,47,1016,5.2,316,46,Clouds,scattered clouds
+1729936800000,36,46,1015,4.5,122,26,Clouds,scattered clouds
+1729940400000,36,46,1012,5.3,83,27,Clouds,scattered clouds
+1729944000000,36,45,1011,6.3,146,31,Clouds,scattered clouds
+1729947600000,34.8,48,1007,4.5,184,42,Clouds,scattered clouds
+1729951200000,34.8,42,1015,6.4,294,40,Clouds,scattered clouds
+1729954800000,33.9,49,1017,5.5,164,29,Clouds,scattered clouds
+1729958400000,33.9,44,1010,5.8,111,46,Clouds,scattered clouds
+1729962000000,33.4,51,1018,4.9,83,38,Clouds,scattered clouds
+1729965600000,31.7,53,1018,5.5,333,35,Clouds,scattered clouds
+1729969200000,32.8,53,1015,3.3,122,38,Clouds,scattered clouds
+1729972800000,31.5,57,1012,4.2,294,40,Clouds,scattered clouds
+1729976400000,31.1,48,1015,4,73,46,Clouds,scattered clouds
+1729980000000,31.9,46,1012,2.3,58,31,Clouds,scattered clouds
+1729983600000,32.4,52,1011,3.4,169,50,Clouds,scattered clouds
+1729987200000,33.5,53,1013,3.6,349,31,Clouds,scattered clouds
+1729990800000,36,41,1010,4.3,111,44,Clouds,scattered clouds
+1729994400000,36,46,1017,3.3,226,29,Clouds,scattered clouds
+1729998000000,36,43,1012,5.4,26,44,Clouds,scattered clouds
+1730001600000,36,45,1008,4.1,333,47,Clouds,scattered clouds
+1730005200000,36,47,1013,6,272,39,Clouds,scattered clouds
+1730008800000,36,51,1009,4.4,259,51,Clouds,scattered clouds
+1730012400000,36,47,1017,5.5,8,29,Clouds,scattered clouds
+1730016000000,36,43,1011,5.2,153,40,Clouds,scattered clouds
+1730019600000,36,44,1010,6.2,207,35,Clouds,scattered clouds
+1730023200000,36,46,1012,6,162,45,Clouds,scattered clouds
+1730026800000,36,44,1009,6,272,26,Clouds,scattered clouds
+1730030400000,36,49,1011,4.8,158,39,Clouds,scattered clouds
+1730034000000,35.8,49,1018,5.1,253,29,Clouds,scattered clouds
+1730037600000,35.3,48,1018,3.6,323,38,Clouds,scattered clouds
+1730041200000,33,52,1009,4.4,288,38,Clouds,scattered clouds
+1730044800000,32.6,54,1011,2.4,81,56,Clouds,scattered clouds
+1730048400000,30.4,47,1018,2.3,317,43,Clouds,scattered clouds
+1730052000000,29.5,50,1010,2.3,338,33,Clouds,scattered clouds
+1730055600000,29.9,52,1018,3.9,110,32,Clouds,scattered clouds
+1730059200000,30.1,56,1018,3.7,138,50,Clouds,scattered clouds
+1730062800000,30.6,58,1009,4.8,168,39,Clouds,scattered clouds
+1730066400000,31.1,54,1010,5.1,173,47,Clouds,scattered clouds
+1730070000000,31,47,1013,5.2,152,49,Clouds,scattered clouds
+1730073600000,33.2,46,1012,4.6,22,29,Clouds,scattered clouds
+1730077200000,33.9,48,1017,6.1,38,27,Clouds,scattered clouds
+1730080800000,34,43,1018,5.1,317,40,Clouds,scattered clouds
+1730084400000,35.1,52,1016,4.8,71,40,Clouds,scattered clouds
+1730088000000,35.9,50,1019,4.6,303,40,Clouds,scattered clouds
+1730091600000,36,49,1018,5.3,138,45,Clouds,scattered clouds
+1730095200000,36,43,1016,5.8,298,44,Clouds,scattered clouds
+1730098800000,36,44,1013,4,305,36,Clouds,scattered clouds
+1730102400000,36,47,1013,5.3,272,39,Clouds,scattered clouds
+1730106000000,36,48,1009,4.8,288,35,Clouds,scattered clouds
+1730109600000,36,50,1011,2.8,81,52,Clouds,scattered clouds
+1730113200000,36,43,1011,2.9,153,40,Clouds,scattered clouds
+1730116800000,34.8,45,1010,3.4,207,36,Clouds,scattered clouds
+1730120400000,35.9,46,1012,3.5,162,45,Clouds,scattered clouds
+1730124000000,33.3,51,1011,3.4,338,39,Clouds,scattered clouds
+1730127600000,30.9,57,1009,4.4,168,39,Clouds,scattered clouds
+1730131200000,31.7,54,1018,4.8,253,33,Clouds,scattered clouds
+1730134800000,30.5,53,1018,4.1,323,43,Clouds,scattered clouds
+1730138400000,30.1,50,1012,4.4,22,32,Clouds,scattered clouds
+1730142000000,29.5,51,1012,6,255,36,Clouds,scattered clouds
+1730145600000,29.2,49,1018,5,317,45,Clouds,scattered clouds
+1730149200000,29.3,59,1016,4.8,71,45,Clouds,scattered clouds
+1730152800000,28.9,53,1018,6.1,110,33,Clouds,scattered clouds
+1730156400000,29.7,57,1018,5.4,138,51,Clouds,scattered clouds
+1730160000000,31.1,51,1017,5.6,232,51,Clouds,scattered clouds
+1730163600000,32.3,52,1010,5.6,173,46,Clouds,scattered clouds
+1730167200000,33.3,55,1015,3.9,127,35,Clouds,scattered clouds
+1730170800000,34.3,44,1012,3.9,22,28,Clouds,scattered clouds
+1730174400000,36,46,1017,4.7,38,25,Clouds,scattered clouds
+1730178000000,36,47,1015,3.9,357,32,Clouds,scattered clouds
+1730181600000,35.7,52,1016,2.4,71,39,Clouds,scattered clouds
+1730185200000,36,50,1019,1.7,303,40,Clouds,scattered clouds
+1730188800000,35.3,43,1014,3.3,294,45,Clouds,scattered clouds
+1730192400000,36,43,1016,4.2,298,44,Clouds,scattered clouds
+1730196000000,35.7,47,1016,4.2,254,28,Clouds,scattered clouds
+1730199600000,34.9,50,1013,3.8,99,28,Clouds,scattered clouds
+1730203200000,35.2,49,1009,5.4,288,36,Clouds,scattered clouds
+1730206800000,32,55,1011,4.2,81,56,Clouds,scattered clouds
+1730210400000,32.2,47,1011,5,153,44,Clouds,scattered clouds
+1730214000000,30.2,49,1010,4.9,338,32,Clouds,scattered clouds
+1730217600000,29.7,52,1018,6.1,110,32,Clouds,scattered clouds
+1730221200000,27.4,58,1011,5.6,338,45,Clouds,scattered clouds
+1730224800000,28.5,60,1009,6,168,41,Clouds,scattered clouds
+1730228400000,27.7,58,1010,5.8,173,51,Clouds,scattered clouds
+1730232000000,28.3,50,1013,5.4,152,51,Clouds,scattered clouds
+1730235600000,27.3,53,1012,4.2,22,35,Clouds,scattered clouds
+1730239200000,26.3,57,1017,5.1,38,34,Clouds,scattered clouds
+1730242800000,28,50,1018,3.6,317,46,Clouds,scattered clouds
+1730246400000,29,60,1016,2.8,71,46,Clouds,scattered clouds
+1730250000000,30.8,52,1018,2.4,228,41,Clouds,scattered clouds
+1730253600000,32,54,1018,2.5,138,49,Clouds,scattered clouds
+1730257200000,31.7,48,1016,3.8,298,48,Clouds,scattered clouds
+1730260800000,33.9,51,1010,4,173,45,Clouds,scattered clouds
+1730264400000,33.2,55,1015,3.1,127,35,Clouds,scattered clouds
+1730268000000,33.7,44,1018,4.2,206,36,Clouds,scattered clouds
+1730271600000,33.4,49,1017,5.5,38,27,Clouds,scattered clouds
+1730275200000,33.1,50,1015,5.3,357,35,Clouds,scattered clouds
+1730278800000,32.9,50,1012,5.5,288,32,Clouds,scattered clouds
+1730282400000,33.8,53,1019,4.6,303,42,Clouds,scattered clouds
+1730286000000,33.9,50,1014,4.7,262,32,Clouds,scattered clouds
+1730289600000,32.7,45,1018,5.9,130,30,Clouds,scattered clouds
+1730293200000,29.9,54,1016,5.7,254,33,Clouds,scattered clouds
+1730296800000,28.5,58,1013,4.7,99,34,Clouds,scattered clouds
+1730300400000,28.4,57,1009,5.7,288,42,Clouds,scattered clouds
+1730304000000,27.9,53,1012,5.4,255,38,Clouds,scattered clouds
+1730307600000,24.8,54,1018,3.9,317,49,Clouds,scattered clouds
+1730311200000,25.2,55,1010,3.4,338,37,Clouds,scattered clouds
+1730314800000,25.5,57,1018,4,110,36,Clouds,scattered clouds
+1730318400000,23.2,65,1018,2.9,138,57,Clouds,scattered clouds
+1730322000000,25.7,57,1017,2.9,232,56,Clouds,scattered clouds
+1730325600000,24.8,61,1010,3.6,173,53,Clouds,scattered clouds
+1730329200000,26,64,1015,2.7,127,42,Clouds,scattered clouds
+1730332800000,25.4,55,1012,3.5,22,37,Clouds,scattered clouds
+1730336400000,26.8,57,1017,5.2,38,34,Clouds,scattered clouds
+1730340000000,28.4,54,1011,5.2,259,35,Clouds,scattered clouds
+1730343600000,27,62,1016,4.4,71,48,Clouds,scattered clouds
+1730347200000,28.5,59,1019,4.4,303,47,Clouds,scattered clouds
+1730350800000,29.2,57,1018,5.4,138,51,Clouds,scattered clouds
+1730354400000,30,50,1016,6.2,298,50,Clouds,scattered clouds
+1730358000000,30.2,54,1016,5.8,254,33,Clouds,scattered clouds
+1730361600000,29.2,60,1015,4.5,127,39,Clouds,scattered clouds
+1730365200000,30.1,49,1018,5,206,40,Clouds,scattered clouds
+1730368800000,29.2,58,1012,5.8,250,46,Clouds,scattered clouds
+1730372400000,27.4,57,1015,4.9,357,40,Clouds,scattered clouds
+1730376000000,27.1,53,1007,4.8,340,53,Clouds,scattered clouds
+1730379600000,25,60,1017,3.8,93,50,Clouds,scattered clouds
+1730383200000,24.8,61,1014,2.6,262,41,Clouds,scattered clouds
+1730386800000,21.5,58,1018,3.2,130,41,Clouds,scattered clouds
+1730390400000,22.9,62,1016,3,254,40,Clouds,scattered clouds
+1730394000000,22.1,58,1012,3.7,235,49,Clouds,scattered clouds
+1730397600000,18.5,70,1008,2.6,280,62,Clouds,scattered clouds
+1730401200000,17.8,65,1012,4.8,255,47,Clouds,scattered clouds
+1730404800000,19.9,60,1018,4.1,317,53,Clouds,scattered clouds
+1730408400000,17.8,73,1016,4.2,71,56,Clouds,scattered clouds
+1730412000000,17.8,68,1018,4.6,228,54,Clouds,scattered clouds
+1730415600000,18.7,70,1018,5.3,138,61,Clouds,scattered clouds
+1730419200000,18,65,1016,6.2,298,61,Clouds,scattered clouds
